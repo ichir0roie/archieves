@@ -1,0 +1,10 @@
+[submodule "back"]
+	path = back
+	url = https://github.com/ichir0roie/archieves-back.git
+	branch = develop
+	ignore = all
+[submodule "front"]
+	path = front
+	url = https://github.com/ichir0roie/archieves-front.git
+	branch = develop
+	ignore = all
