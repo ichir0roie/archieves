@@ -1,10 +1,10 @@
-[submodule "back"]
-	path = back
+[submodule "source/back"]
+	path = source/back
 	url = https://github.com/ichir0roie/archieves-back.git
 	branch = develop
 	ignore = all
-[submodule "front"]
-	path = front
+[submodule "source/front"]
+	path = source/front
 	url = https://github.com/ichir0roie/archieves-front.git
 	branch = develop
 	ignore = all
