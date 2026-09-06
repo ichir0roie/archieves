@@ -1,9 +1,9 @@
-[submodule "source/back"]
+[submodule "back"]
 	path = source/back
 	url = https://github.com/ichir0roie/archieves-back.git
 	branch = develop
 	ignore = all
-[submodule "source/front"]
+[submodule "front"]
 	path = source/front
 	url = https://github.com/ichir0roie/archieves-front.git
 	branch = develop
