@@ -1,30 +1,20 @@
 # archieves
 
+モノレポ構成。フロントエンドとバックエンドを1リポジトリで管理する。
+
 ## リポジトリ構成
 
-- [archieves](https://github.com/ichir0roie/archieves.git)（このリポジトリ）: ドキュメント・全体管理
-- [archieves-front](https://github.com/ichir0roie/archieves-front.git)（`front` サブモジュール）: フロントエンド
-- [archieves-back](https://github.com/ichir0roie/archieves-back.git)（`back` サブモジュール）: バックエンド
+- `source/front`: フロントエンド ([旧 archieves-front](https://github.com/ichir0roie/archieves-front))
+- `source/back`: バックエンド ([旧 archieves-back](https://github.com/ichir0roie/archieves-back))
+- `docs`: 要件・設計ドキュメント
 
-## 初期セットアップ
-
-`front`, `back` はサブモジュールとして設定されている。クローン時にまとめて取得する。
+## セットアップ
 
 ```sh
-git clone --recurse-submodules https://github.com/ichir0roie/archieves.git
+git clone https://github.com/ichir0roie/archieves.git
 ```
 
-既にクローン済みの場合は以下でサブモジュールを取得する。
-
-```sh
-git submodule update --init --recursive
-```
-
-`front`, `back` はいずれも `develop` ブランチを追跡する。最新に更新する場合は以下を実行する。
-
-```sh
-git submodule update --remote
-```
+front, backそれぞれのセットアップ手順は各ディレクトリの `README.md` を参照。
 
 ## ブランチ運用
 
