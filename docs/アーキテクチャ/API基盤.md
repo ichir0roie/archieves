@@ -6,7 +6,8 @@ archieves-api リポジトリに、以下の構成でAPIの雛形を実装した
 
 - Python / FastAPI / SQLAlchemy 2.0
 - Alembic（マイグレーション）
-- PostgreSQL（本番は RDS を想定）
+- PostgreSQL（RDS for PostgreSQL, `db.t4g.micro`, Single-AZ, 3年RI・前払いなしを採用。詳細は [データベース/postgresql_on_aws.md](../インフラ/データベース/postgresql_on_aws.md) を参照）
+- フロントエンド: Next.js（Amplify Hosting でデプロイ）
 
 ## 実行環境
 
@@ -15,7 +16,18 @@ archieves-api リポジトリに、以下の構成でAPIの雛形を実装した
   - アプリ側は普通の ASGI アプリ（uvicorn）のままで、Lambda 専用のハンドラコード（Mangum等）が不要。
   - ローカル(`docker run` / `docker compose`)と Lambda 上で同一イメージがそのまま動く。
 - API Gateway（HTTP API）経由でリクエストを受ける。
-- DB は Lambda から VPC 経由で PostgreSQL(RDS) に接続する想定。
+- フロントエンド(Next.js)はAmplify Hostingでビルド・配信し、ブラウザ/SSRからAPI GatewayのエンドポイントをfetchするクライアントAPI呼び出し構成とする(CORS設定が必要)。
+
+### DB接続方式（RDSへの接続設計）
+
+Lambdaはデフォルトでは VPC の外(AWS管理ネットワーク)で動作するため、`publicly accessible`を無効にしたRDSに繋ぐには、Lambdaを同一VPCにアタッチしプライベートエンドポイント経由で接続する方式を採る。RDSを公開設定にしてLambda非VPCから繋ぐ方式は、Lambda(非VPC)の送信元IPが固定されずセキュリティグループでの絞り込みが実質機能しないため採用しない。
+
+VPCアタッチを採用する場合の注意点:
+
+- LambdaをVPCにアタッチした状態でSecrets Managerなど外部APIを呼ぶとNAT Gateway(または各種VPCインターフェースエンドポイント)が必要になり、[コスト最適化の検討](../インフラ/データベース/postgresql_on_aws.md)で問題視したNAT費用が再発する。**DB接続文字列はSecrets ManagerではなくLambdaの環境変数(暗号化済み)で持たせ、NATなしでVPC内完結させる。**
+- VPCアタッチによるコールドスタート増加は、Hyperplane ENI採用以降は軽微(数百ms程度)なので許容範囲。
+- **コネクションプールに注意**: Lambdaの同時実行数増加でPostgresの`max_connections`(`db.t4g.micro`では目安100前後)を使い切る可能性がある。同時アクセスが増えてきたらRDS Proxyの追加を検討する(追加コストあり)。
+- 単一障害点対策(AZ障害への耐性)が必要になったら、Single-AZからMulti-AZへの変更を検討する。詳細は[データベース/postgresql_on_aws.md](../インフラ/データベース/postgresql_on_aws.md)の「将来的な移行の目安」を参照。
 
 ## 雛形に含まれるもの
 
@@ -25,7 +37,7 @@ archieves-api リポジトリに、以下の構成でAPIの雛形を実装した
 - `Dockerfile`（Lambda Web Adapter 組み込み）
 - `docker-compose.yml`（ローカル開発用: API + Postgres）
 - `template.yaml`（AWS SAM: Lambda(イメージ) + API Gateway HTTP API の雛形。
-  RDS自体はこのテンプレートの範囲外で、別途構築したDB接続文字列をSecrets Managerから渡す想定）
+  RDS自体はこのテンプレートの範囲外で、上記の通りDB接続文字列はSecrets ManagerではなくLambda環境変数経由で渡す想定）
 - pytest によるテスト一式
 
 詳細は archieves-api リポジトリの README を参照。
