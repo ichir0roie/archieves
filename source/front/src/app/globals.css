@@ -1,0 +1,37 @@
+@import "tailwindcss";
+@import "@aws-amplify/ui-react/styles.css";
+
+html {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
+    "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: linear-gradient(
+    135deg,
+    #eff6ff 0%,
+    #eef2ff 50%,
+    #faf5ff 100%
+  );
+  background-attachment: fixed;
+}
+
+/* Amplify UI のカスタマイズ */
+[data-amplify-authenticator] {
+  --amplify-colors-brand-primary-80: #667eea;
+  --amplify-colors-brand-primary-90: #764ba2;
+  --amplify-colors-brand-primary-100: #5a6fd8;
+}
+
+/* * {
+  padding: 1px;
+  margin: 1px;
+} */
