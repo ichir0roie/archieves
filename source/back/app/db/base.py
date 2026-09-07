@@ -1,0 +1,8 @@
+# Imported by Alembic (see alembic/env.py) and by app.db's __init__ so every
+# model is registered on Base.metadata before autogenerate/create_all inspects it.
+# Add new models here as they're created.
+from app.db.base_class import Base  # noqa: F401
+from app.db.models.game_model import End, Game, Match, Point, Round  # noqa: F401
+from app.db.models.system_model import Organization, Region, User  # noqa: F401
+
+from sqlalchemy import select, update, delete
