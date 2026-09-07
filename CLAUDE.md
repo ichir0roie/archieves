@@ -1,19 +1,21 @@
 # archieves
 
-## リポジトリ設定
+## リポジトリ構成
 
 <https://github.com/ichir0roie/archieves.git>
 
-フロントエンドのリポジトリ
-<https://github.com/ichir0roie/archieves-front.git>
-バックエンドのリポジトリ
-<https://github.com/ichir0roie/archieves-back.git>
+モノレポ。フロントエンドとバックエンドを含む。
 
-claude code web版で作業する場合は、この3つを参照し、編集する。
+- `source/front`: フロントエンド (Next.js)
+- `source/back`: バックエンド
 
-front,backはサブモジュールとして設定されている。はじめにクローンすること。
+各アプリ固有の規約・コマンドはそれぞれの `CLAUDE.md` を参照:
 
-クラウド環境で作業する場合は、
+- [`source/front/CLAUDE.md`](source/front/CLAUDE.md)
+- [`source/back/CLAUDE.md`](source/back/CLAUDE.md)
+
+## ブランチ運用
+
 developブランチをベースのブランチとして、作業用のブランチを作成して作業すること。
 作業後のマージブランチもdevelop。
 
@@ -21,4 +23,4 @@ developブランチをベースのブランチとして、作業用のブラン�
 
 ## claude ドキュメント関連
 
-要件、設計に関する情報はdocsに記載して、適宜読み取る。
+要件、設計に関する情報は [docs](docs) に記載して、適宜読み取る。カテゴリ別の一覧は [docs/README.md](docs/README.md) を参照。

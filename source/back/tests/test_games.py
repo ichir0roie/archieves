@@ -1,0 +1,367 @@
+from fastapi.testclient import TestClient
+
+RECORDED_AT = "2026-01-01T00:00:00Z"
+
+
+def _create_user(client: TestClient, name: str = "Yumi") -> dict:
+    res = client.post("/api/v1/users", json={"name": name})
+    assert res.status_code == 201
+    return res.json()
+
+
+def _create_game(client: TestClient, *, user_id: int | None = None) -> dict:
+    if user_id is None:
+        user_id = _create_user(client)["id"]
+    payload = {"recorded_at": RECORDED_AT, "user_id": user_id}
+    res = client.post("/api/v1/games", json=payload)
+    assert res.status_code == 201
+    return res.json()
+
+
+def _create_round(client: TestClient, game_id: int) -> dict:
+    payload = {
+        "number": 1,
+        "recorded_at": RECORDED_AT,
+        "end_size": 6,
+        "distance_m": 30,
+        "target_type": "122cm",
+    }
+    res = client.post(f"/api/v1/games/{game_id}/rounds", json=payload)
+    assert res.status_code == 201
+    return res.json()
+
+
+def _create_end(client: TestClient, round_id: int) -> dict:
+    payload = {"number": 1, "recorded_at": RECORDED_AT}
+    res = client.post(f"/api/v1/rounds/{round_id}/ends", json=payload)
+    assert res.status_code == 201
+    return res.json()
+
+
+def _create_point(client: TestClient, end_id: int) -> dict:
+    payload = {"number": 1, "score": 9, "x": 1.5, "y": -2.5, "recorded_at": RECORDED_AT}
+    res = client.post(f"/api/v1/ends/{end_id}/points", json=payload)
+    assert res.status_code == 201
+    return res.json()
+
+
+def test_creating_game_without_user_id_returns_422(client: TestClient) -> None:
+    res = client.post("/api/v1/games", json={"recorded_at": RECORDED_AT})
+    assert res.status_code == 422
+
+
+def test_create_and_get_game(client: TestClient) -> None:
+    game = _create_game(client)
+
+    get_res = client.get(f"/api/v1/games/{game['id']}")
+    assert get_res.status_code == 200
+    assert get_res.json() == game
+
+
+def test_get_missing_game_returns_404(client: TestClient) -> None:
+    response = client.get("/api/v1/games/999")
+    assert response.status_code == 404
+
+
+def test_list_games_filters_by_user_id(client: TestClient) -> None:
+    user_id = _create_user(client)["id"]
+
+    own_game = client.post(
+        "/api/v1/games", json={"recorded_at": RECORDED_AT, "user_id": user_id}
+    ).json()
+    _create_game(client)
+
+    response = client.get(f"/api/v1/games?user_id={user_id}")
+    assert response.status_code == 200
+    assert [g["id"] for g in response.json()] == [own_game["id"]]
+
+
+def test_update_and_delete_game(client: TestClient) -> None:
+    game = _create_game(client)
+
+    new_recorded_at = "2026-02-01T00:00:00Z"
+    patch_res = client.patch(
+        f"/api/v1/games/{game['id']}", json={"recorded_at": new_recorded_at}
+    )
+    assert patch_res.status_code == 200
+    assert patch_res.json()["recorded_at"] == "2026-02-01"
+
+    delete_res = client.delete(f"/api/v1/games/{game['id']}")
+    assert delete_res.status_code == 204
+
+    assert client.get(f"/api/v1/games/{game['id']}").status_code == 404
+
+
+def test_create_round_under_missing_game_returns_404(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/games/999/rounds",
+        json={
+            "number": 1,
+            "recorded_at": RECORDED_AT,
+            "end_size": 6,
+            "distance_m": 30,
+            "target_type": "122cm",
+        },
+    )
+    assert response.status_code == 404
+
+
+def test_full_hierarchy_create_and_list(client: TestClient) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+    end = _create_end(client, round_["id"])
+    point = _create_point(client, end["id"])
+
+    assert round_["game_id"] == game["id"]
+    assert end["round_id"] == round_["id"]
+    assert point["end_id"] == end["id"]
+
+    rounds_res = client.get(f"/api/v1/games/{game['id']}/rounds")
+    assert rounds_res.status_code == 200
+    assert [r["id"] for r in rounds_res.json()] == [round_["id"]]
+
+    ends_res = client.get(f"/api/v1/rounds/{round_['id']}/ends")
+    assert ends_res.status_code == 200
+    assert [e["id"] for e in ends_res.json()] == [end["id"]]
+
+    points_res = client.get(f"/api/v1/ends/{end['id']}/points")
+    assert points_res.status_code == 200
+    assert [p["id"] for p in points_res.json()] == [point["id"]]
+
+
+def test_deleting_game_cascades_to_children(client: TestClient) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+    end = _create_end(client, round_["id"])
+    point = _create_point(client, end["id"])
+
+    assert client.delete(f"/api/v1/games/{game['id']}").status_code == 204
+
+    assert client.get(f"/api/v1/rounds/{round_['id']}").status_code == 404
+    assert client.get(f"/api/v1/ends/{end['id']}").status_code == 404
+    assert client.get(f"/api/v1/points/{point['id']}").status_code == 404
+
+
+def test_deleting_game_is_a_soft_delete_and_is_restorable(client: TestClient) -> None:
+    game = _create_game(client)
+
+    assert client.delete(f"/api/v1/games/{game['id']}").status_code == 204
+    assert client.get(f"/api/v1/games/{game['id']}").status_code == 404
+    assert game["id"] not in [g["id"] for g in client.get("/api/v1/games").json()]
+
+    trash = client.get("/api/v1/trash/games")
+    assert trash.status_code == 200
+    trashed_ids = [g["id"] for g in trash.json()]
+    assert game["id"] in trashed_ids
+    assert trash.json()[trashed_ids.index(game["id"])]["deleted_at"] is not None
+
+    restore_res = client.post(f"/api/v1/games/{game['id']}/restore")
+    assert restore_res.status_code == 200
+    assert restore_res.json()["deleted_at"] is None
+
+    get_res = client.get(f"/api/v1/games/{game['id']}")
+    assert get_res.status_code == 200
+    assert get_res.json()["deleted_at"] is None
+    assert game["id"] not in [g["id"] for g in client.get("/api/v1/trash/games").json()]
+
+
+def test_restoring_a_game_that_is_not_deleted_returns_400(client: TestClient) -> None:
+    game = _create_game(client)
+    assert client.post(f"/api/v1/games/{game['id']}/restore").status_code == 400
+
+
+def test_restoring_missing_game_returns_404(client: TestClient) -> None:
+    assert client.post("/api/v1/games/999/restore").status_code == 404
+
+
+def test_deleting_round_is_a_soft_delete_and_hides_its_children(client: TestClient) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+    end = _create_end(client, round_["id"])
+    point = _create_point(client, end["id"])
+
+    assert client.delete(f"/api/v1/rounds/{round_['id']}").status_code == 204
+
+    assert client.get(f"/api/v1/rounds/{round_['id']}").status_code == 404
+    assert client.get(f"/api/v1/ends/{end['id']}").status_code == 404
+    assert client.get(f"/api/v1/points/{point['id']}").status_code == 404
+    # The game itself is untouched.
+    assert client.get(f"/api/v1/games/{game['id']}").status_code == 200
+
+    trash = client.get("/api/v1/trash/rounds")
+    assert trash.status_code == 200
+    assert round_["id"] in [r["id"] for r in trash.json()]
+
+    restore_res = client.post(f"/api/v1/rounds/{round_['id']}/restore")
+    assert restore_res.status_code == 200
+    assert restore_res.json()["deleted_at"] is None
+
+    assert client.get(f"/api/v1/rounds/{round_['id']}").status_code == 200
+    assert client.get(f"/api/v1/ends/{end['id']}").status_code == 200
+    assert client.get(f"/api/v1/points/{point['id']}").status_code == 200
+
+
+def test_restoring_a_round_that_is_not_deleted_returns_400(client: TestClient) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+    assert client.post(f"/api/v1/rounds/{round_['id']}/restore").status_code == 400
+
+
+def test_deleted_games_and_rounds_are_excluded_from_normal_listings(
+    client: TestClient,
+) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+    assert client.delete(f"/api/v1/rounds/{round_['id']}").status_code == 204
+
+    assert round_["id"] not in [
+        r["id"] for r in client.get(f"/api/v1/games/{game['id']}/rounds").json()
+    ]
+
+
+def test_get_missing_round_returns_404(client: TestClient) -> None:
+    response = client.get("/api/v1/rounds/999")
+    assert response.status_code == 404
+
+
+def test_update_round(client: TestClient) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+
+    patch_res = client.patch(f"/api/v1/rounds/{round_['id']}", json={"distance_m": 50})
+    assert patch_res.status_code == 200
+    body = patch_res.json()
+    assert body["distance_m"] == 50
+    assert body["target_type"] == round_["target_type"]
+
+
+def test_update_missing_round_returns_404(client: TestClient) -> None:
+    response = client.patch("/api/v1/rounds/999", json={"distance_m": 50})
+    assert response.status_code == 404
+
+
+def test_restoring_missing_round_returns_404(client: TestClient) -> None:
+    assert client.post("/api/v1/rounds/999/restore").status_code == 404
+
+
+def test_list_deleted_rounds_filters_by_game_id_and_user_id(client: TestClient) -> None:
+    user_res = client.post("/api/v1/users", json={"name": "Yumi"})
+    user_id = user_res.json()["id"]
+
+    own_game_res = client.post(
+        "/api/v1/games", json={"recorded_at": RECORDED_AT, "user_id": user_id}
+    )
+    own_game = own_game_res.json()
+    own_round = _create_round(client, own_game["id"])
+
+    other_game = _create_game(client)
+    other_round = _create_round(client, other_game["id"])
+
+    assert client.delete(f"/api/v1/rounds/{own_round['id']}").status_code == 204
+    assert client.delete(f"/api/v1/rounds/{other_round['id']}").status_code == 204
+
+    by_game = client.get(f"/api/v1/trash/rounds?game_id={own_game['id']}")
+    assert by_game.status_code == 200
+    assert [r["id"] for r in by_game.json()] == [own_round["id"]]
+
+    by_user = client.get(f"/api/v1/trash/rounds?user_id={user_id}")
+    assert by_user.status_code == 200
+    assert [r["id"] for r in by_user.json()] == [own_round["id"]]
+
+
+def test_list_ends_under_missing_round_returns_404(client: TestClient) -> None:
+    response = client.get("/api/v1/rounds/999/ends")
+    assert response.status_code == 404
+
+
+def test_create_end_under_missing_round_returns_404(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/rounds/999/ends",
+        json={"number": 1, "recorded_at": RECORDED_AT},
+    )
+    assert response.status_code == 404
+
+
+def test_get_missing_end_returns_404(client: TestClient) -> None:
+    response = client.get("/api/v1/ends/999")
+    assert response.status_code == 404
+
+
+def test_update_end(client: TestClient) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+    end = _create_end(client, round_["id"])
+
+    patch_res = client.patch(f"/api/v1/ends/{end['id']}", json={"number": 2})
+    assert patch_res.status_code == 200
+    assert patch_res.json()["number"] == 2
+
+
+def test_update_missing_end_returns_404(client: TestClient) -> None:
+    response = client.patch("/api/v1/ends/999", json={"number": 2})
+    assert response.status_code == 404
+
+
+def test_delete_end_directly(client: TestClient) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+    end = _create_end(client, round_["id"])
+
+    delete_res = client.delete(f"/api/v1/ends/{end['id']}")
+    assert delete_res.status_code == 204
+    assert client.get(f"/api/v1/ends/{end['id']}").status_code == 404
+
+
+def test_delete_missing_end_returns_404(client: TestClient) -> None:
+    response = client.delete("/api/v1/ends/999")
+    assert response.status_code == 404
+
+
+def test_list_points_under_missing_end_returns_404(client: TestClient) -> None:
+    response = client.get("/api/v1/ends/999/points")
+    assert response.status_code == 404
+
+
+def test_create_point_under_missing_end_returns_404(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/ends/999/points",
+        json={"number": 1, "score": 9, "x": 0.0, "y": 0.0, "recorded_at": RECORDED_AT},
+    )
+    assert response.status_code == 404
+
+
+def test_get_missing_point_returns_404(client: TestClient) -> None:
+    response = client.get("/api/v1/points/999")
+    assert response.status_code == 404
+
+
+def test_update_point(client: TestClient) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+    end = _create_end(client, round_["id"])
+    point = _create_point(client, end["id"])
+
+    patch_res = client.patch(f"/api/v1/points/{point['id']}", json={"score": 5})
+    assert patch_res.status_code == 200
+    assert patch_res.json()["score"] == 5
+
+
+def test_update_missing_point_returns_404(client: TestClient) -> None:
+    response = client.patch("/api/v1/points/999", json={"score": 5})
+    assert response.status_code == 404
+
+
+def test_delete_point_directly(client: TestClient) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+    end = _create_end(client, round_["id"])
+    point = _create_point(client, end["id"])
+
+    delete_res = client.delete(f"/api/v1/points/{point['id']}")
+    assert delete_res.status_code == 204
+    assert client.get(f"/api/v1/points/{point['id']}").status_code == 404
+
+
+def test_delete_missing_point_returns_404(client: TestClient) -> None:
+    response = client.delete("/api/v1/points/999")
+    assert response.status_code == 404
