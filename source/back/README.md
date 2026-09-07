@@ -48,13 +48,13 @@ cp .env.example .env
 docker compose -f .build/docker-compose.yml up --build
 ```
 
-The API is then available at http://localhost:8080 (docs at `/docs`), and
+The API is then available at <http://localhost:8080> (docs at `/docs`), and
 Postgres at `localhost:5432`.
 
 Without Docker:
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python3.14 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env   # point DATABASE_URL at a local Postgres
 alembic upgrade head
