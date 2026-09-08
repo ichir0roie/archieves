@@ -3,6 +3,7 @@
 import { Button } from "@mui/material";
 import { PointRead } from "@/lib/api";
 import { bgColorPallet, scoreToStr } from "@/modules/data/score/scoreFunctions";
+import { DEFAULT_TARGET_TYPE_ID, getTargetType } from "@/modules/data/score/scoreConfig";
 
 interface Props {
   points: Array<PointRead> | null | undefined;
@@ -11,22 +12,26 @@ interface Props {
   back: () => void;
   finish: () => void;
   pointSize: number | null | undefined;
+  targetType?: string;
   /** True while a previous entry's API call is still in flight; blocks further taps so they can't race it. */
   disabled?: boolean;
 }
 
-// Highest score first (X, 10, 9, ... 1, miss) to read like a target's rings.
-const SCORE_VALUES = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
+/** Highest score first (X/10, 9, ... 1, miss) to read like a target's rings. */
+function scoreValues(ringCount: number): number[] {
+  return Array.from({ length: ringCount + 1 }, (_, i) => ringCount - i);
+}
 
 export default function SimpleScoreInput(props: Props) {
   const isEndFull =
     props.pointSize != null && (props.points?.length ?? 0) >= props.pointSize;
+  const ringCount = getTargetType(props.targetType ?? DEFAULT_TARGET_TYPE_ID)?.ringCount ?? 11;
 
   return (
     <div className="SimpleScoreInput flex h-full w-full flex-col">
       <div className="flex flex-1 items-center justify-center overflow-y-auto px-4 py-4">
         <div className="grid grid-cols-4 gap-3 w-full max-w-md">
-          {SCORE_VALUES.map((score) => (
+          {scoreValues(ringCount).map((score) => (
             <button
               key={score}
               disabled={isEndFull || props.disabled}

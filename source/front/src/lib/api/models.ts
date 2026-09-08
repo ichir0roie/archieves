@@ -61,6 +61,9 @@ export interface Point extends BaseEntity {
   score: number;
   x: number;
   y: number;
+  /** x/y converted to real-world centimeters from the round's target size; null when unresolvable. */
+  x_cm: number | null;
+  y_cm: number | null;
   recorded_at: string;
 }
 
