@@ -2,6 +2,8 @@
 
 前提: [postgresql_on_aws.md](postgresql_on_aws.md) の結論通り、RDSは`publicly accessible`を無効にした非公開構成。ここではローカル開発機からこの非公開RDSに繋ぐ方法を決める。
 
+
+
 ## 結論(決定): EC2 Instance Connect Endpoint (EICエンドポイント) を採用
 
 - 踏み台EC2やNAT Gatewayを一切使わず、AWSマネージドの「EC2 Instance Connect Endpoint」経由でローカルからRDSへTCPトンネルを張る
@@ -82,7 +84,6 @@ RDS_ENDPOINT=$(aws rds describe-db-instances \
 dig +short $RDS_ENDPOINT
 ```
 
-> Single-AZ構成でもメンテナンス等でIPが変わることがあるため、接続の都度この手順でIPを再確認するのが確実。
 
 ### 5. ローカルからトンネルを張る
 
