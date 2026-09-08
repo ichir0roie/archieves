@@ -1,44 +1,3 @@
-# front (Next.js)
-source/front/node_modules
-source/front/.pnp
-source/front/.pnp.*
-source/front/.yarn/*
-!source/front/.yarn/patches
-!source/front/.yarn/plugins
-!source/front/.yarn/releases
-!source/front/.yarn/versions
-source/front/coverage
-source/front/test-results/
-source/front/playwright-report/
-source/front/blob-report/
-source/front/playwright/.cache/
-source/front/.next/
-source/front/out/
-source/front/build
-source/front/*.tsbuildinfo
-source/front/next-env.d.ts
-source/front/.amplify
-source/front/amplify_outputs*
-!source/front/amplify_outputs.example.json
-source/front/amplifyconfiguration*
-source/front/.vercel
-source/front/tmp
-
-# back (Python)
-source/back/__pycache__/
-source/back/**/__pycache__/
-source/back/.venv
-source/back/venv/
-source/back/env/
-source/back/build/
-source/back/dist/
-source/back/*.egg-info/
-source/back/.pytest_cache/
-source/back/.mypy_cache/
-source/back/.ruff_cache/
-source/back/htmlcov/
-source/back/.coverage
-
 # shared
 .env
 .env.*
@@ -49,3 +8,5 @@ source/back/.coverage
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+secrets
