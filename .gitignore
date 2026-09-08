@@ -10,3 +10,7 @@ yarn-debug.log*
 yarn-error.log*
 
 secrets
+
+# actual values, generated from scripts/rds-tunnel.sh.example
+/scripts/rds-tunnel.sh
+/scripts/pgadmin-servers.json
