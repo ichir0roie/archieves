@@ -12,14 +12,18 @@ import {
   Fade,
   Stack,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
 } from "@mui/material";
 import DialpadRoundedIcon from "@mui/icons-material/DialpadRounded";
 import TouchAppRoundedIcon from "@mui/icons-material/TouchAppRounded";
 import {
   DEFAULT_ROUND_SIZE,
   DEFAULT_DISTANCE_M,
-  DEFAULT_TARGET_SIZE,
+  DEFAULT_TARGET_TYPE_ID,
   MAX_ROUNDS,
+  TARGET_TYPES,
   type RoundSetup,
 } from "@/modules/data/score/scoreConfig";
 import {
@@ -30,19 +34,11 @@ import {
   type InputMode,
 } from "@/modules/functions/localStorage";
 
-/** "70m" -> 70; falls back when the stored value isn't a plain number + unit. */
-function numberFromUnitString(value: string, fallback: number): number {
-  const n = parseInt(value, 10);
-  return Number.isNaN(n) ? fallback : n;
-}
-
 export default function Page() {
   const router = useRouter();
 
   const [distance, setDistance] = useState(DEFAULT_DISTANCE_M);
-  const [targetSize, setTargetSize] = useState(
-    numberFromUnitString(DEFAULT_TARGET_SIZE, 122)
-  );
+  const [targetTypeId, setTargetTypeId] = useState(DEFAULT_TARGET_TYPE_ID);
   const [roundSize, setRoundSize] = useState(DEFAULT_ROUND_SIZE);
   const [gameSize, setGameSize] = useState(MAX_ROUNDS);
 
@@ -52,7 +48,7 @@ export default function Page() {
     const saved = loadRoundSetup();
     if (!saved) return;
     setDistance(saved.distanceM);
-    setTargetSize(numberFromUnitString(saved.targetType, 122));
+    setTargetTypeId(saved.targetType);
     setRoundSize(saved.roundSize);
     setGameSize(saved.gameSize);
   }, []);
@@ -60,7 +56,7 @@ export default function Page() {
   function start(mode: InputMode) {
     const setup: RoundSetup = {
       distanceM: distance,
-      targetType: `${targetSize}cm`,
+      targetType: targetTypeId,
       roundSize,
       gameSize,
     };
@@ -92,13 +88,25 @@ export default function Page() {
                   onChange={(e) => setDistance(Number(e.target.value))}
                   fullWidth
                 />
-                <TextField
-                  label="的の大きさ (cm)"
-                  type="number"
-                  value={targetSize}
-                  onChange={(e) => setTargetSize(Number(e.target.value))}
-                  fullWidth
-                />
+                <Box>
+                  <Typography variant="body2" className="!mb-1 !text-slate-600">
+                    的の種類
+                  </Typography>
+                  <ToggleButtonGroup
+                    value={targetTypeId}
+                    exclusive
+                    fullWidth
+                    onChange={(_, value) => {
+                      if (value) setTargetTypeId(value);
+                    }}
+                  >
+                    {TARGET_TYPES.map((targetType) => (
+                      <ToggleButton key={targetType.id} value={targetType.id}>
+                        {targetType.label}
+                      </ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+                </Box>
                 <TextField
                   label="エンド数"
                   type="number"
