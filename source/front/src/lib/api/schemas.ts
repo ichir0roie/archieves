@@ -116,6 +116,9 @@ export interface PointRead extends PointBase {
   id: number;
   end_id: number;
   user_id: number;
+  /** x/y converted to real-world centimeters from the round's target size; null when unresolvable. */
+  x_cm: number | null;
+  y_cm: number | null;
 }
 
 export interface RoundScoreSummary {

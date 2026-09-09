@@ -7,7 +7,11 @@ import EndView from "@/components/templates/score/EndView";
 import ApiErrorAlert from "@/components/templates/common/ApiErrorAlert";
 import AuthGate from "@/components/auth/AuthGate";
 import { useScoreGame } from "@/modules/data/score/useScoreGame";
-import { DEFAULT_ROUND_SIZE, DEFAULT_END_SIZE } from "@/modules/data/score/scoreConfig";
+import {
+  DEFAULT_ROUND_SIZE,
+  DEFAULT_END_SIZE,
+  DEFAULT_TARGET_TYPE_ID,
+} from "@/modules/data/score/scoreConfig";
 import type { PointRead } from "@/lib/api";
 
 export interface ScoreInputProps {
@@ -17,6 +21,7 @@ export interface ScoreInputProps {
   back: () => void;
   finish: () => void;
   pointSize: number;
+  targetType: string;
   disabled: boolean;
 }
 
@@ -96,6 +101,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
                   back,
                   finish,
                   pointSize: manager?.currentRound?.end_size ?? DEFAULT_END_SIZE,
+                  targetType: manager?.currentRound?.target_type ?? DEFAULT_TARGET_TYPE_ID,
                   disabled: isSaving,
                 })}
               </div>

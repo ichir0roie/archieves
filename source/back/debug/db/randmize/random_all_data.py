@@ -23,7 +23,7 @@ ENDS_PER_ROUND = 6
 POINTS_PER_END = 6
 
 DISTANCES_M = [18, 30, 50, 70, 90]
-TARGET_TYPES = ["92cm", "122cm"]
+TARGET_TYPES = ["92cm", "122cm", "compound"]
 
 
 def _create_organizations() -> list:
