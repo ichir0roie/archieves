@@ -120,6 +120,11 @@ class Point(TimestampMixin, Base):
     # Hit position relative to the target center, e.g. in millimeters.
     x: Mapped[float] = mapped_column(Float)
     y: Mapped[float] = mapped_column(Float)
+    # x/y converted to real-world centimeters using the round's target_type
+    # size at save time; null when the target size couldn't be resolved or
+    # x/y carry no real position (see app.core.target_types).
+    x_cm: Mapped[float | None] = mapped_column(Float, default=None)
+    y_cm: Mapped[float | None] = mapped_column(Float, default=None)
     recorded_at: Mapped[date] = mapped_column(Date)
 
     end: Mapped[End] = relationship(back_populates="points", lazy="noload")
