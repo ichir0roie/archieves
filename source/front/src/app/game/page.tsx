@@ -1,6 +1,6 @@
 "use client";
 import Header from "@/components/templates/common/header";
-import { loadInputMode } from "@/modules/functions/localStorage";
+import { loadGameId, loadInputMode } from "@/modules/functions/localStorage";
 import {
   Button,
   Card,
@@ -8,10 +8,12 @@ import {
   Container,
   Box,
   Fade,
+  Typography,
 } from "@mui/material";
 import AddCircleRoundedIcon from "@mui/icons-material/AddCircleRounded";
 import PlayCircleRoundedIcon from "@mui/icons-material/PlayCircleRounded";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const MODE_PATH = {
   simple: "/game/simple-score-card",
@@ -20,6 +22,13 @@ const MODE_PATH = {
 
 export default function Page() {
   const router = useRouter();
+  // localStorage isn't readable during server-side rendering, so whether
+  // there is anything to resume is only known once mounted in the browser.
+  const [hasGameInProgress, setHasGameInProgress] = useState(false);
+
+  useEffect(() => {
+    setHasGameInProgress(loadGameId() !== null);
+  }, []);
 
   function newGame() {
     router.push("/game/setup");
@@ -56,12 +65,18 @@ export default function Page() {
                   variant="outlined"
                   size="large"
                   fullWidth
+                  disabled={!hasGameInProgress}
                   startIcon={<PlayCircleRoundedIcon />}
                   onClick={continueGame}
                   className="!py-3 !rounded-2xl !font-semibold !text-base !normal-case"
                 >
                   続きから
                 </Button>
+                {!hasGameInProgress && (
+                  <Typography variant="body2" className="!text-center !text-slate-500">
+                    記録中のスコアはありません
+                  </Typography>
+                )}
               </Box>
             </CardContent>
           </Card>

@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ScoreManager } from "@/modules/data/score/scoreManager";
+import { ScoreManager, type ScoreProgress } from "@/modules/data/score/scoreManager";
 import { toErrorDetails, type ErrorDetails, type PointRead } from "@/lib/api";
 import { type RoundSetup } from "@/modules/data/score/scoreConfig";
 import {
   clearGameId,
+  clearNewGameStart,
   hasNewGameStart,
   loadGameId,
   loadRoundSetup,
@@ -35,7 +36,7 @@ function setupOrResumeGame(
 /**
  * Game/round/end/point lifecycle shared by every score entry mode page
  * (touch-target, simple). A new game picks up its distance/target
- * size/end count/round count from the setup screen (see
+ * size/arrows per end/end count/round count from the setup screen (see
  * localStorage.loadRoundSetup); a resumed game already has those values on
  * its rounds and ignores it.
  */
@@ -43,9 +44,18 @@ export function useScoreGame() {
   const router = useRouter();
   const [manager, setManager] = useState<ScoreManager | null>(null);
   const [mirrorPoints, setMirrorPoints] = useState<Array<PointRead>>([]);
+  const [progress, setProgress] = useState<ScoreProgress | null>(null);
   const [error, setError] = useState<ErrorDetails | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSettingUp, setIsSettingUp] = useState(false);
+
+  // Every mutator hands the screen a fresh copy of what the manager now
+  // holds. The manager itself is mutable and keeps its identity, so nothing
+  // else would tell React the score sheet moved on.
+  function syncFrom(scoreManager: ScoreManager) {
+    setMirrorPoints([...scoreManager.currentPoints]);
+    setProgress(scoreManager.progress);
+  }
 
   async function setupGame() {
     // Only /game/setup is allowed to start a brand-new game. Landing here
@@ -62,7 +72,7 @@ export function useScoreGame() {
       const { id: userId } = await getCurrentAppUser();
       const scoreManager = await setupOrResumeGame(userId, loadRoundSetup());
       setManager(scoreManager);
-      setMirrorPoints([...scoreManager.currentPoints]);
+      syncFrom(scoreManager);
     } catch (e) {
       setError(toErrorDetails(e));
     } finally {
@@ -81,39 +91,13 @@ export function useScoreGame() {
   // caught here rather than left to become an unhandled rejection. On
   // failure, `mirrorPoints`/`manager` are left untouched so the screen does
   // not advance past a point/round/end that was never actually saved.
-  async function next(point: number, x: number = 0, y: number = 0) {
-    if (!manager || !manager.currentRound || isSaving) return;
-
-    setIsSaving(true);
-    try {
-      await manager.addPoint(point, x, y);
-      setMirrorPoints([...manager.currentPoints]);
-      setManager(manager);
-      setError(null);
-    } catch (e) {
-      setError(toErrorDetails(e));
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function back() {
+  async function run(action: (scoreManager: ScoreManager) => Promise<void>) {
     if (!manager || isSaving) return;
 
     setIsSaving(true);
     try {
-      if (manager.currentPoints.length > 0) {
-        const p = await manager.removePoint();
-        if (p) {
-          setMirrorPoints([...p]);
-        }
-      } else if (manager.ends.length > 0) {
-        await manager.removeEnd();
-        setMirrorPoints([...manager.currentPoints]);
-      } else if (manager.rounds.length > 0) {
-        await manager.removeRound();
-        setMirrorPoints([...manager.currentPoints]);
-      }
+      await action(manager);
+      syncFrom(manager);
       setError(null);
     } catch (e) {
       setError(toErrorDetails(e));
@@ -122,36 +106,52 @@ export function useScoreGame() {
     }
   }
 
-  // No API call of its own, but must not send the user to /score-view while a
-  // previous next()/addEnd() write is still in flight or has failed, since
-  // that would show a score view missing the entry the user thinks they made.
-  function finish() {
-    if (!manager?.gameId || isSaving || error) return;
+  async function next(point: number, x: number = 0, y: number = 0) {
+    await run(async (scoreManager) => {
+      if (!scoreManager.currentRound || scoreManager.isEndFull) return;
+      await scoreManager.addPoint(point, x, y);
+    });
+  }
 
-    clearGameId();
-    const params = new URLSearchParams();
-    params.set("gameId", manager.gameId);
-    router.push(`/score-view/?${params.toString()}`);
+  async function back() {
+    await run(async (scoreManager) => {
+      if (scoreManager.currentPoints.length > 0) {
+        await scoreManager.removePoint();
+      } else if (scoreManager.ends.length > 0) {
+        await scoreManager.removeEnd();
+      }
+    });
   }
 
   async function addEnd() {
-    if (!manager || !manager.currentRound || isSaving) return;
+    await run(async (scoreManager) => {
+      if (!scoreManager.currentRound || scoreManager.isGameComplete) return;
+      await scoreManager.addEnd();
+    });
+  }
 
-    setIsSaving(true);
-    try {
-      await manager.addEnd();
-      setMirrorPoints([...manager.currentPoints]);
-      setError(null);
-    } catch (e) {
-      setError(toErrorDetails(e));
-    } finally {
-      setIsSaving(false);
-    }
+  // Must not send the user to /score-view while a previous next()/addEnd()
+  // write is still in flight or has failed, since that would show a score
+  // view missing the entry the user thinks they made.
+  async function finish() {
+    await run(async (scoreManager) => {
+      const hasScores = await scoreManager.discardEmptyTail();
+      clearGameId();
+      clearNewGameStart();
+      if (!hasScores || !scoreManager.gameId) {
+        router.replace("/");
+        return;
+      }
+      const params = new URLSearchParams();
+      params.set("gameId", scoreManager.gameId);
+      router.push(`/score-view/?${params.toString()}`);
+    });
   }
 
   return {
     manager,
     mirrorPoints,
+    progress,
     next,
     back,
     finish,
