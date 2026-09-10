@@ -4,6 +4,7 @@ import { Button } from "@mui/material";
 import { JSX, useEffect, useRef, useState } from "react";
 import { PointRead } from "@/lib/api";
 import { bgColorPallet } from "@/modules/data/score/scoreFunctions";
+import { DEFAULT_TARGET_TYPE_ID, getTargetType } from "@/modules/data/score/scoreConfig";
 
 interface Props {
   points: Array<PointRead> | null | undefined;
@@ -12,6 +13,7 @@ interface Props {
   back: () => void;
   finish: () => void;
   pointSize: number | null | undefined;
+  targetType?: string;
   disabled?: boolean;
 }
 
@@ -59,10 +61,12 @@ export default function TargetCircleInput(props: Props) {
     props.next(point, coordinates.relativeX, coordinates.relativeY);
   };
 
+  const ringCount = getTargetType(props.targetType ?? DEFAULT_TARGET_TYPE_ID)?.ringCount ?? 11;
+
   function circleButton(point: number) {
     const color = bgColorPallet(point);
 
-    const radius = (maxRadius / 11) * (12 - point);
+    const radius = (maxRadius / ringCount) * (ringCount + 1 - point);
     const size = radius;
 
     return (
@@ -82,7 +86,7 @@ export default function TargetCircleInput(props: Props) {
   }
 
   const circles = new Array<JSX.Element>();
-  for (let i = 1; i <= 11; i++) {
+  for (let i = 1; i <= ringCount; i++) {
     circles.push(circleButton(i));
   }
 

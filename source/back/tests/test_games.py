@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 RECORDED_AT = "2026-01-01T00:00:00Z"
@@ -360,6 +361,58 @@ def test_delete_point_directly(client: TestClient) -> None:
     delete_res = client.delete(f"/api/v1/points/{point['id']}")
     assert delete_res.status_code == 204
     assert client.get(f"/api/v1/points/{point['id']}").status_code == 404
+
+
+def test_create_round_rejects_unknown_target_type(client: TestClient) -> None:
+    game = _create_game(client)
+    payload = {
+        "number": 1,
+        "recorded_at": RECORDED_AT,
+        "end_size": 6,
+        "distance_m": 30,
+        "target_type": "999cm",
+    }
+    response = client.post(f"/api/v1/games/{game['id']}/rounds", json=payload)
+    assert response.status_code == 422
+
+
+def test_create_point_computes_cm_from_round_target_size(client: TestClient) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+    end = _create_end(client, round_["id"])
+
+    payload = {"number": 1, "score": 9, "x": 0.75, "y": 0.25, "recorded_at": RECORDED_AT}
+    res = client.post(f"/api/v1/ends/{end['id']}/points", json=payload)
+    assert res.status_code == 201
+    body = res.json()
+    assert body["x_cm"] == pytest.approx(30.5)
+    assert body["y_cm"] == pytest.approx(-30.5)
+
+
+def test_create_point_with_no_coordinates_has_null_cm(client: TestClient) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+    end = _create_end(client, round_["id"])
+
+    payload = {"number": 1, "score": 9, "x": 0.0, "y": 0.0, "recorded_at": RECORDED_AT}
+    res = client.post(f"/api/v1/ends/{end['id']}/points", json=payload)
+    assert res.status_code == 201
+    body = res.json()
+    assert body["x_cm"] is None
+    assert body["y_cm"] is None
+
+
+def test_update_point_recomputes_cm_on_coordinate_change(client: TestClient) -> None:
+    game = _create_game(client)
+    round_ = _create_round(client, game["id"])
+    end = _create_end(client, round_["id"])
+    point = _create_point(client, end["id"])
+
+    patch_res = client.patch(f"/api/v1/points/{point['id']}", json={"x": 1.0, "y": 0.5})
+    assert patch_res.status_code == 200
+    body = patch_res.json()
+    assert body["x_cm"] == pytest.approx(61.0)
+    assert body["y_cm"] == pytest.approx(0.0)
 
 
 def test_delete_missing_point_returns_404(client: TestClient) -> None:

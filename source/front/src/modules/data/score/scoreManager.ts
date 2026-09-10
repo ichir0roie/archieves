@@ -26,7 +26,7 @@ import {
   DEFAULT_ROUND_SIZE,
   DEFAULT_DISTANCE_M,
   DEFAULT_END_SIZE,
-  DEFAULT_TARGET_SIZE,
+  DEFAULT_TARGET_TYPE_ID,
   MAX_ROUNDS,
   type RoundSetup,
 } from "./scoreConfig";
@@ -171,7 +171,7 @@ export class ScoreManager {
       end_size: previous?.end_size ?? DEFAULT_END_SIZE,
       round_size: previous?.round_size ?? this.setup?.roundSize ?? DEFAULT_ROUND_SIZE,
       distance_m: previous?.distance_m ?? this.setup?.distanceM ?? DEFAULT_DISTANCE_M,
-      target_type: previous?.target_type ?? this.setup?.targetType ?? DEFAULT_TARGET_SIZE,
+      target_type: previous?.target_type ?? this.setup?.targetType ?? DEFAULT_TARGET_TYPE_ID,
     };
 
     this.rounds.push(round);

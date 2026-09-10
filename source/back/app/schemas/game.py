@@ -1,6 +1,8 @@
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+
+from app.core.target_types import TARGET_TYPE_IDS
 
 
 class GameBase(BaseModel):
@@ -26,17 +28,26 @@ class GameRead(GameBase):
     deleted_at: date | None = None
 
 
+def _validate_target_type(target_type: str) -> str:
+    if target_type not in TARGET_TYPE_IDS:
+        raise ValueError(f"target_type must be one of {TARGET_TYPE_IDS}")
+    return target_type
+
+
 class RoundBase(BaseModel):
     number: int
     recorded_at: date
     end_size: int
     round_size: int | None = None
     distance_m: int
+    # Not validated here: RoundRead also extends this, and legacy/imported
+    # rounds can carry a target_type outside TARGET_TYPE_IDS (see
+    # app.services.legacy_import). Validated on write in RoundCreate/RoundUpdate.
     target_type: str
 
 
 class RoundCreate(RoundBase):
-    pass
+    _validate_target_type = field_validator("target_type")(_validate_target_type)
 
 
 class RoundUpdate(BaseModel):
@@ -46,6 +57,10 @@ class RoundUpdate(BaseModel):
     round_size: int | None = None
     distance_m: int | None = None
     target_type: str | None = None
+
+    _validate_target_type = field_validator("target_type")(
+        lambda v: _validate_target_type(v) if v is not None else v
+    )
 
 
 class RoundRead(RoundBase):
@@ -105,6 +120,10 @@ class PointRead(PointBase):
     id: int
     end_id: int
     user_id: int
+    # x/y converted to real-world centimeters from the round's target size;
+    # null when the target size couldn't be resolved.
+    x_cm: float | None = None
+    y_cm: float | None = None
 
 
 class MatchBase(BaseModel):
