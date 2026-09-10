@@ -218,6 +218,11 @@ export function getGame(gameId: number): Promise<GameRead> {
   return request(`/games/${gameId}`);
 }
 
+/** Soft-deletes a game and, with it, its rounds/ends/points. */
+export function deleteGame(gameId: number): Promise<void> {
+  return request(`/games/${gameId}`, { method: 'DELETE' });
+}
+
 /** Games belonging to a single user, most recently created last. */
 export function listGames(userId: number): Promise<GameRead[]> {
   return request(`/games?user_id=${userId}`);

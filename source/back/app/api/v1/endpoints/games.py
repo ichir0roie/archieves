@@ -4,7 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.core.scoring import max_score_for_ring_count
+from app.core.target_types import get_target_type
 from app.crud import game as game_crud
+from app.db import End
 from app.schemas.game import (
     EndCreate,
     EndRead,
@@ -25,6 +28,24 @@ from app.schemas.game import (
 )
 
 router = APIRouter()
+
+
+def _check_score_fits_target(db: Session, end: End, score: int) -> None:
+    """Reject a score the round's target face can't produce - an X (11) on a
+    10-ring compound face, say. Rounds whose target_type predates the fixed
+    list (legacy imports) have no known ring count, so nothing to check."""
+    round_ = game_crud.get_round(db, end.round_id)
+    if round_ is None:
+        return
+    target_type = get_target_type(round_.target_type)
+    if target_type is None:
+        return
+    max_score = max_score_for_ring_count(target_type.ring_count)
+    if score > max_score:
+        raise HTTPException(
+            status_code=422,
+            detail=f"score must be at most {max_score} on a {round_.target_type} target",
+        )
 
 
 @router.get("/games", response_model=list[GameRead])
@@ -233,6 +254,7 @@ def create_point(
     end_id: int, point_in: PointCreate, db: Session = Depends(deps.get_session)
 ) -> PointRead:
     end = deps.get_or_404(game_crud.get_end, db, end_id, detail="End not found")
+    _check_score_fits_target(db, end, point_in.score)
     return game_crud.create_point(db, end, point_in)
 
 
@@ -246,6 +268,9 @@ def update_point(
     point_id: int, point_in: PointUpdate, db: Session = Depends(deps.get_session)
 ) -> PointRead:
     point = deps.get_or_404(game_crud.get_point, db, point_id, detail="Point not found")
+    if point_in.score is not None:
+        end = deps.get_or_404(game_crud.get_end, db, point.end_id, detail="End not found")
+        _check_score_fits_target(db, end, point_in.score)
     return game_crud.update_point(db, point, point_in)
 
 

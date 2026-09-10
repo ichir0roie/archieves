@@ -4,6 +4,7 @@ from datetime import date
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.scoring import scored_value_column
 from app.db import End, Game, Point, Round, User
 from app.schemas.statistics import EndScoreSummary, RoundScoreSummary, ScoreStatistics, UserRanking
 
@@ -35,7 +36,7 @@ def list_round_scores(
             Round.number,
             Round.recorded_at,
             func.count(Point.id),
-            func.coalesce(func.sum(Point.score), 0),
+            func.coalesce(func.sum(scored_value_column(Point.score)), 0),
         )
         .join(Game, Game.id == Round.game_id)
         .outerjoin(End, End.round_id == Round.id)
@@ -80,7 +81,7 @@ def list_end_scores(
             End.number,
             End.recorded_at,
             func.count(Point.id),
-            func.coalesce(func.sum(Point.score), 0),
+            func.coalesce(func.sum(scored_value_column(Point.score)), 0),
         )
         .join(Round, Round.id == End.round_id)
         .join(Game, Game.id == Round.game_id)
@@ -141,7 +142,7 @@ def point_score_statistics(
     user_id: int | None = None,
 ) -> ScoreStatistics:
     query = (
-        db.query(Point.score)
+        db.query(scored_value_column(Point.score))
         .join(End, End.id == Point.end_id)
         .join(Round, Round.id == End.round_id)
         .join(Game, Game.id == Round.game_id)
@@ -174,7 +175,7 @@ def list_user_ranking(
         db.query(
             Game.user_id.label("user_id"),
             Game.id.label("game_id"),
-            func.coalesce(func.sum(Point.score), 0).label("total_score"),
+            func.coalesce(func.sum(scored_value_column(Point.score)), 0).label("total_score"),
         )
         .outerjoin(Round, Round.game_id == Game.id)
         .outerjoin(End, End.round_id == Round.id)
