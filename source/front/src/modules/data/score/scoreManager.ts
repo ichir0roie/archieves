@@ -1,6 +1,8 @@
 import {
+  clearGameId,
   clearNewGameStart,
   loadGameId,
+  markNewGameStart,
   saveGameId,
 } from "@/modules/functions/localStorage";
 import { toDateOnly } from "@/lib/date/toDateOnly";
@@ -11,6 +13,7 @@ import {
   createPoint,
   createRound,
   deleteEnd,
+  deleteGame,
   deletePoint,
   deleteRound,
   getGame,
@@ -23,11 +26,11 @@ import {
   type RoundRead,
 } from "@/lib/api";
 import {
-  DEFAULT_ROUND_SIZE,
   DEFAULT_DISTANCE_M,
   DEFAULT_END_SIZE,
+  DEFAULT_GAME_SIZE,
+  DEFAULT_ROUND_SIZE,
   DEFAULT_TARGET_TYPE_ID,
-  MAX_ROUNDS,
   type RoundSetup,
 } from "./scoreConfig";
 
@@ -48,11 +51,23 @@ function isPending(entity: { id: number }): boolean {
   return entity.id === PENDING_ID;
 }
 
+/** Where the player is on the score sheet, for the entry screen's header. */
+export interface ScoreProgress {
+  roundNumber: number;
+  gameSize: number;
+  endNumber: number;
+  roundSize: number;
+  arrowCount: number;
+  endSize: number;
+  isEndFull: boolean;
+  isGameComplete: boolean;
+}
+
 export class ScoreManager {
   gameId: string | null = null;
   userId: number;
   game: GameRead | null = null;
-  /** Distance/target size/end count/round count from the setup screen; only used for brand-new games. */
+  /** Distance/target size/arrows per end/end count/round count from the setup screen; only used for brand-new games. */
   setup: RoundSetup | null;
 
   rounds: Array<RoundRead> = [];
@@ -66,6 +81,56 @@ export class ScoreManager {
     this.gameId = gameId;
     this.userId = userId;
     this.setup = setup;
+  }
+
+  /** Rounds planned for this game. */
+  get gameSize(): number {
+    return this.game?.game_size ?? this.setup?.gameSize ?? DEFAULT_GAME_SIZE;
+  }
+
+  /** Ends planned for the current round. */
+  get roundSize(): number {
+    return this.currentRound?.round_size ?? this.setup?.roundSize ?? DEFAULT_ROUND_SIZE;
+  }
+
+  /** Arrows planned for each end of the current round. */
+  get endSize(): number {
+    return this.currentRound?.end_size ?? this.setup?.endSize ?? DEFAULT_END_SIZE;
+  }
+
+  get targetType(): string {
+    return this.currentRound?.target_type ?? this.setup?.targetType ?? DEFAULT_TARGET_TYPE_ID;
+  }
+
+  get isEndFull(): boolean {
+    return this.currentPoints.length >= this.endSize;
+  }
+
+  /** Every planned arrow of every planned end of every planned round is in. */
+  get isGameComplete(): boolean {
+    return (
+      this.isEndFull &&
+      this.ends.length >= this.roundSize &&
+      this.rounds.length >= this.gameSize
+    );
+  }
+
+  /** True while the game holds no arrow at all - nothing worth keeping yet. */
+  get isEmpty(): boolean {
+    return this.rounds.length <= 1 && this.ends.length <= 1 && this.currentPoints.length === 0;
+  }
+
+  get progress(): ScoreProgress {
+    return {
+      roundNumber: this.currentRound?.number ?? 0,
+      gameSize: this.gameSize,
+      endNumber: this.currentEnd?.number ?? 0,
+      roundSize: this.roundSize,
+      arrowCount: this.currentPoints.length,
+      endSize: this.endSize,
+      isEndFull: this.isEndFull,
+      isGameComplete: this.isGameComplete,
+    };
   }
 
   async setupGame() {
@@ -100,7 +165,7 @@ export class ScoreManager {
     if (!this.currentRound) {
       // addRound() already appends to this.rounds and sets currentRound.
       const round = await this.addRound();
-      if (!round) throw new Error("Failed to create initial round.");
+      if (!round) throw new Error("ラウンドを作成できませんでした。");
     } else {
       // fetchRounds() only ever hands back real, already-persisted rounds.
       await this.fetchCurrentEnds();
@@ -109,9 +174,16 @@ export class ScoreManager {
     if (!this.currentEnd) {
       // addEnd() already appends to this.ends and sets currentEnd.
       const end = await this.addEnd();
-      if (!end) throw new Error("Failed to create initial end.");
+      if (!end) throw new Error("エンドを作成できませんでした。");
     } else {
       await this.fetchCurrentPoints();
+    }
+
+    // A game put down mid-round comes back with its last end already full;
+    // opening straight onto it would swallow every tap. Move on to the end
+    // the player would actually shoot next, unless the game is over.
+    if (this.isEndFull && !this.isGameComplete) {
+      await this.addEnd();
     }
   }
 
@@ -154,8 +226,7 @@ export class ScoreManager {
   }
 
   async addRound() {
-    const gameSize = this.game?.game_size ?? this.setup?.gameSize ?? MAX_ROUNDS;
-    if (this.rounds.length >= gameSize) {
+    if (this.rounds.length >= this.gameSize) {
       return;
     }
 
@@ -168,7 +239,7 @@ export class ScoreManager {
       user_id: this.userId,
       number: previous ? previous.number + 1 : 1,
       recorded_at: toDateOnly(new Date()),
-      end_size: previous?.end_size ?? DEFAULT_END_SIZE,
+      end_size: previous?.end_size ?? this.setup?.endSize ?? DEFAULT_END_SIZE,
       round_size: previous?.round_size ?? this.setup?.roundSize ?? DEFAULT_ROUND_SIZE,
       distance_m: previous?.distance_m ?? this.setup?.distanceM ?? DEFAULT_DISTANCE_M,
       target_type: previous?.target_type ?? this.setup?.targetType ?? DEFAULT_TARGET_TYPE_ID,
@@ -185,10 +256,10 @@ export class ScoreManager {
   }
 
   async removeRound() {
-    if (this.rounds.length <= 1) throw new Error("No rounds to delete.");
+    if (this.rounds.length <= 1) throw new Error("これ以上前のラウンドはありません。");
 
     const roundToDelete = this.rounds.pop();
-    if (!roundToDelete) throw new Error("Failed to get the round to delete.");
+    if (!roundToDelete) throw new Error("削除するラウンドを取得できませんでした。");
     if (!isPending(roundToDelete)) {
       await deleteRound(roundToDelete.id);
     }
@@ -207,11 +278,10 @@ export class ScoreManager {
 
   async addEnd() {
     if (!this.currentRound) {
-      throw new Error("No current round. Call newRound() first.");
+      throw new Error("ラウンドが開始されていません。");
     }
 
-    const roundSize = this.currentRound.round_size ?? DEFAULT_ROUND_SIZE;
-    if (this.ends.length >= roundSize) {
+    if (this.ends.length >= this.roundSize) {
       const round = await this.addRound();
       if (!round) return;
     }
@@ -234,17 +304,19 @@ export class ScoreManager {
 
   async removeEnd() {
     if (!this.currentRound) {
-      throw new Error("No current round. Call newRound() first.");
+      throw new Error("ラウンドが開始されていません。");
     }
     if (this.ends.length <= 1) {
       if (this.rounds.length > 1) {
         await this.removeRound();
+      } else if (this.currentPoints.length === 0) {
+        await this.restartEmptyGame();
       }
       return;
     }
     const endToDelete = this.ends.pop();
     if (!endToDelete) {
-      throw new Error("Failed to get the end to delete.");
+      throw new Error("削除するエンドを取得できませんでした。");
     }
     if (!isPending(endToDelete)) {
       await deleteEnd(endToDelete.id);
@@ -258,14 +330,81 @@ export class ScoreManager {
     }
   }
 
-  async addPoint(score: number, x?: number, y?: number) {
-    await this.ensurePersisted();
-    if (!this.currentEnd) throw new Error("Failed to create a new end.");
+  /**
+   * Backing out past the very first arrow: the game/round/end that
+   * ensurePersisted() created are now empty, and leaving them behind would
+   * put a 0-arrow game in the score log and the statistics. Delete them and
+   * hand back the same still-empty screen, keeping the round shape the
+   * player set up.
+   */
+  private async restartEmptyGame() {
+    if (!this.game) return;
 
-    const endSize = this.currentRound?.end_size ?? DEFAULT_END_SIZE;
-    if (this.currentPoints.length >= endSize) {
-      return;
+    const previous = this.currentRound;
+    if (previous) {
+      this.setup = {
+        distanceM: previous.distance_m,
+        targetType: previous.target_type,
+        endSize: previous.end_size,
+        roundSize: previous.round_size ?? DEFAULT_ROUND_SIZE,
+        gameSize: this.gameSize,
+      };
     }
+
+    await deleteGame(this.game.id);
+    this.forgetGame();
+
+    await this.addRound();
+    await this.addEnd();
+  }
+
+  private forgetGame() {
+    this.game = null;
+    this.gameId = null;
+    clearGameId();
+    markNewGameStart();
+    this.rounds = [];
+    this.ends = [];
+    this.currentRound = null;
+    this.currentEnd = null;
+    this.currentPoints = [];
+  }
+
+  /**
+   * Drops the trailing end/round/game the player never put an arrow in,
+   * right before leaving the entry screen. Returns whether any scored game
+   * is left to show. Undoing an arrow leaves its end persisted but empty,
+   * so without this a score sheet can end on a blank row.
+   */
+  async discardEmptyTail(): Promise<boolean> {
+    if (!this.game || this.currentPoints.length > 0) return this.game !== null;
+
+    const end = this.ends.pop();
+    if (end && !isPending(end)) {
+      await deleteEnd(end.id);
+    }
+    this.currentEnd = this.ends[this.ends.length - 1] || null;
+    if (this.ends.length > 0) return true;
+
+    const round = this.rounds.pop();
+    if (round && !isPending(round)) {
+      await deleteRound(round.id);
+    }
+    this.currentRound = this.rounds[this.rounds.length - 1] || null;
+    if (this.rounds.length > 0) return true;
+
+    await deleteGame(this.game.id);
+    this.forgetGame();
+    return false;
+  }
+
+  async addPoint(score: number, x?: number, y?: number) {
+    if (this.isEndFull) {
+      return this.currentPoints;
+    }
+
+    await this.ensurePersisted();
+    if (!this.currentEnd) throw new Error("エンドを作成できませんでした。");
 
     const newPoint = await createPoint(this.currentEnd.id, {
       number:
@@ -284,7 +423,7 @@ export class ScoreManager {
 
   async removePoint() {
     if (!this.currentEnd) {
-      throw new Error("No current end. Call newEnd() first.");
+      throw new Error("エンドが開始されていません。");
     }
     if (this.currentPoints.length === 0) {
       await this.removeEnd();
@@ -293,7 +432,7 @@ export class ScoreManager {
 
     const pointToDelete = this.currentPoints.pop();
     if (!pointToDelete) {
-      throw new Error("Failed to get the point to delete.");
+      throw new Error("削除する矢を取得できませんでした。");
     }
 
     await deletePoint(pointToDelete.id);
@@ -304,7 +443,7 @@ export class ScoreManager {
 
   async fetchRounds() {
     if (!this.game)
-      throw new Error("Game not initialized. Call setupGame() first.");
+      throw new Error("ゲームが読み込まれていません。");
 
     this.rounds = await listRounds(this.game.id);
     this.currentRound = this.rounds[this.rounds.length - 1] || null;
@@ -312,7 +451,7 @@ export class ScoreManager {
 
   async fetchCurrentEnds() {
     if (!this.currentRound)
-      throw new Error("No current round. Call newRound() first.");
+      throw new Error("ラウンドが開始されていません。");
 
     this.ends = await listEnds(this.currentRound.id);
 
@@ -320,7 +459,7 @@ export class ScoreManager {
   }
   async fetchCurrentPoints() {
     if (!this.currentEnd)
-      throw new Error("No current end. Call newEnd() first.");
+      throw new Error("エンドが開始されていません。");
 
     this.currentPoints = await listPoints(this.currentEnd.id);
   }

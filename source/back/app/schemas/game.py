@@ -1,7 +1,15 @@
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.core.scoring import (
+    MAX_DISTANCE_M,
+    MAX_END_SIZE,
+    MAX_GAME_SIZE,
+    MAX_ROUND_SIZE,
+    MISS_SCORE,
+    X_SCORE,
+)
 from app.core.target_types import TARGET_TYPE_IDS
 
 
@@ -12,13 +20,13 @@ class GameBase(BaseModel):
 
 
 class GameCreate(GameBase):
-    pass
+    game_size: int | None = Field(default=None, ge=1, le=MAX_GAME_SIZE)
 
 
 class GameUpdate(BaseModel):
     user_id: int | None = None
     recorded_at: date | None = None
-    game_size: int | None = None
+    game_size: int | None = Field(default=None, ge=1, le=MAX_GAME_SIZE)
 
 
 class GameRead(GameBase):
@@ -47,15 +55,20 @@ class RoundBase(BaseModel):
 
 
 class RoundCreate(RoundBase):
+    number: int = Field(ge=1)
+    end_size: int = Field(ge=1, le=MAX_END_SIZE)
+    round_size: int | None = Field(default=None, ge=1, le=MAX_ROUND_SIZE)
+    distance_m: int = Field(ge=1, le=MAX_DISTANCE_M)
+
     _validate_target_type = field_validator("target_type")(_validate_target_type)
 
 
 class RoundUpdate(BaseModel):
-    number: int | None = None
+    number: int | None = Field(default=None, ge=1)
     recorded_at: date | None = None
-    end_size: int | None = None
-    round_size: int | None = None
-    distance_m: int | None = None
+    end_size: int | None = Field(default=None, ge=1, le=MAX_END_SIZE)
+    round_size: int | None = Field(default=None, ge=1, le=MAX_ROUND_SIZE)
+    distance_m: int | None = Field(default=None, ge=1, le=MAX_DISTANCE_M)
     target_type: str | None = None
 
     _validate_target_type = field_validator("target_type")(
@@ -78,11 +91,11 @@ class EndBase(BaseModel):
 
 
 class EndCreate(EndBase):
-    pass
+    number: int = Field(ge=1)
 
 
 class EndUpdate(BaseModel):
-    number: int | None = None
+    number: int | None = Field(default=None, ge=1)
     recorded_at: date | None = None
 
 
@@ -103,14 +116,19 @@ class PointBase(BaseModel):
 
 
 class PointCreate(PointBase):
-    pass
+    number: int = Field(ge=1)
+    score: int = Field(ge=MISS_SCORE, le=X_SCORE)
+    # Fraction (0-1, top-left origin) of the touch-target input area the
+    # arrow was tapped in; (0, 0) means "no position recorded".
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
 
 
 class PointUpdate(BaseModel):
-    number: int | None = None
-    score: int | None = None
-    x: float | None = None
-    y: float | None = None
+    number: int | None = Field(default=None, ge=1)
+    score: int | None = Field(default=None, ge=MISS_SCORE, le=X_SCORE)
+    x: float | None = Field(default=None, ge=0, le=1)
+    y: float | None = Field(default=None, ge=0, le=1)
     recorded_at: date | None = None
 
 

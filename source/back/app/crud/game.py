@@ -278,11 +278,11 @@ def list_matches(
 
 
 def _point_cm(round_: Round | None, x: float, y: float) -> tuple[float | None, float | None]:
-    """x/y are the fraction (0-1, top-left origin) of the touch-target input
-    area tapped for this arrow; (0, 0) is also what the score-only input mode
-    sends when no tap ever happened, so it carries no real position either
-    way. Treat the target center as (0.5, 0.5) to convert into a cm offset
-    from center using the round's target face size."""
+    """x/y are the fraction (0-1, top-left origin) of the target face the
+    arrow was tapped in, so (0.5, 0.5) is its center and the offset from
+    there scales directly by the face's real size. (0, 0) is what the
+    score-only input mode sends when no tap ever happened, so it carries no
+    position at all."""
     if round_ is None or (x == 0 and y == 0):
         return None, None
     size_cm = resolve_target_size_cm(round_.target_type)

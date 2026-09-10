@@ -1,25 +1,27 @@
-export function calcPoint(point: number) {
-  if (point > 10) return 10;
+import { MAX_RING_SCORE, MISS_SCORE, X_SCORE } from "./scoreConfig";
+import type { PointRead } from "@/lib/api";
+
+/**
+ * How a stored ring reads on the score sheet: "X" for the inner ten, "M" for
+ * a miss. Legacy-imported arrows whose ring the old client never resolved
+ * are stored negative (see the API's app/services/legacy_import.py) and read
+ * as misses too.
+ */
+export function scoreToStr(point: number) {
+  if (point <= MISS_SCORE) return "M";
+  if (point >= X_SCORE) return "X";
+  return point.toString();
+}
+
+/** The points a stored ring is worth - mirrors the API's scored_value(). */
+export function scoreToInt(point: number) {
+  if (point >= X_SCORE) return MAX_RING_SCORE;
+  if (point <= MISS_SCORE) return MISS_SCORE;
   return point;
 }
 
-export function scoreToStr(point: number) {
-  if (point <= 0) {
-    return "M";
-  }
-  if (point <= 10) {
-    return point.toString();
-  }
-  if (point === 11) {
-    return "X";
-  }
-  throw new Error("Invalid point value");
-}
-export function scoreToInt(point: number) {
-  if (point === 11) {
-    return 10;
-  }
-  return point;
+export function totalScore(points: Array<Pick<PointRead, "score">>): number {
+  return points.reduce((total, point) => total + scoreToInt(point.score), 0);
 }
 
 // ここを共通化すると、tailwindcssが反応しない
