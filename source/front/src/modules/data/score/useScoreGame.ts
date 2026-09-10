@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ScoreManager } from "@/modules/data/score/scoreManager";
 import { toErrorDetails, type ErrorDetails, type PointRead } from "@/lib/api";
-import {
-  DEFAULT_ROUND_SIZE,
-  type RoundSetup,
-} from "@/modules/data/score/scoreConfig";
+import { type RoundSetup } from "@/modules/data/score/scoreConfig";
 import {
   clearGameId,
   hasNewGameStart,
@@ -89,14 +86,8 @@ export function useScoreGame() {
 
     setIsSaving(true);
     try {
-      const roundSize = manager.currentRound?.round_size ?? DEFAULT_ROUND_SIZE;
-      if (manager.ends.length >= roundSize) {
-        await manager.addRound();
-        setMirrorPoints([]);
-      } else {
-        await manager.addPoint(point, x, y);
-        setMirrorPoints([...manager.currentPoints]);
-      }
+      await manager.addPoint(point, x, y);
+      setMirrorPoints([...manager.currentPoints]);
       setManager(manager);
       setError(null);
     } catch (e) {
@@ -149,7 +140,7 @@ export function useScoreGame() {
     setIsSaving(true);
     try {
       await manager.addEnd();
-      setMirrorPoints([]);
+      setMirrorPoints([...manager.currentPoints]);
       setError(null);
     } catch (e) {
       setError(toErrorDetails(e));
