@@ -2,6 +2,7 @@ from datetime import date
 
 from sqlalchemy.orm import Query, Session
 
+from app.core.target_types import resolve_target_size_cm
 from app.db import End, Game, Match, Point, Round
 from app.schemas.game import (
     EndCreate,
@@ -276,6 +277,20 @@ def list_matches(
     ]
 
 
+def _point_cm(round_: Round | None, x: float, y: float) -> tuple[float | None, float | None]:
+    """x/y are the fraction (0-1, top-left origin) of the touch-target input
+    area tapped for this arrow; (0, 0) is also what the score-only input mode
+    sends when no tap ever happened, so it carries no real position either
+    way. Treat the target center as (0.5, 0.5) to convert into a cm offset
+    from center using the round's target face size."""
+    if round_ is None or (x == 0 and y == 0):
+        return None, None
+    size_cm = resolve_target_size_cm(round_.target_type)
+    if size_cm is None:
+        return None, None
+    return (x - 0.5) * size_cm, (y - 0.5) * size_cm
+
+
 def get_point(db: Session, point_id: int) -> Point | None:
     return _visible_points(db).filter(Point.id == point_id).first()
 
@@ -292,7 +307,9 @@ def list_points_for_end(db: Session, end_id: int, skip: int = 0, limit: int = 10
 
 
 def create_point(db: Session, end: End, point_in: PointCreate) -> Point:
-    point = Point(end_id=end.id, user_id=end.user_id, **point_in.model_dump())
+    round_ = db.get(Round, end.round_id)
+    x_cm, y_cm = _point_cm(round_, point_in.x, point_in.y)
+    point = Point(end_id=end.id, user_id=end.user_id, x_cm=x_cm, y_cm=y_cm, **point_in.model_dump())
     db.add(point)
     db.commit()
     db.refresh(point)
@@ -300,8 +317,13 @@ def create_point(db: Session, end: End, point_in: PointCreate) -> Point:
 
 
 def update_point(db: Session, point: Point, point_in: PointUpdate) -> Point:
-    for field, value in point_in.model_dump(exclude_unset=True).items():
+    data = point_in.model_dump(exclude_unset=True)
+    for field, value in data.items():
         setattr(point, field, value)
+    if "x" in data or "y" in data:
+        end = db.get(End, point.end_id)
+        round_ = db.get(Round, end.round_id) if end is not None else None
+        point.x_cm, point.y_cm = _point_cm(round_, point.x, point.y)
     db.commit()
     db.refresh(point)
     return point
