@@ -26,6 +26,12 @@ up -d`, then set
 `npm run test:e2e` (matching the "Running alongside archieves-api"
 section above).
 
+In environments with no docker daemon (e.g. Claude Code cloud sessions),
+run `python debug/test_env/run_test_api_server.py` from `../back` instead -
+it serves the same API on the same `:8080` port against a disposable
+sqlite DB, so `NEXT_PUBLIC_API_BASE_URL` is set the same way. See
+`../back/CLAUDE.md`'s "Test API server (sqlite)" section.
+
 `@playwright/test` is pinned to `1.56.0` (not a `^` range) because
 Claude Code's cloud sessions ship Chromium build 1194 pre-installed at
 `/opt/pw-browsers` and only that exact `@playwright/test` version's

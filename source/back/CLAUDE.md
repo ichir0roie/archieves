@@ -19,6 +19,43 @@ there's no need for a separate `except Exception: db.rollback()` either.
 Commit explicitly on success inside the `with` block; let `with` handle
 cleanup (and implicit rollback) on exceptions.
 
+## Test API server (sqlite)
+
+For testing archieves-api's actual behavior against the frontend (not unit
+tests, which already run against an in-memory sqlite DB per
+`tests/conftest.py`), `.build/docker-compose.yml`'s postgres container is
+the default. In environments with no docker daemon (e.g. Claude Code cloud
+sessions - `docker` may be present but unable to reach a daemon), use
+`debug/test_env/run_test_api_server.py` instead:
+
+```
+cd source/back
+python debug/test_env/run_test_api_server.py
+```
+
+Each run: deletes `debug/test_env/test.db` (gitignored) if present, rebuilds
+the schema into that empty file via `debug/db/create_db.py`
+(`Base.metadata.create_all`, the same path the unit tests exercise), then
+serves `app.main:app` on `http://0.0.0.0:8080` with `AUTH_MODE=mock` -
+matching the port the frontend's `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1`
+convention already expects (see `../front/CLAUDE.md`'s E2E tests section).
+Always start from this fresh rebuild rather than reusing a stale
+`test.db` between test runs.
+
+This script is test-only tooling and lives under `debug/`, separate from
+`app/` and `alembic/`. Keep the SQLAlchemy model and migration definitions
+themselves postgres-compatible - don't special-case them for sqlite (no
+`postgresql`-dialect-only column types, no sqlite-only workarounds in
+`app/db/models/`). Migrations already use `op.batch_alter_table` for
+sqlite-compatible ALTERs; dialect-specific kwargs like
+`postgresql_using=` are simply ignored on other dialects, so nothing further
+is needed there.
+
+If a fresh environment fails to start uvicorn with a `_cffi_backend`
+import error from `cryptography`, run `pip install cffi` once - it's a
+missing transitive dependency of the preinstalled system `cryptography`
+package in some containers, not a project dependency.
+
 ## Debug scripts
 
 Scripts under `debug/` (e.g. `debug/db/create_db.py`,

@@ -12,3 +12,6 @@ dist/
 .ruff_cache/
 htmlcov/
 .coverage
+
+# sqlite db built by debug/test_env/run_test_api_server.py
+debug/test_env/test.db
