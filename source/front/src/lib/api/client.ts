@@ -1,4 +1,4 @@
-import { getUserInfo } from '../../modules/functions/userInfo';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { isMockAuth } from '../auth/config';
 import { MOCK_USER } from '../auth/mockUser';
 import { toDateOnly } from '../date/toDateOnly';
@@ -67,8 +67,8 @@ export function toErrorDetails(e: unknown): ErrorDetails {
   return { message: '通信に失敗しました。もう一度お試しください。' };
 }
 
-/** Cognito ID token for the signed-in user, if setUserInfo has run yet. */
-function authHeader(): Record<string, string> {
+/** Cognito ID token for the signed-in user, fetched fresh from Amplify each call. */
+async function authHeader(): Promise<Record<string, string>> {
   // archieves-api's AUTH_MODE=mock ignores the token's contents and only
   // requires the header to be present (see its app/core/security.py), so
   // this never needs a real Amplify session.
@@ -76,7 +76,9 @@ function authHeader(): Record<string, string> {
     return { Authorization: `Bearer mock-token-${MOCK_USER.sub}` };
   }
   try {
-    return { Authorization: `Bearer ${getUserInfo().token}` };
+    const { tokens } = await fetchAuthSession();
+    if (tokens?.idToken === undefined) return {};
+    return { Authorization: `Bearer ${tokens.idToken.toString()}` };
   } catch {
     return {};
   }
@@ -89,7 +91,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      ...authHeader(),
+      ...(await authHeader()),
       ...init?.headers,
     },
   });
@@ -132,8 +134,9 @@ export function createUser(user: UserCreate): Promise<UserRead> {
   });
 }
 
-export function findOrCreateUser(user: UserCreate): Promise<UserRead> {
-  return request('/users/find-or-create', {
+/** Finds or creates the signed-in user's row, keyed off their Cognito sub. */
+export function ensureCurrentUser(user: UserCreate): Promise<UserRead> {
+  return request('/users/me/ensure', {
     method: 'POST',
     body: JSON.stringify(user),
   });
@@ -386,7 +389,7 @@ export async function importSqliteBackup(file: File): Promise<ImportResult> {
 
   const response = await fetch(url, {
     method,
-    headers: { ...authHeader() },
+    headers: { ...(await authHeader()) },
     body: formData,
   });
 

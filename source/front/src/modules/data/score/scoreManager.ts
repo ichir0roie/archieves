@@ -1,4 +1,9 @@
-import { loadGameId, saveGameId } from "@/modules/functions/localStorage";
+import {
+  clearNewGameStart,
+  loadGameId,
+  saveGameId,
+} from "@/modules/functions/localStorage";
+import { toDateOnly } from "@/lib/date/toDateOnly";
 import {
   ApiError,
   createEnd,
@@ -28,6 +33,21 @@ import {
 
 export type { GameRead, RoundRead, EndRead, PointRead };
 
+/**
+ * Sentinel id for a round/end that only exists in memory. Real ids come from
+ * the database and are always positive, so this can never collide with one.
+ * Rounds/ends are built with this id the moment the UI needs to show them
+ * (e.g. a fresh "END 1/6" header) but are only sent to the backend once the
+ * player records their first point in them - see `ensurePersisted()`. This
+ * is what stops an abandoned game (setup screen opened, then backed out of
+ * before scoring anything) from leaving an empty game/round/end behind.
+ */
+const PENDING_ID = -1;
+
+function isPending(entity: { id: number }): boolean {
+  return entity.id === PENDING_ID;
+}
+
 export class ScoreManager {
   gameId: string | null = null;
   userId: number;
@@ -49,59 +69,92 @@ export class ScoreManager {
   }
 
   async setupGame() {
-    let game: GameRead | null = null;
-
     if (!this.gameId) {
       this.gameId = loadGameId();
     }
     if (this.gameId) {
       try {
-        game = await getGame(Number(this.gameId));
+        this.game = await getGame(Number(this.gameId));
       } catch (e) {
         if (!(e instanceof ApiError && e.status === 404)) throw e;
+        this.gameId = null;
       }
     }
-    if (!game) {
-      this.game = await createGame(this.userId, new Date(), this.setup?.gameSize);
-      this.gameId = String(this.game.id);
-      saveGameId(this.gameId);
-    } else {
-      this.game = game;
-    }
 
-    // Load rounds, ends, and points
-    await this.loadGameData();
+    if (this.game) {
+      await this.loadGameData();
+    } else {
+      // Nothing is written yet: addRound()/addEnd() only prepare the round/end
+      // the UI needs to display. The game itself is created lazily, along
+      // with this round and end, the first time a point is actually scored.
+      await this.addRound();
+      await this.addEnd();
+    }
   }
 
   async loadGameData() {
     if (!this.game) return;
 
-    // Load all rounds for this game
     await this.fetchRounds();
 
     if (!this.currentRound) {
       // addRound() already appends to this.rounds and sets currentRound.
       const round = await this.addRound();
       if (!round) throw new Error("Failed to create initial round.");
+    } else {
+      // fetchRounds() only ever hands back real, already-persisted rounds.
+      await this.fetchCurrentEnds();
     }
 
-    // Load all ends for the current round
-    await this.fetchCurrentEnds();
     if (!this.currentEnd) {
       // addEnd() already appends to this.ends and sets currentEnd.
       const end = await this.addEnd();
       if (!end) throw new Error("Failed to create initial end.");
+    } else {
+      await this.fetchCurrentPoints();
+    }
+  }
+
+  /**
+   * Creates whatever this.game/currentRound/currentEnd is still only a local
+   * placeholder for, in that order, right before the first point is written
+   * to it. Called only from addPoint() - every other mutator stays purely
+   * local until this runs.
+   */
+  private async ensurePersisted() {
+    let game = this.game;
+    if (!game) {
+      game = await createGame(this.userId, new Date(), this.setup?.gameSize);
+      this.game = game;
+      this.gameId = String(game.id);
+      saveGameId(this.gameId);
+      clearNewGameStart();
     }
 
-    await this.fetchCurrentPoints();
+    let round = this.currentRound;
+    if (round && isPending(round)) {
+      const persisted = await createRound(game.id, {
+        number: round.number,
+        endSize: round.end_size,
+        roundSize: round.round_size ?? undefined,
+        distanceM: round.distance_m,
+        targetType: round.target_type,
+      });
+      this.rounds[this.rounds.length - 1] = persisted;
+      this.currentRound = persisted;
+      round = persisted;
+    }
+
+    const end = this.currentEnd;
+    if (round && end && isPending(end)) {
+      const persisted = await createEnd(round.id, end.number);
+      this.ends[this.ends.length - 1] = persisted;
+      this.currentEnd = persisted;
+    }
   }
 
   async addRound() {
-    if (!this.game) {
-      throw new Error("Game not initialized. Call setupGame() first.");
-    }
-
-    const gameSize = this.game.game_size ?? this.setup?.gameSize ?? MAX_ROUNDS;
+    const gameSize = this.game?.game_size ?? this.setup?.gameSize ?? MAX_ROUNDS;
     if (this.rounds.length >= gameSize) {
       return;
     }
@@ -109,13 +162,17 @@ export class ScoreManager {
     // Every round in a game shares one setup: reuse the previous round's
     // values so later rounds don't silently fall back to the defaults.
     const previous = this.currentRound;
-    const round = await createRound(this.game.id, {
+    const round: RoundRead = {
+      id: PENDING_ID,
+      game_id: this.game?.id ?? PENDING_ID,
+      user_id: this.userId,
       number: previous ? previous.number + 1 : 1,
-      endSize: previous?.end_size ?? DEFAULT_END_SIZE,
-      roundSize: previous?.round_size ?? this.setup?.roundSize ?? DEFAULT_ROUND_SIZE,
-      distanceM: previous?.distance_m ?? this.setup?.distanceM ?? DEFAULT_DISTANCE_M,
-      targetType: previous?.target_type ?? this.setup?.targetType ?? DEFAULT_TARGET_SIZE,
-    });
+      recorded_at: toDateOnly(new Date()),
+      end_size: previous?.end_size ?? DEFAULT_END_SIZE,
+      round_size: previous?.round_size ?? this.setup?.roundSize ?? DEFAULT_ROUND_SIZE,
+      distance_m: previous?.distance_m ?? this.setup?.distanceM ?? DEFAULT_DISTANCE_M,
+      target_type: previous?.target_type ?? this.setup?.targetType ?? DEFAULT_TARGET_SIZE,
+    };
 
     this.rounds.push(round);
     this.currentRound = round;
@@ -128,13 +185,13 @@ export class ScoreManager {
   }
 
   async removeRound() {
-    if (!this.game)
-      throw new Error("Game not initialized. Call setupGame() first.");
     if (this.rounds.length <= 1) throw new Error("No rounds to delete.");
 
     const roundToDelete = this.rounds.pop();
     if (!roundToDelete) throw new Error("Failed to get the round to delete.");
-    await deleteRound(roundToDelete.id);
+    if (!isPending(roundToDelete)) {
+      await deleteRound(roundToDelete.id);
+    }
 
     this.currentRound = this.rounds[this.rounds.length - 1] || null;
     if (!this.currentRound) return;
@@ -158,10 +215,13 @@ export class ScoreManager {
       return;
     }
 
-    const end = await createEnd(
-      this.currentRound.id,
-      this.currentEnd ? this.currentEnd.number + 1 : 1
-    );
+    const end: EndRead = {
+      id: PENDING_ID,
+      round_id: this.currentRound.id,
+      user_id: this.userId,
+      number: this.currentEnd ? this.currentEnd.number + 1 : 1,
+      recorded_at: toDateOnly(new Date()),
+    };
 
     this.ends.push(end);
     this.currentEnd = end;
@@ -182,18 +242,21 @@ export class ScoreManager {
     if (!endToDelete) {
       throw new Error("Failed to get the end to delete.");
     }
-
-    await deleteEnd(endToDelete.id);
+    if (!isPending(endToDelete)) {
+      await deleteEnd(endToDelete.id);
+    }
 
     this.currentEnd = this.ends[this.ends.length - 1] || null;
-    await this.fetchCurrentPoints();
+    if (this.currentEnd && !isPending(this.currentEnd)) {
+      await this.fetchCurrentPoints();
+    } else {
+      this.currentPoints = [];
+    }
   }
 
   async addPoint(score: number, x?: number, y?: number) {
-    if (!this.currentEnd) {
-      await this.addEnd();
-      if (!this.currentEnd) throw new Error("Failed to create a new end.");
-    }
+    await this.ensurePersisted();
+    if (!this.currentEnd) throw new Error("Failed to create a new end.");
 
     const endSize = this.currentRound?.end_size ?? DEFAULT_END_SIZE;
     if (this.currentPoints.length >= endSize) {
@@ -230,6 +293,7 @@ export class ScoreManager {
     }
 
     await deletePoint(pointToDelete.id);
+    await this.fetchCurrentPoints();
 
     return this.currentPoints;
   }

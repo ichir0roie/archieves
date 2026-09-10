@@ -10,7 +10,21 @@
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.env",
       "env": { "PYTHONPATH": "${workspaceFolder}" },
-      "justMyCode": true
+      "justMyCode": true,
+      "autoReload": {
+        "enable": true,
+        "include": ["**/*.py", "**/*.pyw"],
+        "exclude": [
+          "**/.git/**",
+          "**/.metadata/**",
+          "**/__pycache__/**",
+          "**/node_modules/**",
+          "**/site-packages/**",
+          "scripts/**",
+          "tests/**"
+        ]
+      },
+      "suppressMultipleSessionWarning": true
     }
   ]
 }

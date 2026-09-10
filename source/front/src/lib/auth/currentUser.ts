@@ -1,5 +1,5 @@
 import { getCurrentUser as amplifyGetCurrentUser } from "aws-amplify/auth";
-import { ApiError, findOrCreateUser, getMyUser } from "@/lib/api";
+import { ensureCurrentUser, getMyUser } from "@/lib/api";
 import { isMockAuth } from "./config";
 import { MOCK_USER } from "./mockUser";
 
@@ -28,7 +28,7 @@ interface CurrentAppUser {
 
 export async function getCurrentAppUser(): Promise<CurrentAppUser> {
   const { username, email } = await getCurrentUser();
-  const user = await findOrCreateUser({ name: email });
+  const user = await ensureCurrentUser({ name: email });
   return { id: user.id, username };
 }
 
@@ -36,10 +36,7 @@ export async function isCurrentAppUserRegistered(): Promise<boolean> {
   try {
     await getMyUser();
     return true;
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 404) {
-      return false;
-    }
-    return true;
+  } catch {
+    return false;
   }
 }

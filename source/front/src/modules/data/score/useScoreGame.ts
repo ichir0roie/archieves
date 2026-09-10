@@ -10,6 +10,7 @@ import {
 } from "@/modules/data/score/scoreConfig";
 import {
   clearGameId,
+  hasNewGameStart,
   loadGameId,
   loadRoundSetup,
 } from "@/modules/functions/localStorage";
@@ -50,6 +51,14 @@ export function useScoreGame() {
   const [isSettingUp, setIsSettingUp] = useState(false);
 
   async function setupGame() {
+    // Only /game/setup is allowed to start a brand-new game. Landing here
+    // any other way (browser back, a stale tab, a direct link) with no
+    // game already in progress must not silently create one.
+    if (!loadGameId() && !hasNewGameStart()) {
+      router.replace("/");
+      return;
+    }
+
     setError(null);
     setIsSettingUp(true);
     try {
@@ -76,7 +85,7 @@ export function useScoreGame() {
   // failure, `mirrorPoints`/`manager` are left untouched so the screen does
   // not advance past a point/round/end that was never actually saved.
   async function next(point: number, x: number = 0, y: number = 0) {
-    if (!manager || !manager.game || isSaving) return;
+    if (!manager || !manager.currentRound || isSaving) return;
 
     setIsSaving(true);
     try {
@@ -135,7 +144,7 @@ export function useScoreGame() {
   }
 
   async function addEnd() {
-    if (!manager || !manager.game || isSaving) return;
+    if (!manager || !manager.currentRound || isSaving) return;
 
     setIsSaving(true);
     try {

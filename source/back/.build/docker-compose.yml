@@ -2,6 +2,7 @@ services:
   db:
     image: postgres:16
     command: ["postgres", "-c", "timezone=Asia/Tokyo"]
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres

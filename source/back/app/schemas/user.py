@@ -13,6 +13,10 @@ class UserCreate(UserBase):
     pass
 
 
+class UserFindOrCreate(UserBase):
+    sub: str
+
+
 class UserUpdate(BaseModel):
     name: str | None = None
     nickname: str | None = None

@@ -111,18 +111,19 @@ export default function Page() {
   }
 
   async function handleSave() {
-    if (userId === null) return;
     setSaving(true);
     setSaved(false);
     setError(null);
     try {
+      const id = userId ?? (await getCurrentAppUser()).id;
       const resolvedOrganizationId = await resolveOrganizationId();
-      const updated = await updateUser(userId, {
+      const updated = await updateUser(id, {
         name,
         nickname: nickname || null,
         age: age === "" ? null : Number(age),
         organization_id: resolvedOrganizationId,
       });
+      setUserId(id);
       applyUser(updated);
       setOrganizationId(resolvedOrganizationId);
       setSaved(true);

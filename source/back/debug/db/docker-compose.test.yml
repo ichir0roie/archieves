@@ -15,6 +15,7 @@
 services:
   archieves-test:
     image: postgres:18
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -22,6 +23,6 @@ services:
       TZ: "Asia/Tokyo"
     ports:
       - "52000:5432"
-    container_name: archieves-test
+    container_name: archieves_test
     
 
