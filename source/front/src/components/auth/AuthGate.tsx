@@ -3,14 +3,12 @@
 import { ReactNode, useEffect } from "react";
 import { Authenticator } from "@aws-amplify/ui-react";
 import { Amplify } from "aws-amplify";
-import { fetchUserAttributes } from "aws-amplify/auth";
 import type { AuthUser } from "aws-amplify/auth";
 import { usePathname, useRouter } from "next/navigation";
 import outputs from "../../../amplify_outputs.json";
 import { isMockAuth } from "@/lib/auth/config";
 import { MOCK_USER } from "@/lib/auth/mockUser";
 import { isCurrentAppUserRegistered } from "@/lib/auth/currentUser";
-import { setUserInfo } from "@/modules/functions/userInfo";
 
 if (!isMockAuth()) {
   Amplify.configure(outputs);
@@ -42,10 +40,6 @@ let ensureRegisteredInFlight: Promise<boolean> | null = null;
 async function ensureRegistered(pathname: string): Promise<boolean> {
   if (ensureRegisteredInFlight === null) {
     ensureRegisteredInFlight = (async () => {
-      if (!isMockAuth()) {
-        const attrs = await fetchUserAttributes();
-        await setUserInfo(attrs.sub, attrs.email);
-      }
       if (pathname === REGISTRATION_PAGE_PATH) {
         return true;
       }

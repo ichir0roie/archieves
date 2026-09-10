@@ -29,7 +29,7 @@ def _build_legacy_backup(path: str) -> None:
 
 
 def _register_current_user(client: TestClient) -> dict:
-    res = client.post("/api/v1/users/find-or-create", json={"name": "Yumi"})
+    res = client.post("/api/v1/users/me/ensure", json={"name": "Yumi"})
     assert res.status_code == 200
     return res.json()
 

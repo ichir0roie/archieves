@@ -86,7 +86,7 @@ def test_update_missing_user_returns_404(client: TestClient) -> None:
 
 
 def test_find_or_create_user_creates_then_reuses(client: TestClient) -> None:
-    payload = {"name": "Yumi"}
+    payload = {"name": "Yumi", "sub": "some-sub"}
 
     first = client.post("/api/v1/users/find-or-create", json=payload)
     assert first.status_code == 200
@@ -94,8 +94,20 @@ def test_find_or_create_user_creates_then_reuses(client: TestClient) -> None:
 
     second = client.post(
         "/api/v1/users/find-or-create",
-        json={"name": "Someone Else"},
+        json={"name": "Someone Else", "sub": "some-sub"},
     )
+    assert second.status_code == 200
+    assert second.json() == created
+
+
+def test_ensure_current_user_creates_then_reuses(client: TestClient) -> None:
+    payload = {"name": "Yumi"}
+
+    first = client.post("/api/v1/users/me/ensure", json=payload)
+    assert first.status_code == 200
+    created = first.json()
+
+    second = client.post("/api/v1/users/me/ensure", json={"name": "Someone Else"})
     assert second.status_code == 200
     assert second.json() == created
 
@@ -105,8 +117,8 @@ def test_get_me_returns_404_when_not_registered(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_get_me_returns_current_user_after_find_or_create(client: TestClient) -> None:
-    create_res = client.post("/api/v1/users/find-or-create", json={"name": "Yumi"})
+def test_get_me_returns_current_user_after_ensure(client: TestClient) -> None:
+    create_res = client.post("/api/v1/users/me/ensure", json={"name": "Yumi"})
     created = create_res.json()
 
     response = client.get("/api/v1/users/me")

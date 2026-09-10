@@ -25,6 +25,7 @@ import {
 import {
   clearGameId,
   loadRoundSetup,
+  markNewGameStart,
   saveInputMode,
   saveRoundSetup,
   type InputMode,
@@ -68,6 +69,7 @@ export default function Page() {
     saveInputMode(mode);
     // Setup always starts a fresh game; "続きから" bypasses this screen.
     clearGameId();
+    markNewGameStart();
     router.push(mode === "simple" ? "/game/simple-score-card" : "/game/score-card");
   }
 

@@ -6,9 +6,10 @@ from app.crud import organization as organization_crud
 from app.crud import profile as profile_crud
 from app.crud import user as user_crud
 from app.schemas.profile import UserProfile
-from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.schemas.user import UserCreate, UserFindOrCreate, UserRead, UserUpdate
 
 router = APIRouter()
+public_router = APIRouter()
 
 
 def _check_organization_exists(db: Session, organization_id: int | None) -> None:
@@ -31,8 +32,18 @@ def create_user(user_in: UserCreate, db: Session = Depends(deps.get_session)) ->
     return user_crud.create_user(db, user_in)
 
 
-@router.post("/find-or-create", response_model=UserRead)
+@public_router.post("/find-or-create", response_model=UserRead)
 def find_or_create_user(
+    user_in: UserFindOrCreate,
+    db: Session = Depends(deps.get_session),
+) -> UserRead:
+    _check_organization_exists(db, user_in.organization_id)
+    user_data = UserCreate(**user_in.model_dump(exclude={"sub"}))
+    return user_crud.get_or_create_user(db, user_data, sub=user_in.sub)
+
+
+@router.post("/me/ensure", response_model=UserRead)
+def ensure_current_user(
     user_in: UserCreate,
     current_user: deps.Claims = Depends(deps.get_current_user),
     db: Session = Depends(deps.get_session),

@@ -7,6 +7,11 @@ from app.core.config import debug_settings
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
 
+# find-or-create runs before the client holds a verified session (it is what
+# establishes the account row for a sub), so it stays outside the
+# authenticated router even though the rest of /users requires a token.
+api_router.include_router(users.public_router, prefix="/users", tags=["users"])
+
 # Everything below requires a verified Cognito bearer token, mirroring
 # all_diary_backend's auth_router.
 authenticated_router = APIRouter()

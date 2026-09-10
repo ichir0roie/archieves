@@ -179,7 +179,7 @@ function ScoreViewContent() {
   return (
     <AuthGate>
       <div className="flex flex-col min-h-screen">
-        <Header pageName="スコア" showBack />
+        <Header pageName="スコア" />
         <div className="py-4">
           {error ? (
             <div className="flex flex-col items-center gap-4 py-20 px-6">
