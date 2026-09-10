@@ -3,6 +3,7 @@
 import AuthGate from "@/components/auth/AuthGate";
 import { JSX, Suspense, useEffect, useState } from "react";
 import {
+  getGame,
   listEnds,
   listPoints,
   listRounds,
@@ -11,36 +12,14 @@ import {
   type PointRead,
   type RoundRead,
 } from "@/lib/api";
-import { ScoreManager } from "@/modules/data/score/scoreManager";
-import { getCurrentAppUser } from "@/lib/auth/currentUser";
-import { scoreToInt, scoreToStr } from "@/modules/data/score/scoreFunctions";
+import { scoreToStr, totalScore } from "@/modules/data/score/scoreFunctions";
 import { DEFAULT_END_SIZE } from "@/modules/data/score/scoreConfig";
+import { loadGameId } from "@/modules/functions/localStorage";
 import { useSearchParams } from "next/navigation";
 import Header from "@/components/templates/common/header";
 import { Button } from "@mui/material";
 import ApiErrorAlert from "@/components/templates/common/ApiErrorAlert";
 import { useRunOnce } from "@/hooks/useRunOnce";
-
-const setupInFlightByGameId = new Map<string, Promise<ScoreManager>>();
-
-function setupOrResumeGame(
-  gameId: string | null,
-  userId: number
-): Promise<ScoreManager> {
-  const key = gameId ?? "";
-  let inFlight = setupInFlightByGameId.get(key);
-  if (!inFlight) {
-    inFlight = (async () => {
-      const scoreManager = new ScoreManager(gameId, userId);
-      await scoreManager.setupGame();
-      return scoreManager;
-    })().finally(() => {
-      setupInFlightByGameId.delete(key);
-    });
-    setupInFlightByGameId.set(key, inFlight);
-  }
-  return inFlight;
-}
 
 export default function Page() {
   return (
@@ -61,68 +40,51 @@ function ScoreViewContent() {
   const [error, setError] = useState<ErrorDetails | null>(null);
   const searchParams = useSearchParams();
 
-  async function setupGame() {
+  async function loadGame() {
     setError(null);
     try {
-      const { id: userId } = await getCurrentAppUser();
-      const gameId = searchParams.get("gameId");
-      const scoreManager = await setupOrResumeGame(gameId, userId);
-
-      const mainElement = await loadMainElement(scoreManager);
-      setMainElement(mainElement);
+      const gameId = searchParams.get("gameId") ?? loadGameId();
+      if (!gameId) {
+        throw new Error("表示するスコアが指定されていません。");
+      }
+      const game = await getGame(Number(gameId));
+      setMainElement(await loadMainElement(game.id));
     } catch (e) {
       setError(toErrorDetails(e));
     }
   }
-  const { runOnMount, run: retrySetupGame } = useRunOnce(setupGame);
+  const { runOnMount, run: retryLoadGame } = useRunOnce(loadGame);
 
   useEffect(() => {
     runOnMount();
   }, [runOnMount]);
 
-  async function getPointElements(points: Array<PointRead>, shotsPerEnd: number) {
+  function getPointElements(points: Array<PointRead>, endSize: number) {
     const resElements = new Array<JSX.Element>();
-    for (let i = 0; i < shotsPerEnd; i++) {
-      if (i < points.length) {
-        const point = points[i];
-        resElements.push(<Td key={i + 1} v={scoreToStr(point.score)} />);
-      } else {
-        resElements.push(<Td key={i + 1} v={"-"} />);
-      }
+    for (let i = 0; i < endSize; i++) {
+      const point = points[i];
+      resElements.push(
+        <Td key={`arrow-${i}`} v={point ? scoreToStr(point.score) : "-"} />
+      );
     }
     return resElements;
   }
 
-  async function getEndElements(round: RoundRead) {
+  async function getEndElements(round: RoundRead, endSize: number) {
     const ends = await listEnds(round.id);
     const resp = new Array<JSX.Element>();
     let roundTotal = 0;
-    for (let i = 0; i < ends.length; i++) {
-      let endTotal = 0;
-
-      const end = ends[i];
+    for (const end of ends) {
       const points = await listPoints(end.id);
-
-      const pointElements = await getPointElements(
-        points,
-        round.end_size ?? DEFAULT_END_SIZE
-      );
-
-      points.forEach((p) => {
-        endTotal += scoreToInt(p.score);
-      });
+      const endTotal = totalScore(points);
       roundTotal += endTotal;
 
       resp.push(
-        <tr key={end.number}>
-          <Td
-            v={end.number}
-            key={end.number}
-            className="font-bold h-10 w-15"
-          />
-          {pointElements}
-          <Td key={10} v={endTotal} />
-          <Td key={20} v={roundTotal} />
+        <tr key={end.id}>
+          <Td v={end.number} className="font-bold h-10 w-15" />
+          {getPointElements(points, endSize)}
+          <Td key="end-total" v={endTotal} />
+          <Td key="round-total" v={roundTotal} />
         </tr>
       );
     }
@@ -130,18 +92,17 @@ function ScoreViewContent() {
     return resp;
   }
 
-  async function getRoundElements(m: ScoreManager) {
-    if (!m?.game) {
-      throw Error("Game is not defined");
-    }
-    const rounds = await listRounds(m.game.id);
+  async function getRoundElements(gameId: number) {
+    const rounds = await listRounds(gameId);
     const resp = new Array<JSX.Element>();
-    for (let i = 0; i < rounds.length; i++) {
-      const round = rounds[i];
-      const endElements = await getEndElements(round);
+    for (const round of rounds) {
+      // An imported round can hold a different arrows-per-end than the app's
+      // own default, so the columns follow the round rather than a constant.
+      const endSize = round.end_size ?? DEFAULT_END_SIZE;
+      const endElements = await getEndElements(round, endSize);
       resp.push(
         <div
-          key={round.number}
+          key={round.id}
           className="p-4 flex flex-col w-[92%] max-w-xl mx-auto mb-4 rounded-2xl bg-white/85 backdrop-blur-sm shadow-sm"
         >
           <div className="font-semibold text-slate-700">
@@ -156,9 +117,11 @@ function ScoreViewContent() {
             <thead>
               <tr className="h-15">
                 <Th className="w-10" />
-                {[1, 2, 3, 4, 5, 6].map((roundId) => (
-                  <Th key={roundId} v={roundId} className="w-10" />
-                ))}
+                {Array.from({ length: endSize }, (_, index) => index + 1).map(
+                  (arrowNumber) => (
+                    <Th key={arrowNumber} v={arrowNumber} className="w-10" />
+                  )
+                )}
                 <Th v="小計" />
                 <Th v="合計" />
               </tr>
@@ -171,8 +134,15 @@ function ScoreViewContent() {
     return resp;
   }
 
-  async function loadMainElement(m: ScoreManager) {
-    const roundElements = await getRoundElements(m);
+  async function loadMainElement(gameId: number) {
+    const roundElements = await getRoundElements(gameId);
+    if (roundElements.length === 0) {
+      return (
+        <div className="flex justify-center py-20 text-sm text-slate-400">
+          この記録にはまだスコアがありません
+        </div>
+      );
+    }
     return <div className="flex flex-col items-center">{roundElements}</div>;
   }
 
@@ -184,7 +154,7 @@ function ScoreViewContent() {
           {error ? (
             <div className="flex flex-col items-center gap-4 py-20 px-6">
               <ApiErrorAlert error={error} className="w-full max-w-xl" />
-              <Button variant="contained" onClick={() => retrySetupGame()}>
+              <Button variant="contained" onClick={() => retryLoadGame()}>
                 再試行
               </Button>
             </div>

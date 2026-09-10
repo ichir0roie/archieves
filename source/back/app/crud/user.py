@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import User
@@ -28,7 +29,17 @@ def get_or_create_user(db: Session, user_in: UserCreate, sub: str) -> User:
     user = get_user_by_sub(db, sub)
     if user is not None:
         return user
-    return create_user(db, user_in, sub=sub)
+    try:
+        return create_user(db, user_in, sub=sub)
+    except IntegrityError:
+        # users.sub is unique, so a request racing this one for the same sub
+        # (every page fires this on load) lost the insert; the row the winner
+        # created is the one to hand back.
+        db.rollback()
+        user = get_user_by_sub(db, sub)
+        if user is None:
+            raise
+        return user
 
 
 def update_user(db: Session, user: User, user_in: UserUpdate) -> User:

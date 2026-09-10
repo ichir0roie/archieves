@@ -1,23 +1,32 @@
-import type { RoundSetup } from "@/modules/data/score/scoreConfig";
+import {
+  DEFAULT_ROUND_SETUP,
+  isValidRoundSetup,
+  type RoundSetup,
+} from "@/modules/data/score/scoreConfig";
 
 export type InputMode = "simple" | "touch";
 
 const ROUND_SETUP_KEY = "roundSetup";
 const INPUT_MODE_KEY = "inputMode";
-const ROUND_IDS_KEY = "roundId";
 const GAME_ID_KEY = "gameId";
 const NEW_GAME_START_KEY = "newGameStart";
 
-/** The distance/target size/end count/round count chosen on the setup screen. */
+/** The distance/target size/arrows per end/end count/round count chosen on the setup screen. */
 export function saveRoundSetup(setup: RoundSetup) {
   localStorage.setItem(ROUND_SETUP_KEY, JSON.stringify(setup));
 }
 
+/**
+ * Anything stored under this key is user-editable and can predate a change
+ * to RoundSetup's shape, so a stored setup that no longer describes a
+ * scorable game is treated as absent rather than fed to ScoreManager.
+ */
 export function loadRoundSetup(): RoundSetup | null {
   const raw = localStorage.getItem(ROUND_SETUP_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as RoundSetup;
+    const setup = { ...DEFAULT_ROUND_SETUP, ...(JSON.parse(raw) as Partial<RoundSetup>) };
+    return isValidRoundSetup(setup) ? setup : null;
   } catch {
     return null;
   }
@@ -33,22 +42,12 @@ export function loadInputMode(): InputMode | null {
   return mode === "simple" || mode === "touch" ? mode : null;
 }
 
-export function saveRoundIds(roundIds: string[]) {
-  localStorage.setItem(ROUND_IDS_KEY, roundIds.join(","));
-}
-
-export function loadRoundIds(): string[] {
-  const roundId = localStorage.getItem(ROUND_IDS_KEY);
-  return roundId ? roundId.split(",") : [];
-}
-
 export function saveGameId(gameId: string) {
   localStorage.setItem(GAME_ID_KEY, gameId);
 }
 
 export function clearGameId() {
   localStorage.removeItem(GAME_ID_KEY);
-  localStorage.removeItem(ROUND_IDS_KEY);
 }
 
 export function loadGameId(): string | null {
@@ -64,7 +63,8 @@ export function loadGameId(): string | null {
  * been saved yet, so there's nothing to distinguish it from a first visit)
  * and is only cleared once the game becomes real - see
  * ScoreManager.ensurePersisted(), which clears it right where it calls
- * saveGameId().
+ * saveGameId(). Backing all the way out of a game that never got a score
+ * re-arms it, so the same still-empty screen keeps working.
  */
 export function markNewGameStart() {
   sessionStorage.setItem(NEW_GAME_START_KEY, "1");

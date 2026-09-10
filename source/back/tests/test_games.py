@@ -40,7 +40,7 @@ def _create_end(client: TestClient, round_id: int) -> dict:
 
 
 def _create_point(client: TestClient, end_id: int) -> dict:
-    payload = {"number": 1, "score": 9, "x": 1.5, "y": -2.5, "recorded_at": RECORDED_AT}
+    payload = {"number": 1, "score": 9, "x": 0.6, "y": 0.4, "recorded_at": RECORDED_AT}
     res = client.post(f"/api/v1/ends/{end_id}/points", json=payload)
     assert res.status_code == 201
     return res.json()
