@@ -212,7 +212,8 @@ export class ScoreManager {
 
     const roundSize = this.currentRound.round_size ?? DEFAULT_ROUND_SIZE;
     if (this.ends.length >= roundSize) {
-      return;
+      const round = await this.addRound();
+      if (!round) return;
     }
 
     const end: EndRead = {
@@ -236,6 +237,9 @@ export class ScoreManager {
       throw new Error("No current round. Call newRound() first.");
     }
     if (this.ends.length <= 1) {
+      if (this.rounds.length > 1) {
+        await this.removeRound();
+      }
       return;
     }
     const endToDelete = this.ends.pop();
