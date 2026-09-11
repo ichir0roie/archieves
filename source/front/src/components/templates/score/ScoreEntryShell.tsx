@@ -12,9 +12,12 @@ import {
   DEFAULT_TARGET_TYPE_ID,
 } from "@/modules/data/score/scoreConfig";
 import type { PointRead } from "@/lib/api";
+import type { SheetRound } from "@/modules/data/score/scoreManager";
 
 export interface ScoreInputProps {
   points: Array<PointRead>;
+  /** Every round/end of the game so far, for modes that show the whole sheet. */
+  sheet: Array<SheetRound>;
   next: (point: number, x?: number, y?: number) => void;
   nextEnd: () => void;
   back: () => void;
@@ -31,6 +34,11 @@ export interface ScoreInputProps {
 
 interface Props {
   renderInput: (props: ScoreInputProps) => ReactNode;
+  /**
+   * Off for modes that draw the whole game's score sheet themselves, so the
+   * single-end strip above the input isn't a second copy of the same end.
+   */
+  showEndView?: boolean;
 }
 
 /**
@@ -39,12 +47,13 @@ interface Props {
  * bar, the loading/error/retry states around useScoreGame, and EndView.
  * Only the score input widget itself differs between modes.
  */
-export default function ScoreEntryShell({ renderInput }: Props) {
+export default function ScoreEntryShell({ renderInput, showEndView = true }: Props) {
   const router = useRouter();
   const {
     manager,
     mirrorPoints,
     progress,
+    sheet,
     next,
     back,
     finish,
@@ -70,15 +79,26 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               ✕
             </button>
             {progress && (
-              <div className="ScoreProgress flex flex-1 items-center justify-center gap-3">
+              <div className="ScoreProgress flex flex-1 items-center justify-center gap-4 text-base">
                 <span>
-                  ラウンド {progress.roundNumber}/{progress.gameSize}
+                  ラウンド{" "}
+                  <span className="text-2xl font-bold leading-none">
+                    {progress.roundNumber}
+                  </span>
+                  /{progress.gameSize}
                 </span>
                 <span>
-                  END {progress.endNumber}/{progress.roundSize}
+                  END{" "}
+                  <span className="text-2xl font-bold leading-none">
+                    {progress.endNumber}
+                  </span>
+                  /{progress.roundSize}
                 </span>
                 <span className={progress.isEndFull ? "text-emerald-600" : undefined}>
-                  {progress.arrowCount}/{progress.endSize}本
+                  <span className="text-2xl font-bold leading-none">
+                    {progress.arrowCount}
+                  </span>
+                  /{progress.endSize}本
                 </span>
               </div>
             )}
@@ -119,10 +139,11 @@ export default function ScoreEntryShell({ renderInput }: Props) {
                   </p>
                 )
               )}
-              <EndView points={mirrorPoints} endSize={endSize} />
+              {showEndView && <EndView points={mirrorPoints} endSize={endSize} />}
               <div className="min-h-0 flex-1">
                 {renderInput({
                   points: mirrorPoints,
+                  sheet,
                   next,
                   nextEnd: addEnd,
                   back,
