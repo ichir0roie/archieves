@@ -63,6 +63,21 @@ export interface ScoreProgress {
   isGameComplete: boolean;
 }
 
+/** One end as the whole-game score sheet shows it. */
+export interface SheetEnd {
+  number: number;
+  points: Array<PointRead>;
+  /** The end the player is recording into right now. */
+  isCurrent: boolean;
+}
+
+/** One round as the whole-game score sheet shows it. */
+export interface SheetRound {
+  number: number;
+  endSize: number;
+  ends: Array<SheetEnd>;
+}
+
 export class ScoreManager {
   gameId: string | null = null;
   userId: number;
@@ -76,6 +91,15 @@ export class ScoreManager {
   currentRound: RoundRead | null = null;
   currentEnd: EndRead | null = null;
   currentPoints: Array<PointRead> = [];
+
+  /**
+   * Arrows already recorded in this game, as recordedPoints[roundIndex][endIndex],
+   * so the score sheet can show the whole game and not just the end in progress.
+   * The end in progress is deliberately absent: `sheet` reads it from
+   * currentPoints, and archiveCurrentEnd() files it here the moment the player
+   * moves on to the next end.
+   */
+  private recordedPoints: Array<Array<Array<PointRead>>> = [];
 
   constructor(gameId: string | null, userId: number, setup: RoundSetup | null = null) {
     this.gameId = gameId;
@@ -131,6 +155,49 @@ export class ScoreManager {
       isEndFull: this.isEndFull,
       isGameComplete: this.isGameComplete,
     };
+  }
+
+  /** The whole game as a score sheet: every round, its ends and their arrows. */
+  get sheet(): Array<SheetRound> {
+    const lastRoundIndex = this.rounds.length - 1;
+    const lastEndIndex = this.ends.length - 1;
+
+    return this.rounds.map((round, roundIndex) => ({
+      number: round.number,
+      endSize: round.end_size ?? DEFAULT_END_SIZE,
+      ends: (this.recordedPoints[roundIndex] ?? []).map((points, endIndex) => {
+        const isCurrent = roundIndex === lastRoundIndex && endIndex === lastEndIndex;
+        return {
+          number: endIndex + 1,
+          points: isCurrent ? this.currentPoints : points,
+          isCurrent,
+        };
+      }),
+    }));
+  }
+
+  private get currentRoundPoints(): Array<Array<PointRead>> {
+    const recorded = this.recordedPoints[this.recordedPoints.length - 1];
+    if (recorded) return recorded;
+
+    const created: Array<Array<PointRead>> = [];
+    this.recordedPoints.push(created);
+    return created;
+  }
+
+  /**
+   * Files the end in progress into recordedPoints, right before currentPoints
+   * is handed over to a new end.
+   */
+  private archiveCurrentEnd() {
+    if (this.ends.length === 0) return;
+    this.currentRoundPoints[this.ends.length - 1] = [...this.currentPoints];
+  }
+
+  private async fetchRoundPoints(round: RoundRead): Promise<Array<Array<PointRead>>> {
+    if (isPending(round)) return [];
+    const ends = await listEnds(round.id);
+    return Promise.all(ends.map((end) => listPoints(end.id)));
   }
 
   async setupGame() {
@@ -230,6 +297,8 @@ export class ScoreManager {
       return;
     }
 
+    this.archiveCurrentEnd();
+
     // Every round in a game shares one setup: reuse the previous round's
     // values so later rounds don't silently fall back to the defaults.
     const previous = this.currentRound;
@@ -246,6 +315,7 @@ export class ScoreManager {
     };
 
     this.rounds.push(round);
+    this.recordedPoints.push([]);
     this.currentRound = round;
 
     this.ends = [];
@@ -259,6 +329,7 @@ export class ScoreManager {
     if (this.rounds.length <= 1) throw new Error("これ以上前のラウンドはありません。");
 
     const roundToDelete = this.rounds.pop();
+    this.recordedPoints.pop();
     if (!roundToDelete) throw new Error("削除するラウンドを取得できませんでした。");
     if (!isPending(roundToDelete)) {
       await deleteRound(roundToDelete.id);
@@ -284,6 +355,8 @@ export class ScoreManager {
     if (this.ends.length >= this.roundSize) {
       const round = await this.addRound();
       if (!round) return;
+    } else {
+      this.archiveCurrentEnd();
     }
 
     const end: EndRead = {
@@ -295,6 +368,7 @@ export class ScoreManager {
     };
 
     this.ends.push(end);
+    this.currentRoundPoints.push([]);
     this.currentEnd = end;
 
     this.currentPoints = [];
@@ -315,6 +389,7 @@ export class ScoreManager {
       return;
     }
     const endToDelete = this.ends.pop();
+    this.recordedPoints[this.recordedPoints.length - 1]?.pop();
     if (!endToDelete) {
       throw new Error("削除するエンドを取得できませんでした。");
     }
@@ -365,6 +440,7 @@ export class ScoreManager {
     markNewGameStart();
     this.rounds = [];
     this.ends = [];
+    this.recordedPoints = [];
     this.currentRound = null;
     this.currentEnd = null;
     this.currentPoints = [];
@@ -380,6 +456,7 @@ export class ScoreManager {
     if (!this.game || this.currentPoints.length > 0) return this.game !== null;
 
     const end = this.ends.pop();
+    this.recordedPoints[this.recordedPoints.length - 1]?.pop();
     if (end && !isPending(end)) {
       await deleteEnd(end.id);
     }
@@ -387,6 +464,7 @@ export class ScoreManager {
     if (this.ends.length > 0) return true;
 
     const round = this.rounds.pop();
+    this.recordedPoints.pop();
     if (round && !isPending(round)) {
       await deleteRound(round.id);
     }
@@ -447,6 +525,14 @@ export class ScoreManager {
 
     this.rounds = await listRounds(this.game.id);
     this.currentRound = this.rounds[this.rounds.length - 1] || null;
+
+    // fetchCurrentEnds() reloads the last round's ends anyway, so only the
+    // rounds already behind the player are fetched here.
+    this.recordedPoints = await Promise.all(
+      this.rounds.map((round, index) =>
+        index < this.rounds.length - 1 ? this.fetchRoundPoints(round) : []
+      )
+    );
   }
 
   async fetchCurrentEnds() {
@@ -456,6 +542,10 @@ export class ScoreManager {
     this.ends = await listEnds(this.currentRound.id);
 
     this.currentEnd = this.ends[this.ends.length - 1] || null;
+
+    this.recordedPoints[this.rounds.length - 1] = await Promise.all(
+      this.ends.map((end) => listPoints(end.id))
+    );
   }
   async fetchCurrentPoints() {
     if (!this.currentEnd)
