@@ -40,17 +40,26 @@ function scoreButton(page: Page, label: string) {
   return page.locator(".SimpleScoreInput").getByRole("button", { name: label, exact: true });
 }
 
-/** The arrows recorded in the end on screen, in order. */
+/** The arrows recorded in the end on screen, in order (target-touch mode). */
 function recordedArrows(page: Page) {
   return page.locator(".EndView .ArrowValue");
+}
+
+/** The score-only mode shows the whole game: this is its end in progress. */
+function currentEndRow(page: Page) {
+  return page.locator(".ScoreSheet .CurrentEnd");
+}
+
+function sheetArrows(page: Page) {
+  return currentEndRow(page).locator(".ArrowValue");
 }
 
 async function shoot(page: Page, label: string, times: number) {
   const button = scoreButton(page, label);
   for (let i = 0; i < times; i++) {
-    const before = await recordedArrows(page).count();
+    const before = await sheetArrows(page).count();
     await button.click();
-    await expect(recordedArrows(page)).toHaveCount(before + 1, { timeout: 10_000 });
+    await expect(sheetArrows(page)).toHaveCount(before + 1, { timeout: 10_000 });
   }
 }
 
@@ -63,7 +72,7 @@ test("records a full end of scores and views the result", async ({ page }) => {
 
   await shoot(page, "10", 6);
 
-  await expect(page.locator(".EndTotal")).toHaveText("60");
+  await expect(currentEndRow(page).locator(".EndTotal")).toHaveText("60");
   await expect(scoreButton(page, "10")).toBeDisabled();
   await expect(page.locator(".EndCompleteNotice")).toBeVisible();
 
@@ -82,13 +91,13 @@ test("going back removes the last recorded point", async ({ page }) => {
   await startGame(page, { endSize: 6, roundSize: 6, gameSize: 2 });
 
   await shoot(page, "10", 1);
-  await expect(recordedArrows(page)).toHaveText(["10"]);
+  await expect(sheetArrows(page)).toHaveText(["10"]);
 
   await page.getByRole("button", { name: "戻る", exact: true }).click();
-  await expect(recordedArrows(page)).toHaveCount(0);
+  await expect(sheetArrows(page)).toHaveCount(0);
 
   await shoot(page, "9", 1);
-  await expect(recordedArrows(page)).toHaveText(["9"]);
+  await expect(sheetArrows(page)).toHaveText(["9"]);
 });
 
 test("progress follows the arrow, end and round through a whole game", async ({ page }) => {
@@ -98,9 +107,9 @@ test("progress follows the arrow, end and round through a whole game", async ({ 
   await expect(progress).toContainText("ラウンド 1/2");
   await expect(progress).toContainText("END 1/2");
   await expect(progress).toContainText("0/3本");
-  // The end keeps one slot per planned arrow from the start, so the input
-  // below it never shifts as arrows come in.
-  await expect(page.locator(".EndView .ArrowSlot")).toHaveCount(3);
+  // The end keeps one column per planned arrow from the start, so the sheet
+  // above the keypad never shifts as arrows come in.
+  await expect(currentEndRow(page).locator(".ArrowCell")).toHaveCount(3);
 
   await shoot(page, "9", 3);
   await expect(progress).toContainText("3/3本");
@@ -132,8 +141,8 @@ test("an X is shown as X and counts as ten points", async ({ page }) => {
   await startGame(page, { endSize: 3, roundSize: 1, gameSize: 1 });
 
   await shoot(page, "X", 3);
-  await expect(recordedArrows(page)).toHaveText(["X", "X", "X"]);
-  await expect(page.locator(".EndTotal")).toHaveText("30");
+  await expect(sheetArrows(page)).toHaveText(["X", "X", "X"]);
+  await expect(currentEndRow(page).locator(".EndTotal")).toHaveText("30");
 
   await page.getByRole("button", { name: "終了" }).click();
   await expect(page).toHaveURL(/\/score-view\?gameId=/, { timeout: ROUTE_TIMEOUT });
@@ -170,7 +179,7 @@ test("backing out past the first arrow leaves no game behind", async ({ page }) 
     .not.toBeNull();
 
   await page.getByRole("button", { name: "戻る", exact: true }).click();
-  await expect(recordedArrows(page)).toHaveCount(0);
+  await expect(sheetArrows(page)).toHaveCount(0);
   await page.getByRole("button", { name: "戻る", exact: true }).click();
 
   // The game the first arrow created is deleted rather than left in the
@@ -181,7 +190,7 @@ test("backing out past the first arrow leaves no game behind", async ({ page }) 
 
   // The still-empty screen keeps working and starts a fresh game.
   await shoot(page, "8", 1);
-  await expect(recordedArrows(page)).toHaveText(["8"]);
+  await expect(sheetArrows(page)).toHaveText(["8"]);
 });
 
 test("finishing a game with nothing recorded goes home", async ({ page }) => {
@@ -218,8 +227,40 @@ test("resuming a game whose end is already full opens the next end", async ({ pa
   await expect(page.locator(".ScoreProgress")).toContainText("END 2/6", {
     timeout: ROUTE_TIMEOUT,
   });
-  await expect(recordedArrows(page)).toHaveCount(0);
+  await expect(sheetArrows(page)).toHaveCount(0);
+
+  // The end just finished stays on the sheet above the one being recorded.
+  await expect(page.locator(".ScoreSheet .SheetEndRow")).toHaveCount(2);
+  await expect(
+    page.locator(".ScoreSheet .SheetEndRow").first().locator(".ArrowValue")
+  ).toHaveText(["10", "10", "10"]);
+
   await shoot(page, "10", 1);
+});
+
+test("the score sheet keeps every round of the game across a reload", async ({ page }) => {
+  await startGame(page, { endSize: 2, roundSize: 2, gameSize: 2 });
+
+  await shoot(page, "10", 2);
+  await page.getByRole("button", { name: "次へ", exact: true }).click();
+  await shoot(page, "8", 2);
+  await page.getByRole("button", { name: "次へ", exact: true }).click();
+  await expect(page.locator(".ScoreProgress")).toContainText("ラウンド 2/2");
+  await shoot(page, "9", 1);
+
+  await page.reload();
+  await expect(page.locator(".ScoreProgress")).toContainText("ラウンド 2/2", {
+    timeout: ROUTE_TIMEOUT,
+  });
+
+  // Both rounds are on the sheet, not just the one being recorded.
+  const rounds = page.locator(".ScoreSheet .SheetRound");
+  await expect(rounds).toHaveCount(2);
+  await expect(rounds.first().locator(".SheetEndRow")).toHaveCount(2);
+  await expect(rounds.first().locator(".SheetEndRow").first().locator(".ArrowValue"))
+    .toHaveText(["10", "10"]);
+  await expect(rounds.first().locator(".RoundTotal")).toHaveText("計 36");
+  await expect(sheetArrows(page)).toHaveText(["9"]);
 });
 
 test("the score entry screen cannot be reached without starting a game", async ({ page }) => {

@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ScoreManager, type ScoreProgress } from "@/modules/data/score/scoreManager";
+import {
+  ScoreManager,
+  type ScoreProgress,
+  type SheetRound,
+} from "@/modules/data/score/scoreManager";
 import { toErrorDetails, type ErrorDetails, type PointRead } from "@/lib/api";
 import { type RoundSetup } from "@/modules/data/score/scoreConfig";
 import {
@@ -45,6 +49,7 @@ export function useScoreGame() {
   const [manager, setManager] = useState<ScoreManager | null>(null);
   const [mirrorPoints, setMirrorPoints] = useState<Array<PointRead>>([]);
   const [progress, setProgress] = useState<ScoreProgress | null>(null);
+  const [sheet, setSheet] = useState<Array<SheetRound>>([]);
   const [error, setError] = useState<ErrorDetails | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSettingUp, setIsSettingUp] = useState(false);
@@ -55,6 +60,7 @@ export function useScoreGame() {
   function syncFrom(scoreManager: ScoreManager) {
     setMirrorPoints([...scoreManager.currentPoints]);
     setProgress(scoreManager.progress);
+    setSheet(scoreManager.sheet);
   }
 
   async function setupGame() {
@@ -152,6 +158,7 @@ export function useScoreGame() {
     manager,
     mirrorPoints,
     progress,
+    sheet,
     next,
     back,
     finish,
