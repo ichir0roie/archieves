@@ -23,6 +23,8 @@ export default function SimpleScoreInput(props: ScoreInputProps) {
     <div className="SimpleScoreInput flex h-full w-full flex-col">
       <ScoreSheetTable sheet={props.sheet} />
 
+      {props.commentBar}
+
       <div className="ScoreKeypad flex h-1/2 shrink-0 flex-col border-t-2 border-slate-300 bg-white">
         <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-4 gap-2 p-2">
           {scoreValues(maxScore).map((score) => (

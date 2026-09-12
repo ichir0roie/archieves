@@ -193,3 +193,34 @@ export interface ImportResult {
   ends: number;
   points: number;
 }
+
+/** The only field a comment carries of its own. */
+export interface CommentBase {
+  body: string;
+}
+
+export type CommentWrite = CommentBase;
+
+export interface CommentRead extends CommentBase {
+  id: number;
+  user_id: number;
+}
+
+export interface GameCommentRead extends CommentRead {
+  game_id: number;
+}
+
+export interface RoundCommentRead extends CommentRead {
+  round_id: number;
+}
+
+export interface EndCommentRead extends CommentRead {
+  end_id: number;
+}
+
+/** Every comment under one game, for screens that draw the whole sheet. */
+export interface GameComments {
+  game: GameCommentRead | null;
+  rounds: RoundCommentRead[];
+  ends: EndCommentRead[];
+}

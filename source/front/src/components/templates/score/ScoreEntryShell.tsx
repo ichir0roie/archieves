@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Button, CircularProgress } from "@mui/material";
 import EndView from "@/components/templates/score/EndView";
+import CommentBar from "@/components/templates/score/CommentBar";
 import ApiErrorAlert from "@/components/templates/common/ApiErrorAlert";
 import AuthGate from "@/components/auth/AuthGate";
 import { useScoreGame } from "@/modules/data/score/useScoreGame";
@@ -16,6 +17,11 @@ import type { SheetRound } from "@/modules/data/score/scoreManager";
 
 export interface ScoreInputProps {
   points: Array<PointRead>;
+  /**
+   * The end/round/game comment rows. Each mode places them itself so they
+   * always read directly under the scores it draws.
+   */
+  commentBar: ReactNode;
   /** Every round/end of the game so far, for modes that show the whole sheet. */
   sheet: Array<SheetRound>;
   next: (point: number, x?: number, y?: number) => void;
@@ -54,6 +60,8 @@ export default function ScoreEntryShell({ renderInput, showEndView = true }: Pro
     mirrorPoints,
     progress,
     sheet,
+    comments,
+    saveComment,
     next,
     back,
     finish,
@@ -144,6 +152,15 @@ export default function ScoreEntryShell({ renderInput, showEndView = true }: Pro
                 {renderInput({
                   points: mirrorPoints,
                   sheet,
+                  commentBar: (
+                    <CommentBar
+                      comments={comments}
+                      roundNumber={progress?.roundNumber ?? 0}
+                      endNumber={progress?.endNumber ?? 0}
+                      onSave={saveComment}
+                      disabled={isSaving}
+                    />
+                  ),
                   next,
                   nextEnd: addEnd,
                   back,

@@ -2,6 +2,7 @@
 # model is registered on Base.metadata before autogenerate/create_all inspects it.
 # Add new models here as they're created.
 from app.db.base_class import Base  # noqa: F401
+from app.db.models.comment_model import EndComment, GameComment, RoundComment  # noqa: F401
 from app.db.models.game_model import End, Game, Match, Point, Round  # noqa: F401
 from app.db.models.system_model import Organization, Region, User  # noqa: F401
 
