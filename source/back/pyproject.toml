@@ -3,12 +3,11 @@ pythonpath = ["."]
 
 [tool.ruff]
 line-length = 100
-# The lowest interpreter the code must run on, which is what ruff reads this
-# as: the deployed runtime is 3.14 (see .build/Dockerfile), but the tests also
-# run on the 3.11 dev containers ship, so fixes that assume newer semantics
-# (PEP 649 deferred annotations, PEP 695 generics, Generator's defaulted type
-# arguments) would break the suite there.
-target-version = "py311"
+# The one interpreter this project runs on, everywhere: the deployed image
+# (.build/Dockerfile) and the test container (.build/Dockerfile.test) are both
+# 3.14, so ruff may apply fixes that assume 3.14 semantics (PEP 649 deferred
+# annotations, PEP 695 generics, Generator's defaulted type arguments).
+target-version = "py314"
 # Alembic writes these from a template; they are a migration history rather
 # than hand-maintained source, so reformatting them would churn the history.
 extend-exclude = ["alembic/versions"]
