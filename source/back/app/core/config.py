@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
 
     @model_validator(mode="after")
-    def _default_database_url(self) -> "Settings":
+    def _default_database_url(self) -> Settings:
         if not self.DATABASE_URL:
             self.DATABASE_URL = (
                 f"{self.DB_DRIVER}://{self.DB_USER}:{quote_plus(self.DB_PASSWORD)}"

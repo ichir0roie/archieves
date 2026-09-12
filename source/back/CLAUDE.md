@@ -19,53 +19,102 @@ there's no need for a separate `except Exception: db.rollback()` either.
 Commit explicitly on success inside the `with` block; let `with` handle
 cleanup (and implicit rollback) on exceptions.
 
+## Python version
+
+3.14, everywhere: the deployed image (`.build/Dockerfile`), the test
+container (`.build/Dockerfile.test`) and ruff's `target-version`. Write
+3.14 Python - PEP 695 type parameters (`def get_or_404[T](...)`), unquoted
+forward references (PEP 649 evaluates annotations lazily), `Generator[T]`
+without its defaulted `None, None` - and let `ruff check --fix` modernise
+the rest. Don't add compatibility shims for older interpreters.
+
+A system Python on a dev machine is usually older than this, so run the
+suite in the test container below rather than against whatever `python3`
+resolves to. To work outside docker, make a 3.14 virtualenv first
+(`uv venv --python 3.14 .venv`, `.venv` is gitignored).
+
 ## Tests
 
-`pytest` drives the API's tests, in `tests/`. Install the dev dependencies
-once (`pip install -r requirements-dev.txt`), then run them from this
-directory:
+`pytest` drives the API's tests, in `tests/`. The environment is the
+container in `.build/docker-compose.test.yml`: Python 3.14 against a
+throwaway postgres, so the suite runs on the same interpreter and the same
+database engine production does.
 
 ```
-python -m pytest
-python -m ruff check .
+cd source/back
+docker compose -f .build/docker-compose.test.yml run --rm tests
+docker compose -f .build/docker-compose.test.yml down
 ```
 
-`tests/conftest.py` gives each test a fresh in-memory sqlite DB and a
-`TestClient` whose `get_session`/`get_current_user` dependencies are
-overridden, so no postgres, no Cognito and no network are needed. Use the
-`client` fixture for endpoint tests and `db_session` for CRUD/service ones.
+Anything after `tests` is passed to pytest, so a single file or `-k` works
+the same way:
 
-Add tests with the change that needs them, and cover the error paths -
-404s, rejected payloads, malformed input - not just the happy path. The
-suite currently covers every line of `app/` bar two defensive branches;
-keep it that way (`python -m pytest --cov=app --cov-report=term-missing`,
-needs `pytest-cov`).
+```
+docker compose -f .build/docker-compose.test.yml run --rm tests \
+  python -m pytest tests/test_games.py -k restore -q
+```
 
-Note that `client` shares one session across the requests of a test, unlike
-production where `get_session` opens and closes one per request. Anything
+The project is bind-mounted, so editing a test and re-running needs no
+rebuild; pass `--build` only when `requirements*.txt` changes. This
+postgres publishes no host port and keeps its data in a tmpfs, so it can
+run alongside `docker-compose.yml`'s.
+
+Without docker, `python -m pytest` still works: `conftest.py` reads
+`TEST_DATABASE_URL` and falls back to in-memory sqlite when it is unset.
+That is the quick path, not the authoritative one - it cannot catch a
+postgres-only problem, so confirm in the container before pushing.
+
+Lint with `python -m ruff check .` (`--fix` to apply).
+
+### Fixtures
+
+`db_session` gives a session whose writes are undone when the test ends: it
+joins an outer transaction that is rolled back afterwards, so a test's own
+commits - and every commit an endpoint makes through `client` - land on a
+savepoint rather than the database. The schema is therefore built once per
+session, not per test, which is what keeps the postgres run fast. Note that
+`client` shares that one session across the requests of a test, unlike
+production where `get_session` opens and closes one per request: anything
 relying on a request's transaction being discarded must roll back
 explicitly rather than leaning on the session closing (see
 `app/services/legacy_import.py`).
 
-Ruff's `target-version` is the *lowest* interpreter the code must run on
-(`py311`), not the deployed one (3.14, see `.build/Dockerfile`): dev
-containers ship older Pythons, and fixes that assume 3.12+/3.14 semantics
-(PEP 695 generics, PEP 649 deferred annotations, `Generator`'s defaulted
-type arguments) break the suite there.
+`factories` exposes every `mods.factory_db` factory, already bound to the
+test's session - prefer it to driving the API just to arrange data:
+
+```python
+def test_something(client, factories):
+    user = factories.UserFactory(name="Yumi")
+    factories.GameFactory.create_batch(3, user=user)
+```
+
+A factory creates whatever its row requires, so `PointFactory()` also
+creates the end, round, game and user above it; pass a parent
+(`RoundFactory(game=game)`) to attach to an existing one, and any field to
+override a default. `user` and `current_user` are shorthand for a persisted
+user and for the one `client` authenticates as. `tests/test_factories.py`
+covers this wiring - keep new factories working there.
+
+Add tests with the change that needs them, and cover the error paths -
+404s, rejected payloads, malformed input - not just the happy path. The
+suite covers every line of `app/` bar two defensive branches; keep it that
+way (`python -m pytest --cov=app --cov-report=term-missing`).
 
 ## Test API server (sqlite)
 
-For testing archieves-api's actual behavior against the frontend (not unit
-tests, which already run against an in-memory sqlite DB per
-`tests/conftest.py`), `.build/docker-compose.yml`'s postgres container is
-the default. In environments with no docker daemon (e.g. Claude Code cloud
+For testing archieves-api's actual behavior against the frontend (not the
+pytest suite, which has its own environment - see "Tests" above),
+`.build/docker-compose.yml`'s postgres container is the default. In environments with no docker daemon (e.g. Claude Code cloud
 sessions - `docker` may be present but unable to reach a daemon), use
 `debug/test_env/run_test_api_server.py` instead:
 
 ```
 cd source/back
-python debug/test_env/run_test_api_server.py
+.venv/bin/python debug/test_env/run_test_api_server.py
 ```
+
+It must be a 3.14 interpreter (see "Python version"); a system `python3`
+that is older fails on `app/`'s PEP 695 syntax before uvicorn starts.
 
 Each run: deletes `debug/test_env/test.db` (gitignored) if present, rebuilds
 the schema into that empty file via `debug/db/create_db.py`

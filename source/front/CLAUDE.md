@@ -27,10 +27,12 @@ up -d`, then set
 section above).
 
 In environments with no docker daemon (e.g. Claude Code cloud sessions),
-run `python debug/test_env/run_test_api_server.py` from `../back` instead -
-it serves the same API on the same `:8080` port against a disposable
-sqlite DB, so `NEXT_PUBLIC_API_BASE_URL` is set the same way. See
-`../back/CLAUDE.md`'s "Test API server (sqlite)" section.
+run `.venv/bin/python debug/test_env/run_test_api_server.py` from `../back`
+instead - it serves the same API on the same `:8080` port against a
+disposable sqlite DB, so `NEXT_PUBLIC_API_BASE_URL` is set the same way.
+It needs a Python 3.14 interpreter, which is what that venv is for. See
+`../back/CLAUDE.md`'s "Python version" and "Test API server (sqlite)"
+sections.
 
 Every page nests `AuthGate`, which bounces a user with no archieves-api
 row to `/profile/settings`. Start each spec from `ensureRegistered(page)`
