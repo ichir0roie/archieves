@@ -166,8 +166,9 @@ test("the score sheet shows one column per arrow of the end", async ({ page }) =
   await page.getByRole("button", { name: "終了" }).click();
   await expect(page).toHaveURL(/\/score-view\?gameId=/, { timeout: ROUTE_TIMEOUT });
 
-  // 3 arrow columns plus the end number, its subtotal and the running total.
-  await expect(page.locator("table thead th")).toHaveCount(6);
+  // 3 arrow columns plus the end number, its subtotal, the running total
+  // and the end's comment.
+  await expect(page.locator("table thead th")).toHaveCount(7);
 });
 
 test("backing out past the first arrow leaves no game behind", async ({ page }) => {
@@ -279,7 +280,7 @@ test("tapping the same spot twice on the target records two arrows", async ({ pa
   await page.getByRole("button", { name: "的をタッチして入力" }).click();
   await expect(page).toHaveURL(/\/game\/score-card$/, { timeout: ROUTE_TIMEOUT });
 
-  const target = page.locator(".TargetCircleInput > div").first();
+  const target = page.locator(".TargetCircleInput .TargetFace");
   await expect(target).toBeVisible({ timeout: ROUTE_TIMEOUT });
   const box = await target.boundingBox();
   if (!box) throw new Error("target not laid out");

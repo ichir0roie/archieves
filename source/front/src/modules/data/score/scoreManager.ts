@@ -13,18 +13,27 @@ import {
   createPoint,
   createRound,
   deleteEnd,
+  deleteEndComment,
   deleteGame,
+  deleteGameComment,
   deletePoint,
   deleteRound,
+  deleteRoundComment,
   getGame,
   listEnds,
+  listGameComments,
   listPoints,
   listRounds,
+  saveEndComment,
+  saveGameComment,
+  saveRoundComment,
   type EndRead,
+  type GameComments,
   type GameRead,
   type PointRead,
   type RoundRead,
 } from "@/lib/api";
+import { type CommentTarget } from "@/modules/data/comment/commentConfig";
 import {
   DEFAULT_DISTANCE_M,
   DEFAULT_END_SIZE,
@@ -93,6 +102,14 @@ export class ScoreManager {
   currentPoints: Array<PointRead> = [];
 
   /**
+   * Every comment already written under this game, fetched in one request
+   * when the game is loaded. The screen only ever shows the ones on the
+   * game and on the round/end being recorded into, so they are looked up
+   * by id rather than kept per screen position.
+   */
+  private comments: GameComments = { game: null, rounds: [], ends: [] };
+
+  /**
    * Arrows already recorded in this game, as recordedPoints[roundIndex][endIndex],
    * so the score sheet can show the whole game and not just the end in progress.
    * The end in progress is deliberately absent: `sheet` reads it from
@@ -124,6 +141,34 @@ export class ScoreManager {
 
   get targetType(): string {
     return this.currentRound?.target_type ?? this.setup?.targetType ?? DEFAULT_TARGET_TYPE_ID;
+  }
+
+  /** The note on the whole game, if one was written. */
+  get gameComment(): string | null {
+    return this.comments.game?.body ?? null;
+  }
+
+  /** The note on the round being recorded into, if one was written. */
+  get roundComment(): string | null {
+    const roundId = this.currentRound?.id;
+    if (roundId === undefined) return null;
+    return this.comments.rounds.find((c) => c.round_id === roundId)?.body ?? null;
+  }
+
+  /** The note on the end being recorded into, if one was written. */
+  get endComment(): string | null {
+    const endId = this.currentEnd?.id;
+    if (endId === undefined) return null;
+    return this.comments.ends.find((c) => c.end_id === endId)?.body ?? null;
+  }
+
+  /** A comment is worth keeping even when no arrow was ever scored. */
+  private get hasAnyComment(): boolean {
+    return (
+      this.comments.game !== null ||
+      this.comments.rounds.length > 0 ||
+      this.comments.ends.length > 0
+    );
   }
 
   get isEndFull(): boolean {
@@ -227,6 +272,7 @@ export class ScoreManager {
   async loadGameData() {
     if (!this.game) return;
 
+    await this.fetchComments();
     await this.fetchRounds();
 
     if (!this.currentRound) {
@@ -333,6 +379,7 @@ export class ScoreManager {
     if (!roundToDelete) throw new Error("削除するラウンドを取得できませんでした。");
     if (!isPending(roundToDelete)) {
       await deleteRound(roundToDelete.id);
+      this.forgetRoundComment(roundToDelete.id);
     }
 
     this.currentRound = this.rounds[this.rounds.length - 1] || null;
@@ -395,6 +442,7 @@ export class ScoreManager {
     }
     if (!isPending(endToDelete)) {
       await deleteEnd(endToDelete.id);
+      this.forgetEndComment(endToDelete.id);
     }
 
     this.currentEnd = this.ends[this.ends.length - 1] || null;
@@ -414,6 +462,9 @@ export class ScoreManager {
    */
   private async restartEmptyGame() {
     if (!this.game) return;
+    // Backing out of a game the player wrote a comment on: the comment is
+    // worth keeping even with no arrow behind it, so leave the game alone.
+    if (this.hasAnyComment) return;
 
     const previous = this.currentRound;
     if (previous) {
@@ -436,6 +487,7 @@ export class ScoreManager {
   private forgetGame() {
     this.game = null;
     this.gameId = null;
+    this.comments = { game: null, rounds: [], ends: [] };
     clearGameId();
     markNewGameStart();
     this.rounds = [];
@@ -455,21 +507,33 @@ export class ScoreManager {
   async discardEmptyTail(): Promise<boolean> {
     if (!this.game || this.currentPoints.length > 0) return this.game !== null;
 
+    // An end/round/game carrying a comment is not an empty tail: the note
+    // is the record, so it stays even though no arrow was scored in it.
+    const trailingEnd = this.ends[this.ends.length - 1];
+    if (trailingEnd && this.endComment !== null) return true;
+
     const end = this.ends.pop();
     this.recordedPoints[this.recordedPoints.length - 1]?.pop();
     if (end && !isPending(end)) {
       await deleteEnd(end.id);
+      this.forgetEndComment(end.id);
     }
     this.currentEnd = this.ends[this.ends.length - 1] || null;
     if (this.ends.length > 0) return true;
+
+    const trailingRound = this.rounds[this.rounds.length - 1];
+    if (trailingRound && this.roundComment !== null) return true;
 
     const round = this.rounds.pop();
     this.recordedPoints.pop();
     if (round && !isPending(round)) {
       await deleteRound(round.id);
+      this.forgetRoundComment(round.id);
     }
     this.currentRound = this.rounds[this.rounds.length - 1] || null;
     if (this.rounds.length > 0) return true;
+
+    if (this.hasAnyComment) return true;
 
     await deleteGame(this.game.id);
     this.forgetGame();
@@ -517,6 +581,81 @@ export class ScoreManager {
     await this.fetchCurrentPoints();
 
     return this.currentPoints;
+  }
+
+  async fetchComments() {
+    if (!this.game) return;
+    this.comments = await listGameComments(this.game.id);
+  }
+
+  /**
+   * Writes the note on the game, the round in progress or the end in
+   * progress, replacing the one already stored for it. An empty text
+   * removes the comment instead. Like scoring an arrow, this is the first
+   * thing that can turn the still-local game/round/end into real rows.
+   */
+  async saveComment(target: CommentTarget, body: string) {
+    const text = body.trim();
+    if (text.length === 0) {
+      await this.removeComment(target);
+      return;
+    }
+
+    await this.ensurePersisted();
+
+    if (target === "game") {
+      const game = this.game;
+      if (!game) throw new Error("ゲームを作成できませんでした。");
+      this.comments.game = await saveGameComment(game.id, text);
+      return;
+    }
+
+    if (target === "round") {
+      const round = this.currentRound;
+      if (!round || isPending(round)) throw new Error("ラウンドを作成できませんでした。");
+      const saved = await saveRoundComment(round.id, text);
+      this.comments.rounds = [
+        ...this.comments.rounds.filter((c) => c.round_id !== round.id),
+        saved,
+      ];
+      return;
+    }
+
+    const end = this.currentEnd;
+    if (!end || isPending(end)) throw new Error("エンドを作成できませんでした。");
+    const saved = await saveEndComment(end.id, text);
+    this.comments.ends = [...this.comments.ends.filter((c) => c.end_id !== end.id), saved];
+  }
+
+  private async removeComment(target: CommentTarget) {
+    if (target === "game") {
+      const game = this.game;
+      if (!game || this.comments.game === null) return;
+      await deleteGameComment(game.id);
+      this.comments.game = null;
+      return;
+    }
+
+    if (target === "round") {
+      const round = this.currentRound;
+      if (!round || this.roundComment === null) return;
+      await deleteRoundComment(round.id);
+      this.forgetRoundComment(round.id);
+      return;
+    }
+
+    const end = this.currentEnd;
+    if (!end || this.endComment === null) return;
+    await deleteEndComment(end.id);
+    this.forgetEndComment(end.id);
+  }
+
+  private forgetRoundComment(roundId: number) {
+    this.comments.rounds = this.comments.rounds.filter((c) => c.round_id !== roundId);
+  }
+
+  private forgetEndComment(endId: number) {
+    this.comments.ends = this.comments.ends.filter((c) => c.end_id !== endId);
   }
 
   async fetchRounds() {
