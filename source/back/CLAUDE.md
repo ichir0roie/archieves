@@ -35,15 +35,15 @@ resolves to. To work outside docker, make a 3.14 virtualenv first
 
 ## Tests
 
-`pytest` drives the API's tests, in `tests/`. The environment is the
-container in `.build/docker-compose.test.yml`: Python 3.14 against a
-throwaway postgres, so the suite runs on the same interpreter and the same
-database engine production does.
+`pytest` drives the API's tests, in `tests/`, against an in-memory sqlite DB
+built from the models on each run - no database server, nothing left behind
+between runs. The environment is the container in
+`.build/docker-compose.test.yml`, which exists to pin Python 3.14 (see
+"Python version") rather than to provide a database:
 
 ```
 cd source/back
 docker compose -f .build/docker-compose.test.yml run --rm tests
-docker compose -f .build/docker-compose.test.yml down
 ```
 
 Anything after `tests` is passed to pytest, so a single file or `-k` works
@@ -55,14 +55,21 @@ docker compose -f .build/docker-compose.test.yml run --rm tests \
 ```
 
 The project is bind-mounted, so editing a test and re-running needs no
-rebuild; pass `--build` only when `requirements*.txt` changes. This
-postgres publishes no host port and keeps its data in a tmpfs, so it can
-run alongside `docker-compose.yml`'s.
+rebuild; pass `--build` only when `requirements*.txt` changes.
 
-Without docker, `python -m pytest` still works: `conftest.py` reads
-`TEST_DATABASE_URL` and falls back to in-memory sqlite when it is unset.
-That is the quick path, not the authoritative one - it cannot catch a
-postgres-only problem, so confirm in the container before pushing.
+`python -m pytest` works the same outside the container, given a 3.14
+interpreter (`.venv/bin/python -m pytest`).
+
+Set `TEST_DATABASE_URL` to a sqlite file - `sqlite:///debug/test_env/pytest.db`
+- to get a database a sqlite browser can open while debugging; it is dropped
+and rebuilt at the start of each run, never at the end. It must be a sqlite
+URL; conftest refuses anything else, since the fixtures depend on sqlite's
+transaction handling.
+
+Because the tests run on sqlite and production runs on postgres, they cannot
+catch a postgres-only problem. That is the reason for the rule in "Test API
+server (sqlite)" below: keep the models and migrations postgres-compatible,
+and never reach for a sqlite-only workaround to make a test pass.
 
 Lint with `python -m ruff check .` (`--fix` to apply).
 
@@ -72,7 +79,7 @@ Lint with `python -m ruff check .` (`--fix` to apply).
 joins an outer transaction that is rolled back afterwards, so a test's own
 commits - and every commit an endpoint makes through `client` - land on a
 savepoint rather than the database. The schema is therefore built once per
-session, not per test, which is what keeps the postgres run fast. Note that
+session, not per test. Note that
 `client` shares that one session across the requests of a test, unlike
 production where `get_session` opens and closes one per request: anything
 relying on a request's transaction being discarded must roll back
@@ -104,8 +111,9 @@ way (`python -m pytest --cov=app --cov-report=term-missing`).
 
 For testing archieves-api's actual behavior against the frontend (not the
 pytest suite, which has its own environment - see "Tests" above),
-`.build/docker-compose.yml`'s postgres container is the default. In environments with no docker daemon (e.g. Claude Code cloud
-sessions - `docker` may be present but unable to reach a daemon), use
+`.build/docker-compose.yml`'s postgres container is the default. In
+environments with no docker daemon (e.g. Claude Code cloud sessions -
+`docker` may be present but unable to reach a daemon), use
 `debug/test_env/run_test_api_server.py` instead:
 
 ```
