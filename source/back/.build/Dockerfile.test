@@ -1,6 +1,7 @@
 # Runs the pytest suite on the same Python the deployed image uses
-# (.build/Dockerfile's Lambda base is 3.14), against the postgres service in
-# .build/docker-compose.test.yml rather than sqlite.
+# (.build/Dockerfile's Lambda base is 3.14), so a dev machine's own, older
+# python is never what the tests run on. The suite needs no database service
+# of its own - it uses in-memory sqlite (see tests/conftest.py).
 #
 # Only the dependencies are baked in; the project itself is bind-mounted by
 # the compose file, so editing a test and re-running needs no rebuild. Rebuild

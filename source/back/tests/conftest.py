@@ -15,21 +15,32 @@ from mods import factory_db
 
 TEST_CLAIMS = Claims(sub="test-user-sub", username="testuser", email="test@example.com")
 
-# The docker test environment (.build/docker-compose.test.yml) points this at
-# its postgres, so the suite runs on the same engine production does. Left
-# unset - running pytest straight off a checkout - it falls back to an
-# in-memory sqlite DB, which needs no container but cannot catch a
-# postgres-only problem.
-TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "")
+# The suite runs on sqlite, in memory by default: no server, no container
+# state, and a schema rebuilt from the models on every run. Point
+# TEST_DATABASE_URL at a sqlite file (e.g. "sqlite:///debug/test_env/pytest.db")
+# to get a database a sqlite browser can open while debugging a test - it
+# holds the schema, but no rows outlive the test that made them (see
+# db_session). It must be a sqlite URL: the fixtures below depend on sqlite's
+# transaction handling.
+DEFAULT_TEST_DATABASE_URL = "sqlite:///:memory:"
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "") or DEFAULT_TEST_DATABASE_URL
+
+if not TEST_DATABASE_URL.startswith("sqlite"):
+    raise RuntimeError(
+        f"TEST_DATABASE_URL must be a sqlite URL, got {TEST_DATABASE_URL!r}. "
+        "The tests run on sqlite; see CLAUDE.md's Tests section."
+    )
 
 
 def _make_engine() -> Engine:
-    if TEST_DATABASE_URL:
-        return create_engine(TEST_DATABASE_URL)
+    is_memory = ":memory:" in TEST_DATABASE_URL
     sqlite_engine = create_engine(
-        "sqlite:///:memory:",
+        TEST_DATABASE_URL,
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        # An in-memory DB lives inside its connection, so every checkout has to
+        # be the same one or the schema vanishes between them. A file-backed
+        # one needs no such pinning.
+        poolclass=StaticPool if is_memory else None,
     )
     _enable_sqlite_savepoints(sqlite_engine)
     return sqlite_engine
@@ -44,7 +55,7 @@ def _enable_sqlite_savepoints(sqlite_engine: Engine) -> None:
     test's committed rows stay visible to the next. SQLAlchemy's documented
     fix is to take transaction control away from the driver and emit BEGIN
     from here instead - see "Serializable isolation / Savepoints / Transactional
-    DDL" in the SQLAlchemy pysqlite dialect docs. Postgres needs none of this.
+    DDL" in the SQLAlchemy pysqlite dialect docs.
     """
 
     @event.listens_for(sqlite_engine, "connect")
@@ -61,11 +72,15 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False)
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _schema() -> Generator[None]:
+def _schema() -> None:
+    """Build the schema once, from the models, for the whole run.
+
+    Dropping first is what makes a file-backed TEST_DATABASE_URL safe to reuse;
+    nothing is dropped afterwards, so that file can still be opened once the
+    run has finished.
+    """
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture()
@@ -75,8 +90,7 @@ def db_session() -> Generator[Session]:
     The session joins an outer transaction that is rolled back afterwards, so
     a test's own commits (and every commit an endpoint makes through the
     `client` fixture) land on a savepoint rather than the database. That keeps
-    tests isolated without rebuilding the schema for each one, which matters
-    on postgres where a drop/create cycle per test dominates the run.
+    tests isolated without rebuilding the schema for each one.
     """
     connection = engine.connect()
     transaction = connection.begin()
