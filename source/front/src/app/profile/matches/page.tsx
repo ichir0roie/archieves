@@ -85,7 +85,7 @@ function MatchRow({ game, match, onSaved }: RowProps) {
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+    <div className="MatchRow flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-semibold text-slate-500">
           {formatDate(game.recorded_at)}

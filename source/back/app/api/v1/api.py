@@ -10,8 +10,8 @@ from app.api.v1.endpoints import (
     statistics,
     users,
 )
-
 from app.core.config import debug_settings
+
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
 
