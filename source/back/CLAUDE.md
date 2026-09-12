@@ -19,6 +19,40 @@ there's no need for a separate `except Exception: db.rollback()` either.
 Commit explicitly on success inside the `with` block; let `with` handle
 cleanup (and implicit rollback) on exceptions.
 
+## Tests
+
+`pytest` drives the API's tests, in `tests/`. Install the dev dependencies
+once (`pip install -r requirements-dev.txt`), then run them from this
+directory:
+
+```
+python -m pytest
+python -m ruff check .
+```
+
+`tests/conftest.py` gives each test a fresh in-memory sqlite DB and a
+`TestClient` whose `get_session`/`get_current_user` dependencies are
+overridden, so no postgres, no Cognito and no network are needed. Use the
+`client` fixture for endpoint tests and `db_session` for CRUD/service ones.
+
+Add tests with the change that needs them, and cover the error paths -
+404s, rejected payloads, malformed input - not just the happy path. The
+suite currently covers every line of `app/` bar two defensive branches;
+keep it that way (`python -m pytest --cov=app --cov-report=term-missing`,
+needs `pytest-cov`).
+
+Note that `client` shares one session across the requests of a test, unlike
+production where `get_session` opens and closes one per request. Anything
+relying on a request's transaction being discarded must roll back
+explicitly rather than leaning on the session closing (see
+`app/services/legacy_import.py`).
+
+Ruff's `target-version` is the *lowest* interpreter the code must run on
+(`py311`), not the deployed one (3.14, see `.build/Dockerfile`): dev
+containers ship older Pythons, and fixes that assume 3.12+/3.14 semantics
+(PEP 695 generics, PEP 649 deferred annotations, `Generator`'s defaulted
+type arguments) break the suite there.
+
 ## Test API server (sqlite)
 
 For testing archieves-api's actual behavior against the frontend (not unit

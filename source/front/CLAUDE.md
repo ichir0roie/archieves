@@ -32,6 +32,27 @@ it serves the same API on the same `:8080` port against a disposable
 sqlite DB, so `NEXT_PUBLIC_API_BASE_URL` is set the same way. See
 `../back/CLAUDE.md`'s "Test API server (sqlite)" section.
 
+Every page nests `AuthGate`, which bounces a user with no archieves-api
+row to `/profile/settings`. Start each spec from `ensureRegistered(page)`
+(see `e2e/ensureRegistered.ts`) or the navigation under test will land
+there instead. `e2e/recordGame.ts` records and finishes one game, for the
+pages that need this user to already have data (score log, statistics,
+ranking, match registration).
+
+Specs run fully parallel against one shared API database, so assert on
+what the test itself created (a returned game id, a unique name) rather
+than on totals or row counts that another spec can move.
+
+`playwright.config.ts` raises the test timeout to 120s and the expect
+timeout to 15s: Turbopack dev-compiles each route on its first visit, so a
+spec that walks several routes spends most of its budget compiling, and
+the defaults (30s / 5s) time out on a cold `.next` cache even when nothing
+is wrong.
+
+When a spec needs to address an element there is no role or text for, add
+a semantic class to the component (`.ScoreLogGame`, `.MatchRow`,
+`.ScoreSheet`) and select on that, matching what the existing specs do.
+
 `@playwright/test` is pinned to `1.56.0` (not a `^` range) because
 Claude Code's cloud sessions ship Chromium build 1194 pre-installed at
 `/opt/pw-browsers` and only that exact `@playwright/test` version's

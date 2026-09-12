@@ -280,3 +280,41 @@ def test_summary_with_no_data_returns_empty_statistics(client: TestClient) -> No
         "average": None,
         "median": None,
     }
+
+
+def test_ranking_filters_by_period_end(client: TestClient) -> None:
+    user = _create_user(client, name="player")
+    early_game = _create_game(client, user_id=user["id"], recorded_at="2026-01-01T00:00:00Z")
+    late_game = _create_game(client, user_id=user["id"], recorded_at="2026-02-01T00:00:00Z")
+    _build_round(client, early_game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10])
+    _build_round(client, late_game["id"], recorded_at="2026-02-01T00:00:00Z", scores=[2])
+
+    res = client.get(
+        "/api/v1/statistics/ranking", params={"end": "2026-01-15T00:00:00Z"}
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert len(body) == 1
+    assert body[0]["game_count"] == 1
+    assert body[0]["average_score"] == 10.0
+
+
+def test_ranking_filters_by_both_period_bounds(client: TestClient) -> None:
+    user = _create_user(client, name="player")
+    for recorded_at, score in [
+        ("2026-01-01T00:00:00Z", 10),
+        ("2026-02-01T00:00:00Z", 8),
+        ("2026-03-01T00:00:00Z", 6),
+    ]:
+        game = _create_game(client, user_id=user["id"], recorded_at=recorded_at)
+        _build_round(client, game["id"], recorded_at=recorded_at, scores=[score])
+
+    res = client.get(
+        "/api/v1/statistics/ranking",
+        params={"start": "2026-01-15T00:00:00Z", "end": "2026-02-15T00:00:00Z"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert len(body) == 1
+    assert body[0]["game_count"] == 1
+    assert body[0]["average_score"] == 8.0

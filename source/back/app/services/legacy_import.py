@@ -141,11 +141,20 @@ def import_legacy_backup(
     shots: pd.DataFrame,
     user_id: int,
 ) -> ImportSummary:
-    """Import the legacy client app's backup tables, attributing every row to `user_id`."""
-    game_by_training_id = _insert_games(db, training, user_id)
-    round_by_old_id = _insert_rounds(db, rounds, game_by_training_id)
-    end_by_old_id = _insert_ends(db, ends, round_by_old_id)
-    point_objs = _insert_points(db, shots, end_by_old_id)
+    """Import the legacy client app's backup tables, attributing every row to `user_id`.
+
+    All or nothing: each table is flushed as it is read, so a malformed row in
+    a later table rolls the earlier ones back rather than leaving the caller's
+    session holding a half-imported game.
+    """
+    try:
+        game_by_training_id = _insert_games(db, training, user_id)
+        round_by_old_id = _insert_rounds(db, rounds, game_by_training_id)
+        end_by_old_id = _insert_ends(db, ends, round_by_old_id)
+        point_objs = _insert_points(db, shots, end_by_old_id)
+    except LegacyImportError:
+        db.rollback()
+        raise
     db.commit()
 
     return ImportSummary(

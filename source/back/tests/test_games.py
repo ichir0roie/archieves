@@ -418,3 +418,17 @@ def test_update_point_recomputes_cm_on_coordinate_change(client: TestClient) -> 
 def test_delete_missing_point_returns_404(client: TestClient) -> None:
     response = client.delete("/api/v1/points/999")
     assert response.status_code == 404
+
+
+def test_trash_games_filters_by_user(client: TestClient) -> None:
+    own = _create_user(client, name="Yumi")
+    other = _create_user(client, name="Kyudo")
+    own_game = _create_game(client, user_id=own["id"])
+    other_game = _create_game(client, user_id=other["id"])
+    client.delete(f"/api/v1/games/{own_game['id']}")
+    client.delete(f"/api/v1/games/{other_game['id']}")
+
+    res = client.get(f"/api/v1/trash/games?user_id={own['id']}")
+    assert res.status_code == 200
+    assert [g["id"] for g in res.json()] == [own_game["id"]]
+

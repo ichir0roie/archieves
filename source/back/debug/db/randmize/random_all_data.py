@@ -13,7 +13,6 @@ from mods.factory_db import (
     UserFactory,
 )
 
-
 ORGANIZATION_COUNT = 3
 USER_COUNT = 10
 GAME_COUNT = 30

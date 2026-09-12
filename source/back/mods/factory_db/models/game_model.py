@@ -1,6 +1,5 @@
 import factory
 
-
 from app.db.models.game_model import End, Game, Match, Point, Round
 from mods.factory_db.base_class import BaseFactory
 from mods.factory_db.models.system_model import UserFactory
