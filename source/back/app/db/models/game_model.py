@@ -17,6 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base_class import Base, BigIntegerPK, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.db.models.comment_model import EndComment, GameComment, RoundComment
     from app.db.models.system_model import User
 
 
@@ -38,6 +39,9 @@ class Game(TimestampMixin, Base):
         back_populates="game", cascade="all, delete-orphan", lazy="noload"
     )
     match: Mapped[Match | None] = relationship(
+        back_populates="game", cascade="all, delete-orphan", uselist=False, lazy="noload"
+    )
+    comment: Mapped[GameComment | None] = relationship(
         back_populates="game", cascade="all, delete-orphan", uselist=False, lazy="noload"
     )
 
@@ -65,6 +69,9 @@ class Round(TimestampMixin, Base):
     ends: Mapped[list[End]] = relationship(
         back_populates="round", cascade="all, delete-orphan", lazy="noload"
     )
+    comment: Mapped[RoundComment | None] = relationship(
+        back_populates="round", cascade="all, delete-orphan", uselist=False, lazy="noload"
+    )
 
 
 class End(TimestampMixin, Base):
@@ -84,6 +91,9 @@ class End(TimestampMixin, Base):
     round: Mapped[Round] = relationship(back_populates="ends", lazy="noload")
     points: Mapped[list[Point]] = relationship(
         back_populates="end", cascade="all, delete-orphan", lazy="noload"
+    )
+    comment: Mapped[EndComment | None] = relationship(
+        back_populates="end", cascade="all, delete-orphan", uselist=False, lazy="noload"
     )
 
 
