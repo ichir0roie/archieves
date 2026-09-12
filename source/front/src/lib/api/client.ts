@@ -3,8 +3,11 @@ import { isMockAuth } from '../auth/config';
 import { MOCK_USER } from '../auth/mockUser';
 import { toDateOnly } from '../date/toDateOnly';
 import type {
+  EndCommentRead,
   EndRead,
   EndScoreSummary,
+  GameComments,
+  GameCommentRead,
   GameRead,
   ImportResult,
   MatchCreate,
@@ -15,6 +18,7 @@ import type {
   OrganizationRead,
   OrganizationSummary,
   PointRead,
+  RoundCommentRead,
   RoundRead,
   RoundScoreSummary,
   ScoreStatistics,
@@ -332,6 +336,50 @@ export function deleteMatch(matchId: number): Promise<void> {
 /** Matches joined with their game's date, optionally filtered to a period and/or a user. */
 export function listMatches(params?: StatisticsQuery): Promise<MatchSummary[]> {
   return request(`/matches${statisticsQueryString(params)}`);
+}
+
+/**
+ * Every comment under one game - its own, its rounds' and its ends' - so a
+ * whole score sheet can be annotated from a single request.
+ */
+export function listGameComments(gameId: number): Promise<GameComments> {
+  return request(`/games/${gameId}/comments`);
+}
+
+/** Writes the game's comment, replacing the one already there if any. */
+export function saveGameComment(gameId: number, body: string): Promise<GameCommentRead> {
+  return request(`/games/${gameId}/comment`, {
+    method: 'PUT',
+    body: JSON.stringify({ body }),
+  });
+}
+
+export function deleteGameComment(gameId: number): Promise<void> {
+  return request(`/games/${gameId}/comment`, { method: 'DELETE' });
+}
+
+/** Writes the round's comment, replacing the one already there if any. */
+export function saveRoundComment(roundId: number, body: string): Promise<RoundCommentRead> {
+  return request(`/rounds/${roundId}/comment`, {
+    method: 'PUT',
+    body: JSON.stringify({ body }),
+  });
+}
+
+export function deleteRoundComment(roundId: number): Promise<void> {
+  return request(`/rounds/${roundId}/comment`, { method: 'DELETE' });
+}
+
+/** Writes the end's comment, replacing the one already there if any. */
+export function saveEndComment(endId: number, body: string): Promise<EndCommentRead> {
+  return request(`/ends/${endId}/comment`, {
+    method: 'PUT',
+    body: JSON.stringify({ body }),
+  });
+}
+
+export function deleteEndComment(endId: number): Promise<void> {
+  return request(`/ends/${endId}/comment`, { method: 'DELETE' });
 }
 
 /** Optional period/user filters shared by every /statistics endpoint. */

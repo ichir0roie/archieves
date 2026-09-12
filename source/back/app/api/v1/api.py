@@ -1,7 +1,15 @@
 from fastapi import APIRouter, Depends
 
 from app.api import deps
-from app.api.v1.endpoints import games, health, imports, organizations, statistics, users
+from app.api.v1.endpoints import (
+    comments,
+    games,
+    health,
+    imports,
+    organizations,
+    statistics,
+    users,
+)
 
 from app.core.config import debug_settings
 api_router = APIRouter()
@@ -24,6 +32,7 @@ authenticated_router.include_router(
     organizations.router, prefix="/organizations", tags=["organizations"]
 )
 authenticated_router.include_router(games.router, tags=["games"])
+authenticated_router.include_router(comments.router, tags=["comments"])
 authenticated_router.include_router(imports.router, tags=["imports"])
 authenticated_router.include_router(
     statistics.router, prefix="/statistics", tags=["statistics"]

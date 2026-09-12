@@ -74,3 +74,25 @@ export interface Match extends BaseEntity {
   name: string;
   link: string | null;
 }
+
+/**
+ * A free-text note attached to a game, a round or an end. Every comment
+ * table shares these columns (see app/db/models/comment_model.py's
+ * CommentMixin); each kind below adds only the entity it annotates.
+ */
+export interface CommentEntity extends BaseEntity {
+  user_id: number;
+  body: string;
+}
+
+export interface GameComment extends CommentEntity {
+  game_id: number;
+}
+
+export interface RoundComment extends CommentEntity {
+  round_id: number;
+}
+
+export interface EndComment extends CommentEntity {
+  end_id: number;
+}

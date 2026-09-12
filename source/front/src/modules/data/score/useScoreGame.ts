@@ -9,6 +9,7 @@ import {
 } from "@/modules/data/score/scoreManager";
 import { toErrorDetails, type ErrorDetails, type PointRead } from "@/lib/api";
 import { type RoundSetup } from "@/modules/data/score/scoreConfig";
+import { type CommentTarget } from "@/modules/data/comment/commentConfig";
 import {
   clearGameId,
   clearNewGameStart,
@@ -18,6 +19,13 @@ import {
 } from "@/modules/functions/localStorage";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
 import { useRunOnce } from "@/hooks/useRunOnce";
+
+/** The notes shown on the entry screen: the game's, and the round/end in progress. */
+export interface ScoreComments {
+  game: string | null;
+  round: string | null;
+  end: string | null;
+}
 
 let setupInFlight: Promise<ScoreManager> | null = null;
 
@@ -50,6 +58,11 @@ export function useScoreGame() {
   const [mirrorPoints, setMirrorPoints] = useState<Array<PointRead>>([]);
   const [progress, setProgress] = useState<ScoreProgress | null>(null);
   const [sheet, setSheet] = useState<Array<SheetRound>>([]);
+  const [comments, setComments] = useState<ScoreComments>({
+    game: null,
+    round: null,
+    end: null,
+  });
   const [error, setError] = useState<ErrorDetails | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSettingUp, setIsSettingUp] = useState(false);
@@ -61,6 +74,11 @@ export function useScoreGame() {
     setMirrorPoints([...scoreManager.currentPoints]);
     setProgress(scoreManager.progress);
     setSheet(scoreManager.sheet);
+    setComments({
+      game: scoreManager.gameComment,
+      round: scoreManager.roundComment,
+      end: scoreManager.endComment,
+    });
   }
 
   async function setupGame() {
@@ -97,16 +115,18 @@ export function useScoreGame() {
   // caught here rather than left to become an unhandled rejection. On
   // failure, `mirrorPoints`/`manager` are left untouched so the screen does
   // not advance past a point/round/end that was never actually saved.
-  async function run(action: (scoreManager: ScoreManager) => Promise<void>) {
-    if (!manager || isSaving) return;
+  async function run(action: (scoreManager: ScoreManager) => Promise<void>): Promise<boolean> {
+    if (!manager || isSaving) return false;
 
     setIsSaving(true);
     try {
       await action(manager);
       syncFrom(manager);
       setError(null);
+      return true;
     } catch (e) {
       setError(toErrorDetails(e));
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -136,6 +156,16 @@ export function useScoreGame() {
     });
   }
 
+  // Unlike scoring an arrow, this is driven from a modal that has to know
+  // whether the write went through: a failure has to leave the text the
+  // player typed on screen rather than close over it.
+  async function saveComment(target: CommentTarget, body: string) {
+    const saved = await run(async (scoreManager) => {
+      await scoreManager.saveComment(target, body);
+    });
+    if (!saved) throw new Error("コメントを保存できませんでした。");
+  }
+
   // Must not send the user to /score-view while a previous next()/addEnd()
   // write is still in flight or has failed, since that would show a score
   // view missing the entry the user thinks they made.
@@ -159,6 +189,8 @@ export function useScoreGame() {
     mirrorPoints,
     progress,
     sheet,
+    comments,
+    saveComment,
     next,
     back,
     finish,

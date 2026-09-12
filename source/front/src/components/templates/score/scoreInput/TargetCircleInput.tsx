@@ -153,9 +153,10 @@ export default function TargetCircleInput(props: ScoreInputProps) {
 
   return (
     <div className="TargetCircleInput flex h-full w-full flex-col">
+      {props.commentBar}
       <div
         ref={containerRef}
-        className={`relative min-h-0 flex-1 ${isLocked ? "opacity-60" : ""}`}
+        className={`TargetFace relative min-h-0 flex-1 ${isLocked ? "opacity-60" : ""}`}
       >
         {circles}
         {props.points.map((point, index) => createArrow(point.x, point.y, index))}
