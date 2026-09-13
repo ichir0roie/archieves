@@ -31,13 +31,13 @@ attributed to its archieves-api `User` row lazily, via
 
 ## Running alongside archieves-api
 
-The [archieves-api](https://github.com/ichir0roie/archieves-api) backend is
-a separate repo/server (`/users`, `/statistics`, ...) that this app talks to
-over plain HTTP - no shared network or container setup needed, each repo
+The archieves-api backend lives in the same monorepo, at
+[`../back`](../back) (`/users`, `/statistics`, ...). This app talks to it
+over plain HTTP - no shared network or container setup needed, each side
 keeps using its own native dev server:
 
-1. Start archieves-api (see its README) and set `NEXT_PUBLIC_API_BASE_URL`
-   here to match its port.
+1. Start archieves-api (see [`../back/README.md`](../back/README.md)) and
+   set `NEXT_PUBLIC_API_BASE_URL` here to match its port.
 2. Keep `NEXT_PUBLIC_AUTH_MODE=mock` here in sync with `AUTH_MODE=mock`
    there (both are the default) so neither side needs real Cognito. Flip
    both to `cognito`/a real sandbox together when you need to debug against
