@@ -53,12 +53,15 @@ Postgres at `localhost:5432`.
 Without Docker:
 
 ```bash
-python3.14 -m venv .venv && source .venv/bin/activate
+uv venv --python 3.14 .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env   # point DATABASE_URL at a local Postgres
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
+
+It has to be a 3.14 interpreter - `app/` uses PEP 695 syntax and will not
+import on an older one. See CLAUDE.md's "Python version".
 
 ## AWS auth: mock vs. real Cognito
 
@@ -80,21 +83,22 @@ See `app/core/security.py::get_current_user`.
 
 ## Running alongside the archieves frontend
 
-The [archieves](https://github.com/ichir0roie/archieves) frontend talks to
-this API over plain HTTP (`src/lib/api/client.ts`), so the two just need to
-agree on a port and a CORS origin - no shared network or container setup is
-required, each repo keeps using its own native dev server:
+The archieves frontend lives in the same monorepo, at
+[`../front`](../front), and talks to this API over plain HTTP
+(`src/lib/api/client.ts`), so the two just need to agree on a port and a
+CORS origin - no shared network or container setup is required, each side
+keeps using its own native dev server:
 
 1. Start this API (either `uvicorn app.main:app --reload`, which listens on
    `:8000`, or `docker compose -f .build/docker-compose.yml up`, which
    listens on `:8080`).
-2. In `archieves`, point `NEXT_PUBLIC_API_BASE_URL` at whichever port you
+2. In `../front`, point `NEXT_PUBLIC_API_BASE_URL` at whichever port you
    used (its `.env.example` defaults to `http://localhost:8000/api/v1` for
    the non-Docker case) and run `npm run dev` (`:3000`).
 3. `BACKEND_CORS_ORIGINS` in `.env.example` is `["*"]`, so the frontend's
    origin is allowed without further changes.
 4. Keep `AUTH_MODE=mock` here in sync with `NEXT_PUBLIC_AUTH_MODE=mock` in
-   `archieves` (both are the default) so neither side needs real Cognito
+   `../front` (both are the default) so neither side needs real Cognito
    during local development. Flip both to `cognito`/real Amplify sandbox
    output together when you need to debug against the real auth flow.
 

@@ -1,13 +1,8 @@
 # archieves-api
 
-## Conventions
-
-Shared with the [../front](../front) frontend:
-
-- Don't write comments in code.
-- Put each element on its own line (e.g. each list/dict entry, each function
-  argument).
-- Skip the end-of-turn summary in chat responses.
+共通の規約（コメントの書き方、1行1要素、応答の書き方）とテスト・ブランチ・PRの
+運用は [`../../CLAUDE.md`](../../CLAUDE.md) を参照。ここにはバックエンド固有の
+ことだけを書く。
 
 ## DB session handling
 
@@ -98,8 +93,19 @@ covers this wiring - keep new factories working there.
 
 Add tests with the change that needs them, and cover the error paths -
 404s, rejected payloads, malformed input - not just the happy path. The
-suite covers every line of `app/` bar two defensive branches; keep it that
-way (`python -m pytest --cov=app --cov-report=term-missing`).
+suite covers every line of `app/` bar two, and both are unreachable from
+the tests by construction rather than untested behaviour; keep it that way
+(`python -m pytest --cov=app --cov-report=term-missing`):
+
+- `app/db/session.py`'s `get_session` body - `conftest` overrides the
+  dependency, so the production session factory never runs under pytest.
+- `_check_score_fits_target`'s `round_ is None` guard in
+  `app/api/v1/endpoints/games.py` - both callers resolve the `End` through
+  `get_or_404(game_crud.get_end, ...)` first, and a visible end implies a
+  visible round, so `get_round` cannot return `None` there.
+
+Anything else showing up as uncovered is a real gap: write the test rather
+than widening this list.
 
 ## Test API server (sqlite)
 
@@ -136,22 +142,25 @@ sqlite-compatible ALTERs; dialect-specific kwargs like
 `postgresql_using=` are simply ignored on other dialects, so nothing further
 is needed there.
 
-If a fresh environment fails to start uvicorn with a `_cffi_backend`
-import error from `cryptography`, run `pip install cffi` once - it's a
-missing transitive dependency of the preinstalled system `cryptography`
-package in some containers, not a project dependency.
+A `_cffi_backend` import error from `cryptography` on startup means the
+system python is being used rather than the venv: some containers ship
+`cryptography` without `cffi`. The venv pulls in a matching pair through
+`python-jose[cryptography]`, so run it as `.venv/bin/python ...` instead of
+installing anything.
 
 ## Debug scripts
 
-Scripts under `debug/` (e.g. `debug/db/create_db.py`,
-`debug/db/randmize/random_all_data.py`) are always launched via a VSCode
-debug configuration whose working directory is already the project root, so
-`app.*` and `mods.*` imports resolve without help. Don't add
-`PROJECT_ROOT`/`sys.path.insert` boilerplate to these scripts - import
-`app`/`mods` modules directly at the top of the file.
+Most scripts under `debug/` (e.g. `debug/api/run_debug_server.py`,
+`debug/db/randmize/random_all_data.py`, `debug/db/setup/setup_debug_user.py`)
+are launched only via `.vscode/launch.json`'s "Python Debugger: Current
+File", which sets `cwd` and `PYTHONPATH` to the project root, so `app.*` and
+`mods.*` imports resolve without help. Don't add
+`PROJECT_ROOT`/`sys.path.insert` boilerplate to those - import `app`/`mods`
+modules directly at the top of the file.
 
-## Pull requests
-
-When a task's changes are committed and pushed to a branch, open a pull
-request for that branch against `develop` as part of finishing the task -
-do this every time, without waiting to be asked.
+The two scripts that are also run straight from a shell are the exception
+and keep that boilerplate: `debug/test_env/run_test_api_server.py` (see
+"Test API server (sqlite)" above) and `debug/db/create_db.py`, which that
+one invokes as a subprocess. Removing it there breaks both - the cwd is
+whatever the shell was in, and no `PYTHONPATH` is set. Each explains why in
+a comment; leave those two alone.

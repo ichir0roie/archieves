@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 
-// Needs archieves-api running (see CLAUDE.md's "Running alongside
-// archieves-api"), since recording a score persists every point through it.
+// Needs archieves-api running (see CLAUDE.md's "E2E tests"), since
+// recording a score persists every point through it.
 
 // First navigation into each route dev-compiles it on demand (Turbopack),
 // which can take well past the default 5s assertion timeout.
