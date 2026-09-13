@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 
-// Needs archieves-api running (see CLAUDE.md's "Running alongside
-// archieves-api"), since this page persists through it.
+// Needs archieves-api running (see CLAUDE.md's "E2E tests"), since this
+// page persists through it.
 test("saving profile settings persists the entered fields", async ({ page }) => {
   await ensureRegistered(page);
 

@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 import { recordGame } from "./recordGame";
 
-// Needs archieves-api running (see CLAUDE.md's "Running alongside
-// archieves-api"): a match is registered against a persisted game.
+// Needs archieves-api running (see CLAUDE.md's "E2E tests"): a match is
+// registered against a persisted game.
 
 test.beforeEach(async ({ page }) => {
   await ensureRegistered(page);
