@@ -40,6 +40,22 @@ developブランチをベースのブランチとして、作業用のブラン�
 
 バックエンドを触った場合はフロントエンドのE2Eも通るか確認する。APIの応答が変わるとE2Eが落ちるため。
 
+### Claude Code on the web での実行
+
+`.claude/hooks/session-start.sh` がセッション開始時に環境を用意する（web
+セッションでのみ動作）。バックエンドの Python 3.14 venv
+(`source/back/.venv`) とフロントエンドの npm パッケージを入れ、venv を
+PATH の先頭に置く。postgresもdockerも使わない。
+
+そのため、セッション内では追加の準備なしにそのまま実行できる。
+
+```
+cd source/back && pytest && ruff check .
+```
+
+手動でやり直す場合は `CLAUDE_CODE_REMOTE=true ./.claude/hooks/session-start.sh`。
+何度実行しても安全で、既にあるものは作り直さない。
+
 ## PR・マージ運用
 
 作業用ブランチでの変更をPR化することは、毎回ユーザーに確認せず実施してよい（webアプリ側の運用に任せる）。
