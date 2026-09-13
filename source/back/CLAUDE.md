@@ -33,12 +33,14 @@ will not even import on it (PEP 695 syntax). Make a 3.14 virtualenv and run
 everything through it: `uv venv --python 3.14 .venv` (`.venv` is
 gitignored), then `.venv/bin/pip install -r requirements-dev.txt`.
 
-In a Claude Code on the web session that venv is already there, built by
-`.claude/hooks/session-start.sh` and first on `PATH`, so plain `pytest` and
-`ruff` are the 3.14 ones. Note that the container's own `uv` is too old to
-install a final 3.14 - it resolves the version to a release candidate whose
-private typing API pydantic no longer works against - which is why the hook
-upgrades uv and invokes it as `python3 -m uv`.
+In a Claude Code on the web session `.claude/scripts/setup-dev-env.sh`
+builds that venv and puts it first on `PATH`, so plain `pytest` and `ruff`
+are the 3.14 ones. The session-start hook runs it asynchronously, so run it
+yourself before testing - it is a sub-second no-op once the environment
+matches the dependency files. Note that the container's own `uv` is too old
+to install a final 3.14 - it resolves the version to a release candidate
+whose private typing API pydantic no longer works against - which is why the
+script upgrades uv and invokes it as `python3 -m uv`.
 
 ## Tests
 
