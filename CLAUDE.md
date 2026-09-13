@@ -31,10 +31,9 @@ developブランチをベースのブランチとして、作業用のブラン�
 
 実行コマンドは各アプリの `CLAUDE.md` を参照:
 
-- バックエンド (`source/back`): pytest はローカルのdockerコンテナ上で実行する。
-  `docker compose -f .build/docker-compose.test.yml run --rm tests`（Python 3.14）。
-  テスト用DBはsqlite（インメモリ）で、DBサーバは不要。
-  lint は `python -m ruff check .`
+- バックエンド (`source/back`): `python -m pytest` と `python -m ruff check .`。
+  テスト用DBはsqlite（インメモリ）で、DBサーバもコンテナも不要。
+  ただしPython 3.14で実行する必要がある（`.venv/bin/python -m pytest`）
 - フロントエンド (`source/front`): `npm run test:e2e`（Playwright）、`npx tsc --noEmit`、`npm run lint`
 
 バックエンドのPythonは3.14に統一している。古いインタプリタ向けの互換コードは書かない。

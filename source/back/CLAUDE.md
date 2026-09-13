@@ -21,44 +21,31 @@ cleanup (and implicit rollback) on exceptions.
 
 ## Python version
 
-3.14, everywhere: the deployed image (`.build/Dockerfile`), the test
-container (`.build/Dockerfile.test`) and ruff's `target-version`. Write
+3.14, everywhere: the deployed image (`.build/Dockerfile`) and ruff's
+`target-version`. Write
 3.14 Python - PEP 695 type parameters (`def get_or_404[T](...)`), unquoted
 forward references (PEP 649 evaluates annotations lazily), `Generator[T]`
 without its defaulted `None, None` - and let `ruff check --fix` modernise
 the rest. Don't add compatibility shims for older interpreters.
 
-A system Python on a dev machine is usually older than this, so run the
-suite in the test container below rather than against whatever `python3`
-resolves to. To work outside docker, make a 3.14 virtualenv first
-(`uv venv --python 3.14 .venv`, `.venv` is gitignored).
+A system Python on a dev machine is usually older than this, and `app/`
+will not even import on it (PEP 695 syntax). Make a 3.14 virtualenv and run
+everything through it: `uv venv --python 3.14 .venv` (`.venv` is
+gitignored), then `.venv/bin/pip install -r requirements-dev.txt`.
 
 ## Tests
 
 `pytest` drives the API's tests, in `tests/`, against an in-memory sqlite DB
-built from the models on each run - no database server, nothing left behind
-between runs. The environment is the container in
-`.build/docker-compose.test.yml`, which exists to pin Python 3.14 (see
-"Python version") rather than to provide a database:
+built from the models on each run - no database server, no container,
+nothing left behind between runs:
 
 ```
 cd source/back
-docker compose -f .build/docker-compose.test.yml run --rm tests
+.venv/bin/python -m pytest
+.venv/bin/python -m ruff check .
 ```
 
-Anything after `tests` is passed to pytest, so a single file or `-k` works
-the same way:
-
-```
-docker compose -f .build/docker-compose.test.yml run --rm tests \
-  python -m pytest tests/test_games.py -k restore -q
-```
-
-The project is bind-mounted, so editing a test and re-running needs no
-rebuild; pass `--build` only when `requirements*.txt` changes.
-
-`python -m pytest` works the same outside the container, given a 3.14
-interpreter (`.venv/bin/python -m pytest`).
+It has to be a 3.14 interpreter; see "Python version" above.
 
 Set `TEST_DATABASE_URL` to a sqlite file - `sqlite:///debug/test_env/pytest.db`
 - to get a database a sqlite browser can open while debugging; it is dropped
@@ -70,8 +57,6 @@ Because the tests run on sqlite and production runs on postgres, they cannot
 catch a postgres-only problem. That is the reason for the rule in "Test API
 server (sqlite)" below: keep the models and migrations postgres-compatible,
 and never reach for a sqlite-only workaround to make a test pass.
-
-Lint with `python -m ruff check .` (`--fix` to apply).
 
 ### Fixtures
 
