@@ -42,19 +42,23 @@ developブランチをベースのブランチとして、作業用のブラン�
 
 ### Claude Code on the web での実行
 
-`.claude/hooks/session-start.sh` がセッション開始時に環境を用意する（web
-セッションでのみ動作）。バックエンドの Python 3.14 venv
-(`source/back/.venv`) とフロントエンドの npm パッケージを入れ、venv を
-PATH の先頭に置く。postgresもdockerも使わない。
+環境構築は `.claude/scripts/setup-dev-env.sh` が行う。バックエンドの
+Python 3.14 venv (`source/back/.venv`) とフロントエンドの npm パッケージを
+入れ、venv を PATH の先頭に置く。postgresもdockerも使わない。
 
-そのため、セッション内では追加の準備なしにそのまま実行できる。
+`.claude/hooks/session-start.sh` がこれを**非同期で**呼ぶため、セッションは
+待たされずに始まる。代わりに、セッション開始直後は環境がまだ整っていない
+可能性がある。**テストを実行する前に一度呼ぶこと。**
 
 ```
+./.claude/scripts/setup-dev-env.sh      # 準備済みなら0.1秒未満で終わる
 cd source/back && pytest && ruff check .
 ```
 
-手動でやり直す場合は `CLAUDE_CODE_REMOTE=true ./.claude/hooks/session-start.sh`。
-何度実行しても安全で、既にあるものは作り直さない。
+何度呼んでも安全で、依存ファイル（`requirements*.txt` /
+`package-lock.json`）が変わっていなければ何もしない。非同期のフックと
+同時に走っても壊れないようロックを取る。`backend` / `frontend` を引数に
+渡せば片方だけ実行できる。
 
 ## PR・マージ運用
 
