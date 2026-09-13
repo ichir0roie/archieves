@@ -1,6 +1,5 @@
 import factory
 
-
 from app.db.models.game_model import End, Game, Match, Point, Round
 from mods.factory_db.base_class import BaseFactory
 from mods.factory_db.models.system_model import UserFactory
@@ -21,7 +20,11 @@ class RoundFactory(BaseFactory):
     game = factory.SubFactory(GameFactory)
     user_id = factory.LazyAttribute(lambda o: o.game.user_id)
     number = factory.Sequence(lambda n: n + 1)
-    recorded_at = factory.Faker("date_this_year")
+    recorded_at = factory.LazyAttribute(lambda o: o.game.recorded_at)
+    end_size = 6
+    round_size = 6
+    distance_m = 70
+    target_type = "122cm"
 
 
 class EndFactory(BaseFactory):
@@ -31,7 +34,7 @@ class EndFactory(BaseFactory):
     round = factory.SubFactory(RoundFactory)
     user_id = factory.LazyAttribute(lambda o: o.round.user_id)
     number = factory.Sequence(lambda n: n + 1)
-    recorded_at = factory.Faker("date_this_year")
+    recorded_at = factory.LazyAttribute(lambda o: o.round.recorded_at)
 
 
 class PointFactory(BaseFactory):
@@ -42,9 +45,9 @@ class PointFactory(BaseFactory):
     user_id = factory.LazyAttribute(lambda o: o.end.user_id)
     number = factory.Sequence(lambda n: n + 1)
     score = factory.Faker("random_int", min=0, max=11)
-    x = factory.Faker("pyfloat", min_value=-100, max_value=100)
-    y = factory.Faker("pyfloat", min_value=-100, max_value=100)
-    recorded_at = factory.Faker("date_this_year")
+    x = factory.Faker("pyfloat", min_value=0, max_value=1)
+    y = factory.Faker("pyfloat", min_value=0, max_value=1)
+    recorded_at = factory.LazyAttribute(lambda o: o.end.recorded_at)
 
 
 class MatchFactory(BaseFactory):

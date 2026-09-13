@@ -1,4 +1,10 @@
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.crud import user as user_crud
+from app.schemas.user import UserCreate
 
 
 def test_create_and_get_user(client: TestClient) -> None:
@@ -124,3 +130,13 @@ def test_get_me_returns_current_user_after_ensure(client: TestClient) -> None:
     response = client.get("/api/v1/users/me")
     assert response.status_code == 200
     assert response.json() == created
+
+
+def test_ensuring_a_user_reraises_an_integrity_error_that_is_not_a_race(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user_crud.create_user(db_session, UserCreate(name="Yumi"), sub="taken-sub")
+    monkeypatch.setattr(user_crud, "get_user_by_sub", lambda db, sub: None)
+
+    with pytest.raises(IntegrityError):
+        user_crud.get_or_create_user(db_session, UserCreate(name="Yumi"), sub="taken-sub")

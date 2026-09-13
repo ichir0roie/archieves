@@ -113,3 +113,106 @@ def test_import_rejects_sqlite_file_missing_tables(client: TestClient, tmp_path)
             files={"file": ("backup.sqlite", f, "application/octet-stream")},
         )
     assert res.status_code == 400
+
+
+def test_import_rejects_a_file_that_is_not_sqlite(client: TestClient) -> None:
+    _register_current_user(client)
+
+    res = client.post(
+        "/api/v1/import/sqlite-backup",
+        files={"file": ("backup.sqlite", b"definitely not a database", "application/octet-stream")},
+    )
+    assert res.status_code == 400
+    assert res.json()["detail"] == "Not a valid SQLite file"
+
+
+def test_import_rejects_a_backup_with_malformed_rows(client: TestClient, tmp_path) -> None:
+    _register_current_user(client)
+
+    backup_path = tmp_path / "backup.sqlite"
+    _build_legacy_backup(str(backup_path))
+    conn = sqlite3.connect(str(backup_path))
+    conn.execute("UPDATE training SET date = 'not-a-date'")
+    conn.commit()
+    conn.close()
+
+    with open(backup_path, "rb") as f:
+        res = client.post(
+            "/api/v1/import/sqlite-backup",
+            files={"file": ("backup.sqlite", f, "application/octet-stream")},
+        )
+    assert res.status_code == 400
+    assert "'training' table" in res.json()["detail"]
+
+
+def test_import_keeps_no_partial_rows_when_a_later_table_is_malformed(
+    client: TestClient, tmp_path
+) -> None:
+    user = _register_current_user(client)
+
+    backup_path = tmp_path / "backup.sqlite"
+    _build_legacy_backup(str(backup_path))
+    conn = sqlite3.connect(str(backup_path))
+    conn.execute("UPDATE shot SET endId = 999")
+    conn.commit()
+    conn.close()
+
+    with open(backup_path, "rb") as f:
+        res = client.post(
+            "/api/v1/import/sqlite-backup",
+            files={"file": ("backup.sqlite", f, "application/octet-stream")},
+        )
+    assert res.status_code == 400
+
+    games = client.get(f"/api/v1/games?user_id={user['id']}")
+    assert games.json() == []
+
+
+def test_points_imported_onto_a_legacy_target_face_have_no_centimeter_position(
+    client: TestClient, tmp_path
+) -> None:
+    user = _register_current_user(client)
+
+    backup_path = tmp_path / "backup.sqlite"
+    _build_legacy_backup(str(backup_path))
+    with open(backup_path, "rb") as f:
+        assert (
+            client.post(
+                "/api/v1/import/sqlite-backup",
+                files={"file": ("backup.sqlite", f, "application/octet-stream")},
+            ).status_code
+            == 201
+        )
+
+    game = client.get(f"/api/v1/games?user_id={user['id']}").json()[0]
+    round_ = client.get(f"/api/v1/games/{game['id']}/rounds").json()[0]
+    end = client.get(f"/api/v1/rounds/{round_['id']}/ends").json()[0]
+
+    assert round_["target_type"] == "unknown"
+    assert all(p["x_cm"] is None and p["y_cm"] is None for p in
+               client.get(f"/api/v1/ends/{end['id']}/points").json())
+
+
+def test_a_legacy_target_face_does_not_constrain_new_scores(
+    client: TestClient, tmp_path
+) -> None:
+    user = _register_current_user(client)
+
+    backup_path = tmp_path / "backup.sqlite"
+    _build_legacy_backup(str(backup_path))
+    with open(backup_path, "rb") as f:
+        client.post(
+            "/api/v1/import/sqlite-backup",
+            files={"file": ("backup.sqlite", f, "application/octet-stream")},
+        )
+
+    game = client.get(f"/api/v1/games?user_id={user['id']}").json()[0]
+    round_ = client.get(f"/api/v1/games/{game['id']}/rounds").json()[0]
+    end = client.get(f"/api/v1/rounds/{round_['id']}/ends").json()[0]
+
+    res = client.post(
+        f"/api/v1/ends/{end['id']}/points",
+        json={"number": 9, "score": 11, "x": 0.5, "y": 0.5, "recorded_at": "2026-01-01"},
+    )
+    assert res.status_code == 201
+    assert res.json()["x_cm"] is None

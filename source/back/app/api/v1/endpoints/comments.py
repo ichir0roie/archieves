@@ -7,8 +7,8 @@ from app.crud import game as game_crud
 from app.schemas.comment import (
     CommentWrite,
     EndCommentRead,
-    GameComments,
     GameCommentRead,
+    GameComments,
     RoundCommentRead,
 )
 
