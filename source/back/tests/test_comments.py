@@ -171,3 +171,27 @@ def test_deleting_a_round_hides_its_comments(client: TestClient) -> None:
     body = client.get(f"/api/v1/games/{game['id']}/comments").json()
     assert body["rounds"] == []
     assert body["ends"] == []
+
+
+def test_delete_round_comment(client: TestClient) -> None:
+    _game, round_, _end = _create_game_tree(client)
+    client.put(f"/api/v1/rounds/{round_['id']}/comment", json={"body": "消す"})
+
+    assert client.delete(f"/api/v1/rounds/{round_['id']}/comment").status_code == 204
+    assert client.get(f"/api/v1/rounds/{round_['id']}/comment").status_code == 404
+    assert client.delete(f"/api/v1/rounds/{round_['id']}/comment").status_code == 404
+
+
+def test_delete_end_comment(client: TestClient) -> None:
+    _game, _round, end = _create_game_tree(client)
+    client.put(f"/api/v1/ends/{end['id']}/comment", json={"body": "消す"})
+
+    assert client.delete(f"/api/v1/ends/{end['id']}/comment").status_code == 204
+    assert client.get(f"/api/v1/ends/{end['id']}/comment").status_code == 404
+    assert client.delete(f"/api/v1/ends/{end['id']}/comment").status_code == 404
+
+
+def test_delete_comment_under_a_missing_entity_returns_404(client: TestClient) -> None:
+    assert client.delete("/api/v1/games/999/comment").status_code == 404
+    assert client.delete("/api/v1/rounds/999/comment").status_code == 404
+    assert client.delete("/api/v1/ends/999/comment").status_code == 404

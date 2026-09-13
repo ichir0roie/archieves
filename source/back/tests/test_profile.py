@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.crud import profile as profile_crud
 from app.db import User
 
 
@@ -121,3 +122,7 @@ def test_user_profile_includes_recent_matches(client: TestClient) -> None:
     body = res.json()
     assert [m["name"] for m in body["matches"]] == ["全日本選手権"]
     assert body["matches"][0]["game_id"] == recent_game["id"]
+
+
+def test_profile_of_a_user_id_that_does_not_exist_is_none(db_session: Session) -> None:
+    assert profile_crud.get_user_profile(db_session, 999) is None

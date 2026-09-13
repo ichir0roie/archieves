@@ -1,6 +1,6 @@
 from app.core.config import debug_settings
-from mods.factory_db import *
 from app.db import *
+from mods.factory_db import *
 
 
 def create_debug_user(

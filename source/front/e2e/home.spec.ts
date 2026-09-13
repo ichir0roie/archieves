@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { ensureRegistered } from "./ensureRegistered";
 
 test("holds mock-auth home page with primary navigation", async ({
   page,
 }) => {
+  await ensureRegistered(page);
   await page.goto("/");
 
   await expect(

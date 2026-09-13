@@ -32,7 +32,6 @@ tests/                 pytest + FastAPI TestClient (sqlite in-memory)
 .build/                Build & deploy resources
   Dockerfile             Lambda container image (Lambda Web Adapter + uvicorn)
   docker-compose.yml     Local dev: api + postgres
-  docker-compose.test.yml  Containerized test run: postgres + pytest
   template.yaml          AWS SAM scaffold: Lambda (image) + API Gateway HTTP API
 ```
 
@@ -108,19 +107,12 @@ alembic upgrade head
 
 ## Tests
 
-Directly, using the in-memory sqlite fixtures in `tests/conftest.py`:
+Against the in-memory sqlite fixtures in `tests/conftest.py`, on a Python
+3.14 interpreter (see CLAUDE.md's "Python version"):
 
 ```bash
 pip install -r requirements-dev.txt
 pytest
-```
-
-Or in containers, with a real disposable Postgres alongside pytest (no
-local Python setup required, closer to how CI would run it):
-
-```bash
-docker compose -f .build/docker-compose.test.yml up --build \
-  --abort-on-container-exit --exit-code-from test
 ```
 
 ## Deploying to AWS
