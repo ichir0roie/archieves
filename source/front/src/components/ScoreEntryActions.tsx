@@ -1,30 +1,35 @@
 "use client";
 
-import { Button } from "@mui/material";
 import type { ScoreInputProps } from "@/components/ScoreEntryShell";
+import { T } from "@/lib/text";
 
-/** 戻る / 次へ / 終了, shared by both input modes. */
+/** 戻る / 次へ / 終了。どちらの入力でも使う */
 export default function ScoreEntryActions(props: ScoreInputProps) {
   return (
-    <div className="ScoreEntryActions grid shrink-0 grid-cols-3 gap-3 border-t border-slate-200 p-3">
-      <Button variant="outlined" onClick={props.back} disabled={props.disabled}>
-        戻る
-      </Button>
-      <Button
-        variant={props.isEndFull && !props.isGameComplete ? "contained" : "outlined"}
+    <div className="ScoreEntryActions score-actions">
+      <button
+        type="button"
+        onClick={props.back}
+        disabled={props.disabled}
+      >
+        {T.game.entry.back}
+      </button>
+      <button
+        type="button"
+        className={props.isEndFull && !props.isGameComplete ? "primary" : undefined}
         onClick={props.nextEnd}
         disabled={props.disabled || props.isGameComplete}
       >
-        次へ
-      </Button>
-      <Button
-        variant="contained"
-        color={props.isGameComplete ? "success" : "primary"}
+        {T.game.entry.next}
+      </button>
+      <button
+        type="button"
+        className={props.isGameComplete ? "success" : "primary"}
         onClick={props.finish}
         disabled={props.disabled}
       >
-        終了
-      </Button>
+        {T.game.entry.finish}
+      </button>
     </div>
   );
 }

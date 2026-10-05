@@ -1,19 +1,21 @@
 "use client";
 
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
+import Field from "@/components/Field";
+import { T } from "@/lib/text";
 
-interface Props {
+type Props = {
   startMonth: string;
   endMonth: string;
   onStartMonthChange: (value: string) => void;
   onEndMonthChange: (value: string) => void;
   onApply: () => void;
   onReset: () => void;
-  /** Extra filter fields rendered before the month range, e.g. Ranking's organization/region selects. */
+  /** 月の範囲より前に並べる絞り込みの欄(ランキングの所属・地域など)。 */
   children?: ReactNode;
-}
+};
 
-/** Shared "開始月/終了月 + 適用/リセット" filter bar used by the Analysis and Ranking pages. */
+/** 統計ダッシュボードとランキングで共通の「開始月・終了月 + 適用・リセット」の絞り込み。 */
 export default function MonthRangeFilter({
   startMonth,
   endMonth,
@@ -24,41 +26,44 @@ export default function MonthRangeFilter({
   children,
 }: Props) {
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+    <div className="panel toolbar">
       {children}
-      <label className="flex flex-col gap-1 text-sm text-slate-600">
-        開始月
-        <input
-          type="text"
-          inputMode="numeric"
-          value={startMonth}
-          onChange={(e) => onStartMonthChange(e.target.value)}
-          placeholder="YYYY/MM"
-          className="w-32 rounded-lg border border-slate-300 px-2 py-1 text-sm"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-slate-600">
-        終了月
-        <input
-          type="text"
-          inputMode="numeric"
-          value={endMonth}
-          onChange={(e) => onEndMonthChange(e.target.value)}
-          placeholder="YYYY/MM"
-          className="w-32 rounded-lg border border-slate-300 px-2 py-1 text-sm"
-        />
-      </label>
+      <Field label={T.stats.filter.startMonth}>
+        {(id) => (
+          <input
+            id={id}
+            type="text"
+            inputMode="numeric"
+            value={startMonth}
+            onChange={(e) => onStartMonthChange(e.target.value)}
+            placeholder={T.stats.filter.monthPlaceholder}
+          />
+        )}
+      </Field>
+      <Field label={T.stats.filter.endMonth}>
+        {(id) => (
+          <input
+            id={id}
+            type="text"
+            inputMode="numeric"
+            value={endMonth}
+            onChange={(e) => onEndMonthChange(e.target.value)}
+            placeholder={T.stats.filter.monthPlaceholder}
+          />
+        )}
+      </Field>
       <button
+        type="button"
+        className="primary"
         onClick={onApply}
-        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
       >
-        適用
+        {T.apply}
       </button>
       <button
+        type="button"
         onClick={onReset}
-        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
       >
-        リセット
+        {T.reset}
       </button>
     </div>
   );

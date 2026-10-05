@@ -1,13 +1,12 @@
 "use client";
 
-import AuthGate from "@/components/AuthGate";
-import Header from "@/components/Header";
-import ApiErrorAlert from "@/components/ApiErrorAlert";
-import StatSummaryCard from "@/components/StatSummaryCard";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import ApiErrorAlert from "@/components/ApiErrorAlert";
+import ExternalLink from "@/components/ExternalLink";
+import PageHeader from "@/components/PageHeader";
+import StatSummaryCard from "@/components/StatSummaryCard";
 import {
   OrganizationRead,
   UserProfile,
@@ -16,10 +15,11 @@ import {
   toErrorDetails,
   type ErrorDetails,
 } from "@/lib/api";
+import { T } from "@/lib/text";
 
 function formatDate(value: string): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
+  if (Number.isNaN(date.getTime())) return T.none;
   return new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(date);
 }
 
@@ -63,89 +63,63 @@ export default function Page() {
   }, [sub]);
 
   return (
-    <AuthGate>
-      <main className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <Header pageName="プロフィール" showBack />
-        <div className="flex w-full flex-col gap-3 p-3 max-w-2xl mx-auto">
-          {error && <ApiErrorAlert error={error} />}
+    <div className="page wide">
+      <PageHeader title={T.profile.view.title} />
+      {error && <ApiErrorAlert error={error} />}
 
-          {loading && (
-            <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 text-center text-sm text-slate-500 shadow-sm">
-              読み込み中...
+      {loading && <p className="status empty">{T.loading}</p>}
+
+      {!loading && profile && (
+        <>
+          <section className="panel profile-card">
+            <div className="row">
+              <span className="profile-name">{profile.user.name}</span>
+              {profile.user.nickname && (
+                <span className="muted small">{T.profile.view.nickname(profile.user.nickname)}</span>
+              )}
+            </div>
+            {organization && <Link href={`/organization/${organization.id}`}>{organization.name}</Link>}
+            <span className="muted small">
+              {T.profile.view.period(formatDate(profile.period_start), formatDate(profile.period_end))}
+            </span>
+          </section>
+
+          <div className="cards">
+            <StatSummaryCard
+              title={T.stats.card.round}
+              unit={T.unit.point}
+              stats={profile.rounds}
+            />
+            <StatSummaryCard
+              title={T.stats.card.end}
+              unit={T.unit.point}
+              stats={profile.ends}
+            />
+            <StatSummaryCard
+              title={T.stats.card.point}
+              unit={T.unit.point}
+              stats={profile.points}
+            />
+          </div>
+
+          <span className="section-label">{T.profile.view.matches}</span>
+          {profile.matches.length === 0 ? (
+            <p className="status empty">{T.profile.view.noMatches}</p>
+          ) : (
+            <div className="row-list">
+              {profile.matches.map((match) => (
+                <div key={match.id}>
+                  <div className="main">
+                    <span>{match.name}</span>
+                    <span className="muted small">{formatDate(match.recorded_at)}</span>
+                  </div>
+                  {match.link && <ExternalLink href={match.link}>{T.profile.link}</ExternalLink>}
+                </div>
+              ))}
             </div>
           )}
-
-          {!loading && profile && (
-            <>
-              <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-bold text-slate-900">
-                    {profile.user.name}
-                  </span>
-                  {profile.user.nickname && (
-                    <span className="text-sm text-slate-500">
-                      ({profile.user.nickname})
-                    </span>
-                  )}
-                </div>
-                {organization && (
-                  <Link
-                    href={`/organization/${organization.id}`}
-                    className="text-sm text-indigo-600 hover:underline w-fit"
-                  >
-                    {organization.name}
-                  </Link>
-                )}
-                <span className="text-xs text-slate-400">
-                  直近1年間の統計 ({formatDate(profile.period_start)} 〜{" "}
-                  {formatDate(profile.period_end)})
-                </span>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <StatSummaryCard title="ラウンド合計点" unit="点" stats={profile.rounds} />
-                <StatSummaryCard title="エンド合計点" unit="点" stats={profile.ends} />
-                <StatSummaryCard title="矢1本あたり" unit="点" stats={profile.points} />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-semibold text-slate-500">出場大会</span>
-                {profile.matches.length === 0 && (
-                  <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 text-center text-sm text-slate-400 shadow-sm">
-                    直近1年間の大会記録はありません
-                  </div>
-                )}
-                {profile.matches.map((match) => (
-                  <div
-                    key={match.id}
-                    className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm"
-                  >
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-base font-medium text-slate-800">
-                        {match.name}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        {formatDate(match.recorded_at)}
-                      </span>
-                    </div>
-                    {match.link && (
-                      <a
-                        href={match.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1 text-sm text-indigo-600 hover:underline"
-                      >
-                        リンク
-                        <OpenInNewRoundedIcon fontSize="inherit" />
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </main>
-    </AuthGate>
+        </>
+      )}
+    </div>
   );
 }
