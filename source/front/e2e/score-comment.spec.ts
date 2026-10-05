@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 
-// Needs archieves-api running (see CLAUDE.md's "E2E tests"), since every
+// Needs archieves-api running (see .claude/docs/testing.md's "E2E"), since every
 // comment is persisted through it.
 
 const ROUTE_TIMEOUT = 15_000;

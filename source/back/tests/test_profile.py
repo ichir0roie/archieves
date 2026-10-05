@@ -71,11 +71,11 @@ def test_get_missing_user_profile_returns_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_get_other_users_profile_is_viewable(client: TestClient, db_session: Session) -> None:
+def test_get_other_users_profile_is_viewable(client: TestClient, s: Session) -> None:
     _create_user(client)
     other = User(sub="someone-elses-sub", name="Kenta")
-    db_session.add(other)
-    db_session.commit()
+    s.add(other)
+    s.commit()
 
     response = client.get("/api/v1/users/someone-elses-sub/profile")
     assert response.status_code == 200
@@ -124,5 +124,5 @@ def test_user_profile_includes_recent_matches(client: TestClient) -> None:
     assert body["matches"][0]["game_id"] == recent_game["id"]
 
 
-def test_profile_of_a_user_id_that_does_not_exist_is_none(db_session: Session) -> None:
-    assert profile_crud.get_user_profile(db_session, 999) is None
+def test_profile_of_a_user_id_that_does_not_exist_is_none(s: Session) -> None:
+    assert profile_crud.get_user_profile(s, 999) is None

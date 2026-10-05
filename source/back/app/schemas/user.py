@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
+
+from app.schemas.base import ResponseModel
 
 
 class UserBase(BaseModel):
@@ -25,8 +27,6 @@ class UserUpdate(BaseModel):
     region_id: int | None = None
 
 
-class UserRead(UserBase):
-    model_config = ConfigDict(from_attributes=True)
-
+class UserRead(UserBase, ResponseModel):
     id: int
     sub: str | None = None

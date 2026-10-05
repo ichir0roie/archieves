@@ -133,10 +133,10 @@ def test_get_me_returns_current_user_after_ensure(client: TestClient) -> None:
 
 
 def test_ensuring_a_user_reraises_an_integrity_error_that_is_not_a_race(
-    db_session: Session, monkeypatch: pytest.MonkeyPatch
+    s: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user_crud.create_user(db_session, UserCreate(name="Yumi"), sub="taken-sub")
-    monkeypatch.setattr(user_crud, "get_user_by_sub", lambda db, sub: None)
+    user_crud.create_user(s, UserCreate(name="Yumi"), sub="taken-sub")
+    monkeypatch.setattr(user_crud, "get_user_by_sub", lambda s, sub: None)
 
     with pytest.raises(IntegrityError):
-        user_crud.get_or_create_user(db_session, UserCreate(name="Yumi"), sub="taken-sub")
+        user_crud.get_or_create_user(s, UserCreate(name="Yumi"), sub="taken-sub")

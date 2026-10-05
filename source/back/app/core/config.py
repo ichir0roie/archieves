@@ -36,7 +36,9 @@ class Settings(BaseSettings):
             )
         return self
 
-    BACKEND_CORS_ORIGINS: list[str] = ["*"]
+    # x-archieves-api-key の合言葉。`名前=鍵` をカンマで区切る(app/core/api_keys.py)。
+    # 空なら確かめない(手元・テスト)。本番では必ず渡す
+    API_KEYS: str = ""
 
     # Cognito user pool backing authentication. Endpoints that depend on
     # app.core.security.get_current_user verify the bearer token against

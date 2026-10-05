@@ -4,6 +4,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    BigInteger,
     Date,
     Float,
     ForeignKey,
@@ -12,7 +13,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base_class import Base, BigIntegerPK, TimestampMixin
+from app.db.base_class import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from app.db.models.comment_model import EndComment, GameComment, RoundComment
@@ -25,7 +26,7 @@ class Game(TimestampMixin, Base):
     __tablename__ = "games"
 
     user_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("users.id", ondelete="CASCADE"), index=True
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     recorded_at: Mapped[date] = mapped_column(Date)
 
@@ -50,10 +51,10 @@ class Round(TimestampMixin, Base):
     __tablename__ = "rounds"
 
     game_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("games.id", ondelete="CASCADE"), index=True
+        BigInteger, ForeignKey("games.id", ondelete="CASCADE"), index=True
     )
     user_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("users.id", ondelete="CASCADE"), index=True
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     number: Mapped[int] = mapped_column(Integer)
     recorded_at: Mapped[date] = mapped_column(Date)
@@ -78,10 +79,10 @@ class End(TimestampMixin, Base):
     __tablename__ = "ends"
 
     round_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("rounds.id", ondelete="CASCADE"), index=True
+        BigInteger, ForeignKey("rounds.id", ondelete="CASCADE"), index=True
     )
     user_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("users.id", ondelete="CASCADE"), index=True
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     number: Mapped[int] = mapped_column(Integer)
     recorded_at: Mapped[date] = mapped_column(Date)
@@ -101,10 +102,10 @@ class Match(TimestampMixin, Base):
     __tablename__ = "matches"
 
     game_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("games.id", ondelete="CASCADE"), unique=True, index=True
+        BigInteger, ForeignKey("games.id", ondelete="CASCADE"), unique=True, index=True
     )
     user_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("users.id", ondelete="CASCADE"), index=True
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(String(200))
     link: Mapped[str | None] = mapped_column(String(500), default=None)
@@ -118,10 +119,10 @@ class Point(TimestampMixin, Base):
     __tablename__ = "points"
 
     end_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("ends.id", ondelete="CASCADE"), index=True
+        BigInteger, ForeignKey("ends.id", ondelete="CASCADE"), index=True
     )
     user_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("users.id", ondelete="CASCADE"), index=True
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     number: Mapped[int] = mapped_column(Integer)
     score: Mapped[int] = mapped_column(Integer)

@@ -1,19 +1,29 @@
 #!/bin/bash
-# Prepares the session's test environment (see .claude/scripts/setup-dev-env.sh).
-#
-# Asynchronous: the session starts immediately and this runs behind it, so a
-# cold container's CPython download and npm install do not hold up the first
-# prompt. The trade-off is that the environment may not be ready the instant
-# the session is - run .claude/scripts/setup-dev-env.sh before testing if you
-# are not sure; it is a sub-second no-op once this has finished, and the two
-# cannot collide.
+# web のセッション(CLAUDE_CODE_REMOTE=true)で、テストに要るもの(.claude/scripts/setup-dev-env.sh)と
+# 手元の PostgreSQL(infra_local/postgres.sh)を裏で用意する。セッションは待たせずにすぐ戻る。
+# 用意の進み具合は .cache/session-setup/ に印を置く(backend / postgres / frontend、止まれば failed)。
+# .claude/hooks/wait-setup.sh(PreToolUse フック)が、それを使うコマンドを印が揃うまで待たせる。
 set -euo pipefail
+[ "${CLAUDE_CODE_REMOTE:-}" = true ] || exit 0
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
-echo '{"async": true, "asyncTimeout": 900000}'
-
-if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
-  exit 0
+venv="$PWD/source/back/.venv"
+if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
+  {
+    echo 'export PYTHONUTF8=1'
+    # python / pytest / ruff を 3.14 の venv のものにする
+    echo "export PATH=\"$venv/bin:\$PATH\""
+  } >> "$CLAUDE_ENV_FILE"
 fi
 
-REPO="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-exec "$REPO/.claude/scripts/setup-dev-env.sh"
+setup_dir=.cache/session-setup
+mkdir -p .cache
+rm -rf "$setup_dir"
+mkdir -p "$setup_dir"
+setsid nohup bash -c '
+  dir=$1
+  { .claude/scripts/setup-dev-env.sh backend && touch "$dir/backend" \
+    && infra_local/postgres.sh >/dev/null && touch "$dir/postgres"; } || touch "$dir/failed"
+  .claude/scripts/setup-dev-env.sh frontend && touch "$dir/frontend" || touch "$dir/failed"
+' setup "$setup_dir" >> .cache/session-setup.log 2>&1 < /dev/null &
+echo "テストの環境を裏で用意している(ログは .cache/session-setup.log)" >&2

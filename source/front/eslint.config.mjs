@@ -12,6 +12,15 @@ const compat = new FlatCompat({
 // https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
 
 const eslintConfig = [
+  {
+    // .next-test: テスト・確かめ用に別のビルド先で起こした next dev(next.config.ts の distDir)
+    ignores: [
+      ".next/**",
+      ".next-test/**",
+      "playwright-report/**",
+      "test-results/**",
+    ],
+  },
   ...compat.config({
     extends:["next/core-web-vitals", "next/typescript"],
     rules:{

@@ -1,6 +1,7 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from app.core.comments import MAX_COMMENT_LENGTH
+from app.schemas.base import ResponseModel
 
 
 class CommentBase(BaseModel):
@@ -14,9 +15,7 @@ class CommentWrite(CommentBase):
     pass
 
 
-class CommentRead(CommentBase):
-    model_config = ConfigDict(from_attributes=True)
-
+class CommentRead(CommentBase, ResponseModel):
     id: int
     user_id: int
 
@@ -33,7 +32,7 @@ class EndCommentRead(CommentRead):
     end_id: int
 
 
-class GameComments(BaseModel):
+class GameComments(ResponseModel):
     """Every comment under one game, for screens that draw the whole sheet."""
 
     game: GameCommentRead | None = None

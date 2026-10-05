@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 
-// Needs archieves-api running (see CLAUDE.md's "E2E tests"): the upload is
+// Needs archieves-api running (see .claude/docs/testing.md's "E2E"): the upload is
 // rejected by the API, not by the page.
 
 test.beforeEach(async ({ page }) => {
@@ -34,7 +34,7 @@ test("a file that is not a SQLite backup is reported as an error", async ({ page
   });
   await page.getByRole("button", { name: "インポート", exact: true }).click();
 
-  const alert = page.locator(".MuiAlert-root");
+  const alert = page.locator(".api-error");
   await expect(alert).toBeVisible();
   await expect(alert).toContainText("Not a valid SQLite file");
   await expect(page.getByText("インポートが完了しました")).toHaveCount(0);

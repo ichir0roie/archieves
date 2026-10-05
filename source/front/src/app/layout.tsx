@@ -1,34 +1,32 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
+import "@aws-amplify/ui-react/styles.css";
 import "./globals.css";
-import { AppRouterCacheProvider } from "@mui/material-nextjs/v13-appRouter";
-import { Metadata } from "next";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import AuthGate from "@/components/AuthGate";
+import Nav from "@/components/Nav";
+import { T } from "@/lib/text";
 
 export const metadata: Metadata = {
-  title: "スコア管理アプリ",
-  description: "あなたのスコアを記録・管理するアプリケーション",
+  title: T.appTitle,
+  description: T.appDescription,
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ja">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <AppRouterCacheProvider>{children}</AppRouterCacheProvider>
+      <body>
+        <AuthGate>
+          <Nav />
+          {/* useSearchParams を読む画面(score-view)があるので、Suspense で包む */}
+          <main>
+            <Suspense>{children}</Suspense>
+          </main>
+        </AuthGate>
       </body>
     </html>
   );

@@ -17,18 +17,21 @@ production on one code path.
 
 ```
 app/
-  main.py            FastAPI app instance, router wiring
-  core/config.py      Settings (pydantic-settings), read from env / .env
+  main.py            FastAPI app instance, router wiring, exception handlers
+  core/               Settings, Cognito auth, domain errors, scoring rules
   db/
     base_class.py      Declarative Base + TimestampMixin
     base.py             Imports all models for Alembic autogenerate
-    session.py          Engine, SessionLocal, get_db dependency
-  models/              SQLAlchemy ORM models (User, Game, Round, End, Point)
+    session.py          Engine, SessionLocal, get_session dependency
+    models/             SQLAlchemy ORM models
   schemas/             Pydantic request/response models
-  crud/                DB access functions
-  api/v1/              Versioned routers (health, users)
+  crud/                DB access functions (flush only; endpoints commit)
+  services/            Work spanning several tables (legacy backup import)
+  api/v1/              Versioned routers
 alembic/               DB migrations
-tests/                 pytest + FastAPI TestClient (sqlite in-memory)
+tests/                 pytest + FastAPI TestClient (local PostgreSQL)
+tools/                 Dev tools: `python -m tools.dev`, `tools.dump_openapi`
+openapi.json           The API's OpenAPI; the frontend's types are generated from it
 .build/                Build & deploy resources
   Dockerfile             Lambda container image (Lambda Web Adapter + uvicorn)
   docker-compose.yml     Local dev: api + postgres
@@ -61,7 +64,7 @@ uvicorn app.main:app --reload
 ```
 
 It has to be a 3.14 interpreter - `app/` uses PEP 695 syntax and will not
-import on an older one. See CLAUDE.md's "Python version".
+import on an older one. See .claude/docs/setup.md's "python" at the repo root.
 
 ## AWS auth: mock vs. real Cognito
 
@@ -84,20 +87,21 @@ See `app/core/security.py::get_current_user`.
 ## Running alongside the archieves frontend
 
 The archieves frontend lives in the same monorepo, at
-[`../front`](../front), and talks to this API over plain HTTP
-(`src/lib/api/client.ts`), so the two just need to agree on a port and a
-CORS origin - no shared network or container setup is required, each side
-keeps using its own native dev server:
+[`../front`](../front). The browser never calls this API directly: the
+frontend's route handler (`src/app/api/v1/[...path]/route.ts`) forwards
+`/api/v1/*` here, adding the `x-archieves-api-key` header and the signed-in
+user's Cognito ID token. So no CORS is needed. When `API_KEYS` is set, requests
+without one of its keys are rejected (`app/core/api_keys.py`).
+
+The quickest way to run both is `.venv/bin/python -m tools.dev` (`--test
+--seed` for a throwaway database). By hand:
 
 1. Start this API (either `uvicorn app.main:app --reload`, which listens on
    `:8000`, or `docker compose -f .build/docker-compose.yml up`, which
    listens on `:8080`).
-2. In `../front`, point `NEXT_PUBLIC_API_BASE_URL` at whichever port you
-   used (its `.env.example` defaults to `http://localhost:8000/api/v1` for
-   the non-Docker case) and run `npm run dev` (`:3000`).
-3. `BACKEND_CORS_ORIGINS` in `.env.example` is `["*"]`, so the frontend's
-   origin is allowed without further changes.
-4. Keep `AUTH_MODE=mock` here in sync with `NEXT_PUBLIC_AUTH_MODE=mock` in
+2. In `../front`, point `ARCHIEVES_API_URL` at it (default
+   `http://127.0.0.1:8000`) and run `npm run dev` (`:3000`).
+3. Keep `AUTH_MODE=mock` here in sync with `NEXT_PUBLIC_AUTH_MODE=mock` in
    `../front` (both are the default) so neither side needs real Cognito
    during local development. Flip both to `cognito`/real Amplify sandbox
    output together when you need to debug against the real auth flow.
@@ -111,12 +115,13 @@ alembic upgrade head
 
 ## Tests
 
-Against the in-memory sqlite fixtures in `tests/conftest.py`, on a Python
-3.14 interpreter (see CLAUDE.md's "Python version"):
+Against a throwaway PostgreSQL database (`archieves_test`) on the local
+server that `../../infra_local/postgres.sh` starts, rebuilt by migrations on
+every run, on a Python 3.14 interpreter (see .claude/docs/setup.md at the
+repo root):
 
 ```bash
-pip install -r requirements-dev.txt
-pytest
+.venv/bin/python -m pytest
 ```
 
 ## Deploying to AWS

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import BigInteger, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.comments import MAX_COMMENT_LENGTH
-from app.db.base_class import Base, BigIntegerPK, TimestampMixin
+from app.db.base_class import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from app.db.models.game_model import End, Game, Round
@@ -21,7 +21,7 @@ class CommentMixin(TimestampMixin):
     """
 
     user_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("users.id", ondelete="CASCADE"), index=True
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     body: Mapped[str] = mapped_column(String(MAX_COMMENT_LENGTH))
 
@@ -32,7 +32,7 @@ class GameComment(CommentMixin, Base):
     __tablename__ = "game_comments"
 
     game_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("games.id", ondelete="CASCADE"), unique=True, index=True
+        BigInteger, ForeignKey("games.id", ondelete="CASCADE"), unique=True, index=True
     )
 
     game: Mapped[Game] = relationship(back_populates="comment", lazy="noload")
@@ -44,7 +44,7 @@ class RoundComment(CommentMixin, Base):
     __tablename__ = "round_comments"
 
     round_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("rounds.id", ondelete="CASCADE"), unique=True, index=True
+        BigInteger, ForeignKey("rounds.id", ondelete="CASCADE"), unique=True, index=True
     )
 
     round: Mapped[Round] = relationship(back_populates="comment", lazy="noload")
@@ -56,7 +56,7 @@ class EndComment(CommentMixin, Base):
     __tablename__ = "end_comments"
 
     end_id: Mapped[int] = mapped_column(
-        BigIntegerPK, ForeignKey("ends.id", ondelete="CASCADE"), unique=True, index=True
+        BigInteger, ForeignKey("ends.id", ondelete="CASCADE"), unique=True, index=True
     )
 
     end: Mapped[End] = relationship(back_populates="comment", lazy="noload")

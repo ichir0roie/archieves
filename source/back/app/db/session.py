@@ -16,5 +16,5 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def get_session() -> Generator[Session]:
-    with SessionLocal() as db:
-        yield db
+    with SessionLocal() as s:
+        yield s

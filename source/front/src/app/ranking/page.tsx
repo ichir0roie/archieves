@@ -1,16 +1,14 @@
 "use client";
 
-import AuthGate from "@/components/auth/AuthGate";
-import Header from "@/components/templates/common/header";
-import ApiErrorAlert from "@/components/templates/common/ApiErrorAlert";
-import MonthRangeFilter from "@/components/templates/common/MonthRangeFilter";
+import PageHeader from "@/components/PageHeader";
+import ApiErrorAlert from "@/components/ApiErrorAlert";
+import MonthRangeFilter from "@/components/MonthRangeFilter";
+import Field from "@/components/Field";
+import Picker from "@/components/Picker";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  MenuItem,
-  TextField,
-} from "@mui/material";
-import { toIsoMonthBound } from "@/lib/date/monthRange";
+import { toIsoMonthBound } from "@/lib/monthRange";
+import { T } from "@/lib/text";
 import {
   OrganizationRead,
   RankingQuery,
@@ -62,8 +60,7 @@ export default function Page() {
 
   function handleApply() {
     setAppliedQuery({
-      organizationId:
-        organizationId === NO_ORGANIZATION ? undefined : Number(organizationId),
+      organizationId: organizationId === NO_ORGANIZATION ? undefined : Number(organizationId),
       regionId: regionId === "" ? undefined : Number(regionId),
       start: toIsoMonthBound(startMonth, "start"),
       end: toIsoMonthBound(endMonth, "end"),
@@ -79,102 +76,81 @@ export default function Page() {
   }
 
   return (
-    <AuthGate>
-      <main className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <Header pageName="ランキング" />
-        <div className="flex w-full flex-col gap-3 p-3 max-w-2xl mx-auto">
-          <MonthRangeFilter
-            startMonth={startMonth}
-            endMonth={endMonth}
-            onStartMonthChange={setStartMonth}
-            onEndMonthChange={setEndMonth}
-            onApply={handleApply}
-            onReset={handleReset}
-          >
-            <TextField
-              size="small"
-              select
-              label="所属"
+    <div className="page">
+      <PageHeader title={T.stats.ranking.title} />
+      <MonthRangeFilter
+        startMonth={startMonth}
+        endMonth={endMonth}
+        onStartMonthChange={setStartMonth}
+        onEndMonthChange={setEndMonth}
+        onApply={handleApply}
+        onReset={handleReset}
+      >
+        <Field label={T.stats.ranking.organization}>
+          {(id) => (
+            <Picker
+              id={id}
+              title={T.stats.ranking.organization}
+              options={organizations.map((org) => ({
+                value: String(org.id),
+                label: org.name,
+              }))}
               value={organizationId}
-              onChange={(e) => setOrganizationId(e.target.value)}
-              className="w-40"
-            >
-              <MenuItem value={NO_ORGANIZATION}>すべて</MenuItem>
-              {organizations.map((org) => (
-                <MenuItem key={org.id} value={String(org.id)}>
-                  {org.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              size="small"
+              onChange={setOrganizationId}
+              emptyLabel={T.all}
+            />
+          )}
+        </Field>
+        <Field label={T.stats.ranking.region}>
+          {(id) => (
+            <input
+              id={id}
               type="number"
-              label="地域ID"
               value={regionId}
               onChange={(e) => setRegionId(e.target.value)}
-              className="w-32"
             />
-          </MonthRangeFilter>
-
-          {error && <ApiErrorAlert error={error} />}
-
-          {loading && (
-            <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 text-center text-sm text-slate-500 shadow-sm">
-              読み込み中...
-            </div>
           )}
+        </Field>
+      </MonthRangeFilter>
 
-          {!loading && !error && rankings.length === 0 && (
-            <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 text-center text-sm text-slate-500 shadow-sm">
-              該当するデータがありません
-            </div>
-          )}
+      {error && <ApiErrorAlert error={error} />}
 
-          {!loading && !error && rankings.length > 0 && (
-            <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm">
-              {rankings.map((entry) => {
-                const row = (
-                  <>
-                    <span className="w-8 text-center text-sm font-bold text-slate-500">
-                      {entry.rank}
-                    </span>
-                    <div className="flex flex-1 flex-col">
-                      <span className="text-sm font-semibold text-slate-800">
-                        {entry.user.name}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <span className="text-lg font-bold text-slate-900">
-                        {entry.average_score.toFixed(1)}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        {entry.game_count}ゲーム
-                      </span>
-                    </div>
-                  </>
-                );
+      {loading && <p className="status empty">{T.loading}</p>}
 
-                return entry.user.sub ? (
-                  <Link
-                    key={entry.user.id}
-                    href={`/profile/${entry.user.sub}`}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-slate-50"
-                  >
-                    {row}
-                  </Link>
-                ) : (
-                  <div
-                    key={entry.user.id}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2"
-                  >
-                    {row}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {!loading && !error && rankings.length === 0 && <p className="status empty">{T.stats.ranking.empty}</p>}
+
+      {!loading && !error && rankings.length > 0 && (
+        <div className="row-list">
+          {rankings.map((entry) => {
+            const row = (
+              <>
+                <span className="rank">{entry.rank}</span>
+                <div className="main">
+                  <span>{entry.user.name}</span>
+                </div>
+                <div className="side">
+                  <span className="big">{entry.average_score.toFixed(1)}</span>
+                  <span className="muted small">
+                    {entry.game_count}
+                    {T.unit.game}
+                  </span>
+                </div>
+              </>
+            );
+
+            return entry.user.sub ? (
+              <Link
+                key={entry.user.id}
+                href={`/profile/${entry.user.sub}`}
+              >
+                {row}
+              </Link>
+            ) : (
+              <div key={entry.user.id}>{row}</div>
+            );
+          })}
         </div>
-      </main>
-    </AuthGate>
+      )}
+    </div>
   );
 }
