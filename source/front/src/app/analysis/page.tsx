@@ -1,12 +1,12 @@
 "use client";
 
-import AuthGate from "@/components/auth/AuthGate";
+import AuthGate from "@/components/AuthGate";
 import { useEffect, useState } from "react";
-import Header from "@/components/templates/common/header";
-import MonthRangeFilter from "@/components/templates/common/MonthRangeFilter";
-import StatSummaryCard from "@/components/templates/analysis/StatSummaryCard";
-import RoundScoreChart from "@/components/templates/analysis/RoundScoreChart";
-import { toIsoMonthBound } from "@/lib/date/monthRange";
+import Header from "@/components/Header";
+import MonthRangeFilter from "@/components/MonthRangeFilter";
+import StatSummaryCard from "@/components/StatSummaryCard";
+import RoundScoreChart from "@/components/RoundScoreChart";
+import { toIsoMonthBound } from "@/lib/monthRange";
 import {
   ApiError,
   ScoreStatistics,

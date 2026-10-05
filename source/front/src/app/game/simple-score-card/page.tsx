@@ -1,7 +1,7 @@
 "use client";
 
-import ScoreEntryShell from "@/components/templates/score/ScoreEntryShell";
-import SimpleScoreInput from "@/components/templates/score/scoreInput/SimpleScoreInput";
+import ScoreEntryShell from "@/components/ScoreEntryShell";
+import SimpleScoreInput from "@/components/SimpleScoreInput";
 
 export default function Page() {
   return (

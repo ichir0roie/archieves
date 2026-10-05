@@ -27,17 +27,19 @@ database and are read/written over plain HTTP (`src/lib/api/client.ts`),
 just like `/users`/`/statistics`. A signed-in identity (real or mock) is
 attributed to its archieves-api `User` row lazily, via
 `getCurrentAppUser()` (`src/lib/auth/currentUser.ts`), which calls
-`POST /users/find-or-create` on first use.
+`POST /users/me/ensure` on first use.
 
 ## Running alongside archieves-api
 
 The archieves-api backend lives in the same monorepo, at
-[`../back`](../back) (`/users`, `/statistics`, ...). This app talks to it
-over plain HTTP - no shared network or container setup needed, each side
-keeps using its own native dev server:
+[`../back`](../back) (`/users`, `/statistics`, ...). The browser calls
+`/api/v1/*` on this app, and the route handler
+(`src/app/api/v1/[...path]/route.ts`) forwards it to archieves-api with the
+API key and the Cognito ID token. `python -m tools.dev` in `../back` starts
+both together.
 
 1. Start archieves-api (see [`../back/README.md`](../back/README.md)) and
-   set `NEXT_PUBLIC_API_BASE_URL` here to match its port.
+   set `ARCHIEVES_API_URL` here to match it (default `http://127.0.0.1:8000`).
 2. Keep `NEXT_PUBLIC_AUTH_MODE=mock` here in sync with `AUTH_MODE=mock`
    there (both are the default) so neither side needs real Cognito. Flip
    both to `cognito`/a real sandbox together when you need to debug against

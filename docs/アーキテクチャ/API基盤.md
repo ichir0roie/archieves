@@ -16,7 +16,9 @@ archieves-api リポジトリに、以下の構成でAPIの雛形を実装した
   - アプリ側は普通の ASGI アプリ（uvicorn）のままで、Lambda 専用のハンドラコード（Mangum等）が不要。
   - ローカル(`docker run` / `docker compose`)と Lambda 上で同一イメージがそのまま動く。
 - API Gateway（HTTP API）経由でリクエストを受ける。
-- フロントエンド(Next.js)はAmplify Hostingでビルド・配信し、ブラウザ/SSRからAPI GatewayのエンドポイントをfetchするクライアントAPI呼び出し構成とする(CORS設定が必要)。
+- フロントエンド(Next.js)はAmplify Hostingでビルド・配信する。ブラウザはAPI Gatewayを直に叩かず、Next.jsのroute handler(`source/front/src/app/api/v1/[...path]/route.ts`)が同じoriginの`/api/v1/*`を受けてAPIへ流す(ai-novel-coreと同じ形)。
+  - route handlerが合言葉`x-archieves-api-key`(`ARCHIEVES_API_KEY`)と、クッキーのCognitoのセッションから引いたIDトークンを付ける。APIは`API_KEYS`にある鍵の無い要求を断り、IDトークンで利用者を確かめる。
+  - ブラウザとAPIが同じoriginになるので、CORSの設定は要らない。
 
 ### DB接続方式（RDSへの接続設計）
 
