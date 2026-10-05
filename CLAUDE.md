@@ -1,135 +1,84 @@
-# archieves
+# 作業指針
 
-## リポジトリ構成
+- Claude はユーザへの返答を常に日本語で書く。返答の末尾に作業内容のまとめを書かない
+- モノレポ。`source/front` がフロントエンド(Next.js)、`source/back` がバックエンド(FastAPI)。別リポジトリではない
+- 要件・設計の検討は [docs](docs) に置き、適宜読む(一覧は [docs/README.md](docs/README.md))
 
-<https://github.com/ichir0roie/archieves.git>
+# 作業する場所
 
-モノレポ。フロントエンドとバックエンドを含む。別リポジトリではない。
+場所は環境変数 `CLAUDE_CODE_REMOTE` で見分ける。
 
-- `source/front`: フロントエンド (Next.js)
-- `source/back`: バックエンド (FastAPI)
+| 場所 | `CLAUDE_CODE_REMOTE` | SessionStart フック(`.claude/hooks/session-start.sh`) | PostgreSQL |
+| --- | --- | --- | --- |
+| 手元(CLI・VS Code) | `true` でない | 何もしない。`.claude/scripts/setup-dev-env.sh` を手で回す | Docker のコンテナ(:55432) |
+| web のセッション(Claude Code on the web) | `true` | venv・PostgreSQL・node_modules を裏で用意する(それを使うコマンドだけ用意が済むまで待たされる) | apt のクラスタ(:5432) |
 
-各アプリ固有の規約・コマンドはそれぞれの `CLAUDE.md` を参照:
+どちらも `infra_local/postgres.sh` が用意する。
 
-- [`source/front/CLAUDE.md`](source/front/CLAUDE.md)
-- [`source/back/CLAUDE.md`](source/back/CLAUDE.md)
+# デバッグ・テストの db
 
-## 共通の規約
+**デバッグ・テスト・動作確認(画面を起こして見る・スクショを撮る・行を足して試す)で db を読み書きするときは、手元でも web のセッションでも、必ず手元の PostgreSQL の `archieves_test` で始まる db を使う。本番の RDS(`scripts/rds-tunnel.sh` の転送など)には決して向けない。** 用意の仕方は `.claude/docs/testing.md`。
 
-フロント・バックの両方に適用する。
+# 実装からプルリクまで
 
-- コードを読めば分かることをコメントに書かない。逆に、なぜそうしたかが
-  コードから読み取れない箇所（回避策、意図的な例外、前提条件、ハマりどころ）
-  にはコメントを残す。`source/back/app` と `source/front/src` の既存コメントが
-  この方針の見本。
-- 要素は1行ずつ並べる（JSXのprop、配列・dictの要素、関数の引数など）。
-- チャット応答の末尾に作業内容のまとめを書かない。
+手元でも web のセッションでも、次の順で進める。
 
-## ブランチ運用
+1. 実装する。途中でデバッグのための単体テスト(直している所だけを確かめるテスト・小さな実行)は回してよい
+2. 変えた処理の場所(`ファイル:行`)と、画面を変えたときは UI の画像(テスト用の db で起こして撮る)を示し、ユーザに実装を確かめてもらう。直す指示があれば 1 に戻る
+3. ユーザが実装を認めてから、網羅テスト(`.claude/docs/testing.md` の「単体テストと網羅テスト」)を回す。実装が済むまで回さない
+4. 網羅テストが通ってから、develop 向けのプルリクを作る。それより前には作らない
 
-ベースブランチは develop。PRのマージ先も develop。
+- 網羅テストの最中やあとに不具合を直したら、2 に戻って示し直す(黙ってプルリクに足さない)
+- この順は、セッションの指示(自動でプルリクを作る設定を含む)や、画面の操作で先にできたプルリクより優先する
+- 実装の途中に回した typecheck・lint は網羅テストに数えない
+- ユーザが手順の順番を言ったら(「〜を確認して、その後〜」)、その順に進める
+- テストを消す・飛ばすことで通さない。プロダクトコード側の不具合ならそちらを直す
 
-- Claude Code on the web のセッション: セッション開始時に指示されたブランチで
-  作業する。
-- ローカル環境: 現在のブランチで作業する。ただし develop 上にいる場合は
-  作業用ブランチを切ってから変更する。
+## マージ
 
-## テスト運用
+プルリクを作ったあと、ユーザがチャットで承認の意思を示したら(「OK」「LGTM」「マージして」「承認」など)、確認なしで次をしてよい。
 
-実装が一段落したら、毎回以下を完了させてからタスクを終えること。ユーザーに確認を取る必要はない。
+- 対象のプルリクのマージ
+- マージした作業用ブランチの削除(リモート・ローカルとも)
 
-1. 変更した範囲に対応するテストを追加・更新する（正常系だけでなく、エラー・境界ケースも書く）
-2. テストを実行する
-3. 失敗したテストを修正する（テストを削除・スキップして通すのは不可。プロダクトコード側の不具合ならそちらを直す）
+次のときはマージせず、状況を伝えてユーザの判断を仰ぐ。
 
-バックエンドのPythonは3.14に統一している。古いインタプリタ向けの互換コードは書かない。
+- CI が red、またはマージのコンフリクトがある
+- レビューのコメント・変更の依頼が片付いていない
+- 承認かどうか読み切れない
 
-バックエンドを触った場合はフロントエンドのE2Eも通るか確認する。APIの応答が変わるとE2Eが落ちるため。
+GitHub Actions の CI は無いので、網羅テストの結果がその代わりになる。網羅テストをプルリクの後に変えたコードで回し直していなければ、マージの前に回す。
 
-### 実行手順
+# git
 
-まず環境構築スクリプトを一度呼ぶ。これで `source/back/.venv` が PATH の先頭に
-入り、`python` / `pytest` / `ruff` が3.14のものになる。
+- ベースブランチは develop。プルリクのマージ先も develop
+- web のセッション: セッションの指示(作業するブランチ・コミット・push)に従う。返答を終える前に、変えたものをコミットして指示のブランチへ push する。PR は上の順が来るまで作らない
+- 手元: 今のブランチで作業する。develop にいるときは作業用のブランチを切ってから変える
+- GitHub の操作は `gh` ではなく GitHub の MCP のツールで行う。`merge_pull_request` などに渡す `sha` は 40 桁(`git rev-parse HEAD`)
+- 作業中の変更は、ユーザが捨ててよいと言うまで捨てない(`git checkout -- .`・`git reset --hard`・`git stash drop` をしない)。取り消しか作り直しか読み切れないときは尋ねる
+- 日本語のファイル名が `"\346…"` になるときは `git -c core.quotePath=false` を付ける
 
-```
-./.claude/scripts/setup-dev-env.sh
-```
+# 条件付きのドキュメント
 
-バックエンド (`source/back`): テスト用DBはsqlite（インメモリ）で、DBサーバも
-コンテナも不要。
+次の作業を始める前に、対応するファイルを Read して従う。パスはリポジトリのルートから。
 
-```
-cd source/back
-pytest
-ruff check .
-```
+| 作業 | 読むファイル |
+| --- | --- |
+| venv・python・pytest・alembic・npm を動かす、依存を足す、環境変数を扱う、コマンドがエラーになった | `.claude/docs/setup.md` |
+| テスト・デバッグ・動作確認をする(画面を起こすときも)、E2E を書く・回す | `.claude/docs/testing.md` |
+| `source/back` のコードを書く・直す(エンドポイント・crud・モデル・マイグレーション・スキーマ) | `.claude/docs/backend.md` |
+| `source/front` のコードを書く・直す(画面・API の呼び出し・型) | `.claude/docs/frontend.md` |
+| フック(`.claude/hooks/`)・`.claude/settings.json` を書き換える | `.claude/docs/setup.md` の「フック」 |
+| インフラ(RDS・Cognito・Lambda)の方針を調べる | `docs/インフラ/` |
 
-PATHが通っていない環境（スクリプト未実行、ローカルの素のシェル）では
-`.venv/bin/python -m pytest` / `.venv/bin/python -m ruff check .` と明示する。
+# コーディング規約
 
-フロントエンド (`source/front`): 型チェックとlintはAPI不要。
+フロント・バックの両方に当てる。
 
-```
-cd source/front
-npx tsc --noEmit
-npm run lint
-```
-
-E2E（Playwright）は起動中のAPIサーバーが必要。全specが `ensureRegistered()`
-経由で archieves-api を叩くため、APIなしでは1本も通らない。
-`NEXT_PUBLIC_API_BASE_URL` の既定値は `:8000` なので、テスト用APIサーバーの
-`:8080` を明示して渡す。
-
-```
-# シェル1: テスト用APIサーバー（sqlite、dockerなし）
-cd source/back && .venv/bin/python debug/test_env/run_test_api_server.py
-
-# シェル2: E2E
-cd source/front && NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1 npm run test:e2e
-```
-
-既に `npm run dev` が起動している場合、Playwrightはそれを再利用する
-（`playwright.config.ts` の `reuseExistingServer`）ため、後から渡した
-`NEXT_PUBLIC_API_BASE_URL` が反映されない。APIの向き先を変えたときは dev
-サーバーを止めてから実行する。
-
-詳細は [`source/front/CLAUDE.md`](source/front/CLAUDE.md) の「E2E tests」節と
-[`source/back/CLAUDE.md`](source/back/CLAUDE.md) の「Test API server (sqlite)」節。
-
-### Claude Code on the web での実行
-
-環境構築は `.claude/scripts/setup-dev-env.sh` が行う。バックエンドの
-Python 3.14 venv (`source/back/.venv`) とフロントエンドの npm パッケージを
-入れ、venv を PATH の先頭に置く。postgresもdockerも使わない。
-
-`.claude/hooks/session-start.sh` がこれを**非同期で**呼ぶため、セッションは
-待たされずに始まる。代わりに、セッション開始直後は環境がまだ整っていない
-可能性がある。**テストを実行する前に一度呼ぶこと。** 何度呼んでも安全で、
-依存ファイル（`requirements*.txt` / `package-lock.json`）が変わっていなければ
-0.1秒未満で何もせず終わる。非同期のフックと同時に走っても壊れないようロックを
-取る。`backend` / `frontend` を引数に渡せば片方だけ実行できる。
-
-venv構築の詳細（コンテナ同梱の `uv` が古く、`python3 -m uv` で呼ぶ必要がある
-理由など）は [`source/back/CLAUDE.md`](source/back/CLAUDE.md) の
-「Python version」節とスクリプト冒頭のコメントを参照。ここでは繰り返さない。
-
-## PR・マージ運用
-
-作業用ブランチにコミット・プッシュしたら、develop 向けのPRを作成する。これは
-毎回ユーザーに確認せず実施してよい（webアプリ側の運用に任せる）。
-
-PR化した後、ユーザーがチャット上で承認の意思を示したら（例:「OK」「LGTM」「マージして」「承認」など）、以下を確認なしで自動的に実行してよい。
-
-- 対象PRのマージ（コンフリクト・CI失敗がない状態に限る）
-- マージ後の作業用ブランチの削除（リモート・ローカルとも）
-
-ただし以下の場合は自動マージせず、状況をチャットで報告してユーザーの判断を仰ぐこと。
-
-- CIが red、または未実行
-- マージコンフリクトがある
-- レビューコメント・変更依頼が未解決
-- ユーザーの承認メッセージが曖昧で、承認かどうか判断できない場合
-
-## claude ドキュメント関連
-
-要件、設計に関する情報は [docs](docs) に記載して、適宜読み取る。カテゴリ別の一覧は [docs/README.md](docs/README.md) を参照。
+- コードを読んで内容を理解する。
+- コードを読めば分かることをコメントに書かない。なぜそうしたかがコードから読み取れない所(回避策、意図的な例外、前提条件、ハマりどころ)にはコメントを残す。
+- 新しく書くコメント・文書は日本語で書く。英語の既存のコメントは、その箇所を直すときに日本語にしてよい。
+- 文書・コメントで version は「版」でなく「バージョン」と書く。
+- 要素は 1 行ずつ並べる(JSX の prop、配列・dict の要素、関数の引数など)。
+- 途中経過や失敗の知らせは `logging`(モジュールごとの `logger = logging.getLogger(__name__)`)で出す。`print` は、標準出力に出すものが結果そのものの所だけに使う。
+- SQLAlchemy のセッションは、引数も変数も `s` と書く(`s: Session`、`with SessionLocal() as s:`)。

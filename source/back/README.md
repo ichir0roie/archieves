@@ -17,18 +17,21 @@ production on one code path.
 
 ```
 app/
-  main.py            FastAPI app instance, router wiring
-  core/config.py      Settings (pydantic-settings), read from env / .env
+  main.py            FastAPI app instance, router wiring, exception handlers
+  core/               Settings, Cognito auth, domain errors, scoring rules
   db/
     base_class.py      Declarative Base + TimestampMixin
     base.py             Imports all models for Alembic autogenerate
-    session.py          Engine, SessionLocal, get_db dependency
-  models/              SQLAlchemy ORM models (User, Game, Round, End, Point)
+    session.py          Engine, SessionLocal, get_session dependency
+    models/             SQLAlchemy ORM models
   schemas/             Pydantic request/response models
-  crud/                DB access functions
-  api/v1/              Versioned routers (health, users)
+  crud/                DB access functions (flush only; endpoints commit)
+  services/            Work spanning several tables (legacy backup import)
+  api/v1/              Versioned routers
 alembic/               DB migrations
-tests/                 pytest + FastAPI TestClient (sqlite in-memory)
+tests/                 pytest + FastAPI TestClient (local PostgreSQL)
+tools/                 Dev tools: `python -m tools.dev`, `tools.dump_openapi`
+openapi.json           The API's OpenAPI; the frontend's types are generated from it
 .build/                Build & deploy resources
   Dockerfile             Lambda container image (Lambda Web Adapter + uvicorn)
   docker-compose.yml     Local dev: api + postgres
@@ -61,7 +64,7 @@ uvicorn app.main:app --reload
 ```
 
 It has to be a 3.14 interpreter - `app/` uses PEP 695 syntax and will not
-import on an older one. See CLAUDE.md's "Python version".
+import on an older one. See .claude/docs/setup.md's "python" at the repo root.
 
 ## AWS auth: mock vs. real Cognito
 
@@ -111,12 +114,13 @@ alembic upgrade head
 
 ## Tests
 
-Against the in-memory sqlite fixtures in `tests/conftest.py`, on a Python
-3.14 interpreter (see CLAUDE.md's "Python version"):
+Against a throwaway PostgreSQL database (`archieves_test`) on the local
+server that `../../infra_local/postgres.sh` starts, rebuilt by migrations on
+every run, on a Python 3.14 interpreter (see .claude/docs/setup.md at the
+repo root):
 
 ```bash
-pip install -r requirements-dev.txt
-pytest
+.venv/bin/python -m pytest
 ```
 
 ## Deploying to AWS
