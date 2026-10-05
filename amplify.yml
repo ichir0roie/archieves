@@ -1,0 +1,31 @@
+# AWS Amplify Hosting のビルド設定。画面(source/front、Next.js)をモノレポの一つのアプリとして建てる。
+# Amplify のアプリの環境変数に AMPLIFY_MONOREPO_APP_ROOT=source/front、ARCHIEVES_API_URL(API Gateway の URL)、
+# ARCHIEVES_API_KEY(API の API_KEYS のうちの一つの鍵)を置く。NEXT_PUBLIC_AUTH_MODE は置かない(既定の cognito)。
+version: 1
+applications:
+  - appRoot: source/front
+    backend:
+      phases:
+        build:
+          commands:
+            # Cognito(amplify/)を建て、AuthGate.tsx と route handler が読む amplify_outputs.json を書く
+            - npm ci
+            - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - npm ci
+        build:
+          commands:
+            # サーバー側(src/app/api/v1/[...path]/route.ts)が実行時に読む値は、ビルドの環境変数から .env.production に写す
+            - env | grep -E '^ARCHIEVES_(API_URL|API_KEY)=' >> .env.production || true
+            - npm run build
+      artifacts:
+        baseDirectory: .next
+        files:
+          - "**/*"
+      cache:
+        paths:
+          - node_modules/**/*
+          - .next/cache/**/*

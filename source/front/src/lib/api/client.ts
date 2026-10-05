@@ -1,7 +1,7 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { isMockAuth } from '../auth/config';
-import { MOCK_USER } from '../auth/mockUser';
 import { toDateOnly } from '../date/toDateOnly';
+import { T } from '../text';
 import type {
   EndCommentRead,
   EndRead,
@@ -29,9 +29,8 @@ import type {
   UserUpdate,
 } from './schemas';
 
-/** Base URL of archieves-api, e.g. http://localhost:8000/api/v1 */
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1';
+// ブラウザは API を直に叩かず、同じ origin の route handler(src/app/api/v1)が流す
+const API_BASE_URL = '/api/v1';
 
 export class ApiError extends Error {
   constructor(
@@ -68,34 +67,30 @@ export function toErrorDetails(e: unknown): ErrorDetails {
   if (e instanceof Error) {
     return { message: e.message };
   }
-  return { message: '通信に失敗しました。もう一度お試しください。' };
+  return { message: T.api.failed };
 }
 
-/** Cognito ID token for the signed-in user, fetched fresh from Amplify each call. */
-async function authHeader(): Promise<Record<string, string>> {
-  // archieves-api's AUTH_MODE=mock ignores the token's contents and only
-  // requires the header to be present (see its app/core/security.py), so
-  // this never needs a real Amplify session.
-  if (isMockAuth()) {
-    return { Authorization: `Bearer mock-token-${MOCK_USER.sub}` };
-  }
+/**
+ * 期限の切れかけた Cognito のトークンを更新して、クッキーに書き戻させる。
+ * route handler はクッキーのトークンを読むだけで更新しないので、送る前にここで更新する。
+ */
+async function refreshSession(): Promise<void> {
+  if (isMockAuth()) return;
   try {
-    const { tokens } = await fetchAuthSession();
-    if (tokens?.idToken === undefined) return {};
-    return { Authorization: `Bearer ${tokens.idToken.toString()}` };
+    await fetchAuthSession();
   } catch {
-    return {};
+    // ログインしていなければ route handler が 401 を返す
   }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const method = init?.method ?? 'GET';
   const url = `${API_BASE_URL}${path}`;
+  await refreshSession();
   const response = await fetch(url, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      ...(await authHeader()),
       ...init?.headers,
     },
   });
@@ -440,9 +435,9 @@ export async function importSqliteBackup(file: File): Promise<ImportResult> {
   const formData = new FormData();
   formData.append('file', file);
 
+  await refreshSession();
   const response = await fetch(url, {
     method,
-    headers: { ...(await authHeader()) },
     body: formData,
   });
 

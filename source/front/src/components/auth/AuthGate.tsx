@@ -11,7 +11,8 @@ import { MOCK_USER } from "@/lib/auth/mockUser";
 import { isCurrentAppUserRegistered } from "@/lib/auth/currentUser";
 
 if (!isMockAuth()) {
-  Amplify.configure(outputs);
+  // ssr: トークンをクッキーに置き、route handler(src/app/api/v1)が読めるようにする
+  Amplify.configure(outputs, { ssr: true });
 }
 
 type RenderProps = { signOut?: () => void; user?: AuthUser };
