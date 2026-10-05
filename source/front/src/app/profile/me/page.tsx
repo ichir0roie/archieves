@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import AuthGate from "@/components/auth/AuthGate";
+import AuthGate from "@/components/AuthGate";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 
 export default function Page() {

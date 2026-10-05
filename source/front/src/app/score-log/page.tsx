@@ -1,12 +1,12 @@
 "use client";
 
-import AuthGate from "@/components/auth/AuthGate";
+import AuthGate from "@/components/AuthGate";
 import { useEffect, useState } from "react";
 import { listGames, toErrorDetails, type ErrorDetails, type GameRead } from "@/lib/api";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
-import LogGameCard from "@/components/templates/scoreLog/LogGameCard";
-import Header from "@/components/templates/common/header";
-import ApiErrorAlert from "@/components/templates/common/ApiErrorAlert";
+import LogGameCard from "@/components/LogGameCard";
+import Header from "@/components/Header";
+import ApiErrorAlert from "@/components/ApiErrorAlert";
 
 export default function Page() {
   const [games, setGames] = useState<GameRead[]>([]);

@@ -1,8 +1,8 @@
 "use client";
 
-import AuthGate from "@/components/auth/AuthGate";
-import Header from "@/components/templates/common/header";
-import ApiErrorAlert from "@/components/templates/common/ApiErrorAlert";
+import AuthGate from "@/components/AuthGate";
+import Header from "@/components/Header";
+import ApiErrorAlert from "@/components/ApiErrorAlert";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";

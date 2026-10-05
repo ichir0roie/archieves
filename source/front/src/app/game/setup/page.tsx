@@ -1,6 +1,6 @@
 "use client";
 
-import Header from "@/components/templates/common/header";
+import Header from "@/components/Header";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -30,7 +30,7 @@ import {
   MIN_ROUND_SIZE,
   TARGET_TYPES,
   type RoundSetup,
-} from "@/modules/data/score/scoreConfig";
+} from "@/lib/score/scoreConfig";
 import {
   clearGameId,
   loadRoundSetup,
@@ -38,7 +38,7 @@ import {
   saveInputMode,
   saveRoundSetup,
   type InputMode,
-} from "@/modules/functions/localStorage";
+} from "@/lib/storage";
 
 interface CountFieldProps {
   label: string;

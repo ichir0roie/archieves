@@ -1,6 +1,6 @@
 "use client";
-import Header from "@/components/templates/common/header";
-import { loadGameId, loadInputMode } from "@/modules/functions/localStorage";
+import Header from "@/components/Header";
+import { loadGameId, loadInputMode } from "@/lib/storage";
 import {
   Button,
   Card,

@@ -1,6 +1,6 @@
 "use client";
 
-import AuthGate from "@/components/auth/AuthGate";
+import AuthGate from "@/components/AuthGate";
 import { JSX, Suspense, useEffect, useState } from "react";
 import {
   deleteEndComment,
@@ -21,15 +21,15 @@ import {
   type PointRead,
   type RoundRead,
 } from "@/lib/api";
-import { scoreToStr, totalScore } from "@/modules/data/score/scoreFunctions";
-import { DEFAULT_END_SIZE } from "@/modules/data/score/scoreConfig";
-import { loadGameId } from "@/modules/functions/localStorage";
+import { scoreToStr, totalScore } from "@/lib/score/scoreFunctions";
+import { DEFAULT_END_SIZE } from "@/lib/score/scoreConfig";
+import { loadGameId } from "@/lib/storage";
 import { useSearchParams } from "next/navigation";
-import Header from "@/components/templates/common/header";
+import Header from "@/components/Header";
 import { Button } from "@mui/material";
-import ApiErrorAlert from "@/components/templates/common/ApiErrorAlert";
-import CommentField from "@/components/templates/common/CommentField";
-import { useRunOnce } from "@/hooks/useRunOnce";
+import ApiErrorAlert from "@/components/ApiErrorAlert";
+import CommentField from "@/components/CommentField";
+import { useRunOnce } from "@/lib/useRunOnce";
 
 const NO_COMMENTS: GameComments = { game: null, rounds: [], ends: [] };
 

@@ -1,16 +1,16 @@
 "use client";
 
-import AuthGate from "@/components/auth/AuthGate";
-import Header from "@/components/templates/common/header";
-import ApiErrorAlert from "@/components/templates/common/ApiErrorAlert";
-import MonthRangeFilter from "@/components/templates/common/MonthRangeFilter";
+import AuthGate from "@/components/AuthGate";
+import Header from "@/components/Header";
+import ApiErrorAlert from "@/components/ApiErrorAlert";
+import MonthRangeFilter from "@/components/MonthRangeFilter";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   MenuItem,
   TextField,
 } from "@mui/material";
-import { toIsoMonthBound } from "@/lib/date/monthRange";
+import { toIsoMonthBound } from "@/lib/monthRange";
 import {
   OrganizationRead,
   RankingQuery,

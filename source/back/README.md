@@ -87,20 +87,21 @@ See `app/core/security.py::get_current_user`.
 ## Running alongside the archieves frontend
 
 The archieves frontend lives in the same monorepo, at
-[`../front`](../front), and talks to this API over plain HTTP
-(`src/lib/api/client.ts`), so the two just need to agree on a port and a
-CORS origin - no shared network or container setup is required, each side
-keeps using its own native dev server:
+[`../front`](../front). The browser never calls this API directly: the
+frontend's route handler (`src/app/api/v1/[...path]/route.ts`) forwards
+`/api/v1/*` here, adding the `x-archieves-api-key` header and the signed-in
+user's Cognito ID token. So no CORS is needed. When `API_KEYS` is set, requests
+without one of its keys are rejected (`app/core/api_keys.py`).
+
+The quickest way to run both is `.venv/bin/python -m tools.dev` (`--test
+--seed` for a throwaway database). By hand:
 
 1. Start this API (either `uvicorn app.main:app --reload`, which listens on
    `:8000`, or `docker compose -f .build/docker-compose.yml up`, which
    listens on `:8080`).
-2. In `../front`, point `NEXT_PUBLIC_API_BASE_URL` at whichever port you
-   used (its `.env.example` defaults to `http://localhost:8000/api/v1` for
-   the non-Docker case) and run `npm run dev` (`:3000`).
-3. `BACKEND_CORS_ORIGINS` in `.env.example` is `["*"]`, so the frontend's
-   origin is allowed without further changes.
-4. Keep `AUTH_MODE=mock` here in sync with `NEXT_PUBLIC_AUTH_MODE=mock` in
+2. In `../front`, point `ARCHIEVES_API_URL` at it (default
+   `http://127.0.0.1:8000`) and run `npm run dev` (`:3000`).
+3. Keep `AUTH_MODE=mock` here in sync with `NEXT_PUBLIC_AUTH_MODE=mock` in
    `../front` (both are the default) so neither side needs real Cognito
    during local development. Flip both to `cognito`/real Amplify sandbox
    output together when you need to debug against the real auth flow.

@@ -1,6 +1,6 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { isMockAuth } from '../auth/config';
-import { toDateOnly } from '../date/toDateOnly';
+import { toDateOnly } from '../toDateOnly';
 import { T } from '../text';
 import type {
   EndCommentRead,
