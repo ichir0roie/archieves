@@ -3,13 +3,14 @@
 import { JSX, useEffect, useRef, useState } from "react";
 import ScoreEntryActions from "@/components/ScoreEntryActions";
 import type { ScoreInputProps } from "@/components/ScoreEntryShell";
-import { bgColorPallet } from "@/lib/score/scoreFunctions";
+import { ringClass } from "@/lib/score/scoreFunctions";
 import {
   MAX_RING_SCORE,
   MISS_SCORE,
   X_SCORE,
   resolveTargetType,
 } from "@/lib/score/scoreConfig";
+import { T } from "@/lib/text";
 
 const PADDING = 24;
 
@@ -19,9 +20,8 @@ function clampFraction(value: number): number {
 }
 
 /**
- * Outer radius of a scoring zone as a fraction of the face's own radius. A
- * WA face splits its radius into ten equal rings, 10 innermost and 1
- * outermost; X is not a ring of its own but the inner half of the 10 ring.
+ * 得点の帯の外側の半径を、的の半径に対する割合で返す。WA の的は半径を 10 等分した帯で、
+ * 内側が 10、外側が 1。X は独立した帯でなく、10 の帯の内側半分。
  */
 function zoneRadiusRatio(score: number): number {
   if (score >= X_SCORE) return 1 / (MAX_RING_SCORE * 2);
@@ -56,12 +56,9 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   const isLocked = props.isEndFull || props.disabled;
 
   /**
-   * Where the arrow was tapped, as a fraction of the target face itself -
-   * 0.5/0.5 is the centre, 0 and 1 are its edges. The API multiplies the
-   * offset from the centre by the face's real size to store x_cm/y_cm, so
-   * the fraction has to be of the face rather than of the (differently
-   * proportioned) input area around it. A tap outside the face is clamped
-   * to its edge.
+   * 押した位置を、的そのものに対する割合で返す(0.5/0.5 が中心、0 と 1 が縁)。
+   * API は中心からのずれに的の実寸を掛けて x_cm/y_cm にするので、縦横比の違う入力の枠でなく
+   * 的に対する割合でなければならない。的の外を押したときは縁に寄せる。
    */
   function getTargetCoordinates(event: React.MouseEvent<HTMLButtonElement>) {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -89,17 +86,17 @@ export default function TargetCircleInput(props: ScoreInputProps) {
 
   const { ringCount } = resolveTargetType(props.targetType);
 
-  // Rings are nested, highest score innermost, each stacked above the ring
-  // outside it so a tap always lands on the smallest one covering it.
+  // 帯は高い点ほど内側で、外の帯より上に重ねる。押した所を覆ういちばん小さい帯に当たるように
   function circleButton(point: number) {
     const size = maxDiameter * zoneRadiusRatio(point);
 
     return (
       <button
         key={point}
-        aria-label={`${point}点`}
+        type="button"
+        aria-label={T.game.entry.ringLabel(point)}
         disabled={isLocked}
-        className={`absolute rounded-full ${bgColorPallet(point)} border-1 border-gray-500`}
+        className={`target-ring ${ringClass(point)}`}
         style={{
           width: `${size}px`,
           height: `${size}px`,
@@ -118,11 +115,9 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   }
 
   /**
-   * (0, 0) is what the score-only input mode sends when no tap ever
-   * happened, so an arrow carrying it has no position to draw. Markers sit
-   * above every ring, so they must not take pointer events of their own -
-   * otherwise the second arrow into the same spot would hit the first
-   * arrow's marker instead of the target.
+   * (0, 0) は点数だけの入力が押した位置の無い矢に送る値なので、描く位置が無い。
+   * 印はすべての帯より上にあるので、押されても受けないようにする(.arrow-mark の pointer-events: none)。
+   * でないと同じ所への二本目が的でなく一本目の印に当たる。
    */
   function createArrow(
     relativeX: number | null | undefined,
@@ -134,37 +129,30 @@ export default function TargetCircleInput(props: ScoreInputProps) {
 
     return (
       <div
+        key={key}
+        className="arrow-mark"
         style={{
           left: `${width / 2 + (relativeX - 0.5) * maxDiameter - 5}px`,
           top: `${height / 2 + (relativeY - 0.5) * maxDiameter - 5}px`,
-          width: "10px",
-          height: "10px",
-          backgroundColor: "white",
-          borderRadius: "50%",
-          position: "absolute",
-          zIndex: 100,
-          pointerEvents: "none",
-          border: "2px solid black",
         }}
-        key={key}
       />
     );
   }
 
   return (
-    <div className="TargetCircleInput flex h-full w-full flex-col">
+    <div className="TargetCircleInput target-input">
       {props.commentBar}
       <div
         ref={containerRef}
-        className={`TargetFace relative min-h-0 flex-1 ${isLocked ? "opacity-60" : ""}`}
+        className={`TargetFace target-face ${isLocked ? "locked" : ""}`}
       >
         {circles}
         {props.points.map((point, index) => createArrow(point.x, point.y, index))}
         <button
-          aria-label="外れ"
+          type="button"
+          aria-label={T.game.entry.miss}
           disabled={isLocked}
-          className="absolute inset-0"
-          style={{ zIndex: 0 }}
+          className="miss-area"
           onClick={(event) => handleClick(event, MISS_SCORE)}
         />
       </div>

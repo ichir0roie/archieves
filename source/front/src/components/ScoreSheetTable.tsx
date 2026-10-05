@@ -3,10 +3,11 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { scoreToStr, totalScore } from "@/lib/score/scoreFunctions";
 import type { SheetRound } from "@/lib/score/scoreManager";
+import { T } from "@/lib/text";
 
-interface Props {
+type Props = {
   sheet: Array<SheetRound>;
-}
+};
 
 export default function ScoreSheetTable(props: Props) {
   const currentRowRef = useRef<HTMLTableRowElement>(null);
@@ -19,7 +20,7 @@ export default function ScoreSheetTable(props: Props) {
   );
 
   return (
-    <div className="ScoreSheet min-h-0 flex-1 overflow-y-auto bg-slate-50 px-2 pb-2">
+    <div className="ScoreSheet score-sheet">
       {props.sheet.map((round) => (
         <ScoreSheetRound
           key={round.number}
@@ -31,10 +32,10 @@ export default function ScoreSheetTable(props: Props) {
   );
 }
 
-interface RoundProps {
+type RoundProps = {
   round: SheetRound;
   currentRowRef: RefObject<HTMLTableRowElement | null>;
-}
+};
 
 function ScoreSheetRound(props: RoundProps) {
   const arrowColumns = Array.from(
@@ -54,33 +55,20 @@ function ScoreSheetRound(props: RoundProps) {
   });
 
   return (
-    <div className="SheetRound pt-2">
-      <div className="sticky top-0 z-10 flex items-baseline justify-between bg-slate-50 py-1 text-base font-bold text-slate-700">
-        <span>ラウンド {props.round.number}</span>
-        <span className="RoundTotal text-sm font-semibold text-slate-500">
-          計 {runningTotal}
-        </span>
+    <div className="SheetRound">
+      <div className="sheet-round-head">
+        <span>{T.game.sheet.round(props.round.number)}</span>
+        <span className="RoundTotal round-total">{T.game.sheet.roundTotal(runningTotal)}</span>
       </div>
-      <table className="w-full table-fixed border-collapse text-center">
+      <table>
         <thead>
-          <tr className="bg-slate-100 text-xs text-slate-500">
-            <th className="w-14 border border-slate-300 py-1 font-semibold">
-              END
-            </th>
+          <tr>
+            <th className="end-col">{T.game.sheet.end}</th>
             {arrowColumns.map((arrowNumber) => (
-              <th
-                key={arrowNumber}
-                className="border border-slate-300 py-1 font-normal"
-              >
-                {arrowNumber}
-              </th>
+              <th key={arrowNumber}>{arrowNumber}</th>
             ))}
-            <th className="w-12 border border-slate-300 py-1 font-semibold">
-              小計
-            </th>
-            <th className="w-14 border border-slate-300 py-1 font-semibold">
-              累計
-            </th>
+            <th className="sum-col">{T.game.sheet.subtotal}</th>
+            <th className="run-col">{T.game.sheet.running}</th>
           </tr>
         </thead>
         <tbody>
@@ -88,28 +76,22 @@ function ScoreSheetRound(props: RoundProps) {
             <tr
               key={row.number}
               ref={row.isCurrent ? props.currentRowRef : undefined}
-              className={`SheetEndRow ${row.isCurrent ? "CurrentEnd bg-sky-100 ring-2 ring-inset ring-sky-400" : "bg-white"}`}
+              className={`SheetEndRow ${row.isCurrent ? "CurrentEnd current" : ""}`}
             >
-              <td className="border border-slate-300 py-1.5 text-xl font-bold text-slate-700">
-                {row.number}
-              </td>
+              <td>{row.number}</td>
               {arrowColumns.map((arrowNumber) => {
                 const point = row.points[arrowNumber - 1];
                 return (
                   <td
                     key={arrowNumber}
-                    className={`ArrowCell border border-slate-300 py-1.5 text-2xl font-bold leading-none ${point ? "ArrowValue text-slate-900" : "text-slate-300"}`}
+                    className={`ArrowCell arrow-cell ${point ? "ArrowValue" : "blank"}`}
                   >
-                    {point ? scoreToStr(point.score) : "・"}
+                    {point ? scoreToStr(point.score) : T.game.sheet.blankArrow}
                   </td>
                 );
               })}
-              <td className="EndTotal border border-slate-300 py-1.5 text-xl font-bold text-slate-700">
-                {row.endTotal}
-              </td>
-              <td className="RunningTotal border border-slate-300 py-1.5 text-xl font-semibold text-slate-500">
-                {row.runningTotal}
-              </td>
+              <td className="EndTotal">{row.endTotal}</td>
+              <td className="RunningTotal running">{row.runningTotal}</td>
             </tr>
           ))}
         </tbody>
