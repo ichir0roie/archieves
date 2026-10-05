@@ -1,2 +1,55 @@
-/** game の画面の文言。 */
-export const game = {} as const;
+/** game の画面(app/game/*・点数の入力・コメント)の文言。 */
+export const game = {
+  start: {
+    title: "新しいゲームを開始",
+    newScore: "新しいスコア",
+    resume: "続きから",
+    noGameInProgress: "記録中のスコアはありません",
+  },
+  setup: {
+    title: "記録の設定",
+    distance: "距離 (m)",
+    distanceHint: "的までの距離",
+    targetType: "的の種類",
+    endSize: "1エンドの矢数",
+    endSizeHint: "1エンドで射つ矢の本数(屋外は6本、インドアは3本)",
+    roundSize: "エンド数",
+    roundSizeHint: "1ラウンドのエンド数",
+    gameSize: "ラウンド数",
+    gameSizeHint: "この記録に含めるラウンド数",
+    outOfRange: (min: number, max: number) => `${min}〜${max}の整数で入力してください`,
+    summary: (total: number, endSize: string, roundSize: string, gameSize: string) =>
+      `合計 ${total}本 (${endSize}本 × ${roundSize}エンド × ${gameSize}ラウンド)`,
+    simpleMode: "点数だけ入力",
+    touchMode: "的をタッチして入力",
+  },
+  entry: {
+    home: "ホームへ戻る",
+    round: "ラウンド",
+    end: "END",
+    gameComplete: "全ラウンドの記録が終わりました。「終了」でスコアを確認できます。",
+    endComplete: "このエンドは記録済みです。「次へ」で次のエンドに進みます。",
+    back: "戻る",
+    next: "次へ",
+    finish: "終了",
+    ringLabel: (point: number) => `${point}点`,
+    miss: "外れ",
+  },
+  sheet: {
+    round: (n: number) => `ラウンド ${n}`,
+    roundTotal: (total: number) => `計 ${total}`,
+    end: "END",
+    subtotal: "小計",
+    running: "累計",
+    blankArrow: "・",
+  },
+  comment: {
+    endTitle: (n: number) => `END ${n}`,
+    roundTitle: (n: number) => `ラウンド ${n}`,
+    gameTitle: "ゲーム",
+    empty: "コメントを追加",
+    open: (title: string) => `${title}のコメントを入力`,
+    modalTitle: (title: string) => `${title}のコメント`,
+    label: "コメント",
+  },
+} as const;

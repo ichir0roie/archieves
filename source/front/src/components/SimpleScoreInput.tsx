@@ -3,38 +3,33 @@
 import ScoreEntryActions from "@/components/ScoreEntryActions";
 import ScoreSheetTable from "@/components/ScoreSheetTable";
 import type { ScoreInputProps } from "@/components/ScoreEntryShell";
-import { bgColorPallet, scoreToStr } from "@/lib/score/scoreFunctions";
+import { ringClass, scoreToStr } from "@/lib/score/scoreFunctions";
 import { maxScoreForTargetType } from "@/lib/score/scoreConfig";
 
-/** Highest score first (X/10, 9, ... 1, miss) to read like a target's rings. */
+/** 的の帯と同じ並びに読めるよう、高い点から(X/10, 9, … 1, 外れ) */
 function scoreValues(maxScore: number): number[] {
   return Array.from({ length: maxScore + 1 }, (_, i) => maxScore - i);
 }
 
-/**
- * Score-only entry, laid out for a phone held one-handed: the whole game's
- * score sheet scrolls in the top half, every key sits in the bottom half
- * within thumb reach.
- */
+/** 点数だけの入力。片手で持つ前提で、上半分に全体の点数表、下半分に親指の届くキーを並べる */
 export default function SimpleScoreInput(props: ScoreInputProps) {
   const maxScore = maxScoreForTargetType(props.targetType);
 
   return (
-    <div className="SimpleScoreInput flex h-full w-full flex-col">
+    <div className="SimpleScoreInput simple-input">
       <ScoreSheetTable sheet={props.sheet} />
 
       {props.commentBar}
 
-      <div className="ScoreKeypad flex h-1/2 shrink-0 flex-col border-t-2 border-slate-300 bg-white">
-        <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-4 gap-2 p-2">
+      <div className="ScoreKeypad keypad">
+        <div className="keys">
           {scoreValues(maxScore).map((score) => (
             <button
               key={score}
+              type="button"
+              className={ringClass(score)}
               disabled={props.isEndFull || props.disabled}
               onClick={() => props.next(score, 0, 0)}
-              className={`${bgColorPallet(score)} rounded-2xl border border-gray-400 shadow-sm text-3xl font-bold flex items-center justify-center transition-transform active:scale-95 disabled:opacity-40 ${
-                score >= 3 ? "text-white" : "text-black"
-              }`}
             >
               {scoreToStr(score)}
             </button>

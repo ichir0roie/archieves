@@ -1,1 +1,10 @@
 /* game の画面。あとで globals.css に移す */
+
+/* 入力の要素でない見出し(Segment の上の「的の種類」)。.field > label と同じ見た目にする */
+.field > .field-label { font-size: 0.85rem; color: var(--muted); }
+
+/* 点数だけの入力。上に点数表、下半分にキー */
+.simple-input { height: 100%; display: flex; flex-direction: column; }
+
+/* .stack の中の一行の説明。段の間は gap で空けるので p の余白を消す */
+.game-note { margin: 0; }

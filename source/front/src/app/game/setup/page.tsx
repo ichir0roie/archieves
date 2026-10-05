@@ -1,23 +1,10 @@
 "use client";
 
-import Header from "@/components/Header";
+import Field from "@/components/Field";
+import PageHeader from "@/components/PageHeader";
+import Segment from "@/components/Segment";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Container,
-  Fade,
-  Stack,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from "@mui/material";
-import DialpadRoundedIcon from "@mui/icons-material/DialpadRounded";
-import TouchAppRoundedIcon from "@mui/icons-material/TouchAppRounded";
 import {
   DEFAULT_ROUND_SETUP,
   MAX_DISTANCE_M,
@@ -39,34 +26,40 @@ import {
   saveRoundSetup,
   type InputMode,
 } from "@/lib/storage";
+import { T } from "@/lib/text";
 
-interface CountFieldProps {
+type CountFieldProps = {
   label: string;
   value: string;
   onChange: (value: string) => void;
   min: number;
   max: number;
-  helperText: string;
-}
+  hint: string;
+};
 
-/**
- * Kept as text rather than a number so an emptied field stays empty instead
- * of collapsing to 0 and starting a game with no ends in it.
- */
+/** 数でなく文字のまま持つ。空にした欄が 0 になり、エンドの無いゲームが始まらないようにする */
 function CountField(props: CountFieldProps) {
   const invalid = !isCount(props.value, props.min, props.max);
 
   return (
-    <TextField
+    <Field
       label={props.label}
-      type="number"
-      value={props.value}
-      onChange={(e) => props.onChange(e.target.value)}
-      error={invalid}
-      helperText={invalid ? `${props.min}〜${props.max}の整数で入力してください` : props.helperText}
-      slotProps={{ htmlInput: { min: props.min, max: props.max, step: 1 } }}
-      fullWidth
-    />
+      hint={props.hint}
+      error={invalid ? T.game.setup.outOfRange(props.min, props.max) : null}
+    >
+      {(id) => (
+        <input
+          id={id}
+          type="number"
+          value={props.value}
+          min={props.min}
+          max={props.max}
+          step={1}
+          aria-invalid={invalid}
+          onChange={(e) => props.onChange(e.target.value)}
+        />
+      )}
+    </Field>
   );
 }
 
@@ -74,6 +67,11 @@ function isCount(raw: string, min: number, max: number): boolean {
   const value = Number(raw);
   return raw.trim() !== "" && Number.isInteger(value) && value >= min && value <= max;
 }
+
+const TARGET_OPTIONS = TARGET_TYPES.map((targetType) => ({
+  value: targetType.id,
+  label: targetType.label,
+}));
 
 export default function Page() {
   const router = useRouter();
@@ -84,8 +82,7 @@ export default function Page() {
   const [roundSize, setRoundSize] = useState(String(DEFAULT_ROUND_SETUP.roundSize));
   const [gameSize, setGameSize] = useState(String(DEFAULT_ROUND_SETUP.gameSize));
 
-  // localStorage isn't available during server-side rendering, so the last
-  // used setup (if any) is only applied once mounted in the browser.
+  // サーバーでの描画中は localStorage を読めないので、前回の設定は画面に載ってから当てる
   useEffect(() => {
     const saved = loadRoundSetup();
     if (!saved) return;
@@ -115,117 +112,88 @@ export default function Page() {
     };
     saveRoundSetup(setup);
     saveInputMode(mode);
-    // Setup always starts a fresh game; "続きから" bypasses this screen.
+    // この画面からは必ず新しいゲームを始める。「続きから」はこの画面を通らない
     clearGameId();
     markNewGameStart();
     router.push(mode === "simple" ? "/game/simple-score-card" : "/game/score-card");
   }
 
   return (
-    <main className="min-h-screen">
-      <Header pageName="記録の設定" showBack />
-      <Container
-        maxWidth="sm"
-        className="flex items-center justify-center min-h-[calc(100vh-56px)] py-8"
-      >
-        <Fade in timeout={500}>
-          <Card
-            elevation={0}
-            className="w-full rounded-3xl overflow-hidden bg-white/85 backdrop-blur-sm border border-white/60 shadow-xl shadow-indigo-100/60"
+    <div className="page">
+      <PageHeader title={T.game.setup.title} />
+      <div className="panel stack">
+        <CountField
+          label={T.game.setup.distance}
+          value={distance}
+          onChange={setDistance}
+          min={MIN_DISTANCE_M}
+          max={MAX_DISTANCE_M}
+          hint={T.game.setup.distanceHint}
+        />
+        <div className="field">
+          <span className="field-label">{T.game.setup.targetType}</span>
+          <Segment
+            options={TARGET_OPTIONS}
+            value={targetTypeId}
+            onChange={setTargetTypeId}
+            label={T.game.setup.targetType}
+          />
+        </div>
+        <CountField
+          label={T.game.setup.endSize}
+          value={endSize}
+          onChange={setEndSize}
+          min={MIN_END_SIZE}
+          max={MAX_END_SIZE}
+          hint={T.game.setup.endSizeHint}
+        />
+        <CountField
+          label={T.game.setup.roundSize}
+          value={roundSize}
+          onChange={setRoundSize}
+          min={MIN_ROUND_SIZE}
+          max={MAX_ROUND_SIZE}
+          hint={T.game.setup.roundSizeHint}
+        />
+        <CountField
+          label={T.game.setup.gameSize}
+          value={gameSize}
+          onChange={setGameSize}
+          min={MIN_GAME_SIZE}
+          max={MAX_GAME_SIZE}
+          hint={T.game.setup.gameSizeHint}
+        />
+
+        {isValid && (
+          <p className="SetupSummary game-note muted">
+            {T.game.setup.summary(
+              totalArrows,
+              endSize,
+              roundSize,
+              gameSize,
+            )}
+          </p>
+        )}
+
+        <div className="stack tight">
+          <button
+            type="button"
+            className="primary large block"
+            disabled={!isValid}
+            onClick={() => start("simple")}
           >
-            <CardContent className="!p-6">
-              <Stack spacing={2.5}>
-                <CountField
-                  label="距離 (m)"
-                  value={distance}
-                  onChange={setDistance}
-                  min={MIN_DISTANCE_M}
-                  max={MAX_DISTANCE_M}
-                  helperText="的までの距離"
-                />
-                <Box>
-                  <Typography variant="body2" className="!mb-1 !text-slate-600">
-                    的の種類
-                  </Typography>
-                  <ToggleButtonGroup
-                    value={targetTypeId}
-                    exclusive
-                    fullWidth
-                    onChange={(_, value) => {
-                      if (value) setTargetTypeId(value);
-                    }}
-                  >
-                    {TARGET_TYPES.map((targetType) => (
-                      <ToggleButton key={targetType.id} value={targetType.id}>
-                        {targetType.label}
-                      </ToggleButton>
-                    ))}
-                  </ToggleButtonGroup>
-                </Box>
-                <CountField
-                  label="1エンドの矢数"
-                  value={endSize}
-                  onChange={setEndSize}
-                  min={MIN_END_SIZE}
-                  max={MAX_END_SIZE}
-                  helperText="1エンドで射つ矢の本数(屋外は6本、インドアは3本)"
-                />
-                <CountField
-                  label="エンド数"
-                  value={roundSize}
-                  onChange={setRoundSize}
-                  min={MIN_ROUND_SIZE}
-                  max={MAX_ROUND_SIZE}
-                  helperText="1ラウンドのエンド数"
-                />
-                <CountField
-                  label="ラウンド数"
-                  value={gameSize}
-                  onChange={setGameSize}
-                  min={MIN_GAME_SIZE}
-                  max={MAX_GAME_SIZE}
-                  helperText="この記録に含めるラウンド数"
-                />
-
-                {isValid && (
-                  <Typography
-                    variant="body2"
-                    className="SetupSummary !text-slate-600"
-                  >
-                    合計 {totalArrows}本 ({endSize}本 × {roundSize}エンド × {gameSize}
-                    ラウンド)
-                  </Typography>
-                )}
-
-                <Box className="flex flex-col gap-3 pt-2">
-                  <Button
-                    variant="contained"
-                    size="large"
-                    fullWidth
-                    disabled={!isValid}
-                    startIcon={<DialpadRoundedIcon />}
-                    onClick={() => start("simple")}
-                    className="!py-3 !rounded-2xl !font-semibold !text-base !normal-case !shadow-lg !shadow-indigo-200"
-                  >
-                    点数だけ入力
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    fullWidth
-                    disabled={!isValid}
-                    startIcon={<TouchAppRoundedIcon />}
-                    onClick={() => start("touch")}
-                    className="!py-3 !rounded-2xl !font-semibold !text-base !normal-case"
-                  >
-                    的をタッチして入力
-                  </Button>
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Fade>
-      </Container>
-    </main>
+            {T.game.setup.simpleMode}
+          </button>
+          <button
+            type="button"
+            className="large block"
+            disabled={!isValid}
+            onClick={() => start("touch")}
+          >
+            {T.game.setup.touchMode}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
