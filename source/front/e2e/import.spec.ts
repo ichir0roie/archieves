@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 
-// Needs archieves-api running (see CLAUDE.md's "E2E tests"): the upload is
+// Needs archieves-api running (see .claude/docs/testing.md's "E2E"): the upload is
 // rejected by the API, not by the page.
 
 test.beforeEach(async ({ page }) => {

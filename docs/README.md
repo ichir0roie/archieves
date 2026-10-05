@@ -11,9 +11,5 @@
 
 新しい検討事項を追加する場合は、上記のいずれかのディレクトリに追記する。該当するディレクトリがなければ新設してよい。
 
-開発の規約・コマンドはCLAUDE.mdを参照。共通の規約とテスト・ブランチ・PRの運用は
-リポジトリ直下、アプリ固有のことは各アプリのファイルにある:
-
-- リポジトリ全体: [`CLAUDE.md`](../CLAUDE.md)
-- フロントエンド: [`source/front/CLAUDE.md`](../source/front/CLAUDE.md)
-- バックエンド: [`source/back/CLAUDE.md`](../source/back/CLAUDE.md)
+開発の規約・コマンドは [`CLAUDE.md`](../CLAUDE.md) と、そこの「条件付きのドキュメント」の表から当たる
+[`.claude/docs/`](../.claude/docs) にある(環境・テスト・バックエンド・フロントエンド)。
