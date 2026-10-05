@@ -282,6 +282,55 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .target-face .target-ring { position: absolute; border-radius: 999px; background: var(--ring); border: 1px solid #6a7080; padding: 0; }
 .target-face .arrow-mark { position: absolute; width: 10px; height: 10px; border-radius: 999px; background: #fff; border: 2px solid #000; z-index: 100; pointer-events: none; }
 
+/* ---- 点数の入力の追加分 ---- */
+/* 入力の要素でない見出し(Segment の上の「的の種類」)。.field > label と同じ見た目にする */
+.field > .field-label { font-size: 0.85rem; color: var(--muted); }
+
+/* 点数だけの入力。上に点数表、下半分にキー */
+.simple-input { height: 100%; display: flex; flex-direction: column; }
+
+/* .stack の中の一行の説明。段の間は gap で空けるので p の余白を消す */
+.game-note { margin: 0; }
+
+/* ---- プロフィール・組織・インポート・スコアの表示 ---- */
+/* 外へのリンク(components/ExternalLink.tsx)。長い URL も枠からはみ出させない */
+.external-link { display: inline-flex; align-items: center; gap: 0.2rem; overflow-wrap: anywhere; }
+
+/* プロフィール・組織の見出しの枠 */
+.profile-card { display: flex; flex-direction: column; gap: 0.6rem; }
+.profile-card > a { align-self: flex-start; }
+.profile-card p { margin: 0; }
+.profile-name { font-size: 1.25rem; font-weight: 700; }
+/* 見出しと値の一組(所在・ホームページなど) */
+.profile-item { display: flex; flex-direction: column; gap: 0.1rem; align-items: flex-start; }
+
+/* インポートの説明と結果 */
+.import-description { margin: 0; }
+.import-result p { margin: 0; }
+.import-result .summary { margin-top: 0.25rem; font-weight: 400; }
+
+/* スコアの表示(/score-view)。見出しとコメントを一行に並べる */
+.view-comment { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.view-comment > .section-label { flex-shrink: 0; }
+.view-comment > .end-label { width: 3.5rem; }
+.view-round-title { font-weight: 700; }
+
+/* ラウンドの点数表。狭い画面で列が潰れるときは表だけを横にずらす */
+.view-sheet-scroll { overflow-x: auto; }
+table.list.view-sheet { table-layout: fixed; }
+.view-sheet th, .view-sheet td { text-align: center; vertical-align: middle; }
+.view-sheet td { font-weight: 600; }
+.view-sheet .end-col { width: 2.5rem; }
+.view-sheet .sum-col { width: 3.5rem; }
+.view-sheet .comment-col { width: 14rem; text-align: left; font-weight: 400; }
+
+/* コメントの列は広い画面だけ。狭い画面は表の下に END ごとに並べる */
+.view-end-comments { display: none; flex-direction: column; gap: 0.25rem; }
+@media (max-width: 767px) {
+  .view-sheet .comment-col { display: none; }
+  .view-end-comments { display: flex; }
+}
+
 /* ---- 狭い画面 ---- */
 @media (max-width: 640px) {
   .nav-fab { top: auto; left: auto; bottom: 16px; right: 16px; width: 52px; height: 52px; }

@@ -34,7 +34,7 @@ test("a file that is not a SQLite backup is reported as an error", async ({ page
   });
   await page.getByRole("button", { name: "インポート", exact: true }).click();
 
-  const alert = page.locator(".MuiAlert-root");
+  const alert = page.locator(".api-error");
   await expect(alert).toBeVisible();
   await expect(alert).toContainText("Not a valid SQLite file");
   await expect(page.getByText("インポートが完了しました")).toHaveCount(0);
