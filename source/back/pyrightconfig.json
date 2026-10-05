@@ -8,5 +8,9 @@
   // these specially rather than treating them as normal inherited overrides,
   // so pyright's override check is a false positive here.
   "reportIncompatibleVariableOverride": false,
-  "reportReturnType": false
+  "reportReturnType": false,
+  // ORM の行をそのまま応答のモデル(UserRead など)に渡す・列(InstrumentedAttribute)を式として渡すのを許す。
+  // どちらも pydantic(from_attributes)・SQLAlchemy が実行時に受けるが、型の上では別のクラスになる
+  "reportArgumentType": false,
+  "pythonVersion": "3.14"
 }

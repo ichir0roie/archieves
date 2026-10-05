@@ -1,11 +1,10 @@
 from datetime import date
 
-from pydantic import BaseModel
-
+from app.schemas.base import ResponseModel
 from app.schemas.user import UserRead
 
 
-class ScoreStatistics(BaseModel):
+class ScoreStatistics(ResponseModel):
     """Min/max/average/median over a set of scores within a period."""
 
     count: int
@@ -16,7 +15,7 @@ class ScoreStatistics(BaseModel):
     median: float | None = None
 
 
-class RoundScoreSummary(BaseModel):
+class RoundScoreSummary(ResponseModel):
     round_id: int
     game_id: int
     number: int
@@ -26,7 +25,7 @@ class RoundScoreSummary(BaseModel):
     average_score: float | None = None
 
 
-class EndScoreSummary(BaseModel):
+class EndScoreSummary(ResponseModel):
     end_id: int
     round_id: int
     number: int
@@ -36,7 +35,7 @@ class EndScoreSummary(BaseModel):
     average_score: float | None = None
 
 
-class UserRanking(BaseModel):
+class UserRanking(ResponseModel):
     """A user's position in a ranking of average game score, high to low."""
 
     rank: int

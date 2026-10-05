@@ -14,3 +14,6 @@ secrets
 # actual values, generated from scripts/rds-tunnel.sh.example
 /scripts/rds-tunnel.sh
 /scripts/pgadmin-servers.json
+
+# web のセッションの用意の印とログ(.claude/hooks/session-start.sh)
+/.cache/

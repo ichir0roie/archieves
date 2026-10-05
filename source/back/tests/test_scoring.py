@@ -100,11 +100,11 @@ def test_an_x_is_worth_ten_in_the_ranking(client: TestClient) -> None:
     assert body[0]["average_score"] == 60.0
 
 
-def test_a_legacy_negative_score_counts_as_a_miss(client: TestClient, db_session: Session) -> None:
+def test_a_legacy_negative_score_counts_as_a_miss(client: TestClient, s: Session) -> None:
     end = _end_of_scores(client, [9])
     # legacy_import writes rows straight through SQLAlchemy, so an
     # unresolved ring from an old backup can reach the DB as a negative score.
-    db_session.add(
+    s.add(
         Point(
             end_id=end["id"],
             user_id=end["user_id"],
@@ -115,7 +115,7 @@ def test_a_legacy_negative_score_counts_as_a_miss(client: TestClient, db_session
             recorded_at=date(2026, 1, 1),
         )
     )
-    db_session.commit()
+    s.commit()
 
     ends = client.get("/api/v1/statistics/ends").json()
     assert ends[0]["arrow_count"] == 2
@@ -201,17 +201,17 @@ def test_a_round_with_an_impossible_shape_is_rejected(
 
 
 def test_ensuring_a_user_returns_the_row_a_concurrent_request_created(
-    db_session: Session, monkeypatch: pytest.MonkeyPatch
+    s: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    existing = user_crud.create_user(db_session, UserCreate(name="Yumi"), sub="racing-sub")
+    existing = user_crud.create_user(s, UserCreate(name="Yumi"), sub="racing-sub")
     lookup = user_crud.get_user_by_sub
     calls = {"count": 0}
 
-    def losing_lookup(db: Session, sub: str):
+    def losing_lookup(s: Session, sub: str):
         calls["count"] += 1
-        return None if calls["count"] == 1 else lookup(db, sub)
+        return None if calls["count"] == 1 else lookup(s, sub)
 
     monkeypatch.setattr(user_crud, "get_user_by_sub", losing_lookup)
 
-    user = user_crud.get_or_create_user(db_session, UserCreate(name="Yumi"), sub="racing-sub")
+    user = user_crud.get_or_create_user(s, UserCreate(name="Yumi"), sub="racing-sub")
     assert user.id == existing.id

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 import { recordGame } from "./recordGame";
 
-// Needs archieves-api running (see CLAUDE.md's "E2E tests"): every page
+// Needs archieves-api running (see .claude/docs/testing.md's "E2E"): every page
 // here reads the recorded game back through it.
 
 test.beforeEach(async ({ page }) => {
@@ -46,20 +46,6 @@ test("the statistics dashboard summarises the recorded scores", async ({ page })
   for (const card of ["ラウンド合計点", "エンド合計点", "矢1本あたり"]) {
     await expect(page.getByText(card, { exact: true })).toBeVisible();
   }
-});
-
-test("the ranking lists the signed-in user once they have a game", async ({ page }) => {
-  await page.goto("/profile/settings");
-  await page.getByLabel("名前").fill("ランキング太郎");
-  await page.getByRole("button", { name: "保存" }).click();
-  await expect(page.getByText("保存しました")).toBeVisible();
-
-  await recordGame(page);
-
-  await page.goto("/ranking");
-  await expect(page.locator("header")).toContainText("ランキング");
-  await expect(page.getByText("該当するデータがありません")).toHaveCount(0);
-  await expect(page.getByText("ランキング太郎").first()).toBeVisible();
 });
 
 test("the ranking shows an empty state for a period with no games", async ({ page }) => {

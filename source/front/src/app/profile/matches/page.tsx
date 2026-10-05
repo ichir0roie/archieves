@@ -1,13 +1,11 @@
 "use client";
 
-import AuthGate from "@/components/auth/AuthGate";
-import Header from "@/components/templates/common/header";
-import ApiErrorAlert from "@/components/templates/common/ApiErrorAlert";
 import { useEffect, useState } from "react";
-import { Button, IconButton, TextField, Tooltip } from "@mui/material";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
-import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import ApiErrorAlert from "@/components/ApiErrorAlert";
+import ExternalLink from "@/components/ExternalLink";
+import Field from "@/components/Field";
+import Modal from "@/components/Modal";
+import PageHeader from "@/components/PageHeader";
 import {
   GameRead,
   MatchSummary,
@@ -20,20 +18,21 @@ import {
   type ErrorDetails,
 } from "@/lib/api";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
+import { T } from "@/lib/text";
 
 function formatDate(recordedAt: string): string {
   const date = new Date(recordedAt);
-  if (Number.isNaN(date.getTime())) return "未設定";
+  if (Number.isNaN(date.getTime())) return T.notSet;
   return new Intl.DateTimeFormat("ja-JP", {
     dateStyle: "medium",
   }).format(date);
 }
 
-interface RowProps {
+type RowProps = {
   game: GameRead;
   match: MatchSummary | null;
   onSaved: (match: MatchSummary | null) => void;
-}
+};
 
 function MatchRow({ game, match, onSaved }: RowProps) {
   const [editing, setEditing] = useState(false);
@@ -84,86 +83,103 @@ function MatchRow({ game, match, onSaved }: RowProps) {
     }
   }
 
+  function handleCancel() {
+    setEditing(false);
+    setName(match?.name ?? "");
+    setLink(match?.link ?? "");
+  }
+
   return (
-    <div className="MatchRow flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-slate-500">
-          {formatDate(game.recorded_at)}
-        </span>
-        {!editing && (
-          <div className="flex items-center gap-1">
-            <Tooltip title={match ? "編集" : "大会情報を登録"}>
-              <IconButton size="small" onClick={() => setEditing(true)}>
-                <EditRoundedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            {match && (
-              <Tooltip title="削除">
-                <IconButton size="small" onClick={handleDelete} disabled={saving}>
-                  <DeleteRoundedIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-          </div>
+    <div className="MatchRow panel stack tight">
+      <div className="row">
+        <span className="section-label grow">{formatDate(game.recorded_at)}</span>
+        {match ? (
+          <>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => setEditing(true)}
+            >
+              {T.profile.matches.edit}
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              onClick={handleDelete}
+              disabled={saving}
+            >
+              {T.delete}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+          >
+            {T.profile.matches.register}
+          </button>
         )}
       </div>
 
-      {error && <ApiErrorAlert error={error} />}
+      {error && !editing && <ApiErrorAlert error={error} />}
 
-      {editing ? (
-        <div className="flex flex-col gap-2">
-          <TextField
-            label="大会名"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            size="small"
-            fullWidth
-          />
-          <TextField
-            label="関連リンク"
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            size="small"
-            fullWidth
-          />
-          <div className="flex justify-end gap-2">
-            <Button
-              size="small"
-              onClick={() => {
-                setEditing(false);
-                setName(match?.name ?? "");
-                setLink(match?.link ?? "");
-              }}
-            >
-              キャンセル
-            </Button>
-            <Button
-              size="small"
-              variant="contained"
-              onClick={handleSave}
-              disabled={saving || !name}
-            >
-              保存
-            </Button>
-          </div>
-        </div>
-      ) : match ? (
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-base font-medium text-slate-800">{match.name}</span>
-          {match.link && (
-            <a
-              href={match.link}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 text-sm text-indigo-600 hover:underline"
-            >
-              リンク
-              <OpenInNewRoundedIcon fontSize="inherit" />
-            </a>
-          )}
+      {match ? (
+        <div className="row">
+          <span className="grow">{match.name}</span>
+          {match.link && <ExternalLink href={match.link}>{T.profile.link}</ExternalLink>}
         </div>
       ) : (
-        <span className="text-sm text-slate-400">大会情報は未登録です</span>
+        <span className="muted small">{T.profile.matches.notRegistered}</span>
+      )}
+
+      {editing && (
+        <Modal
+          title={match ? T.profile.matches.edit : T.profile.matches.register}
+          onClose={handleCancel}
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={handleCancel}
+              >
+                {T.cancel}
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={handleSave}
+                disabled={saving || !name}
+              >
+                {T.save}
+              </button>
+            </>
+          }
+        >
+          <div className="stack tight">
+            {error && <ApiErrorAlert error={error} />}
+            <Field label={T.profile.matches.name}>
+              {(id) => (
+                <input
+                  id={id}
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoFocus
+                />
+              )}
+            </Field>
+            <Field label={T.profile.matches.link}>
+              {(id) => (
+                <input
+                  id={id}
+                  type="url"
+                  value={link}
+                  onChange={(e) => setLink(e.target.value)}
+                />
+              )}
+            </Field>
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -213,32 +229,19 @@ export default function Page() {
   }
 
   return (
-    <AuthGate>
-      <main className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <Header pageName="大会情報の登録" showBack />
-        <div className="flex w-full flex-col gap-3 p-3 max-w-2xl mx-auto">
-          {error && <ApiErrorAlert error={error} />}
-          {loading && (
-            <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 text-center text-sm text-slate-500 shadow-sm">
-              読み込み中...
-            </div>
-          )}
-          {!loading && games.length === 0 && !error && (
-            <div className="flex flex-col items-center justify-center text-center gap-2 py-20 text-slate-400">
-              <span className="text-4xl">🏆</span>
-              <p className="text-sm">まだ記録がありません</p>
-            </div>
-          )}
-          {games.map((game) => (
-            <MatchRow
-              key={game.id}
-              game={game}
-              match={matchesByGameId.get(game.id) ?? null}
-              onSaved={(match) => handleSaved(game.id, match)}
-            />
-          ))}
-        </div>
-      </main>
-    </AuthGate>
+    <div className="page">
+      <PageHeader title={T.profile.matches.title} />
+      {error && <ApiErrorAlert error={error} />}
+      {loading && <p className="status empty">{T.loading}</p>}
+      {!loading && games.length === 0 && !error && <p className="status empty">{T.profile.matches.empty}</p>}
+      {games.map((game) => (
+        <MatchRow
+          key={game.id}
+          game={game}
+          match={matchesByGameId.get(game.id) ?? null}
+          onSaved={(match) => handleSaved(game.id, match)}
+        />
+      ))}
+    </div>
   );
 }

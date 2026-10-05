@@ -1,19 +1,16 @@
 #!/bin/bash
-# Installs what the test suites need: a Python 3.14 virtualenv for the API's
-# pytest suite, and the frontend's npm packages for Playwright. No docker and
-# no postgres - the pytest suite builds its schema into an in-memory sqlite DB
-# (see source/back/tests/conftest.py).
+# テストに要るものを入れる: API の Python 3.14 の venv(source/back/.venv)と、
+# フロントの node_modules。PostgreSQL は infra_local/postgres.sh が用意する。
 #
-# Safe to run any time: it does nothing, in well under a second, once the
-# environment already matches the dependency files. Run it before testing if
-# you are not sure the session-start hook has finished.
+# 何度回してもよい。依存のファイルが変わっていなければ 1 秒かからずに何もせず終わる。
+# web のセッションでは .claude/hooks/session-start.sh が裏で回す。
 #
 #   ./.claude/scripts/setup-dev-env.sh            # both
 #   ./.claude/scripts/setup-dev-env.sh backend    # just the Python venv
 #   ./.claude/scripts/setup-dev-env.sh frontend   # just node_modules
 set -euo pipefail
 
-REPO="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BACK="$REPO/source/back"
 FRONT="$REPO/source/front"
 VENV="$BACK/.venv"
@@ -43,24 +40,20 @@ setup_backend() {
     return
   fi
 
-  # source/back/app uses PEP 695 syntax, so the container's own python3 (3.11)
-  # cannot even import it; uv supplies the interpreter instead. Call uv as
-  # `python3 -m uv`: the container already has an older uv earlier on PATH,
-  # and that one resolves "3.14" to a release candidate whose private typing
-  # API pydantic no longer works against.
-  echo "setup-dev-env: installing uv and Python $PYTHON_VERSION"
-  python3 -m pip install --quiet --upgrade uv
-  python3 -m uv python install "$PYTHON_VERSION"
+  # app/ は PEP 695 の構文を使うので、コンテナの python3(3.11)では import もできない。
+  # python 本体は uv に取ってこさせる。PATH の素の uv は古く、"3.14" を rc のバージョンに解いて
+  # pydantic が落ちるので、uvx で新しめの uv を使う
+  local uv=(uvx -q --from 'uv>=0.9' uv)
 
   if [ ! -x "$VENV/bin/python" ] ||
     ! "$VENV/bin/python" -c 'import sys; raise SystemExit(sys.version_info[:2] != (3, 14))'; then
     echo "setup-dev-env: creating $VENV"
     rm -rf "$VENV"
-    python3 -m uv venv --python "$PYTHON_VERSION" "$VENV"
+    "${uv[@]}" venv --python "$PYTHON_VERSION" "$VENV"
   fi
 
   echo "setup-dev-env: installing API dependencies"
-  python3 -m uv pip install --quiet --python "$VENV/bin/python" -r "$BACK/requirements-dev.txt"
+  "${uv[@]}" pip install --python "$VENV/bin/python" -r "$BACK/requirements-dev.txt"
   echo "$want" > "$stamp_file"
 }
 
@@ -74,11 +67,9 @@ setup_frontend() {
     return
   fi
 
-  # --no-save: a plain `npm install` rewrites package-lock.json metadata
-  # (dropping integrity hashes for bundled deps), which has no business
-  # happening here.
+  # npm install は package-lock.json を書き換えることがあるので、lock のとおりに入れる npm ci を使う
   echo "setup-dev-env: installing frontend packages"
-  npm --prefix "$FRONT" install --no-save --no-audit --no-fund
+  npm --prefix "$FRONT" ci --no-audit --no-fund
   echo "$want" > "$stamp_file"
 }
 

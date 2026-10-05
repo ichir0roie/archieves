@@ -30,6 +30,7 @@ def jwks(private_pem: str) -> list[dict]:
     from jose.backends import RSAKey
     from jose.constants import ALGORITHMS
 
+    assert RSAKey is not None
     public_jwk = RSAKey(private_pem, ALGORITHMS.RS256).public_key().to_dict()
     return [{**public_jwk, "kid": KID}]
 

@@ -23,14 +23,14 @@ def _score_statistics(values: list[int]) -> ScoreStatistics:
 
 
 def list_round_scores(
-    db: Session,
+    s: Session,
     *,
     start: date | None = None,
     end: date | None = None,
     user_id: int | None = None,
 ) -> list[RoundScoreSummary]:
     query = (
-        db.query(
+        s.query(
             Round.id,
             Round.game_id,
             Round.number,
@@ -68,14 +68,14 @@ def list_round_scores(
 
 
 def list_end_scores(
-    db: Session,
+    s: Session,
     *,
     start: date | None = None,
     end: date | None = None,
     user_id: int | None = None,
 ) -> list[EndScoreSummary]:
     query = (
-        db.query(
+        s.query(
             End.id,
             End.round_id,
             End.number,
@@ -113,36 +113,36 @@ def list_end_scores(
 
 
 def round_score_statistics(
-    db: Session,
+    s: Session,
     *,
     start: date | None = None,
     end: date | None = None,
     user_id: int | None = None,
 ) -> ScoreStatistics:
-    rounds = list_round_scores(db, start=start, end=end, user_id=user_id)
+    rounds = list_round_scores(s, start=start, end=end, user_id=user_id)
     return _score_statistics([r.total_score for r in rounds])
 
 
 def end_score_statistics(
-    db: Session,
+    s: Session,
     *,
     start: date | None = None,
     end: date | None = None,
     user_id: int | None = None,
 ) -> ScoreStatistics:
-    ends = list_end_scores(db, start=start, end=end, user_id=user_id)
+    ends = list_end_scores(s, start=start, end=end, user_id=user_id)
     return _score_statistics([e.total_score for e in ends])
 
 
 def point_score_statistics(
-    db: Session,
+    s: Session,
     *,
     start: date | None = None,
     end: date | None = None,
     user_id: int | None = None,
 ) -> ScoreStatistics:
     query = (
-        db.query(scored_value_column(Point.score))
+        s.query(scored_value_column(Point.score))
         .join(End, End.id == Point.end_id)
         .join(Round, Round.id == End.round_id)
         .join(Game, Game.id == Round.game_id)
@@ -160,7 +160,7 @@ def point_score_statistics(
 
 
 def list_user_ranking(
-    db: Session,
+    s: Session,
     *,
     organization_id: int | None = None,
     region_id: int | None = None,
@@ -172,7 +172,7 @@ def list_user_ranking(
     """Users ranked by their average game score, high to low, within a
     period and optionally scoped to an organization and/or region."""
     game_scores = (
-        db.query(
+        s.query(
             Game.user_id.label("user_id"),
             Game.id.label("game_id"),
             func.coalesce(func.sum(scored_value_column(Point.score)), 0).label("total_score"),
@@ -189,7 +189,7 @@ def list_user_ranking(
     game_scores = game_scores.group_by(Game.user_id, Game.id).subquery()
 
     query = (
-        db.query(
+        s.query(
             User,
             func.count(game_scores.c.game_id),
             func.avg(game_scores.c.total_score),

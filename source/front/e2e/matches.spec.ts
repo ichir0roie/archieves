@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 import { recordGame } from "./recordGame";
 
-// Needs archieves-api running (see CLAUDE.md's "E2E tests"): a match is
+// Needs archieves-api running (see .claude/docs/testing.md's "E2E"): a match is
 // registered against a persisted game.
 
 test.beforeEach(async ({ page }) => {

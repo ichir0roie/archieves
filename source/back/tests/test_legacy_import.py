@@ -29,12 +29,12 @@ SHOTS = pd.DataFrame(
 
 
 @pytest.fixture()
-def user_id(db_session: Session) -> int:
-    return user_crud.create_user(db_session, UserCreate(name="Yumi")).id
+def user_id(s: Session) -> int:
+    return user_crud.create_user(s, UserCreate(name="Yumi")).id
 
 
 def _import(
-    db: Session,
+    s: Session,
     user_id: int,
     *,
     training: pd.DataFrame | None = None,
@@ -43,7 +43,7 @@ def _import(
     shots: pd.DataFrame | None = None,
 ):
     return import_legacy_backup(
-        db,
+        s,
         training=TRAINING if training is None else training,
         rounds=ROUNDS if rounds is None else rounds,
         ends=ENDS if ends is None else ends,
@@ -52,81 +52,81 @@ def _import(
     )
 
 
-def test_imports_every_table(db_session: Session, user_id: int) -> None:
-    summary = _import(db_session, user_id)
+def test_imports_every_table(s: Session, user_id: int) -> None:
+    summary = _import(s, user_id)
 
     assert (summary.games, summary.rounds, summary.ends, summary.points) == (1, 1, 1, 1)
 
 
 def test_unresolved_negative_scoring_ring_is_kept_as_is(
-    db_session: Session, user_id: int
+    s: Session, user_id: int
 ) -> None:
     from app.db import Point
 
     shots = pd.DataFrame(
         [{"id": 1, "endId": 100, "index": 1, "scoringRing": -1, "x": 0.0, "y": 0.0}]
     )
-    _import(db_session, user_id, shots=shots)
+    _import(s, user_id, shots=shots)
 
-    assert db_session.query(Point).one().score == -1
+    assert s.query(Point).one().score == -1
 
 
-def test_a_missing_round_size_becomes_null(db_session: Session, user_id: int) -> None:
+def test_a_missing_round_size_becomes_null(s: Session, user_id: int) -> None:
     from app.db import Round
 
     rounds = ROUNDS.assign(maxEndCount=[None])
-    _import(db_session, user_id, rounds=rounds)
+    _import(s, user_id, rounds=rounds)
 
-    assert db_session.query(Round).one().round_size is None
+    assert s.query(Round).one().round_size is None
 
 
 def test_unparsable_date_reports_the_training_table(
-    db_session: Session, user_id: int
+    s: Session, user_id: int
 ) -> None:
     training = pd.DataFrame([{"id": 1, "date": "not-a-date"}])
 
     with pytest.raises(LegacyImportError, match="'training' table"):
-        _import(db_session, user_id, training=training)
+        _import(s, user_id, training=training)
 
 
 def test_missing_training_column_reports_the_training_table(
-    db_session: Session, user_id: int
+    s: Session, user_id: int
 ) -> None:
     training = pd.DataFrame([{"id": 1}])
 
     with pytest.raises(LegacyImportError, match="'training' table"):
-        _import(db_session, user_id, training=training)
+        _import(s, user_id, training=training)
 
 
-def test_unparsable_distance_is_rejected(db_session: Session, user_id: int) -> None:
+def test_unparsable_distance_is_rejected(s: Session, user_id: int) -> None:
     rounds = ROUNDS.assign(distance=["far away"])
 
     with pytest.raises(LegacyImportError, match="distance in meters"):
-        _import(db_session, user_id, rounds=rounds)
+        _import(s, user_id, rounds=rounds)
 
 
 def test_round_referencing_an_unknown_training_reports_the_round_table(
-    db_session: Session, user_id: int
+    s: Session, user_id: int
 ) -> None:
     rounds = ROUNDS.assign(trainingId=[999])
 
     with pytest.raises(LegacyImportError, match="'round' table"):
-        _import(db_session, user_id, rounds=rounds)
+        _import(s, user_id, rounds=rounds)
 
 
 def test_end_referencing_an_unknown_round_reports_the_end_table(
-    db_session: Session, user_id: int
+    s: Session, user_id: int
 ) -> None:
     ends = ENDS.assign(roundId=[999])
 
     with pytest.raises(LegacyImportError, match="'end' table"):
-        _import(db_session, user_id, ends=ends)
+        _import(s, user_id, ends=ends)
 
 
 def test_shot_referencing_an_unknown_end_reports_the_shot_table(
-    db_session: Session, user_id: int
+    s: Session, user_id: int
 ) -> None:
     shots = SHOTS.assign(endId=[999])
 
     with pytest.raises(LegacyImportError, match="'shot' table"):
-        _import(db_session, user_id, shots=shots)
+        _import(s, user_id, shots=shots)

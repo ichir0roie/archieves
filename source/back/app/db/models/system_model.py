@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import BigInteger, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base_class import Base, BigIntegerPK, TimestampMixin
+from app.db.base_class import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from app.db.models.game_model import Game
@@ -23,7 +23,7 @@ class Organization(TimestampMixin, Base):
     location: Mapped[str | None] = mapped_column(String(200), default=None)
 
     parent_organization_id: Mapped[int | None] = mapped_column(
-        BigIntegerPK, ForeignKey("organizations.id", ondelete="SET NULL"), index=True, default=None
+        BigInteger, ForeignKey("organizations.id", ondelete="SET NULL"), index=True, default=None
     )
 
     parent_organization: Mapped[Organization | None] = relationship(
@@ -53,13 +53,13 @@ class User(TimestampMixin, Base):
     nickname: Mapped[str | None] = mapped_column(String(100), default=None)
 
     organization_id: Mapped[int | None] = mapped_column(
-        BigIntegerPK, ForeignKey("organizations.id", ondelete="SET NULL"), index=True, default=None
+        BigInteger, ForeignKey("organizations.id", ondelete="SET NULL"), index=True, default=None
     )
 
     age: Mapped[int | None] = mapped_column(Integer, default=None)
 
     region_id: Mapped[int | None] = mapped_column(
-        BigIntegerPK, ForeignKey("regions.id", ondelete="SET NULL"), index=True, default=None
+        BigInteger, ForeignKey("regions.id", ondelete="SET NULL"), index=True, default=None
     )
 
     organization: Mapped[Organization | None] = relationship(

@@ -40,7 +40,7 @@ def _calc_point_from_scoring_ring(scoring_ring: int) -> int:
     return 11 - scoring_ring
 
 
-def _insert_games(db: Session, training: pd.DataFrame, user_id: int) -> dict[str, Game]:
+def _insert_games(s: Session, training: pd.DataFrame, user_id: int) -> dict[str, Game]:
     games = []
     old_ids = []
     try:
@@ -50,13 +50,13 @@ def _insert_games(db: Session, training: pd.DataFrame, user_id: int) -> dict[str
             old_ids.append(str(row["id"]))
     except (KeyError, ValueError) as exc:
         raise LegacyImportError(f"Malformed row in 'training' table: {exc}") from exc
-    db.add_all(games)
-    db.flush()
+    s.add_all(games)
+    s.flush()
     return dict(zip(old_ids, games, strict=True))
 
 
 def _insert_rounds(
-    db: Session, rounds: pd.DataFrame, game_by_training_id: dict[str, Game]
+    s: Session, rounds: pd.DataFrame, game_by_training_id: dict[str, Game]
 ) -> dict[str, Round]:
     round_objs = []
     old_ids = []
@@ -79,13 +79,13 @@ def _insert_rounds(
             old_ids.append(str(row["id"]))
     except KeyError as exc:
         raise LegacyImportError(f"Malformed row in 'round' table: {exc}") from exc
-    db.add_all(round_objs)
-    db.flush()
+    s.add_all(round_objs)
+    s.flush()
     return dict(zip(old_ids, round_objs, strict=True))
 
 
 def _insert_ends(
-    db: Session, ends: pd.DataFrame, round_by_old_id: dict[str, Round]
+    s: Session, ends: pd.DataFrame, round_by_old_id: dict[str, Round]
 ) -> dict[str, End]:
     end_objs = []
     old_ids = []
@@ -103,13 +103,13 @@ def _insert_ends(
             old_ids.append(str(row["id"]))
     except KeyError as exc:
         raise LegacyImportError(f"Malformed row in 'end' table: {exc}") from exc
-    db.add_all(end_objs)
-    db.flush()
+    s.add_all(end_objs)
+    s.flush()
     return dict(zip(old_ids, end_objs, strict=True))
 
 
 def _insert_points(
-    db: Session, shots: pd.DataFrame, end_by_old_id: dict[str, End]
+    s: Session, shots: pd.DataFrame, end_by_old_id: dict[str, End]
 ) -> list[Point]:
     point_objs = []
     try:
@@ -128,12 +128,12 @@ def _insert_points(
             )
     except KeyError as exc:
         raise LegacyImportError(f"Malformed row in 'shot' table: {exc}") from exc
-    db.add_all(point_objs)
+    s.add_all(point_objs)
     return point_objs
 
 
 def import_legacy_backup(
-    db: Session,
+    s: Session,
     *,
     training: pd.DataFrame,
     rounds: pd.DataFrame,
@@ -145,17 +145,13 @@ def import_legacy_backup(
 
     All or nothing: each table is flushed as it is read, so a malformed row in
     a later table rolls the earlier ones back rather than leaving the caller's
-    session holding a half-imported game.
+    session holding a half-imported game. Committing is the caller's job.
     """
-    try:
-        game_by_training_id = _insert_games(db, training, user_id)
-        round_by_old_id = _insert_rounds(db, rounds, game_by_training_id)
-        end_by_old_id = _insert_ends(db, ends, round_by_old_id)
-        point_objs = _insert_points(db, shots, end_by_old_id)
-    except LegacyImportError:
-        db.rollback()
-        raise
-    db.commit()
+    with s.begin_nested():
+        game_by_training_id = _insert_games(s, training, user_id)
+        round_by_old_id = _insert_rounds(s, rounds, game_by_training_id)
+        end_by_old_id = _insert_ends(s, ends, round_by_old_id)
+        point_objs = _insert_points(s, shots, end_by_old_id)
 
     return ImportSummary(
         games=len(game_by_training_id),

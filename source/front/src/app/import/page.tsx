@@ -1,25 +1,15 @@
 "use client";
 
 import { useRef, useState } from "react";
-import AuthGate from "@/components/auth/AuthGate";
-import Header from "@/components/templates/common/header";
-import ApiErrorAlert from "@/components/templates/common/ApiErrorAlert";
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Fade,
-  Stack,
-  Typography,
-} from "@mui/material";
-import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
+import ApiErrorAlert from "@/components/ApiErrorAlert";
+import PageHeader from "@/components/PageHeader";
 import {
   ImportResult,
   importSqliteBackup,
   toErrorDetails,
   type ErrorDetails,
 } from "@/lib/api";
+import { T } from "@/lib/text";
 
 export default function Page() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,70 +45,48 @@ export default function Page() {
   }
 
   return (
-    <AuthGate>
-      <main className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <Header pageName="インポート" showBack />
-        <Box className="flex flex-col items-center px-4 py-8">
-          <Fade in timeout={400}>
-            <Card
-              elevation={0}
-              className="w-full max-w-sm rounded-3xl overflow-hidden bg-white/85 backdrop-blur-sm border border-white/60 shadow-xl shadow-indigo-100/60"
-            >
-              <CardContent className="!p-6">
-                <Stack spacing={2.5}>
-                  <Typography variant="body2" className="!text-slate-500">
-                    旧アプリの記録データが入った SQLite バックアップファイル
-                    (.sqlite / .sqlite3 / .db) をアップロードすると、自分の記録として取り込みます。
-                  </Typography>
+    <div className="page">
+      <PageHeader title={T.profile.import.title} />
+      <div className="panel stack">
+        <p className="muted small import-description">{T.profile.import.description}</p>
 
-                  {error && <ApiErrorAlert error={error} />}
+        {error && <ApiErrorAlert error={error} />}
 
-                  {result && !error && (
-                    <div className="rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
-                      <p>インポートが完了しました</p>
-                      <p className="mt-1 font-normal">
-                        大会 {result.games} 件 / ラウンド {result.rounds} 件 / エンド{" "}
-                        {result.ends} 件 / 矢 {result.points} 本
-                      </p>
-                    </div>
-                  )}
+        {result && !error && (
+          <div className="status ok import-result">
+            <p>{T.profile.import.done}</p>
+            <p className="summary">
+              {T.profile.import.summary(result.games, result.rounds, result.ends, result.points)}
+            </p>
+          </div>
+        )}
 
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".sqlite,.sqlite3,.db"
-                    hidden
-                    onChange={handleFileChange}
-                  />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".sqlite,.sqlite3,.db"
+          hidden
+          onChange={handleFileChange}
+        />
 
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    fullWidth
-                    startIcon={<UploadFileRoundedIcon />}
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="!py-3 !rounded-2xl !font-semibold !text-base !normal-case"
-                  >
-                    {fileName ?? "ファイルを選択"}
-                  </Button>
+        <button
+          type="button"
+          className="large block"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+        >
+          {fileName ?? T.profile.import.chooseFile}
+        </button>
 
-                  <Button
-                    variant="contained"
-                    size="large"
-                    fullWidth
-                    onClick={handleImport}
-                    disabled={uploading || !fileName}
-                    className="!py-3 !rounded-2xl !font-semibold !text-base !normal-case !shadow-lg !shadow-indigo-200"
-                  >
-                    {uploading ? "インポート中..." : "インポート"}
-                  </Button>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Fade>
-        </Box>
-      </main>
-    </AuthGate>
+        <button
+          type="button"
+          className="primary large block"
+          onClick={handleImport}
+          disabled={uploading || !fileName}
+        >
+          {uploading ? T.profile.import.importing : T.profile.import.submit}
+        </button>
+      </div>
+    </div>
   );
 }

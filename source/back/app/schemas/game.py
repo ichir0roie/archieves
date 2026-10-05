@@ -1,6 +1,6 @@
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.scoring import (
     MAX_DISTANCE_M,
@@ -11,6 +11,7 @@ from app.core.scoring import (
     X_SCORE,
 )
 from app.core.target_types import TARGET_TYPE_IDS
+from app.schemas.base import ResponseModel
 
 
 class GameBase(BaseModel):
@@ -29,9 +30,7 @@ class GameUpdate(BaseModel):
     game_size: int | None = Field(default=None, ge=1, le=MAX_GAME_SIZE)
 
 
-class GameRead(GameBase):
-    model_config = ConfigDict(from_attributes=True)
-
+class GameRead(GameBase, ResponseModel):
     id: int
     deleted_at: date | None = None
 
@@ -76,9 +75,7 @@ class RoundUpdate(BaseModel):
     )
 
 
-class RoundRead(RoundBase):
-    model_config = ConfigDict(from_attributes=True)
-
+class RoundRead(RoundBase, ResponseModel):
     id: int
     game_id: int
     user_id: int
@@ -99,9 +96,7 @@ class EndUpdate(BaseModel):
     recorded_at: date | None = None
 
 
-class EndRead(EndBase):
-    model_config = ConfigDict(from_attributes=True)
-
+class EndRead(EndBase, ResponseModel):
     id: int
     round_id: int
     user_id: int
@@ -132,9 +127,7 @@ class PointUpdate(BaseModel):
     recorded_at: date | None = None
 
 
-class PointRead(PointBase):
-    model_config = ConfigDict(from_attributes=True)
-
+class PointRead(PointBase, ResponseModel):
     id: int
     end_id: int
     user_id: int
@@ -158,15 +151,13 @@ class MatchUpdate(BaseModel):
     link: str | None = None
 
 
-class MatchRead(MatchBase):
-    model_config = ConfigDict(from_attributes=True)
-
+class MatchRead(MatchBase, ResponseModel):
     id: int
     game_id: int
     user_id: int
 
 
-class MatchSummary(MatchBase):
+class MatchSummary(MatchBase, ResponseModel):
     """A match joined with its game's date, for recent-activity displays."""
 
     id: int

@@ -1,18 +1,18 @@
 "use client";
 
-import AuthGate from "@/components/auth/AuthGate";
-import Header from "@/components/templates/common/header";
-import ApiErrorAlert from "@/components/templates/common/ApiErrorAlert";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import ApiErrorAlert from "@/components/ApiErrorAlert";
+import ExternalLink from "@/components/ExternalLink";
+import PageHeader from "@/components/PageHeader";
 import {
   OrganizationRead,
   getOrganization,
   toErrorDetails,
   type ErrorDetails,
 } from "@/lib/api";
+import { T } from "@/lib/text";
 
 export default function Page() {
   const params = useParams<{ organizationId: string }>();
@@ -46,82 +46,45 @@ export default function Page() {
   }, [organizationId]);
 
   return (
-    <AuthGate>
-      <main className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <Header pageName="組織情報" showBack />
-        <div className="flex w-full flex-col gap-3 p-3 max-w-2xl mx-auto">
-          {error && <ApiErrorAlert error={error} />}
+    <div className="page">
+      <PageHeader title={T.profile.organization.title} />
+      {error && <ApiErrorAlert error={error} />}
 
-          {loading && (
-            <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 text-center text-sm text-slate-500 shadow-sm">
-              読み込み中...
+      {loading && <p className="status empty">{T.loading}</p>}
+
+      {!loading && organization && (
+        <section className="panel profile-card">
+          <div className="profile-item">
+            <span className="profile-name">{organization.name}</span>
+            {organization.formal_name && <span className="muted small">{organization.formal_name}</span>}
+          </div>
+
+          {organization.description && <p>{organization.description}</p>}
+
+          {organization.location && (
+            <div className="profile-item">
+              <span className="section-label">{T.profile.organization.location}</span>
+              <span>{organization.location}</span>
             </div>
           )}
 
-          {!loading && organization && (
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-              <div className="flex flex-col gap-1">
-                <span className="text-xl font-bold text-slate-900">
-                  {organization.name}
-                </span>
-                {organization.formal_name && (
-                  <span className="text-sm text-slate-500">
-                    {organization.formal_name}
-                  </span>
-                )}
-              </div>
-
-              {organization.description && (
-                <span className="text-sm text-slate-700">
-                  {organization.description}
-                </span>
-              )}
-
-              {organization.location && (
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs font-semibold text-slate-400">
-                    所在
-                  </span>
-                  <span className="text-sm text-slate-700">
-                    {organization.location}
-                  </span>
-                </div>
-              )}
-
-              {organization.homepage_url && (
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs font-semibold text-slate-400">
-                    ホームページ
-                  </span>
-                  <a
-                    href={organization.homepage_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-sm text-indigo-600 hover:underline break-all"
-                  >
-                    {organization.homepage_url}
-                    <OpenInNewRoundedIcon fontSize="inherit" />
-                  </a>
-                </div>
-              )}
-
-              {organization.parent_organization && (
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs font-semibold text-slate-400">
-                    上位組織
-                  </span>
-                  <Link
-                    href={`/organization/${organization.parent_organization.id}`}
-                    className="text-sm text-indigo-600 hover:underline"
-                  >
-                    {organization.parent_organization.name}
-                  </Link>
-                </div>
-              )}
+          {organization.homepage_url && (
+            <div className="profile-item">
+              <span className="section-label">{T.profile.organization.homepage}</span>
+              <ExternalLink href={organization.homepage_url}>{organization.homepage_url}</ExternalLink>
             </div>
           )}
-        </div>
-      </main>
-    </AuthGate>
+
+          {organization.parent_organization && (
+            <div className="profile-item">
+              <span className="section-label">{T.profile.organization.parent}</span>
+              <Link href={`/organization/${organization.parent_organization.id}`}>
+                {organization.parent_organization.name}
+              </Link>
+            </div>
+          )}
+        </section>
+      )}
+    </div>
   );
 }
