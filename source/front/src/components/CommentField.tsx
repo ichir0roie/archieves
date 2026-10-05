@@ -1,41 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Button,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  TextField,
-} from "@mui/material";
-import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
+import Field from "@/components/Field";
+import Modal from "@/components/Modal";
 import { MAX_COMMENT_LENGTH } from "@/lib/comment";
+import { T } from "@/lib/text";
 
-interface Props {
-  /** What the comment is attached to, e.g. "END 3" - shown as the modal's title. */
+// app/score-view/page.tsx でも使うので、この形を変えない
+type Props = {
+  /** コメントを付ける先(「END 3」など)。モーダルの見出しになる */
   title: string;
-  /** The comment already stored for this game/round/end, if any. */
+  /** このゲーム・ラウンド・エンドに保存済みのコメント */
   body: string | null;
-  /**
-   * Called with the edited text; an empty string means "remove the
-   * comment". Rejecting leaves the editor open with the text still in it.
-   */
+  /** 書き直した文で呼ぶ。空の文は「コメントを消す」。reject するとモーダルは文を残したまま開いておく */
   onSave: (body: string) => void | Promise<void>;
   disabled?: boolean;
-  /** Stands in for the text while no comment is stored yet. */
+  /** まだコメントが無いときに文の代わりに出す */
   emptyText?: string;
   className?: string;
-}
+};
 
 /**
- * One comment, shown as the icon that opens its editor plus the text
- * itself: the icon sits on the left, the stored text reads next to it.
- * Pressing the icon pops up a modal preloaded with that same text, so
- * saving updates the comment that is already there instead of adding
- * another one.
+ * 一つのコメント。左に書くためのアイコン、隣に保存済みの文。
+ * アイコンを押すと同じ文を入れたモーダルが開き、保存すると別のコメントを足さずにそれを書き換える。
  */
 export default function CommentField(props: Props) {
   const [open, setOpen] = useState(false);
@@ -53,64 +40,75 @@ export default function CommentField(props: Props) {
       await props.onSave(draft.trim());
       setOpen(false);
     } catch {
-      // The screen behind the modal reports what went wrong; the editor
-      // stays open with the text so it isn't lost to a failed request.
+      // 何が落ちたかは後ろの画面が出す。要求が落ちても文を失わないよう、モーダルは開いたままにする
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className={`CommentField flex min-w-0 items-center gap-1 ${props.className ?? ""}`}>
-      <IconButton
-        size="small"
-        aria-label={`${props.title}のコメントを入力`}
+    <div className={`CommentField comment-field ${props.className ?? ""}`}>
+      <button
+        type="button"
+        className={`ghost icon ${props.body ? "has-body" : ""}`}
+        aria-label={T.game.comment.open(props.title)}
         disabled={props.disabled}
         onClick={openEditor}
-        className="shrink-0"
       >
-        <ChatBubbleOutlineRoundedIcon
-          fontSize="small"
-          color={props.body ? "primary" : "disabled"}
-        />
-      </IconButton>
-      <span
-        className={`CommentText min-w-0 flex-1 truncate text-left text-xs ${
-          props.body ? "text-slate-700" : "text-slate-400"
-        }`}
-      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M4 5h16v11H9l-5 4z" />
+        </svg>
+      </button>
+      <span className={`CommentText text ${props.body ? "" : "empty"}`}>
         {props.body ?? props.emptyText ?? ""}
       </span>
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{props.title}のコメント</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            multiline
-            minRows={4}
-            margin="dense"
-            label="コメント"
-            value={draft}
-            slotProps={{ htmlInput: { maxLength: MAX_COMMENT_LENGTH } }}
-            onChange={(event) => setDraft(event.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)} disabled={saving}>
-            キャンセル
-          </Button>
-          <Button
-            variant="contained"
-            onClick={save}
-            disabled={saving}
-            startIcon={saving ? <CircularProgress size={16} /> : undefined}
-          >
-            保存
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {open && (
+        <Modal
+          title={T.game.comment.modalTitle(props.title)}
+          onClose={() => setOpen(false)}
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                disabled={saving}
+              >
+                {T.cancel}
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={save}
+                disabled={saving}
+              >
+                {T.save}
+              </button>
+            </>
+          }
+        >
+          <Field label={T.game.comment.label}>
+            {(id) => (
+              <textarea
+                id={id}
+                autoFocus
+                value={draft}
+                maxLength={MAX_COMMENT_LENGTH}
+                onChange={(event) => setDraft(event.target.value)}
+              />
+            )}
+          </Field>
+        </Modal>
+      )}
     </div>
   );
 }

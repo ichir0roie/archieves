@@ -1,7 +1,10 @@
 "use client";
 
-import AuthGate from "@/components/AuthGate";
-import { JSX, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import ApiErrorAlert from "@/components/ApiErrorAlert";
+import CommentField from "@/components/CommentField";
+import PageHeader from "@/components/PageHeader";
 import {
   deleteEndComment,
   deleteGameComment,
@@ -24,33 +27,29 @@ import {
 import { scoreToStr, totalScore } from "@/lib/score/scoreFunctions";
 import { DEFAULT_END_SIZE } from "@/lib/score/scoreConfig";
 import { loadGameId } from "@/lib/storage";
-import { useSearchParams } from "next/navigation";
-import Header from "@/components/Header";
-import { Button } from "@mui/material";
-import ApiErrorAlert from "@/components/ApiErrorAlert";
-import CommentField from "@/components/CommentField";
+import { T } from "@/lib/text";
 import { useRunOnce } from "@/lib/useRunOnce";
 
 const NO_COMMENTS: GameComments = { game: null, rounds: [], ends: [] };
 
-/** One end of a round with the arrows recorded in it. */
-interface ViewEnd {
+/** ラウンドの一エンドと、そこに記録した矢。 */
+type ViewEnd = {
   end: EndRead;
   points: Array<PointRead>;
-}
+};
 
-/** One round of the game as the sheet draws it. */
-interface ViewRound {
+/** 点数表に描くゲームの一ラウンド。 */
+type ViewRound = {
   round: RoundRead;
   ends: Array<ViewEnd>;
-}
+};
 
 export default function Page() {
   return (
     <Suspense
       fallback={
-        <div className="flex justify-center py-20 text-sm text-slate-400">
-          読み込み中...
+        <div className="page">
+          <p className="status empty">{T.loading}</p>
         </div>
       }
     >
@@ -81,7 +80,7 @@ function ScoreViewContent() {
     try {
       const requestedId = searchParams.get("gameId") ?? loadGameId();
       if (!requestedId) {
-        throw new Error("表示するスコアが指定されていません。");
+        throw new Error(T.profile.scoreView.noGame);
       }
       const game = await getGame(Number(requestedId));
       const [loadedRounds, loadedComments] = await Promise.all([
@@ -101,9 +100,8 @@ function ScoreViewContent() {
     runOnMount();
   }, [runOnMount]);
 
-  // An empty text removes the comment; anything else replaces whatever is
-  // stored for that game/round/end. The failure is re-thrown so the editor
-  // keeps the text instead of closing over a write that never landed.
+  // 空の文字はコメントを消し、それ以外はゲーム・ラウンド・エンドに保存済みのものを置き換える。
+  // 失敗は投げ直し、書けなかったのに編集のモーダルが閉じて文字が消えないようにする
   async function saveComment(save: () => Promise<void>) {
     setError(null);
     try {
@@ -177,75 +175,59 @@ function ScoreViewContent() {
   }
 
   return (
-    <AuthGate>
-      <div className="flex flex-col min-h-screen">
-        <Header pageName="スコア" />
-        <div className="py-4">
-          {error && (
-            <div className="flex flex-col items-center gap-4 px-6 pb-4">
-              <ApiErrorAlert error={error} className="w-full max-w-xl" />
-              {rounds === null && (
-                <Button variant="contained" onClick={() => retryLoadGame()}>
-                  再試行
-                </Button>
-              )}
-            </div>
-          )}
-          {rounds === null ? (
-            !error && (
-              <div className="flex justify-center py-20 text-sm text-slate-400">
-                読み込み中...
-              </div>
-            )
-          ) : (
-            <div className="flex flex-col items-center">
-              <div className="GameComment p-4 flex w-[92%] max-w-xl md:max-w-3xl mx-auto mb-4 items-center gap-2 rounded-2xl bg-white/85 backdrop-blur-sm shadow-sm">
-                <span className="shrink-0 text-sm font-semibold text-slate-700">
-                  ゲームのコメント
-                </span>
-                <CommentField
-                  title="ゲーム"
-                  body={comments.game?.body ?? null}
-                  emptyText="コメントを追加"
-                  onSave={onSaveGameComment}
-                  className="flex-1"
-                />
-              </div>
-              {rounds.length === 0 && (
-                <div className="flex justify-center py-20 text-sm text-slate-400">
-                  この記録にはまだスコアがありません
-                </div>
-              )}
-              {rounds.map((viewRound) => (
-                <RoundSheet
-                  key={viewRound.round.id}
-                  viewRound={viewRound}
-                  roundComment={roundComment(viewRound.round.id)}
-                  endComment={endComment}
-                  onSaveRoundComment={onSaveRoundComment}
-                  onSaveEndComment={onSaveEndComment}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </AuthGate>
+    <div className="page wide">
+      <PageHeader title={T.profile.scoreView.title} />
+      {error && <ApiErrorAlert error={error} />}
+      {error && rounds === null && (
+        <button
+          type="button"
+          className="primary"
+          onClick={() => retryLoadGame()}
+        >
+          {T.retry}
+        </button>
+      )}
+      {rounds === null ? (
+        !error && <p className="status empty">{T.loading}</p>
+      ) : (
+        <>
+          <div className="GameComment panel view-comment">
+            <span className="section-label">{T.profile.scoreView.gameComment}</span>
+            <CommentField
+              title={T.profile.scoreView.gameTitle}
+              body={comments.game?.body ?? null}
+              emptyText={T.profile.scoreView.addComment}
+              onSave={onSaveGameComment}
+            />
+          </div>
+          {rounds.length === 0 && <p className="status empty">{T.profile.scoreView.noScores}</p>}
+          {rounds.map((viewRound) => (
+            <RoundSheet
+              key={viewRound.round.id}
+              viewRound={viewRound}
+              roundComment={roundComment(viewRound.round.id)}
+              endComment={endComment}
+              onSaveRoundComment={onSaveRoundComment}
+              onSaveEndComment={onSaveEndComment}
+            />
+          ))}
+        </>
+      )}
+    </div>
   );
 }
 
-interface RoundSheetProps {
+type RoundSheetProps = {
   viewRound: ViewRound;
   roundComment: string | null;
   endComment: (endId: number) => string | null;
   onSaveRoundComment: (roundId: number, body: string) => Promise<void>;
   onSaveEndComment: (endId: number, body: string) => Promise<void>;
-}
+};
 
 function RoundSheet(props: RoundSheetProps) {
   const { round, ends } = props.viewRound;
-  // An imported round can hold a different arrows-per-end than the app's
-  // own default, so the columns follow the round rather than a constant.
+  // 取り込んだラウンドはアプリの既定と違う矢数のことがあるので、列は定数でなくラウンドに合わせる
   const endSize = round.end_size ?? DEFAULT_END_SIZE;
 
   let roundTotal = 0;
@@ -256,108 +238,75 @@ function RoundSheet(props: RoundSheetProps) {
   });
 
   return (
-    <div className="p-4 flex flex-col w-[92%] max-w-xl md:max-w-3xl mx-auto mb-4 rounded-2xl bg-white/85 backdrop-blur-sm shadow-sm">
-      <div className="font-semibold text-slate-700">ラウンド：{round.number}</div>
-      <div className="text-sm text-slate-500 mb-2">日付：{round.recorded_at}</div>
-      <div className="RoundComment mb-2 flex items-center gap-2">
-        <span className="shrink-0 text-xs font-semibold text-slate-500">
-          ラウンドのコメント
-        </span>
+    <section className="panel stack tight">
+      <div>
+        <div className="view-round-title">{T.profile.scoreView.round(round.number)}</div>
+        <div className="muted small">{T.profile.scoreView.date(round.recorded_at)}</div>
+      </div>
+      <div className="RoundComment view-comment">
+        <span className="section-label small">{T.profile.scoreView.roundComment}</span>
         <CommentField
-          title={`ラウンド ${round.number}`}
+          title={T.profile.scoreView.roundTitle(round.number)}
           body={props.roundComment}
-          emptyText="コメントを追加"
+          emptyText={T.profile.scoreView.addComment}
           onSave={(body) => props.onSaveRoundComment(round.id, body)}
-          className="flex-1"
         />
       </div>
 
-      <table className="table-fixed border-collapse border border-gray-300 mx-auto">
-        <thead>
-          <tr className="h-15">
-            <Th className="w-10" />
-            {Array.from({ length: endSize }, (_, index) => index + 1).map(
-              (arrowNumber) => (
-                <Th key={arrowNumber} v={arrowNumber} className="w-10" />
-              )
-            )}
-            {/* Fixed so the comment column below can't squeeze the
-                totals out of their own cells. */}
-            <Th v="小計" className="w-14" />
-            <Th v="合計" className="w-14" />
-            {/* On a phone the sheet has no room for a comment column, so the
-                notes are gathered under the table instead. */}
-            <Th v="コメント" className="hidden md:table-cell w-56" />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.end.id}>
-              <Td v={row.end.number} className="font-bold h-10 w-15" />
-              {Array.from({ length: endSize }, (_, index) => (
-                <Td
-                  key={`arrow-${index}`}
-                  v={row.points[index] ? scoreToStr(row.points[index].score) : "-"}
-                />
+      <div className="view-sheet-scroll">
+        <table className="list view-sheet">
+          <thead>
+            <tr>
+              <th className="end-col" />
+              {Array.from({ length: endSize }, (_, index) => index + 1).map((arrowNumber) => (
+                <th key={arrowNumber}>{arrowNumber}</th>
               ))}
-              <Td v={row.endTotal} />
-              <Td v={row.runningTotal} />
-              <Td
-                className="hidden md:table-cell px-1"
-                v={
+              {/* 合計の列は幅を決めておき、コメントの列に押されて潰れないようにする */}
+              <th className="sum-col">{T.profile.scoreView.subtotal}</th>
+              <th className="sum-col">{T.profile.scoreView.total}</th>
+              {/* スマホではコメントの列を置く幅が無いので、表の下にまとめて出す(.view-end-comments) */}
+              <th className="comment-col">{T.profile.scoreView.comment}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.end.id}>
+                <td className="end-col">{row.end.number}</td>
+                {Array.from({ length: endSize }, (_, index) => (
+                  <td key={`arrow-${index}`}>{row.points[index] ? scoreToStr(row.points[index].score) : T.none}</td>
+                ))}
+                <td>{row.endTotal}</td>
+                <td>{row.runningTotal}</td>
+                <td className="comment-col">
                   <CommentField
-                    title={`END ${row.end.number}`}
+                    title={T.profile.scoreView.endTitle(row.end.number)}
                     body={props.endComment(row.end.id)}
-                    emptyText="コメントを追加"
+                    emptyText={T.profile.scoreView.addComment}
                     onSave={(body) => props.onSaveEndComment(row.end.id, body)}
                   />
-                }
-              />
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      <div className="EndComments mt-3 flex flex-col md:hidden">
+      <div className="EndComments view-end-comments">
         {rows.map((row) => (
-          <div key={row.end.id} className="flex items-center gap-1">
-            <span className="w-14 shrink-0 text-xs font-semibold text-slate-500">
-              END {row.end.number}
-            </span>
+          <div
+            key={row.end.id}
+            className="view-comment"
+          >
+            <span className="section-label small end-label">{T.profile.scoreView.endTitle(row.end.number)}</span>
             <CommentField
-              title={`END ${row.end.number}`}
+              title={T.profile.scoreView.endTitle(row.end.number)}
               body={props.endComment(row.end.id)}
-              emptyText="コメントを追加"
+              emptyText={T.profile.scoreView.addComment}
               onSave={(body) => props.onSaveEndComment(row.end.id, body)}
-              className="flex-1"
             />
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
-
-interface ThProps {
-  v?: string | number | JSX.Element;
-  className?: string;
-}
-const Th = (p: ThProps) => {
-  let className = "border border-gray-300 text-center";
-  if (p.className) {
-    className += ` ${p.className}`;
-  }
-  return <th className={className}>{p.v}</th>;
-};
-
-interface TdProps {
-  v?: string | number | JSX.Element;
-  className?: string;
-}
-const Td = (p: TdProps) => {
-  let className = "border border-gray-300 text-center";
-  if (p.className) {
-    className += ` ${p.className}`;
-  }
-  return <td className={className}>{p.v}</td>;
-};
