@@ -174,7 +174,7 @@ def build_children(args: argparse.Namespace) -> list[Child]:
         for key, value in MOCK_USER.items():
             api_env[f"MOCK_USER_{key}"] = value
             web_env[f"NEXT_PUBLIC_MOCK_USER_{key}"] = value
-    web_env["NEXT_PUBLIC_API_BASE_URL"] = f"http://localhost:{args.api_port}/api/v1"
+    web_env["ARCHIEVES_API_URL"] = f"http://127.0.0.1:{args.api_port}"
     if args.dist_dir:
         web_env["ARCHIEVES_WEB_DIST_DIR"] = args.dist_dir
 

@@ -16,6 +16,7 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@aws-amplify/adapter-nextjs": "^1.8.0",
     "@aws-amplify/ui-react": "^6.11.2",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",

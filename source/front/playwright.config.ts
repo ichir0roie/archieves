@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 // 同じだと reuseExistingServer がそちらを使い回し、API の向け先も古いままになる
 const webPort = Number(process.env.ARCHIEVES_E2E_WEB_PORT ?? 13000);
 // 既定はテスト用の API サーバー(source/back/debug/test_env/run_test_api_server.py)
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api/v1";
+const apiUrl = process.env.ARCHIEVES_API_URL ?? "http://127.0.0.1:8080";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -32,7 +32,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       ARCHIEVES_WEB_DIST_DIR: ".next-test",
-      NEXT_PUBLIC_API_BASE_URL: apiBaseUrl,
+      ARCHIEVES_API_URL: apiUrl,
       NEXT_PUBLIC_AUTH_MODE: "mock",
       NEXT_PUBLIC_MOCK_USER_SUB: "local-dev-user",
       NEXT_PUBLIC_MOCK_USER_USERNAME: "local-dev-user",

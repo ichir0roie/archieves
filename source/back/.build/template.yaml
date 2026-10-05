@@ -21,6 +21,18 @@ Parameters:
   VpcSecurityGroupIds:
     Type: CommaDelimitedList
     Description: Security group IDs attached to the Lambda function's ENIs.
+  ApiKeys:
+    Type: String
+    NoEcho: true
+    Description: >
+      x-archieves-api-key の合言葉(`名前=鍵` をカンマで区切る。app/core/api_keys.py)。
+      フロントの Amplify Hosting の ARCHIEVES_API_KEY に、そのうち一つの鍵を渡す
+  UserPoolId:
+    Type: String
+    Description: ID トークンを確かめる Cognito のユーザープール
+  AppClientId:
+    Type: String
+    Description: そのユーザープールのアプリクライアント
 
 Globals:
   Function:
@@ -41,6 +53,10 @@ Resources:
         Variables:
           PORT: "8080"
           ENV: !Ref Stage
+          API_KEYS: !Ref ApiKeys
+          AUTH_MODE: cognito
+          USERPOOL_ID: !Ref UserPoolId
+          APP_CLIENT_ID: !Ref AppClientId
           # NOTE: this dynamic reference is resolved by CloudFormation at
           # deploy time and the resulting value is stored as a plain Lambda
           # environment variable (visible in the console/CLI). It does not
