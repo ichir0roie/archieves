@@ -1,0 +1,15 @@
+# API が本番(Lambda)で使う直接の依存。requirements.txt はここから作る(手では書かない):
+#   uvx --from 'uv>=0.9' uv pip compile requirements.in --universal --python-version 3.14 --generate-hashes -o requirements.txt
+fastapi>=0.115,<0.116
+uvicorn[standard]>=0.32,<0.33
+sqlalchemy>=2.0,<3.0
+psycopg2-binary>=2.9,<3.0
+pydantic>=2.9,<3.0
+pydantic-settings>=2.5,<3.0
+alembic>=1.13,<2.0
+# Cognito の ID トークンの検証
+python-jose[cryptography]>=3.3,<4.0
+# UploadFile(旧アプリの sqlite のバックアップの取り込み)
+python-multipart>=0.0.9,<0.1
+# 旧アプリのバックアップの読み込み
+pandas>=2.2,<3.0

@@ -18,7 +18,7 @@ from app.db.session import SessionLocal
 DEFAULT_ROUND_SIZE = 6
 
 
-def _split_round(db: Session, round_: Round, ends: list[End], chunk_size: int) -> int:
+def _split_round(s: Session, round_: Round, ends: list[End], chunk_size: int) -> int:
     chunks = [ends[i : i + chunk_size] for i in range(0, len(ends), chunk_size)]
 
     for number, end in enumerate(chunks[0], start=1):
@@ -35,8 +35,8 @@ def _split_round(db: Session, round_: Round, ends: list[End], chunk_size: int) -
             distance_m=round_.distance_m,
             target_type=round_.target_type,
         )
-        db.add(new_round)
-        db.flush()
+        s.add(new_round)
+        s.flush()
         for number, end in enumerate(chunk, start=1):
             end.round_id = new_round.id
             end.number = number
@@ -44,8 +44,8 @@ def _split_round(db: Session, round_: Round, ends: list[End], chunk_size: int) -
     return len(chunks) - 1
 
 
-def _split_rounds_for_game(db: Session, game_id: int) -> int:
-    rounds = db.query(Round).filter(Round.game_id == game_id).order_by(Round.number).all()
+def _split_rounds_for_game(s: Session, game_id: int) -> int:
+    rounds = s.query(Round).filter(Round.game_id == game_id).order_by(Round.number).all()
 
     split_count = 0
     number_offset = 0
@@ -54,7 +54,7 @@ def _split_rounds_for_game(db: Session, game_id: int) -> int:
         chunk_size = round_.round_size if round_.round_size is not None else DEFAULT_ROUND_SIZE
 
         ends = (
-            db.query(End)
+            s.query(End)
             .filter(End.round_id == round_.id)
             .order_by(End.number)
             .all()
@@ -62,25 +62,25 @@ def _split_rounds_for_game(db: Session, game_id: int) -> int:
         if len(ends) <= chunk_size:
             continue
 
-        number_offset += _split_round(db, round_, ends, chunk_size)
+        number_offset += _split_round(s, round_, ends, chunk_size)
         split_count += 1
 
     return split_count
 
 
-def split_oversized_rounds(db: Session) -> int:
-    game_ids = [row[0] for row in db.query(Round.game_id).distinct()]
+def split_oversized_rounds(s: Session) -> int:
+    game_ids = [row[0] for row in s.query(Round.game_id).distinct()]
 
     split_count = 0
     for game_id in game_ids:
-        split_count += _split_rounds_for_game(db, game_id)
+        split_count += _split_rounds_for_game(s, game_id)
     return split_count
 
 
 def main() -> None:
-    with SessionLocal() as db:
-        split_count = split_oversized_rounds(db)
-        db.commit()
+    with SessionLocal() as s:
+        split_count = split_oversized_rounds(s)
+        s.commit()
 
     print(f"split {split_count} round(s) exceeding round_size")
 
