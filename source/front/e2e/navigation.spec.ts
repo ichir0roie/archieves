@@ -28,20 +28,24 @@ async function openMenuAndGo(page: Page, label: string) {
   await page.locator("nav").getByRole("link", { name: label, exact: true }).click();
 }
 
+// 行き先ごとに "/" から開き直す(前の行き先のコンパイル待ちに引きずられないように)
 test("menu navigates to each primary destination", async ({ page }) => {
   await page.goto("/");
   await openMenuAndGo(page, "記録");
   await expect(page).toHaveURL(/\/score-log$/, { timeout: ROUTE_TIMEOUT });
   await expect(page.locator("header")).toContainText("スコアログ");
 
+  await page.goto("/");
   await openMenuAndGo(page, "統計");
   await expect(page).toHaveURL(/\/analysis$/, { timeout: ROUTE_TIMEOUT });
   await expect(page.locator("header")).toContainText("統計ダッシュボード");
 
+  await page.goto("/");
   await openMenuAndGo(page, "ランキング");
   await expect(page).toHaveURL(/\/ranking$/, { timeout: ROUTE_TIMEOUT });
   await expect(page.locator("header")).toContainText("ランキング");
 
+  await page.goto("/");
   await openMenuAndGo(page, "プロフィール");
   await expect(page).toHaveURL(/\/profile\/local-dev-user$/, { timeout: ROUTE_TIMEOUT });
 

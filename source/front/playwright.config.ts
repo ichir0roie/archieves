@@ -26,10 +26,13 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run dev -- --port ${webPort}`,
+    // next dev は route を初めて開いたときにコンパイルし、並べて走る spec の間で Fast Refresh の作り直し
+    // (数秒)を待たされて画面の移りが切れる。ビルドしたものを next start で出して、それを無くす
+    command: `npm run build && npm run start -- --port ${webPort}`,
     url: `http://localhost:${webPort}`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    // 使い回すと、コードを直す前にビルドしたものに当たる
+    reuseExistingServer: false,
+    timeout: 300_000,
     env: {
       ARCHIEVES_WEB_DIST_DIR: ".next-test",
       ARCHIEVES_API_URL: apiUrl,
