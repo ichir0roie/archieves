@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node scripts/ensure-amplify-outputs.js",
+    "predev": "node scripts/ensure-amplify-outputs.mjs",
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "pretest:e2e": "node scripts/ensure-amplify-outputs.js",
+    "lint": "eslint .",
+    "pretypecheck": "node scripts/ensure-amplify-outputs.mjs",
+    "typecheck": "tsc --noEmit",
+    "types": "openapi-typescript ../back/openapi.json -o src/lib/api/openapi.d.ts",
+    "pretest:e2e": "node scripts/ensure-amplify-outputs.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
@@ -40,6 +43,7 @@
     "constructs": "^10.8.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
+    "openapi-typescript": "^7.13.0",
     "typescript": "^5.8.3"
   }
 }

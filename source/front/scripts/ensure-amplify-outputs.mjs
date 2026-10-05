@@ -4,10 +4,11 @@
 // NEXT_PUBLIC_AUTH_MODE=mock where its contents go unused. Real per-sandbox
 // output is gitignored (amplify_outputs*), so seed the committed placeholder
 // the first time a dev checks the repo out; never overwrite a real one.
-const fs = require("fs");
-const path = require("path");
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = path.join(__dirname, "..");
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const target = path.join(root, "amplify_outputs.json");
 const placeholder = path.join(root, "amplify_outputs.example.json");
 

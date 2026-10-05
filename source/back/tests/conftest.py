@@ -1,90 +1,43 @@
 import os
-from collections.abc import Generator
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import Connection, Engine, create_engine, event
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from tools import testing_db
 
-from app.api import deps
-from app.core.security import Claims
-from app.db.base import Base
-from app.main import app
-from mods import factory_db
+# app.* を import する前に、db とログインの向け先を固定する(どちらも import した時に読まれる)。
+# 手元の .env の AUTH_MODE=mock に引きずられると、ログインを確かめるテストが落ちる
+TEST_DATABASE_URL = testing_db.pin("archieves_test")
+os.environ["AUTH_MODE"] = "cognito"
+
+from collections.abc import Generator  # noqa: E402
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import event  # noqa: E402
+from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
+
+from app.api import deps  # noqa: E402
+from app.core.security import Claims  # noqa: E402
+from app.db.session import engine  # noqa: E402
+from app.main import app  # noqa: E402
+from mods import factory_db  # noqa: E402
 
 TEST_CLAIMS = Claims(sub="test-user-sub", username="testuser", email="test@example.com")
 
-# The suite runs on sqlite, in memory by default: no server, no container
-# state, and a schema rebuilt from the models on every run. Point
-# TEST_DATABASE_URL at a sqlite file (e.g. "sqlite:///debug/test_env/pytest.db")
-# to get a database a sqlite browser can open while debugging a test - it
-# holds the schema, but no rows outlive the test that made them (see
-# db_session). It must be a sqlite URL: the fixtures below depend on sqlite's
-# transaction handling.
-DEFAULT_TEST_DATABASE_URL = "sqlite:///:memory:"
-TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "") or DEFAULT_TEST_DATABASE_URL
-
-if not TEST_DATABASE_URL.startswith("sqlite"):
-    raise RuntimeError(
-        f"TEST_DATABASE_URL must be a sqlite URL, got {TEST_DATABASE_URL!r}. "
-        "The tests run on sqlite; see CLAUDE.md's Tests section."
-    )
-
-
-def _make_engine() -> Engine:
-    is_memory = ":memory:" in TEST_DATABASE_URL
-    sqlite_engine = create_engine(
-        TEST_DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        # An in-memory DB lives inside its connection, so every checkout has to
-        # be the same one or the schema vanishes between them. A file-backed
-        # one needs no such pinning.
-        poolclass=StaticPool if is_memory else None,
-    )
-    _enable_sqlite_savepoints(sqlite_engine)
-    return sqlite_engine
-
-
-def _enable_sqlite_savepoints(sqlite_engine: Engine) -> None:
-    """Make SAVEPOINT work on sqlite, which `db_session` relies on to undo a
-    test's writes.
-
-    pysqlite opens its own transaction implicitly and does not emit BEGIN
-    before a SAVEPOINT, so nested rollbacks silently do nothing and one
-    test's committed rows stay visible to the next. SQLAlchemy's documented
-    fix is to take transaction control away from the driver and emit BEGIN
-    from here instead - see "Serializable isolation / Savepoints / Transactional
-    DDL" in the SQLAlchemy pysqlite dialect docs.
-    """
-
-    @event.listens_for(sqlite_engine, "connect")
-    def _disable_driver_transactions(dbapi_connection, connection_record) -> None:
-        dbapi_connection.isolation_level = None
-
-    @event.listens_for(sqlite_engine, "begin")
-    def _emit_begin(conn: Connection) -> None:
-        conn.exec_driver_sql("BEGIN")
-
-
-engine = _make_engine()
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False)
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _schema() -> None:
-    """Build the schema once, from the models, for the whole run.
+    """回すたびに archieves_test を空で作り直し、マイグレーションで本番と同じ表を作る。
 
-    Dropping first is what makes a file-backed TEST_DATABASE_URL safe to reuse;
-    nothing is dropped afterwards, so that file can still be opened once the
-    run has finished.
+    終わったあとは消さないので、落ちたテストの後でも psql で表を覗ける(行は各テストが巻き戻す)。
     """
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    engine.dispose()
+    testing_db.recreate_database(TEST_DATABASE_URL)
+    testing_db.upgrade_head(TEST_DATABASE_URL)
 
 
 @pytest.fixture()
-def db_session() -> Generator[Session]:
+def s() -> Generator[Session]:
     """A session whose writes are undone when the test ends.
 
     The session joins an outer transaction that is rolled back afterwards, so
@@ -109,11 +62,25 @@ def db_session() -> Generator[Session]:
 
 
 @pytest.fixture()
-def client(db_session: Session) -> Generator[TestClient]:
-    def _get_db_override() -> Generator[Session]:
-        yield db_session
+def client(s: Session) -> Generator[TestClient]:
+    # テストでは要求をまたいで同じセッションを使うので、コミットし忘れた書き込みも
+    # 次の要求から見えてしまう。書いたのにコミットせずに返した要求をここで落とす
+    def _flushed(session: Session, flush_context: object) -> None:
+        session.info["uncommitted"] = True
 
-    app.dependency_overrides[deps.get_session] = _get_db_override
+    def _settled(session: Session, *_: object) -> None:
+        session.info["uncommitted"] = False
+
+    event.listen(s, "after_flush", _flushed)
+    event.listen(s, "after_commit", _settled)
+    event.listen(s, "after_soft_rollback", _settled)
+
+    def _get_session_override() -> Generator[Session]:
+        s.info["uncommitted"] = False
+        yield s
+        assert not s.info["uncommitted"], "書き込んだのにコミットせずに応答した"
+
+    app.dependency_overrides[deps.get_session] = _get_session_override
     app.dependency_overrides[deps.get_current_user] = lambda: TEST_CLAIMS
     with TestClient(app) as test_client:
         yield test_client
@@ -121,7 +88,7 @@ def client(db_session: Session) -> Generator[TestClient]:
 
 
 @pytest.fixture()
-def factories(db_session: Session):
+def factories(s: Session):
     """Every factory_boy factory, already bound to this test's session.
 
     Use it to build the rows a test needs directly, instead of driving the

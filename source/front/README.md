@@ -14,7 +14,7 @@ against AWS). `NEXT_PUBLIC_AUTH_MODE` (see `.env.example`) switches that:
   sandbox, no real user pool needed. `amplify_outputs.json` still has to
   exist on disk (it's a static import, resolved by the bundler regardless
   of this switch) - `npm run dev`'s `predev` script
-  (`scripts/ensure-amplify-outputs.js`) seeds it from the committed
+  (`scripts/ensure-amplify-outputs.mjs`) seeds it from the committed
   `amplify_outputs.example.json` placeholder automatically if missing.
 - `NEXT_PUBLIC_AUTH_MODE=cognito` - the production behaviour: real
   `<Authenticator>` sign-in flow against a real Cognito user pool. Run

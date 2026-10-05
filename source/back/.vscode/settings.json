@@ -9,13 +9,13 @@
     {
       "ssh": "Disabled",
       "previewLimit": 50,
-      "server": "localhost",
-      "port": 52000,
+      "server": "127.0.0.1",
+      "port": 55432,
       "driver": "PostgreSQL",
-      "name": "archieves-test",
-      "database": "archieves_test",
-      "username": "postgres",
-      "password": "postgres"
+      "name": "archieves-dev",
+      "database": "archieves_dev",
+      "username": "archieves",
+      "password": "archieves"
     }
   ]
 }

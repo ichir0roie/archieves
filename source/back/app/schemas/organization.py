@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
+
+from app.schemas.base import ResponseModel
 
 
 class OrganizationBase(BaseModel):
@@ -14,15 +16,11 @@ class OrganizationCreate(OrganizationBase):
     pass
 
 
-class OrganizationSummary(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
+class OrganizationSummary(ResponseModel):
     id: int
     name: str
 
 
-class OrganizationRead(OrganizationBase):
-    model_config = ConfigDict(from_attributes=True)
-
+class OrganizationRead(OrganizationBase, ResponseModel):
     id: int
     parent_organization: OrganizationSummary | None = None

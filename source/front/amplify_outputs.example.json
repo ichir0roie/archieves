@@ -1,5 +1,5 @@
 {
-  "_comment": "Placeholder. AuthGate.tsx imports amplify_outputs.json unconditionally (it's a static import, resolved at build time), so a copy of this file must exist on disk in both auth modes - see scripts/ensure-amplify-outputs.js. In NEXT_PUBLIC_AUTH_MODE=mock these values are never read. For NEXT_PUBLIC_AUTH_MODE=cognito, replace amplify_outputs.json with the real output of `npx ampx sandbox` (or a deployed backend).",
+  "_comment": "Placeholder. AuthGate.tsx imports amplify_outputs.json unconditionally (it's a static import, resolved at build time), so a copy of this file must exist on disk in both auth modes - see scripts/ensure-amplify-outputs.mjs. In NEXT_PUBLIC_AUTH_MODE=mock these values are never read. For NEXT_PUBLIC_AUTH_MODE=cognito, replace amplify_outputs.json with the real output of `npx ampx sandbox` (or a deployed backend).",
   "auth": {
     "user_pool_id": "local-mock-user-pool-id",
     "aws_region": "ap-northeast-1",

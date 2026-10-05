@@ -223,12 +223,12 @@ def test_ranking_filters_by_organization(client: TestClient) -> None:
     assert [row["user"]["name"] for row in body] == ["member_a"]
 
 
-def test_ranking_filters_by_region(client: TestClient, db_session: Session) -> None:
+def test_ranking_filters_by_region(client: TestClient, s: Session) -> None:
     # No API creates Region rows yet, so insert them directly.
     region_tokyo = Region(name="Tokyo")
     region_osaka = Region(name="Osaka")
-    db_session.add_all([region_tokyo, region_osaka])
-    db_session.commit()
+    s.add_all([region_tokyo, region_osaka])
+    s.commit()
 
     tokyo = _create_user(client, name="tokyo_user", region_id=region_tokyo.id)
     osaka = _create_user(client, name="osaka_user", region_id=region_osaka.id)

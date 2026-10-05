@@ -11,11 +11,11 @@ def test_health_does_not_require_auth() -> None:
     assert response.status_code == 200
 
 
-def test_users_endpoint_requires_auth(db_session: Session) -> None:
-    def _get_db_override():
-        yield db_session
+def test_users_endpoint_requires_auth(s: Session) -> None:
+    def _get_session_override():
+        yield s
 
-    app.dependency_overrides[deps.get_session] = _get_db_override
+    app.dependency_overrides[deps.get_session] = _get_session_override
     try:
         with TestClient(app) as unauthenticated_client:
             response = unauthenticated_client.get("/api/v1/users")
@@ -25,11 +25,11 @@ def test_users_endpoint_requires_auth(db_session: Session) -> None:
     assert response.status_code == 403
 
 
-def test_users_endpoint_rejects_invalid_token(db_session: Session) -> None:
-    def _get_db_override():
-        yield db_session
+def test_users_endpoint_rejects_invalid_token(s: Session) -> None:
+    def _get_session_override():
+        yield s
 
-    app.dependency_overrides[deps.get_session] = _get_db_override
+    app.dependency_overrides[deps.get_session] = _get_session_override
     try:
         with TestClient(app) as unauthenticated_client:
             response = unauthenticated_client.get(

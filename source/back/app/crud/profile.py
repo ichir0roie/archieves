@@ -13,9 +13,9 @@ RECENT_PERIOD_DAYS = 365
 
 
 def get_user_profile(
-    db: Session, user_id: int, *, now: date | None = None
+    s: Session, user_id: int, *, now: date | None = None
 ) -> UserProfile | None:
-    user = user_crud.get_user(db, user_id)
+    user = user_crud.get_user(s, user_id)
     if user is None:
         return None
 
@@ -27,15 +27,15 @@ def get_user_profile(
         period_start=period_start,
         period_end=period_end,
         rounds=statistics_crud.round_score_statistics(
-            db, start=period_start, end=period_end, user_id=user_id
+            s, start=period_start, end=period_end, user_id=user_id
         ),
         ends=statistics_crud.end_score_statistics(
-            db, start=period_start, end=period_end, user_id=user_id
+            s, start=period_start, end=period_end, user_id=user_id
         ),
         points=statistics_crud.point_score_statistics(
-            db, start=period_start, end=period_end, user_id=user_id
+            s, start=period_start, end=period_end, user_id=user_id
         ),
         matches=game_crud.list_matches(
-            db, user_id=user_id, start=period_start, end=period_end, limit=100
+            s, user_id=user_id, start=period_start, end=period_end, limit=100
         ),
     )
