@@ -5,6 +5,44 @@
   "version": "2.0.0",
   "tasks": [
     {
+      // Kill whatever is listening on the port before starting a server there (leftovers of a previous run)
+      "label": "free port: 8000",
+      "type": "shell",
+      "command": ".venv/bin/python",
+      "args": [
+        "-m",
+        "tools.free_port",
+        "8000"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/source/back"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "free port: 3000",
+      "type": "shell",
+      "command": ".venv/bin/python",
+      "args": [
+        "-m",
+        "tools.free_port",
+        "3000"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/source/back"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "api: prepare (postgres + free :8000)",
+      "dependsOn": [
+        "postgres: start",
+        "free port: 8000"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
       "label": "postgres: start",
       "type": "shell",
       "command": "./infra_local/postgres.sh",
@@ -35,7 +73,7 @@
         "cwd": "${workspaceFolder}/source/back"
       },
       "dependsOn": [
-        "postgres: start"
+        "api: prepare (postgres + free :8000)"
       ],
       "isBackground": true,
       "presentation": {
@@ -73,6 +111,9 @@
           "ARCHIEVES_API_URL": "http://127.0.0.1:8000"
         }
       },
+      "dependsOn": [
+        "free port: 3000"
+      ],
       "isBackground": true,
       "presentation": {
         "panel": "dedicated",

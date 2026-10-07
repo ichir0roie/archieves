@@ -19,6 +19,7 @@ import urllib.request
 from pathlib import Path
 
 from tools import testing_db
+from tools.free_port import free_port
 
 # python -m で起こすと __name__ が __main__ になり、ログの名前で何のログか分からなくなる
 logger = logging.getLogger("tools.dev")
@@ -33,55 +34,6 @@ MOCK_USER = {
     "USERNAME": "local-dev-user",
     "EMAIL": "dev@example.com",
 }
-
-
-def _listening_pids(port: int) -> set[int]:
-    if sys.platform == "darwin":
-        result = subprocess.run(
-            ["lsof", "-t", f"-iTCP:{port}", "-sTCP:LISTEN"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        return {int(pid) for pid in result.stdout.split()}
-    # ss / lsof の入っていないコンテナがあるので、/proc から LISTEN のソケットの持ち主を引く
-    inodes = set()
-    for table in ("/proc/net/tcp", "/proc/net/tcp6"):
-        try:
-            rows = Path(table).read_text().splitlines()[1:]
-        except OSError:
-            continue
-        for row in rows:
-            fields = row.split()
-            local_port = int(fields[1].rsplit(":", 1)[1], 16)
-            if local_port == port and fields[3] == "0A":
-                inodes.add(fields[9])
-    pids = set()
-    for fd in Path("/proc").glob("[0-9]*/fd/*"):
-        try:
-            target = os.readlink(fd)
-        except OSError:
-            continue
-        if target.startswith("socket:[") and target[8:-1] in inodes:
-            pids.add(int(fd.parts[2]))
-    return pids
-
-
-def free_port(port: int) -> None:
-    """port で聞いている前の起動の残りを止める。止まらなければ強く止める。"""
-    pids = _listening_pids(port)
-    for pid in pids:
-        logger.info(f":{port} を使っている pid={pid} を止める")
-        try:
-            os.killpg(os.getpgid(pid), signal.SIGTERM)
-        except ProcessLookupError:
-            continue
-    for _ in range(50):
-        if not _listening_pids(port):
-            return
-        time.sleep(0.1)
-    for pid in _listening_pids(port):
-        os.killpg(os.getpgid(pid), signal.SIGKILL)
 
 
 def responds(url: str) -> bool:
