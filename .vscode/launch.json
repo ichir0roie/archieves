@@ -52,7 +52,7 @@
       "envFile": "${workspaceFolder}/source/back/.env",
       "console": "integratedTerminal",
       "justMyCode": true,
-      "preLaunchTask": "postgres: start"
+      "preLaunchTask": "api: prepare (postgres + free :8000)"
     },
     {
       "name": "Python: current file (source/back)",
