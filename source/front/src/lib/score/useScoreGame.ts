@@ -90,6 +90,8 @@ export function useScoreGame() {
     try {
       const { id: userId } = await getCurrentAppUser();
       const scoreManager = await setupOrResumeGame(userId, loadRoundSetup());
+      // エンドを動かしたあとの書き込みは裏で流れるので、失敗はここで画面に出す
+      scoreManager.onBackgroundError = (e) => setError(toErrorDetails(e));
       setManager(scoreManager);
       syncFrom(scoreManager);
     } catch (e) {
@@ -98,6 +100,17 @@ export function useScoreGame() {
       setIsSettingUp(false);
     }
   }
+
+  // 書き込みが済む前にタブを閉じる・読み込み直すと、まだ API に届いていない矢が失われる
+  useEffect(() => {
+    if (!manager) return;
+    function confirmLeave(event: BeforeUnloadEvent) {
+      if (!manager?.hasUnsavedWrites) return;
+      event.preventDefault();
+    }
+    window.addEventListener("beforeunload", confirmLeave);
+    return () => window.removeEventListener("beforeunload", confirmLeave);
+  }, [manager]);
 
   const { runOnMount, run: retrySetupGame } = useRunOnce(setupGame);
 

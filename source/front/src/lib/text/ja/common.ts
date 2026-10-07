@@ -34,7 +34,7 @@ export const common = {
   nav: {
     menu: "メニュー",
     home: t.home,
-    startGame: `${t.record}開始`,
+    startGame: `${t.game}開始`,
     scoreLog: t.scoreLog,
     analysis: t.statistics,
     profile: t.profile,

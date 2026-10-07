@@ -76,6 +76,14 @@ export interface ScoreProgress {
   canForwardEnd: boolean;
 }
 
+/** API へ書くのを待っているエンド */
+interface UnflushedEnd {
+  roundIndex: number;
+  endIndex: number;
+  /** 矢が空でも、エンドを本物にする(後ろへ進むエンドは、仮の物を末尾にしか置けないため) */
+  persist: boolean;
+}
+
 /** 「1ポイント戻る」で外した矢。「1ポイント進む」で同じ点数・位置を入れ直す */
 interface UndonePoint {
   score: number;
@@ -91,13 +99,17 @@ function toUndonePoint(point: PointRead): UndonePoint {
  * 点数の入力の画面が持つ、ゲーム・ラウンド・エンド・矢の状態。
  *
  * ゲームの全部(ラウンド・エンド・矢)を持ち、今どこを見ているかを roundIndex / endIndex で表す。
- * 矢はエンドごとにここへ溜め、API には書かない。エンドを動かす・終了するときに、flushEnd() が
- * そのエンドの分をまとめて登録・削除する。
+ * 矢はエンドごとにここへ溜め、API には書かない。エンドを動かすときは位置を先に動かし、そのエンドの分は
+ * flushEnd() がバックグラウンドでまとめて登録・削除する(画面の操作を待たせない)。ゲームを終了する
+ * ときだけ、書き込みが済むのを待つ。
  * データが消えるのは「1ポイント戻る」だけ。「1エンド戻る・進む」は位置を動かすだけで、
  * 前後のエンドの矢もコメントも消さない。
  *
- * API を呼ぶメソッドは、呼び出しが済んでからローカルの状態を変える。途中で失敗しても、
- * 画面に出すものと db が食い違わないようにするため。
+ * API への書き込みは、すべて writing の列に並べて一つずつ流す。ゲーム・ラウンド・エンドを二重に作ったり、
+ * 書き込み中のエンドを消したりしないため。バックグラウンドの書き込みが失敗したら onBackgroundError で
+ * 知らせ、そのエンドは unflushed に残して、次のエンド移動・終了のときに書き直す。
+ * 仮の物を本物にすると id が変わるので、エンドの round_id や矢の end_id などの親の id は古いままに
+ * なりうる。親は位置(roundIndex / endIndex)で引き、これらの欄は読まない。
  */
 export class ScoreManager {
   gameId: string | null = null;
@@ -129,6 +141,18 @@ export class ScoreManager {
 
   /** 「1ポイント戻る」で外した、API に登録済みの矢。次の flushEnd() で API から消す */
   private deletedPointIds: Array<number> = [];
+
+  /** API への書き込みの列。末尾に足したものが、前のものの後に一つずつ流れる */
+  private writing: Promise<void> = Promise.resolve();
+
+  /** まだ API に書いていない(または書くのに失敗した)エンド。キーは `ラウンドの位置:エンドの位置` */
+  private unflushed = new Map<string, UnflushedEnd>();
+
+  /** 列に並んでいて、まだ終わっていない書き込みの数 */
+  private queuedWrites = 0;
+
+  /** バックグラウンドの書き込みが失敗したときに呼ぶ。失敗した分は次の書き込みで書き直す */
+  onBackgroundError: ((error: unknown) => void) | null = null;
 
   constructor(gameId: string | null, userId: number, setup: RoundSetup | null = null) {
     this.gameId = gameId;
@@ -343,10 +367,9 @@ export class ScoreManager {
       this.endIndex = this.ends.length - 1;
     }
 
-    // ラウンドの途中で置いたゲームは、最後のエンドが満ちた形で戻ってくる。そのまま開くと
-    // 的を押しても何も入らないので、次に撃つエンドを開けておく。次のラウンドへは手動で進むので、
-    // ラウンドの最後のエンドは開けない
-    if (this.isEndFull && this.endIndex < this.roundSize - 1) {
+    // 途中で置いたゲームは、最後のエンドが満ちた形で戻ってくる。そのまま開くと的を押しても何も
+    // 入らないので、次に撃つエンドを開けておく。ゲームの最後のエンドは開けない
+    if (this.isEndFull && this.canForwardEnd) {
       this.openNextEnd();
     }
   }
@@ -432,9 +455,9 @@ export class ScoreManager {
     const points = this.currentPoints;
     points.push(this.newLocalPoint({ score, x, y }, points.length + 1));
 
-    // 矢が満ちたら、同じラウンドの次のエンドへ自動で進む。次のラウンドへは手動(goForwardEnd)。
-    // 書き込みに失敗しても矢はローカルに残り、「1エンド進む」で書き直せる
-    if (this.isEndFull && this.endIndex < this.roundSize - 1) {
+    // 矢が満ちたら、次のエンドへ自動で進む。ラウンドの最後のエンドなら次のラウンドへ。ゲームの
+    // 最後のエンドでは進まない(終了で閉じる)。書き込みに失敗しても矢はローカルに残り、次の書き込みで書き直す
+    if (this.isEndFull && this.canForwardEnd) {
       await this.goForwardEnd();
     }
   }
@@ -463,18 +486,18 @@ export class ScoreManager {
   // ---- エンドの行き来 ----
 
   /**
-   * 「1エンド戻る」: 今のエンドを API へ書いてから、前のエンドへ位置を動かす。何も消さない。
+   * 「1エンド戻る」: 前のエンドへ位置を動かし、今のエンドの書き込みはバックグラウンドに回す。何も消さない。
    * ゲームの最初のエンドでは、矢もコメントも無い空のゲームだけを消して、設定の直後の画面に戻す。
    */
   async goBackEnd() {
     if (!this.canBackEnd) return;
 
     if (this.roundIndex === 0 && this.endIndex === 0) {
-      await this.dropEmptyGame();
+      await this.enqueue(() => this.dropEmptyGame());
       return;
     }
 
-    await this.flushEnd(this.roundIndex, this.endIndex);
+    this.scheduleFlush(this.roundIndex, this.endIndex, false);
     if (this.endIndex > 0) {
       this.endIndex -= 1;
     } else {
@@ -484,17 +507,13 @@ export class ScoreManager {
   }
 
   /**
-   * 「1エンド進む」: 今のエンドを API へ書いてから、後ろのエンドへ位置を動かす。
-   * いちばん後ろなら、次のエンドを新しく開く。
+   * 「1エンド進む」: 後ろのエンドへ位置を動かし、今のエンドの書き込みはバックグラウンドに回す。
+   * いちばん後ろなら、次のエンドを新しく開く。矢が空でも、後ろへ進むエンドは本物にする。
    */
   async goForwardEnd() {
     if (!this.canForwardEnd) return;
 
-    await this.flushEnd(this.roundIndex, this.endIndex);
-    // 矢が空でも、後ろへ進むエンドは本物にする。仮の物は末尾にしか置けない
-    if (isPending(this.ends[this.endIndex])) {
-      await this.ensurePersisted(this.roundIndex, this.endIndex);
-    }
+    this.scheduleFlush(this.roundIndex, this.endIndex, true);
     if (!this.isAtTail) {
       if (this.endIndex < this.ends.length - 1) {
         this.endIndex += 1;
@@ -508,6 +527,69 @@ export class ScoreManager {
   }
 
   // ---- API への書き込み ----
+
+  /** 書き込みを列の末尾に並べる。前のものが失敗していても流す */
+  private enqueue<T>(job: () => Promise<T>): Promise<T> {
+    this.queuedWrites += 1;
+    const result = this.writing.then(job);
+    this.writing = result.then(
+      () => undefined,
+      () => undefined
+    );
+    this.writing.then(() => {
+      this.queuedWrites -= 1;
+    });
+    return result;
+  }
+
+  /** API にまだ届いていない変更がある(画面を閉じると失われる) */
+  get hasUnsavedWrites(): boolean {
+    return (
+      this.queuedWrites > 0 ||
+      this.unflushed.size > 0 ||
+      this.deletedPointIds.length > 0 ||
+      this.pointsOf.some((round) => round.some((points) => points.some(isPending)))
+    );
+  }
+
+  /** そのエンドの書き込みをバックグラウンドに回す。失敗は onBackgroundError に渡す */
+  private scheduleFlush(roundIndex: number, endIndex: number, persist: boolean) {
+    const key = `${roundIndex}:${endIndex}`;
+    const queued = this.unflushed.get(key);
+    this.unflushed.set(key, {
+      roundIndex,
+      endIndex,
+      persist: persist || (queued?.persist ?? false),
+    });
+    this.enqueue(() => this.flushPending()).catch((e) => this.onBackgroundError?.(e));
+  }
+
+  /**
+   * 書いていないエンドを、前のラウンド・エンドから順に書く。ゲーム・ラウンド・エンドは番号の順に
+   * 作る。失敗したエンドは unflushed に戻して例外にする(呼び直せば続きから書く)。
+   */
+  private async flushPending() {
+    const jobs = [...this.unflushed.values()].sort(
+      (a, b) => a.roundIndex - b.roundIndex || a.endIndex - b.endIndex
+    );
+    for (const job of jobs) {
+      const key = `${job.roundIndex}:${job.endIndex}`;
+      // 書いている間に同じエンドがまた予約されても落とさないよう、先に外す
+      this.unflushed.delete(key);
+      try {
+        const end = this.endsOf[job.roundIndex]?.[job.endIndex];
+        if (!end) continue;
+        await this.flushEnd(job.roundIndex, job.endIndex);
+        if (job.persist && isPending(this.endsOf[job.roundIndex][job.endIndex])) {
+          await this.ensurePersisted(job.roundIndex, job.endIndex);
+        }
+      } catch (e) {
+        const queued = this.unflushed.get(key);
+        this.unflushed.set(key, { ...job, persist: job.persist || (queued?.persist ?? false) });
+        throw e;
+      }
+    }
+  }
 
   /**
    * ゲーム・ラウンド・エンドのうち、まだ仮の物を API に作る。矢・コメントを書く直前にだけ呼ぶ。
@@ -546,25 +628,39 @@ export class ScoreManager {
    * 途中で失敗すると例外になり、ローカルの状態は書けた所までしか進まない(呼び直せば続きから書く)。
    */
   private async flushEnd(roundIndex: number, endIndex: number) {
-    while (this.deletedPointIds.length > 0) {
-      await deletePoint(this.deletedPointIds[0]);
-      this.deletedPointIds.shift();
-    }
+    await this.deleteRemovedPoints();
 
     const points = this.pointsOf[roundIndex][endIndex];
     if (!points.some(isPending)) return;
 
     await this.ensurePersisted(roundIndex, endIndex);
     const end = this.endsOf[roundIndex][endIndex];
-    for (let i = 0; i < points.length; i++) {
-      const point = points[i];
-      if (!isPending(point)) continue;
-      points[i] = await createPoint(end.id, {
-        number: i + 1,
+    // 書いている間も画面は動くので、写しを取って回し、位置は書く直前に引き直す
+    for (const point of points.filter(isPending)) {
+      const index = points.indexOf(point);
+      // 順番待ちの間に「1ポイント戻る」で外された
+      if (index === -1) continue;
+      const created = await createPoint(end.id, {
+        number: index + 1,
         score: point.score,
         x: point.x,
         y: point.y,
       });
+      const current = points.indexOf(point);
+      if (current === -1) {
+        // 書いている間に外された。登録してしまった分を消す
+        this.deletedPointIds.push(created.id);
+      } else {
+        points[current] = created;
+      }
+    }
+    await this.deleteRemovedPoints();
+  }
+
+  private async deleteRemovedPoints() {
+    while (this.deletedPointIds.length > 0) {
+      await deletePoint(this.deletedPointIds[0]);
+      this.deletedPointIds.shift();
     }
   }
 
@@ -598,6 +694,7 @@ export class ScoreManager {
     this.endsOf = [];
     this.pointsOf = [];
     this.deletedPointIds = [];
+    this.unflushed.clear();
     this.undonePoints.clear();
     this.roundIndex = 0;
     this.endIndex = 0;
@@ -640,12 +737,22 @@ export class ScoreManager {
   }
 
   /**
-   * 入力の画面を離れる直前に、今のエンドを API へ書き、矢の無い末尾のエンド・ラウンド・ゲームを消す。
+   * 入力の画面を離れる直前に、書いていない分と今のエンドを API へ書き(終わるまで待つ)、矢の無い末尾のエンド・ラウンド・ゲームを消す。
    * 残るゲームがあれば true。矢を外すとそのエンドは空のまま残るので、これが無いとスコア表の
    * 末尾に空の行が出る。コメントの付いたエンド・ラウンド・ゲームは空でも記録なので残す。
    */
   async discardEmptyTail(): Promise<boolean> {
-    await this.flushEnd(this.roundIndex, this.endIndex);
+    return this.enqueue(() => this.discardEmptyTailNow());
+  }
+
+  /** 書き込みの列の中で動く。バックグラウンドの分も含め、全部書き終えてから後始末する */
+  private async discardEmptyTailNow(): Promise<boolean> {
+    this.unflushed.set(`${this.roundIndex}:${this.endIndex}`, {
+      roundIndex: this.roundIndex,
+      endIndex: this.endIndex,
+      persist: false,
+    });
+    await this.flushPending();
     if (!this.game) return false;
 
     for (;;) {
@@ -680,13 +787,24 @@ export class ScoreManager {
    * エンドを動かすときまで溜めたままにする。
    */
   async saveComment(target: CommentTarget, body: string) {
+    // 順番待ちの間に画面のエンドが動いても、押したときのエンドに書く
+    const { roundIndex, endIndex } = this;
+    await this.enqueue(() => this.saveCommentAt(target, body, roundIndex, endIndex));
+  }
+
+  private async saveCommentAt(
+    target: CommentTarget,
+    body: string,
+    roundIndex: number,
+    endIndex: number
+  ) {
     const text = body.trim();
     if (text.length === 0) {
-      await this.removeComment(target);
+      await this.removeComment(target, roundIndex, endIndex);
       return;
     }
 
-    await this.ensurePersisted(this.roundIndex, this.endIndex);
+    await this.ensurePersisted(roundIndex, endIndex);
 
     if (target === "game") {
       const game = this.game;
@@ -696,7 +814,7 @@ export class ScoreManager {
     }
 
     if (target === "round") {
-      const round = this.currentRound;
+      const round = this.rounds[roundIndex];
       if (!round || isPending(round)) throw new Error("ラウンドを作成できませんでした。");
       const saved = await saveRoundComment(round.id, text);
       this.forgetRoundComment(round.id);
@@ -704,14 +822,14 @@ export class ScoreManager {
       return;
     }
 
-    const end = this.currentEnd;
+    const end = this.endsOf[roundIndex]?.[endIndex];
     if (!end || isPending(end)) throw new Error("エンドを作成できませんでした。");
     const saved = await saveEndComment(end.id, text);
     this.forgetEndComment(end.id);
     this.comments.ends.push(saved);
   }
 
-  private async removeComment(target: CommentTarget) {
+  private async removeComment(target: CommentTarget, roundIndex: number, endIndex: number) {
     if (target === "game") {
       const game = this.game;
       if (!game || this.comments.game === null) return;
@@ -721,15 +839,15 @@ export class ScoreManager {
     }
 
     if (target === "round") {
-      const round = this.currentRound;
-      if (!round || this.roundComment === null) return;
+      const round = this.rounds[roundIndex];
+      if (!round || this.roundCommentOf(round) === null) return;
       await deleteRoundComment(round.id);
       this.forgetRoundComment(round.id);
       return;
     }
 
-    const end = this.currentEnd;
-    if (!end || this.endComment === null) return;
+    const end = this.endsOf[roundIndex]?.[endIndex];
+    if (!end || this.endCommentOf(end) === null) return;
     await deleteEndComment(end.id);
     this.forgetEndComment(end.id);
   }

@@ -157,12 +157,8 @@ test("progress follows the arrow, end and round through a whole game", async ({ 
   await shoot(page, "9", 3);
   await expect(progress).toContainText("END 2/2");
   await expect(progress).toContainText("0/3本");
+  // ラウンドの最後のエンドが満ちたら、次のラウンドへも自動で進む
   await shoot(page, "9", 3);
-  await expect(progress).toContainText("3/3本");
-
-  // 次のラウンドへは手動で進む
-  await expect(page.locator(".EndCompleteNotice")).toBeVisible();
-  await page.getByRole("button", { name: "1エンド進む", exact: true }).click();
   await expect(progress).toContainText("ラウンド 2/2");
   await expect(progress).toContainText("END 1/2");
   await shoot(page, "9", 3);
@@ -250,7 +246,7 @@ test("finishing a game with nothing recorded goes home", async ({ page }) => {
 
 test("a game shape that cannot be scored blocks the start button", async ({ page }) => {
   await page.goto("/game/setup");
-  const start = page.getByRole("button", { name: "記録開始" });
+  const start = page.getByRole("button", { name: "ゲーム開始" });
   await expect(start).toBeEnabled();
 
   await page.getByLabel("エンド数").fill("0");

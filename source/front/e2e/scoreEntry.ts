@@ -29,7 +29,7 @@ export async function startGame(page: Page, setup: GameSetup = {}) {
     await page.getByLabel("ラウンド数").selectOption(String(setup.gameSize));
   }
 
-  await page.getByRole("button", { name: "記録開始" }).click();
+  await page.getByRole("button", { name: "ゲーム開始" }).click();
   await expect(page).toHaveURL(/\/game\/score-card$/, { timeout: ROUTE_TIMEOUT });
   await expect(page.locator(".ScoreProgress")).toBeVisible({ timeout: ROUTE_TIMEOUT });
   await expect(page.locator(".TargetCircleInput .TargetFace")).toBeVisible({

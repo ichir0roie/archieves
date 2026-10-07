@@ -33,7 +33,7 @@ export const common: typeof ja = {
   nav: {
     menu: "Menu",
     home: t.home,
-    startGame: "Start recording",
+    startGame: "Start game",
     scoreLog: t.scoreLog,
     analysis: t.statistics,
     profile: t.profile,

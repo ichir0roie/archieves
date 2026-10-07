@@ -1,6 +1,6 @@
 import { terms as t } from "./terms";
 
-/** profile の画面(プロフィール・大会情報・組織・インポート・スコアの表示・スコアログ)の文言。 */
+/** profile の画面(プロフィール・大会情報・組織・インポート・スコアの表示・スコア)の文言。 */
 export const profile = {
   settings: {
     title: `${t.profile}${t.settings}`,

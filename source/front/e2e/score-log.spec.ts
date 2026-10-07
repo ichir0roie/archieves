@@ -13,7 +13,7 @@ test("the score log lists a game that was just recorded", async ({ page }) => {
   const game = await recordGame(page);
 
   await page.goto("/score-log");
-  await expect(page.locator("header")).toContainText("スコアログ");
+  await expect(page.locator("header")).toContainText("スコア");
 
   const card = page.locator(".ScoreLogGame", { hasText: `Game ID` }).filter({
     has: page.getByText(game.id, { exact: true }),
@@ -36,7 +36,7 @@ test("a score log card opens that game's score sheet", async ({ page }) => {
   await expect(page.getByText("ラウンド：1")).toBeVisible();
 });
 
-test("スコアログは年・月・日の見出しで閉じられ、開閉は再読み込みしても残る", async ({ page }) => {
+test("スコアは年・月・日の見出しで閉じられ、開閉は再読み込みしても残る", async ({ page }) => {
   const game = await recordGame(page);
 
   await page.goto("/score-log");

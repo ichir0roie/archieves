@@ -3,7 +3,7 @@ import { terms as t } from "./terms";
 
 export const game: typeof ja = {
   setup: {
-    title: "Recording setup",
+    title: "Game setup",
     bowType: t.bowType,
     distance: `${t.distance} (m)`,
     other: "Other",
@@ -21,7 +21,7 @@ export const game: typeof ja = {
     gameSizeHint: "Number of rounds in this game",
     summary: (total: number, endSize: string, roundSize: string, gameSize: string) =>
       `Total ${total} arrows (${endSize} arrows × ${roundSize} ends × ${gameSize} rounds)`,
-    start: "Start recording",
+    start: "Start game",
   },
   entry: {
     home: "Back to Home",

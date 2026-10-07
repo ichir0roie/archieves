@@ -10,7 +10,7 @@ export const terms: typeof ja = {
   end: "End",
   arrow: "Arrow",
   score: "Score",
-  scoreLog: "Score log",
+  scoreLog: "Score",
   record: "Record",
   total: "Total",
   totalPoints: "Total points",
