@@ -1,21 +1,22 @@
 import Link from "next/link";
 import { RoundScoreSummary } from "@/lib/api";
-import { T } from "@/lib/text";
+import { useT, type Texts } from "@/lib/text";
 
 type Props = {
   rounds: RoundScoreSummary[];
 };
 
-function formatDate(iso: string): string {
+function formatDate(T: Texts, iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return T.none;
-  return new Intl.DateTimeFormat("ja-JP", {
+  return new Intl.DateTimeFormat(T.intlLocale, {
     month: "numeric",
     day: "numeric",
   }).format(date);
 }
 
 export default function MonthScoreList({ rounds }: Props) {
+  const T = useT();
   if (rounds.length === 0) {
     return <p className="status empty">{T.stats.noMonthRecords}</p>;
   }
@@ -28,7 +29,7 @@ export default function MonthScoreList({ rounds }: Props) {
           href={`/score-view/?gameId=${round.game_id}`}
         >
           <div className="main">
-            <span>{T.stats.roundLabel(formatDate(round.recorded_at), round.number)}</span>
+            <span>{T.stats.roundLabel(formatDate(T, round.recorded_at), round.number)}</span>
             <span className="muted small">
               {round.arrow_count}
               {T.unit.arrow}

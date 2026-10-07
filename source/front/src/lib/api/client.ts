@@ -1,8 +1,9 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { isMockAuth } from '../auth/config';
 import { toDateOnly } from '../toDateOnly';
-import { T } from '../text';
+import { getT } from '../text';
 import type {
+  BowType,
   EndCommentRead,
   EndRead,
   EndScoreSummary,
@@ -18,6 +19,7 @@ import type {
   OrganizationRead,
   OrganizationSummary,
   PointRead,
+  RankingMetric,
   RoundCommentRead,
   RoundRead,
   RoundScoreSummary,
@@ -67,7 +69,7 @@ export function toErrorDetails(e: unknown): ErrorDetails {
   if (e instanceof Error) {
     return { message: e.message };
   }
-  return { message: T.api.failed };
+  return { message: getT().api.failed };
 }
 
 /**
@@ -202,6 +204,7 @@ export function createGame(
   userId: number,
   recordedAt: Date = new Date(),
   gameSize?: number,
+  bowType?: string,
 ): Promise<GameRead> {
   return request('/games', {
     method: 'POST',
@@ -209,6 +212,7 @@ export function createGame(
       user_id: userId,
       recorded_at: toDateOnly(recordedAt),
       game_size: gameSize,
+      bow_type: bowType,
     }),
   });
 }
@@ -420,10 +424,13 @@ export function getPointScoreStatistics(params?: StatisticsQuery): Promise<Score
   return request(`/statistics/points/summary${statisticsQueryString(params)}`);
 }
 
-/** Filters for /statistics/ranking: a period plus an organization and/or a region. */
+/** Filters for /statistics/ranking: a metric, a period, an event (bow type / distance), an organization and/or a region. */
 export interface RankingQuery {
+  metric?: RankingMetric;
   start?: string;
   end?: string;
+  bowType?: BowType;
+  distanceM?: number;
   organizationId?: number;
   regionId?: number;
 }
@@ -452,11 +459,14 @@ export async function importSqliteBackup(file: File): Promise<ImportResult> {
   return (await response.json()) as ImportResult;
 }
 
-/** Users ranked by their average game score, high to low. */
+/** Users ranked by the chosen metric (total score by default), high to low. */
 export function listUserRanking(params?: RankingQuery): Promise<UserRanking[]> {
   const query = new URLSearchParams();
+  if (params?.metric) query.set('metric', params.metric);
   if (params?.start) query.set('start', params.start);
   if (params?.end) query.set('end', params.end);
+  if (params?.bowType) query.set('bow_type', params.bowType);
+  if (params?.distanceM !== undefined) query.set('distance_m', String(params.distanceM));
   if (params?.organizationId !== undefined) {
     query.set('organization_id', String(params.organizationId));
   }

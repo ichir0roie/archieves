@@ -16,10 +16,9 @@ test("saving profile settings persists the entered fields", async ({ page }) => 
   await page.getByLabel("年齢").fill("28");
 
   await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL("/");
 
-  await expect(page.getByText("保存しました")).toBeVisible({ timeout: 15_000 });
-
-  await page.reload();
+  await page.goto("/profile/settings");
   await expect(page.getByLabel("ニックネーム")).toHaveValue("テスト太郎");
   await expect(page.getByLabel("年齢")).toHaveValue("28");
 });
@@ -34,17 +33,18 @@ test("organization field offers existing matches and creates a new one when none
 
   await page.getByLabel("所属").fill(organizationName);
   await page.getByRole("button", { name: "保存" }).click();
-  await expect(page.getByText("保存しました")).toBeVisible({ timeout: 15_000 });
+  await expect(page).toHaveURL("/");
 
+  await page.goto("/profile/settings");
   await page.getByLabel("所属").fill("");
   await page.getByLabel("所属").fill(organizationPrefix);
   await expect(page.getByRole("option", { name: organizationName })).toBeVisible();
 
   await page.getByRole("option", { name: organizationName }).click();
   await page.getByRole("button", { name: "保存" }).click();
-  await expect(page.getByText("保存しました")).toBeVisible({ timeout: 15_000 });
+  await expect(page).toHaveURL("/");
 
-  await page.reload();
+  await page.goto("/profile/settings");
   await expect(page.getByLabel("所属")).toHaveValue(organizationName);
 });
 
@@ -53,9 +53,7 @@ test("home page greets the signed-in user with their database name", async ({ pa
 
   await page.getByLabel("名前").fill("データベース太郎");
   await page.getByRole("button", { name: "保存" }).click();
-  await expect(page.getByText("保存しました")).toBeVisible({ timeout: 15_000 });
-
-  await page.goto("/");
+  await expect(page).toHaveURL("/");
   await expect(page.getByText("ようこそ、データベース太郎 さん")).toBeVisible({
     timeout: 15_000,
   });
@@ -65,7 +63,7 @@ test("the ranking lists the signed-in user once they have a game", async ({ page
   await ensureRegistered(page);
   await page.getByLabel("名前").fill("ランキング太郎");
   await page.getByRole("button", { name: "保存" }).click();
-  await expect(page.getByText("保存しました")).toBeVisible();
+  await expect(page).toHaveURL("/");
 
   await recordGame(page);
 

@@ -25,6 +25,11 @@
 - `try: ... finally: s.close()` や `except: s.rollback()` は書かない。`with SessionLocal() as s:` の `close()` がコミットしていない分を巻き戻す
 - 書いたのにコミットせずに応答するエンドポイントは、テストの `client` が落とす
 
+## クエリ
+
+- SQLAlchemy 2.x の書き方にする。`select()` を組み、`s.scalar()`(1 件)・`s.scalars()`(行の一覧)・`s.execute()`(列の組)で実行する。レガシーの `s.query()` と `.filter()` は使わない
+- 集計(件数・合計・平均・中央値・順位)は SQL で行い、行を Python に引いて数えない(`crud/statistics.py`。中央値は `percentile_cont`)
+
 ## エラー
 
 - エンドポイントは try/except で HTTPException に詰め替えない。`app/core/errors.py` の例外ハンドラが返す形に変える:
@@ -57,7 +62,19 @@ cd source/front && npm run types
 ## 認証
 
 - `AUTH_MODE=cognito`(既定)は、`authenticated_router` の下のすべてに Cognito の ID トークンを求める(`app/core/security.py`)。`mock` は `MOCK_USER_*` の利用者として通す。どちらにするかは import した時に決まる
-- 呼んだ人を使うのは `/users/me`・`/users/me/ensure`・`/import/sqlite-backup` だけ。ほかは `user_id` を要求で受ける
+- エンドポイントは「本人のみ」と「本人以外も」に分ける。どちらも Cognito の ID トークンが通っていること(上の `authenticated_router`)が前提で、「本人のみ」はさらに行の持ち主が本人であることを求める
+
+| 区分 | 対象 | 見るもの |
+| --- | --- | --- |
+| 本人のみ | `games`・`rounds`・`ends`・`points`・`matches`・コメントの読み書き全部、`trash/*`、`/matches`、`PATCH /users/{user_id}`、`/users/me`・`/users/me/ensure`・`/import/sqlite-backup` | トークンの `sub` の利用者の行(`deps.get_me`)と、行の `user_id` が同じこと |
+| 本人以外も | `/statistics/*`(ランキング含む)、`GET /users/{user_id}`、`GET /users/{sub}/profile`、`/organizations/*` | トークンが通っていること |
+
+- 「本人のみ」の書き方: 引数に `me: User = Depends(deps.get_me)` を足す。行を引くところは `deps.get_or_404` ではなく `deps.get_own_or_404(me, ...)`(持ち主が違えば 403)。`user_id` を要求で受けるところは `deps.require_self(me, user_id)`、絞り込みの `user_id`(省略可)は `deps.resolve_user_id(me, user_id)`(省略したら本人、他人なら 403)
+- 利用者の行がまだ無いトークンは、「本人のみ」で 404(`User not found`)になる。先に `/users/me/ensure` で作る
+- 「本人以外も」に game 配下(`games`〜`points`・`matches`・コメント)の読み取りは入れない。他人に見せる範囲を広げるときは、この表も直す
+- `GET/POST /users` は持ち主のいない操作なので、どちらにも分けず、トークンが通れば使える(フロントは使っていない)
+- 新しいエンドポイントを足したら、どちらの区分かを決めて `tests/test_ownership.py` に足す
+- テストの `client` は `current_user`(`TEST_CLAIMS` の `sub` の利用者)がいる状態。他人の行は `factories` で作る。利用者の行が無い状態は `unregistered_client`
 
 ## モデルとマイグレーション
 

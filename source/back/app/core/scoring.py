@@ -39,14 +39,11 @@ def scored_value_column(column: ColumnElement[int]) -> ColumnElement[int]:
 
 
 # Structural limits for a game, in the units the score sheet uses: arrows per
-# end, ends per round, rounds per game. Wide enough for every WA round
-# (18m indoor: 10 ends x 3 arrows; 70m: 12 ends x 6 arrows; a 1440 round:
-# 4 rounds), narrow enough that a mistyped setup is rejected instead of
-# stored.
-MAX_END_SIZE = 12
-MAX_ROUND_SIZE = 30
-MAX_GAME_SIZE = 12
-MAX_DISTANCE_M = 200
+# end, ends per round, rounds per game. 設定画面のプルダウン(1〜100)と揃える。
+MAX_END_SIZE = 100
+MAX_ROUND_SIZE = 100
+MAX_GAME_SIZE = 100
+MAX_DISTANCE_M = 100
 
 
 def max_score_for_ring_count(ring_count: int) -> int:

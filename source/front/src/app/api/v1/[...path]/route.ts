@@ -3,7 +3,7 @@ import { fetchAuthSession } from "aws-amplify/auth/server";
 import { isMockAuth } from "@/lib/auth/config";
 import { MOCK_USER } from "@/lib/auth/mockUser";
 import { runWithAmplifyServerContext } from "@/lib/auth/server";
-import { T } from "@/lib/text";
+import { T } from "@/lib/text/server";
 
 // ブラウザからの /api/v1/* を archieves-api へ流す。ブラウザは API の在りかも合言葉も知らない。
 // 合言葉(x-archieves-api-key)はここで付け、利用者は Cognito のクッキーのセッションから

@@ -4,7 +4,7 @@ import "@aws-amplify/ui-react/styles.css";
 import "./globals.css";
 import AuthGate from "@/components/AuthGate";
 import Nav from "@/components/Nav";
-import { T } from "@/lib/text";
+import { T } from "@/lib/text/server";
 
 export const metadata: Metadata = {
   title: T.appTitle,

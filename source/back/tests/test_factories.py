@@ -69,9 +69,9 @@ def test_the_user_fixture_is_a_persisted_user(s: Session, user) -> None:
 
 
 def test_rows_built_by_factories_are_visible_through_the_api(
-    client: TestClient, factories
+    client: TestClient, factories, current_user
 ) -> None:
-    user = factories.UserFactory(name="Yumi")
+    user = current_user
     factories.GameFactory.create_batch(3, user=user)
 
     res = client.get(f"/api/v1/games?user_id={user.id}")

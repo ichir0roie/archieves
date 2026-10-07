@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 
 type Props = {
   title: string;
@@ -20,6 +20,7 @@ const stack: symbol[] = [];
 /** 中央に浮かぶモーダル。背景を押すか Escape で閉じる。親の枠に切られないよう body の直下へ描く。
  * 開くときは親が `{open && <Modal …/>}` のように出し入れする。 */
 export default function Modal({ title, onClose, children, actions, wide }: Props) {
+  const T = useT();
   const close = useRef(onClose);
   useEffect(() => {
     close.current = onClose;

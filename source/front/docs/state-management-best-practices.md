@@ -2,7 +2,7 @@
 
 ## 背景
 
-`/game/score-card`・`/game/simple-score-card` で、画面を開くたびに Game
+`/game/score-card` で、画面を開くたびに Game
 テーブルへの POST (`createGame`) が連続実行され、異常な Game レコードが
 増殖する不具合が確認された。原因は
 `src/modules/data/score/useScoreGame.ts` の

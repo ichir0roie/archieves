@@ -10,6 +10,7 @@ Rounds with no round_size are split at DEFAULT_ROUND_SIZE ends instead.
 
 from __future__ import annotations
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import End, Round
@@ -45,7 +46,7 @@ def _split_round(s: Session, round_: Round, ends: list[End], chunk_size: int) ->
 
 
 def _split_rounds_for_game(s: Session, game_id: int) -> int:
-    rounds = s.query(Round).filter(Round.game_id == game_id).order_by(Round.number).all()
+    rounds = s.scalars(select(Round).where(Round.game_id == game_id).order_by(Round.number)).all()
 
     split_count = 0
     number_offset = 0
@@ -53,12 +54,7 @@ def _split_rounds_for_game(s: Session, game_id: int) -> int:
         round_.number += number_offset
         chunk_size = round_.round_size if round_.round_size is not None else DEFAULT_ROUND_SIZE
 
-        ends = (
-            s.query(End)
-            .filter(End.round_id == round_.id)
-            .order_by(End.number)
-            .all()
-        )
+        ends = s.scalars(select(End).where(End.round_id == round_.id).order_by(End.number)).all()
         if len(ends) <= chunk_size:
             continue
 
@@ -69,7 +65,7 @@ def _split_rounds_for_game(s: Session, game_id: int) -> int:
 
 
 def split_oversized_rounds(s: Session) -> int:
-    game_ids = [row[0] for row in s.query(Round.game_id).distinct()]
+    game_ids = list(s.scalars(select(Round.game_id).distinct()))
 
     split_count = 0
     for game_id in game_ids:

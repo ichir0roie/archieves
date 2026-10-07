@@ -1,5 +1,5 @@
 import { RoundScoreSummary } from "@/lib/api";
-import { T } from "@/lib/text";
+import { useT, type Texts } from "@/lib/text";
 
 type Props = {
   rounds: RoundScoreSummary[];
@@ -9,16 +9,17 @@ const CHART_WIDTH = 1200;
 const CHART_HEIGHT = 340;
 const PADDING = { top: 20, right: 30, bottom: 56, left: 52 };
 
-function formatDate(iso: string): string {
+function formatDate(T: Texts, iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return T.none;
-  return new Intl.DateTimeFormat("ja-JP", {
+  return new Intl.DateTimeFormat(T.intlLocale, {
     month: "numeric",
     day: "numeric",
   }).format(d);
 }
 
 export default function RoundScoreChart({ rounds }: Props) {
+  const T = useT();
   if (rounds.length === 0) {
     return <p className="status empty">{T.stats.chart.empty}</p>;
   }
@@ -93,7 +94,7 @@ export default function RoundScoreChart({ rounds }: Props) {
             <title>
               {T.stats.chart.pointTitle(
                 point.number,
-                formatDate(point.recorded_at),
+                formatDate(T, point.recorded_at),
                 point.total_score,
                 point.average_score !== null ? point.average_score.toFixed(1) : T.none,
               )}
@@ -114,7 +115,7 @@ export default function RoundScoreChart({ rounds }: Props) {
               y={CHART_HEIGHT - PADDING.bottom + 18}
               textAnchor="middle"
             >
-              {formatDate(point.recorded_at)}
+              {formatDate(T, point.recorded_at)}
             </text>
           );
         })}

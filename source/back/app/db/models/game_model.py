@@ -32,6 +32,9 @@ class Game(TimestampMixin, Base):
 
     # How many rounds the player set up for this game before recording started.
     game_size: Mapped[int | None] = mapped_column(Integer, default=None)
+    # BowType の値、またはプリセット以外の自由入力の名前。
+    # 弓の種類を持たなかった頃の記録と旧アプリからの取り込みは null。
+    bow_type: Mapped[str | None] = mapped_column(String(20), default=None)
 
     user: Mapped[User] = relationship(back_populates="games", lazy="noload")
     rounds: Mapped[list[Round]] = relationship(

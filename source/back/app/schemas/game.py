@@ -2,6 +2,7 @@ from datetime import date
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.bow_types import BOW_TYPE_MAX_LENGTH
 from app.core.scoring import (
     MAX_DISTANCE_M,
     MAX_END_SIZE,
@@ -18,6 +19,8 @@ class GameBase(BaseModel):
     user_id: int
     recorded_at: date
     game_size: int | None = None
+    # プリセット(BowType)以外の弓は自由入力の名前で持つ。ランキングの絞り込みは BowType だけ
+    bow_type: str | None = Field(default=None, min_length=1, max_length=BOW_TYPE_MAX_LENGTH)
 
 
 class GameCreate(GameBase):
@@ -28,6 +31,7 @@ class GameUpdate(BaseModel):
     user_id: int | None = None
     recorded_at: date | None = None
     game_size: int | None = Field(default=None, ge=1, le=MAX_GAME_SIZE)
+    bow_type: str | None = Field(default=None, min_length=1, max_length=BOW_TYPE_MAX_LENGTH)
 
 
 class GameRead(GameBase, ResponseModel):

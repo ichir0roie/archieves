@@ -76,12 +76,14 @@ def test_import_sqlite_backup(client: TestClient, tmp_path) -> None:
     assert all(p["user_id"] == user["id"] for p in points)
 
 
-def test_import_without_registered_user_returns_404(client: TestClient, tmp_path) -> None:
+def test_import_without_registered_user_returns_404(
+    unregistered_client: TestClient, tmp_path
+) -> None:
     backup_path = tmp_path / "backup.sqlite"
     _build_legacy_backup(str(backup_path))
 
     with open(backup_path, "rb") as f:
-        res = client.post(
+        res = unregistered_client.post(
             "/api/v1/import/sqlite-backup",
             files={"file": ("backup.sqlite", f, "application/octet-stream")},
         )

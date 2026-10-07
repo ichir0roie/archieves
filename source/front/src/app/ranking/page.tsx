@@ -2,116 +2,149 @@
 
 import PageHeader from "@/components/PageHeader";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
-import MonthRangeFilter from "@/components/MonthRangeFilter";
 import Field from "@/components/Field";
 import Picker from "@/components/Picker";
+import Segment from "@/components/Segment";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { toIsoMonthBound } from "@/lib/monthRange";
-import { T } from "@/lib/text";
+import { useState } from "react";
+import { useLoad } from "@/hooks/useLoad";
+import { currentMonthRange, currentYearRange } from "@/lib/monthRange";
+import { BOW_TYPES, DISTANCE_PRESETS_M, isBowType } from "@/lib/score/scoreConfig";
+import { useT } from "@/lib/text";
 import {
-  OrganizationRead,
+  RankingMetric,
   RankingQuery,
-  UserRanking,
   listOrganizations,
   listUserRanking,
-  toErrorDetails,
-  type ErrorDetails,
 } from "@/lib/api";
 
-const NO_ORGANIZATION = "";
+type Period = "month" | "year" | "total";
+
+const ALL = "";
+
+const METRICS: ReadonlyArray<RankingMetric> = [
+  "total_score",
+  "average_round_score",
+  "average_point_score",
+];
+
+const DISTANCE_OPTIONS = DISTANCE_PRESETS_M.map((distanceM) => ({
+  value: String(distanceM),
+  label: `${distanceM}m`,
+}));
+
+/** 月間は今月、年間は今年。トータルは期間を絞らない */
+function periodRange(period: Period): { start?: string; end?: string } {
+  if (period === "month") return currentMonthRange();
+  if (period === "year") return currentYearRange();
+  return {};
+}
+
+/** 合計は整数、平均は小数。平均ポイントは 1 本の点なので 1 ラウンドの平均より細かく出す */
+function formatValue(metric: RankingMetric, value: number): string {
+  if (metric === "total_score") return String(Math.round(value));
+  return value.toFixed(metric === "average_point_score" ? 2 : 1);
+}
 
 export default function Page() {
-  const [organizations, setOrganizations] = useState<OrganizationRead[]>([]);
-  const [organizationId, setOrganizationId] = useState<string>(NO_ORGANIZATION);
-  const [regionId, setRegionId] = useState("");
-  const [startMonth, setStartMonth] = useState("");
-  const [endMonth, setEndMonth] = useState("");
-  const [appliedQuery, setAppliedQuery] = useState<RankingQuery>({});
-  const [rankings, setRankings] = useState<UserRanking[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<ErrorDetails | null>(null);
-
-  useEffect(() => {
-    listOrganizations().then(setOrganizations).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await listUserRanking(appliedQuery);
-        if (!cancelled) setRankings(data);
-      } catch (e) {
-        if (!cancelled) setError(toErrorDetails(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
+  const T = useT();
+  const PERIOD_OPTIONS = (["month", "year", "total"] as const).map((period) => ({
+    value: period,
+    label: T.stats.ranking.periodOption[period],
+  }));
+  const METRIC_OPTIONS = METRICS.map((metric) => ({
+    value: metric,
+    label: T.stats.ranking.metricOption[metric],
+  }));
+  const BOW_OPTIONS = [
+    {
+      value: ALL,
+      label: T.all,
+    },
+    ...BOW_TYPES.map((bowType) => ({
+      value: bowType.id as string,
+      label: T.options.bowType[bowType.id],
+    })),
+  ];
+  const [period, setPeriod] = useState<Period>("month");
+  const [metric, setMetric] = useState<RankingMetric>("total_score");
+  const [bowType, setBowType] = useState(ALL);
+  const [distance, setDistance] = useState(ALL);
+  const [organizationId, setOrganizationId] = useState(ALL);
+  const organizations = useLoad(listOrganizations, []).data ?? [];
+  const { data, loading, error } = useLoad(() => {
+    const query: RankingQuery = {
+      metric,
+      ...periodRange(period),
+      bowType: isBowType(bowType) ? bowType : undefined,
+      distanceM: distance === ALL ? undefined : Number(distance),
+      organizationId: organizationId === ALL ? undefined : Number(organizationId),
     };
-  }, [appliedQuery]);
-
-  function handleApply() {
-    setAppliedQuery({
-      organizationId: organizationId === NO_ORGANIZATION ? undefined : Number(organizationId),
-      regionId: regionId === "" ? undefined : Number(regionId),
-      start: toIsoMonthBound(startMonth, "start"),
-      end: toIsoMonthBound(endMonth, "end"),
-    });
-  }
-
-  function handleReset() {
-    setOrganizationId(NO_ORGANIZATION);
-    setRegionId("");
-    setStartMonth("");
-    setEndMonth("");
-    setAppliedQuery({});
-  }
+    return listUserRanking(query);
+  }, [period, metric, bowType, distance, organizationId]);
+  const rankings = data ?? [];
 
   return (
     <div className="page">
       <PageHeader title={T.stats.ranking.title} />
-      <MonthRangeFilter
-        startMonth={startMonth}
-        endMonth={endMonth}
-        onStartMonthChange={setStartMonth}
-        onEndMonthChange={setEndMonth}
-        onApply={handleApply}
-        onReset={handleReset}
-      >
-        <Field label={T.stats.ranking.organization}>
-          {(id) => (
-            <Picker
-              id={id}
-              title={T.stats.ranking.organization}
-              options={organizations.map((org) => ({
-                value: String(org.id),
-                label: org.name,
-              }))}
-              value={organizationId}
-              onChange={setOrganizationId}
-              emptyLabel={T.all}
-            />
-          )}
-        </Field>
-        <Field label={T.stats.ranking.region}>
-          {(id) => (
-            <input
-              id={id}
-              type="number"
-              value={regionId}
-              onChange={(e) => setRegionId(e.target.value)}
-            />
-          )}
-        </Field>
-      </MonthRangeFilter>
+      <div className="panel stack RankingFilter">
+        <div className="field">
+          <span className="field-label">{T.stats.ranking.period}</span>
+          <Segment
+            options={PERIOD_OPTIONS}
+            value={period}
+            onChange={setPeriod}
+            label={T.stats.ranking.period}
+          />
+        </div>
+        <div className="field">
+          <span className="field-label">{T.stats.ranking.metric}</span>
+          <Segment
+            options={METRIC_OPTIONS}
+            value={metric}
+            onChange={setMetric}
+            label={T.stats.ranking.metric}
+          />
+        </div>
+        <div className="field">
+          <span className="field-label">{T.stats.ranking.bowType}</span>
+          <Segment
+            options={BOW_OPTIONS}
+            value={bowType}
+            onChange={setBowType}
+            label={T.stats.ranking.bowType}
+          />
+        </div>
+        <div className="toolbar">
+          <Field label={T.stats.ranking.distance}>
+            {(id) => (
+              <Picker
+                id={id}
+                title={T.stats.ranking.distance}
+                options={DISTANCE_OPTIONS}
+                value={distance}
+                onChange={setDistance}
+                emptyLabel={T.all}
+              />
+            )}
+          </Field>
+          <Field label={T.stats.ranking.organization}>
+            {(id) => (
+              <Picker
+                id={id}
+                title={T.stats.ranking.organization}
+                options={organizations.map((org) => ({
+                  value: String(org.id),
+                  label: org.name,
+                }))}
+                value={organizationId}
+                onChange={setOrganizationId}
+                emptyLabel={T.all}
+              />
+            )}
+          </Field>
+        </div>
+      </div>
 
       {error && <ApiErrorAlert error={error} />}
 
@@ -120,7 +153,7 @@ export default function Page() {
       {!loading && !error && rankings.length === 0 && <p className="status empty">{T.stats.ranking.empty}</p>}
 
       {!loading && !error && rankings.length > 0 && (
-        <div className="row-list">
+        <div className="row-list RankingList">
           {rankings.map((entry) => {
             const row = (
               <>
@@ -129,11 +162,11 @@ export default function Page() {
                   <span>{entry.user.name}</span>
                 </div>
                 <div className="side">
-                  <span className="big">{entry.average_score.toFixed(1)}</span>
-                  <span className="muted small">
-                    {entry.game_count}
-                    {T.unit.game}
+                  <span className="big">
+                    {formatValue(metric, entry.value)}
+                    <span className="muted small">{T.stats.ranking.unit[metric]}</span>
                   </span>
+                  <span className="muted small">{T.stats.ranking.rounds(entry.round_count)}</span>
                 </div>
               </>
             );

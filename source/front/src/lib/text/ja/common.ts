@@ -1,0 +1,64 @@
+import { terms as t } from "./terms";
+
+/** どの画面でも使う文言。 */
+export const common = {
+  /** Intl(日付・数の書式)に渡すロケール */
+  intlLocale: "ja-JP",
+  terms: t,
+  appName: "Archieves",
+  appTitle: "スコア管理アプリ",
+  appDescription: "あなたのスコアを記録・管理するアプリケーション",
+  loading: "読み込み中...",
+  save: "保存",
+  saving: "保存中...",
+  saved: "保存しました",
+  cancel: "キャンセル",
+  close: "閉じる",
+  delete: "削除",
+  apply: "適用",
+  reset: "リセット",
+  retry: "再試行",
+  back: "戻る",
+  notSet: "未設定",
+  none: "-",
+  all: "すべて",
+  filter: "絞り込み",
+  noMatch: "該当するものがありません",
+  unit: t.unit,
+  api: {
+    signInRequired: "サインインしてください",
+    unreachable: (reason: string) => `API に届かない: ${reason}`,
+    failed: "通信に失敗しました。もう一度お試しください。",
+    status: (status: number) => `status: ${status}`,
+  },
+  nav: {
+    menu: "メニュー",
+    home: t.home,
+    startGame: `${t.record}開始`,
+    scoreLog: t.scoreLog,
+    analysis: t.statistics,
+    profile: t.profile,
+    ranking: t.ranking,
+    settings: t.settings,
+    signOut: "サインアウト",
+  },
+  options: {
+    targetType: {
+      "92cm": "92cm",
+      "122cm": "122cm(標準)",
+      compound: "コンパウンド用(80cm)",
+    } as Record<string, string>,
+    bowType: {
+      recurve: "リカーブ",
+      compound: "コンパウンド",
+      barebow: "ベアボウ",
+    } as Record<string, string>,
+  },
+  errors: {
+    roundNotStarted: `${t.round}が開始されていません。`,
+    gameNotCreated: `${t.game}を作成できませんでした。`,
+    roundNotCreated: `${t.round}を作成できませんでした。`,
+    endNotCreated: `${t.end}を作成できませんでした。`,
+    commentNotSaved: `${t.comment}を保存できませんでした。`,
+  },
+};

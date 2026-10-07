@@ -5,24 +5,28 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSignOut } from "@/components/AuthGate";
 import { isMockAuth } from "@/lib/auth/config";
-import { T } from "@/lib/text";
+import { useMenuPosition } from "@/lib/menuPosition";
+import { useT } from "@/lib/text";
 
 const DESTINATIONS = [
-  { href: "/score-log", label: T.nav.scoreLog },
-  { href: "/analysis", label: T.nav.analysis },
-  { href: "/profile/me", label: T.nav.profile },
-  { href: "/ranking", label: T.nav.ranking },
-  { href: "/import", label: T.nav.import },
-];
+  { href: "/game/setup", label: "startGame" },
+  { href: "/score-log", label: "scoreLog" },
+  { href: "/analysis", label: "analysis" },
+  { href: "/profile/me", label: "profile" },
+  { href: "/ranking", label: "ranking" },
+  { href: "/settings", label: "settings" },
+] as const;
 
 // 点数の入力の画面は画面全体をキーと的に使い、右下のボタンがキーに重なるので出さない(戻るは画面の ✕)
-const FULL_SCREEN_PATHS = ["/game/score-card", "/game/simple-score-card"];
+const FULL_SCREEN_PATHS = ["/game/score-card"];
 
-/** 画面の隅に小さな丸いメニューボタンを浮かべ(デスクトップは左上、スマホは右下)、押したときだけメニューを開く。
+/** 画面の隅に小さな丸いメニューボタンを浮かべ(位置は設定画面で選ぶ。未設定ならデスクトップは左上、スマホは右下)、押したときだけメニューを開く。
  * 開いたメニューは、外を押す、Esc、リンクを押す、のいずれかで閉じる。 */
 export default function Nav() {
+  const T = useT();
   const pathname = usePathname();
   const signOut = useSignOut();
+  const position = useMenuPosition();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLElement>(null);
 
@@ -49,7 +53,10 @@ export default function Nav() {
   if (FULL_SCREEN_PATHS.includes(pathname)) return null;
 
   return (
-    <nav ref={ref}>
+    <nav
+      ref={ref}
+      data-pos={position ?? undefined}
+    >
       <button
         type="button"
         className={`nav-fab ${open ? "open" : ""}`}
@@ -91,7 +98,7 @@ export default function Nav() {
               href={item.href}
               className={pathname.startsWith(item.href) ? "active" : ""}
             >
-              {item.label}
+              {T.nav[item.label]}
             </Link>
           ))}
           {!isMockAuth() && (

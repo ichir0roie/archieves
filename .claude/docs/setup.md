@@ -74,3 +74,10 @@ uvx --from 'uv>=0.9' uv pip install --python .venv/bin/python -r requirements-de
 - 裏のコマンドの出力を `until grep …; do sleep …; done` で待ったら終わらなかった: 待つ文字列が出力に出ないことがある。裏で回したものは終わりの知らせを待つか、`Monitor` で待つ。ループで待つなら上限の時間を付ける
 - `ss` が無い: web のセッションのコンテナには入っていない。ポートの持ち主は `lsof -iTCP:<port> -sTCP:LISTEN` で見る
 - `npm ci`・`uvx`・`curl` がプロキシで落ちた(`proxy`・`403`・TLS): `/root/.ccr/README.md` と `curl -sS "$HTTPS_PROXY/__agentproxy/status"` を見て、道具ごとの直し方でやり直す。通らなければユーザに伝えて止まる。落ちたチェック(typecheck・lint など)を飛ばして先へ進まない
+
+## VS Code(手元)
+
+- `.vscode/tasks.json` には、デバッグで起こすもの(PostgreSQL `postgres: start`・API `api: start`・画面 `front: start`・両方 `dev: API + web …`)だけがある。裏で動き続けるタスクは `isBackground` で、`problemMatcher` の `endsPattern` が出たら「起きた」とみなす(起動のログの文言を変えたら合わせる)
+- F5 の既定(`.vscode/launch.json` の一番上)は、`tools.dev --test --seed` でテスト用の db(`archieves_test_dev`)とモックのログインの API(:8000)・画面(:3000)を起こし、Chrome で開く。Chrome のプロファイルは `.vscode/chrome-user-data/`(gitignore 済み)
+- `.env` の db と Cognito で見るときは「Chrome: web (.env db, Cognito)」。先に `source/front` で `npx ampx sandbox --once` を回して `amplify_outputs.json` を作り、`source/back/.env` の `USERPOOL_ID`・`APP_CLIENT_ID` を合わせる(`docs/インフラ/認証/Amplifyサンドボックス.md`)
+- API にブレークポイントを置くときは「Python: API (debugpy, :8000)」か、compound の「API (debugpy) + Chrome」

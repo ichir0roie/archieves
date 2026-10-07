@@ -1,0 +1,49 @@
+import type { game as ja } from "../ja/game";
+import { terms as t } from "./terms";
+
+export const game: typeof ja = {
+  setup: {
+    title: "Recording setup",
+    bowType: t.bowType,
+    distance: `${t.distance} (m)`,
+    other: "Other",
+    otherValue: (value: string) => `Other (${value})`,
+    distanceOther: `Choose ${t.distance.toLowerCase()} (m)`,
+    bowTypeOther: "Enter bow type",
+    bowTypeOtherPlaceholder: "Bow name",
+    ok: "OK",
+    targetType: t.targetType,
+    endSize: "Arrows per end",
+    endSizeHint: "Number of arrows shot in one end (6 outdoors, 3 indoors)",
+    roundSize: "Ends",
+    roundSizeHint: "Number of ends in one round",
+    gameSize: "Rounds",
+    gameSizeHint: "Number of rounds in this game",
+    summary: (total: number, endSize: string, roundSize: string, gameSize: string) =>
+      `Total ${total} arrows (${endSize} arrows × ${roundSize} ends × ${gameSize} rounds)`,
+    start: "Start recording",
+  },
+  entry: {
+    home: "Back to Home",
+    round: t.round,
+    end: t.end,
+    gameComplete: "All rounds are recorded. Press \"Finish\" to check your scores.",
+    endComplete: "The last end of this round is recorded. Press \"Next end\" to move on to the next round.",
+    backPoint: "Previous arrow",
+    forwardPoint: "Next arrow",
+    backEnd: "Previous end",
+    forwardEnd: "Next end",
+    finish: "Finish",
+    ringLabel: (point: number) => `${point}${t.unit.point}`,
+    miss: "Miss",
+  },
+  comment: {
+    endTitle: t.endN,
+    roundTitle: t.roundN,
+    gameTitle: t.game,
+    empty: "Add a comment",
+    open: (title: string) => `Write a comment for ${title}`,
+    modalTitle: (title: string) => `Comment for ${title}`,
+    label: t.comment,
+  },
+};

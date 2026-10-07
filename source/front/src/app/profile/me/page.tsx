@@ -3,9 +3,10 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/currentUser";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 
 export default function Page() {
+  const T = useT();
   const router = useRouter();
 
   useEffect(() => {

@@ -4,10 +4,7 @@ import {
   type RoundSetup,
 } from "@/lib/score/scoreConfig";
 
-export type InputMode = "simple" | "touch";
-
 const ROUND_SETUP_KEY = "roundSetup";
-const INPUT_MODE_KEY = "inputMode";
 const GAME_ID_KEY = "gameId";
 const NEW_GAME_START_KEY = "newGameStart";
 
@@ -32,16 +29,6 @@ export function loadRoundSetup(): RoundSetup | null {
   }
 }
 
-/** Which score entry page ("続きから") should resume the active game. */
-export function saveInputMode(mode: InputMode) {
-  localStorage.setItem(INPUT_MODE_KEY, mode);
-}
-
-export function loadInputMode(): InputMode | null {
-  const mode = localStorage.getItem(INPUT_MODE_KEY);
-  return mode === "simple" || mode === "touch" ? mode : null;
-}
-
 export function saveGameId(gameId: string) {
   localStorage.setItem(GAME_ID_KEY, gameId);
 }
@@ -56,9 +43,9 @@ export function loadGameId(): string | null {
 
 /**
  * Permission for the score entry screen to start a brand-new game. Only
- * /game/setup sets this, right before navigating to score-card/
- * simple-score-card - any other way of landing there (browser back, the
- * score-view Home button, a stale tab) must not silently start a new game.
+ * /game/setup sets this, right before navigating to score-card - any other
+ * way of landing there (browser back, the score-view Home button, a stale
+ * tab) must not silently start a new game.
  * It stays armed across reloads of that still-empty screen (nothing has
  * been saved yet, so there's nothing to distinguish it from a first visit)
  * and is only cleared once the game becomes real - see
@@ -76,4 +63,24 @@ export function hasNewGameStart(): boolean {
 
 export function clearNewGameStart() {
   sessionStorage.removeItem(NEW_GAME_START_KEY);
+}
+
+const SCORE_LOG_COLLAPSED_KEY = "scoreLogCollapsed";
+
+/** スコアログで閉じている見出しのキー(年・月・日)。localStorage が使えなければ全部開いた扱い */
+export function loadScoreLogCollapsed(): Array<string> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(SCORE_LOG_COLLAPSED_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((key) => typeof key === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveScoreLogCollapsed(keys: Array<string>) {
+  try {
+    localStorage.setItem(SCORE_LOG_COLLAPSED_KEY, JSON.stringify(keys));
+  } catch {
+    // 保存できなくても、開閉そのものは画面の中で動く
+  }
 }

@@ -18,12 +18,12 @@ import {
   type ErrorDetails,
 } from "@/lib/api";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
-import { T } from "@/lib/text";
+import { useT, type Texts } from "@/lib/text";
 
-function formatDate(recordedAt: string): string {
+function formatDate(T: Texts, recordedAt: string): string {
   const date = new Date(recordedAt);
   if (Number.isNaN(date.getTime())) return T.notSet;
-  return new Intl.DateTimeFormat("ja-JP", {
+  return new Intl.DateTimeFormat(T.intlLocale, {
     dateStyle: "medium",
   }).format(date);
 }
@@ -35,6 +35,7 @@ type RowProps = {
 };
 
 function MatchRow({ game, match, onSaved }: RowProps) {
+  const T = useT();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(match?.name ?? "");
   const [link, setLink] = useState(match?.link ?? "");
@@ -92,7 +93,7 @@ function MatchRow({ game, match, onSaved }: RowProps) {
   return (
     <div className="MatchRow panel stack tight">
       <div className="row">
-        <span className="section-label grow">{formatDate(game.recorded_at)}</span>
+        <span className="section-label grow">{formatDate(T, game.recorded_at)}</span>
         {match ? (
           <>
             <button
@@ -186,6 +187,7 @@ function MatchRow({ game, match, onSaved }: RowProps) {
 }
 
 export default function Page() {
+  const T = useT();
   const [games, setGames] = useState<GameRead[]>([]);
   const [matchesByGameId, setMatchesByGameId] = useState<Map<number, MatchSummary>>(new Map());
   const [loading, setLoading] = useState(true);

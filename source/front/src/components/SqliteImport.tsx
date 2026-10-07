@@ -2,16 +2,16 @@
 
 import { useRef, useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
-import PageHeader from "@/components/PageHeader";
 import {
   ImportResult,
   importSqliteBackup,
   toErrorDetails,
   type ErrorDetails,
 } from "@/lib/api";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 
-export default function Page() {
+export default function SqliteImport() {
+  const T = useT();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -45,9 +45,8 @@ export default function Page() {
   }
 
   return (
-    <div className="page">
-      <PageHeader title={T.profile.import.title} />
-      <div className="panel stack">
+    <section className="panel stack">
+        <h2>{T.profile.import.title}</h2>
         <p className="muted small import-description">{T.profile.import.description}</p>
 
         {error && <ApiErrorAlert error={error} />}
@@ -86,7 +85,6 @@ export default function Page() {
         >
           {uploading ? T.profile.import.importing : T.profile.import.submit}
         </button>
-      </div>
-    </div>
+    </section>
   );
 }

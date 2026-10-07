@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import ApiErrorAlert from "@/components/ApiErrorAlert";
+import { useLoad } from "@/hooks/useLoad";
 import PageHeader from "@/components/PageHeader";
 import MonthRangeFilter from "@/components/MonthRangeFilter";
 import StatSummaryCard from "@/components/StatSummaryCard";
 import RoundScoreChart from "@/components/RoundScoreChart";
-import { toIsoMonthBound } from "@/lib/monthRange";
-import { T } from "@/lib/text";
 import {
-  ApiError,
+  RangePreset,
+  presetRange,
+  toIsoMonthBound,
+} from "@/lib/monthRange";
+import { useT } from "@/lib/text";
+import {
   ScoreStatistics,
   RoundScoreSummary,
   StatisticsQuery,
@@ -26,43 +31,31 @@ type DashboardData = {
 };
 
 export default function Page() {
+  const T = useT();
   const [startMonth, setStartMonth] = useState("");
   const [endMonth, setEndMonth] = useState("");
   const [appliedQuery, setAppliedQuery] = useState<StatisticsQuery>({});
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [roundStats, endStats, pointStats, rounds] = await Promise.all([
-          getRoundScoreStatistics(appliedQuery),
-          getEndScoreStatistics(appliedQuery),
-          getPointScoreStatistics(appliedQuery),
-          listRoundScores(appliedQuery),
-        ]);
-        if (!cancelled) {
-          setData({ roundStats, endStats, pointStats, rounds });
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : T.stats.analysis.loadFailed);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
+  const [preset, setPreset] = useState<RangePreset | "custom">("all");
+  const { data, loading, error } = useLoad<DashboardData>(async () => {
+    const [roundStats, endStats, pointStats, rounds] = await Promise.all([
+      getRoundScoreStatistics(appliedQuery),
+      getEndScoreStatistics(appliedQuery),
+      getPointScoreStatistics(appliedQuery),
+      listRoundScores(appliedQuery),
+    ]);
+    return { roundStats, endStats, pointStats, rounds };
   }, [appliedQuery]);
+
+  function handlePreset(next: RangePreset) {
+    setPreset(next);
+    setStartMonth("");
+    setEndMonth("");
+    setAppliedQuery(presetRange(next));
+  }
+
+  function handleCustom() {
+    setPreset("custom");
+  }
 
   function handleApply() {
     setAppliedQuery({
@@ -72,6 +65,7 @@ export default function Page() {
   }
 
   function handleReset() {
+    setPreset("all");
     setStartMonth("");
     setEndMonth("");
     setAppliedQuery({});
@@ -80,25 +74,45 @@ export default function Page() {
   return (
     <div className="page wide">
       <PageHeader title={T.stats.analysis.title} />
-      <MonthRangeFilter
-        startMonth={startMonth}
-        endMonth={endMonth}
-        onStartMonthChange={setStartMonth}
-        onEndMonthChange={setEndMonth}
-        onApply={handleApply}
-        onReset={handleReset}
-      />
+      <div
+        className="toolbar"
+        role="group"
+        aria-label={T.stats.analysis.presetLabel}
+      >
+        {(["year", "month", "all"] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            className={preset === key ? "primary" : undefined}
+            aria-pressed={preset === key}
+            onClick={() => handlePreset(key)}
+          >
+            {T.stats.analysis.preset[key]}
+          </button>
+        ))}
+        <button
+          type="button"
+          className={preset === "custom" ? "primary" : undefined}
+          aria-pressed={preset === "custom"}
+          onClick={handleCustom}
+        >
+          {T.stats.analysis.preset.custom}
+        </button>
+      </div>
+      {preset === "custom" && (
+        <MonthRangeFilter
+          startMonth={startMonth}
+          endMonth={endMonth}
+          onStartMonthChange={setStartMonth}
+          onEndMonthChange={setEndMonth}
+          onApply={handleApply}
+          onReset={handleReset}
+        />
+      )}
 
       {loading && <p className="status empty">{T.loading}</p>}
 
-      {!loading && error && (
-        <p
-          role="alert"
-          className="status error"
-        >
-          {error}
-        </p>
-      )}
+      {error && <ApiErrorAlert error={error} />}
 
       {!loading && !error && data && (
         <>

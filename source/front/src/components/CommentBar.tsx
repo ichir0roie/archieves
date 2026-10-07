@@ -3,19 +3,22 @@
 import CommentField from "@/components/CommentField";
 import { type CommentTarget } from "@/lib/comment";
 import type { ScoreComments } from "@/lib/score/useScoreGame";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 
 type Props = {
   comments: ScoreComments;
   roundNumber: number;
   endNumber: number;
+  /** ラウンドの最後のエンドまで矢が埋まった。ラウンドのコメントはこのときだけ書ける */
+  isRoundFull: boolean;
   onSave: (target: CommentTarget, body: string) => Promise<void>;
   disabled?: boolean;
 };
 
-/** 記録中のエンド・ラウンド・ゲームのコメント。点数のすぐ下に置き、左のアイコンから書く */
+/** 記録中のエンドのコメントと、ラウンドが埋まったときのラウンドのコメント。点数のすぐ下に置き、枠のどこを押しても書ける。ゲームのコメントはスコア表示でだけ書く */
 export default function CommentBar(props: Props) {
-  const rows: Array<{ target: CommentTarget; title: string; body: string | null }> = [
+  const T = useT();
+  const allRows: Array<{ target: CommentTarget; title: string; body: string | null }> = [
     {
       target: "end",
       title: T.game.comment.endTitle(props.endNumber),
@@ -26,12 +29,8 @@ export default function CommentBar(props: Props) {
       title: T.game.comment.roundTitle(props.roundNumber),
       body: props.comments.round,
     },
-    {
-      target: "game",
-      title: T.game.comment.gameTitle,
-      body: props.comments.game,
-    },
   ];
+  const rows = allRows.filter((row) => row.target !== "round" || props.isRoundFull);
 
   return (
     <div className="CommentBar comment-bar">

@@ -14,7 +14,7 @@ sqlite のための回避(savepoint の細工、BIGINT の sqlite 用の型)も�
 ai-novel-core に倣い、テスト・デバッグの db を手元の PostgreSQL に置く。
 
 - `infra_local/postgres.sh` が用意する。クラウドセッションでは apt の PostgreSQL のクラスタ
-  (:5432)、手元では Docker のコンテナ(:55432)。docker のデーモンは要らない
+  (:5432)、手元では Docker のコンテナ(:55434)。docker のデーモンは要らない
 - 開発用の db は `archieves_dev`。テスト・デバッグの db は同じサーバーの `archieves_test` で始まる db
   (pytest は `archieves_test`、テスト用の API サーバーは `archieves_test_api`、
   `tools.dev --test` は `archieves_test_dev`)

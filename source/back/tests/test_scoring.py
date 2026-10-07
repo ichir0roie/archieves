@@ -13,7 +13,7 @@ RECORDED_AT = "2026-01-01T00:00:00Z"
 
 
 def _create_game(client: TestClient) -> dict:
-    user_res = client.post("/api/v1/users", json={"name": "Yumi"})
+    user_res = client.get("/api/v1/users/me")
     payload = {"recorded_at": RECORDED_AT, "user_id": user_res.json()["id"]}
     res = client.post("/api/v1/games", json=payload)
     assert res.status_code == 201
@@ -97,7 +97,7 @@ def test_an_x_is_worth_ten_in_the_ranking(client: TestClient) -> None:
     _end_of_scores(client, [X_SCORE] * 6)
 
     body = client.get("/api/v1/statistics/ranking").json()
-    assert body[0]["average_score"] == 60.0
+    assert body[0]["value"] == 60.0
 
 
 def test_a_legacy_negative_score_counts_as_a_miss(client: TestClient, s: Session) -> None:
@@ -165,7 +165,7 @@ def test_a_point_outside_the_target_area_is_rejected(client: TestClient) -> None
 
 
 def test_a_game_of_zero_rounds_is_rejected(client: TestClient) -> None:
-    user_res = client.post("/api/v1/users", json={"name": "Yumi"})
+    user_res = client.get("/api/v1/users/me")
     res = client.post(
         "/api/v1/games",
         json={"recorded_at": RECORDED_AT, "user_id": user_res.json()["id"], "game_size": 0},
@@ -180,7 +180,9 @@ def test_a_game_of_zero_rounds_is_rejected(client: TestClient) -> None:
         {"round_size": 0},
         {"distance_m": 0},
         {"number": 0},
-        {"end_size": 99},
+        {"end_size": 101},
+        {"round_size": 101},
+        {"distance_m": 101},
     ],
 )
 def test_a_round_with_an_impossible_shape_is_rejected(

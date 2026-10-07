@@ -676,8 +676,9 @@ export interface paths {
         };
         /**
          * List User Ranking
-         * @description Users ranked by average game score, high to low, optionally filtered
-         *     by organization, region, and/or period.
+         * @description Users ranked by total score, average round score or average point
+         *     score, high to low, optionally filtered by bow type, distance,
+         *     organization, region, and/or period.
          */
         get: operations["list_user_ranking_api_v1_statistics_ranking_get"];
         put?: never;
@@ -717,6 +718,12 @@ export interface components {
              */
             file: string;
         };
+        /**
+         * BowType
+         * @description 弓の種類。ランキングの種目の軸。フロントの scoreConfig.ts の BOW_TYPES と揃える。
+         * @enum {string}
+         */
+        BowType: "barebow" | "compound" | "recurve";
         /** CommentWrite */
         CommentWrite: {
             /** Body */
@@ -825,6 +832,8 @@ export interface components {
             recorded_at: string;
             /** Game Size */
             game_size?: number | null;
+            /** Bow Type */
+            bow_type?: string | null;
         };
         /** GameRead */
         GameRead: {
@@ -837,6 +846,8 @@ export interface components {
             recorded_at: string;
             /** Game Size */
             game_size: number | null;
+            /** Bow Type */
+            bow_type: string | null;
             /** Id */
             id: number;
             /** Deleted At */
@@ -850,6 +861,8 @@ export interface components {
             recorded_at?: string | null;
             /** Game Size */
             game_size?: number | null;
+            /** Bow Type */
+            bow_type?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1010,6 +1023,12 @@ export interface components {
             /** Recorded At */
             recorded_at?: string | null;
         };
+        /**
+         * RankingMetric
+         * @description ランキングの順位を決める値。
+         * @enum {string}
+         */
+        RankingMetric: "total_score" | "average_round_score" | "average_point_score";
         /** RoundCommentRead */
         RoundCommentRead: {
             /** Body */
@@ -1170,16 +1189,18 @@ export interface components {
         };
         /**
          * UserRanking
-         * @description A user's position in a ranking of average game score, high to low.
+         * @description metric の値が高い順の、利用者の順位。
          */
         UserRanking: {
             /** Rank */
             rank: number;
             user: components["schemas"]["UserRead"];
-            /** Game Count */
-            game_count: number;
-            /** Average Score */
-            average_score: number;
+            /** Value */
+            value: number;
+            /** Round Count */
+            round_count: number;
+            /** Arrow Count */
+            arrow_count: number;
         };
         /** UserRead */
         UserRead: {
@@ -3155,8 +3176,11 @@ export interface operations {
     list_user_ranking_api_v1_statistics_ranking_get: {
         parameters: {
             query?: {
+                metric?: components["schemas"]["RankingMetric"];
                 organization_id?: number | null;
                 region_id?: number | null;
+                bow_type?: components["schemas"]["BowType"] | null;
+                distance_m?: number | null;
                 start?: string | null;
                 end?: string | null;
                 skip?: number;

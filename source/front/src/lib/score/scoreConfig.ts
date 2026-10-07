@@ -1,3 +1,5 @@
+import type { BowType } from "@/lib/api/schemas";
+
 /**
  * archieves-api's Round carries end_size/round_size/distance_m/target_type
  * per round, and Game carries game_size (planned round count). These are
@@ -18,13 +20,13 @@ export const DEFAULT_DISTANCE_M = 70;
  * setup screen rejects what the API would reject anyway.
  */
 export const MIN_GAME_SIZE = 1;
-export const MAX_GAME_SIZE = 12;
+export const MAX_GAME_SIZE = 100;
 export const MIN_ROUND_SIZE = 1;
-export const MAX_ROUND_SIZE = 30;
+export const MAX_ROUND_SIZE = 100;
 export const MIN_END_SIZE = 1;
-export const MAX_END_SIZE = 12;
+export const MAX_END_SIZE = 100;
 export const MIN_DISTANCE_M = 1;
-export const MAX_DISTANCE_M = 200;
+export const MAX_DISTANCE_M = 100;
 
 /**
  * `Point.score` stores the ring an arrow landed in, not the points it is
@@ -38,7 +40,6 @@ export const MAX_RING_SCORE = 10;
 /** A selectable target face: its physical size and how many scoring rings it has. */
 export interface TargetTypeConfig {
   id: string;
-  label: string;
   sizeCm: number;
   color: string;
   ringCount: number;
@@ -52,21 +53,18 @@ export interface TargetTypeConfig {
 export const TARGET_TYPES: TargetTypeConfig[] = [
   {
     id: "92cm",
-    label: "92cm",
     sizeCm: 92,
     color: "#FFD700",
     ringCount: 11,
   },
   {
     id: "122cm",
-    label: "122cm(標準)",
     sizeCm: 122,
     color: "#FFD700",
     ringCount: 11,
   },
   {
     id: "compound",
-    label: "コンパウンド用(80cm)",
     sizeCm: 80,
     color: "#0057B8",
     ringCount: 10,
@@ -100,12 +98,38 @@ export function maxScoreForTargetType(targetTypeId: string | null | undefined): 
   return ringCount > MAX_RING_SCORE ? X_SCORE : ringCount;
 }
 
+/** 弓の種類。バックエンドの app/core/bow_types.py の BowType と揃える。表示名は text の options.bowType */
+export const BOW_TYPES: ReadonlyArray<{ id: BowType }> = [
+  { id: "recurve" },
+  { id: "compound" },
+  { id: "barebow" },
+];
+
+/** 設定画面の距離の選択肢と、ランキングの距離の絞り込みで共通 */
+export const DISTANCE_PRESETS_M = [18, 30, 50, 60, 70, 90];
+
+export const DEFAULT_BOW_TYPE: BowType = "recurve";
+
+/** 弓の種類を自由入力の名前で持つときの長さ。バックエンドの BOW_TYPE_MAX_LENGTH と揃える */
+export const BOW_TYPE_MAX_LENGTH = 20;
+
+/** 1〜100 の整数のプルダウンの選択肢(設定画面) */
+export function integerRange(min: number, max: number): number[] {
+  return Array.from({ length: max - min + 1 }, (_, i) => min + i);
+}
+
+export function isBowType(value: unknown): value is BowType {
+  return BOW_TYPES.some((bowType) => bowType.id === value);
+}
+
 /**
  * Distance/target size/arrows per end/end count/round count chosen on the
  * pre-recording setup screen (see /game/setup), applied to every round
  * ScoreManager creates for the resulting game.
  */
 export interface RoundSetup {
+  /** BOW_TYPES の id、またはその他で入力した名前 */
+  bowType: string;
   distanceM: number;
   targetType: string;
   endSize: number;
@@ -114,12 +138,17 @@ export interface RoundSetup {
 }
 
 export const DEFAULT_ROUND_SETUP: RoundSetup = {
+  bowType: DEFAULT_BOW_TYPE,
   distanceM: DEFAULT_DISTANCE_M,
   targetType: DEFAULT_TARGET_TYPE_ID,
   endSize: DEFAULT_END_SIZE,
   roundSize: DEFAULT_ROUND_SIZE,
   gameSize: DEFAULT_GAME_SIZE,
 };
+
+function isBowName(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "" && value.length <= BOW_TYPE_MAX_LENGTH;
+}
 
 function isWithin(value: unknown, min: number, max: number): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
@@ -128,6 +157,7 @@ function isWithin(value: unknown, min: number, max: number): value is number {
 /** Whether a setup describes a game that can actually be scored. */
 export function isValidRoundSetup(setup: RoundSetup): boolean {
   return (
+    isBowName(setup.bowType) &&
     isWithin(setup.distanceM, MIN_DISTANCE_M, MAX_DISTANCE_M) &&
     isWithin(setup.endSize, MIN_END_SIZE, MAX_END_SIZE) &&
     isWithin(setup.roundSize, MIN_ROUND_SIZE, MAX_ROUND_SIZE) &&

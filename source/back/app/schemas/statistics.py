@@ -1,4 +1,5 @@
 from datetime import date
+from enum import StrEnum
 
 from app.schemas.base import ResponseModel
 from app.schemas.user import UserRead
@@ -35,10 +36,20 @@ class EndScoreSummary(ResponseModel):
     average_score: float | None = None
 
 
+class RankingMetric(StrEnum):
+    """ランキングの順位を決める値。"""
+
+    TOTAL_SCORE = "total_score"
+    AVERAGE_ROUND_SCORE = "average_round_score"
+    AVERAGE_POINT_SCORE = "average_point_score"
+
+
 class UserRanking(ResponseModel):
-    """A user's position in a ranking of average game score, high to low."""
+    """metric の値が高い順の、利用者の順位。"""
 
     rank: int
     user: UserRead
-    game_count: int
-    average_score: float
+    # metric の値。total_score なら合計点、平均なら平均点。
+    value: float
+    round_count: int
+    arrow_count: int

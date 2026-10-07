@@ -15,15 +15,16 @@ import {
   toErrorDetails,
   type ErrorDetails,
 } from "@/lib/api";
-import { T } from "@/lib/text";
+import { useT, type Texts } from "@/lib/text";
 
-function formatDate(value: string): string {
+function formatDate(T: Texts, value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return T.none;
-  return new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(date);
+  return new Intl.DateTimeFormat(T.intlLocale, { dateStyle: "medium" }).format(date);
 }
 
 export default function Page() {
+  const T = useT();
   const params = useParams<{ sub: string }>();
   const sub = params.sub;
 
@@ -80,7 +81,7 @@ export default function Page() {
             </div>
             {organization && <Link href={`/organization/${organization.id}`}>{organization.name}</Link>}
             <span className="muted small">
-              {T.profile.view.period(formatDate(profile.period_start), formatDate(profile.period_end))}
+              {T.profile.view.period(formatDate(T, profile.period_start), formatDate(T, profile.period_end))}
             </span>
           </section>
 
@@ -111,7 +112,7 @@ export default function Page() {
                 <div key={match.id}>
                   <div className="main">
                     <span>{match.name}</span>
-                    <span className="muted small">{formatDate(match.recorded_at)}</span>
+                    <span className="muted small">{formatDate(T, match.recorded_at)}</span>
                   </div>
                   {match.link && <ExternalLink href={match.link}>{T.profile.link}</ExternalLink>}
                 </div>

@@ -25,7 +25,7 @@ if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
   psql_on() { runuser -u postgres -- psql -d "$1" -v ON_ERROR_STOP=1 -qtAc "$2"; }
   is_ready() { pg_isready -q -h 127.0.0.1 -p "$port"; }
 else
-  port=55432
+  port=55434
   container=archieves-postgres
   if ! docker container inspect "$container" >/dev/null 2>&1; then
     docker run -d --name "$container" --restart unless-stopped \

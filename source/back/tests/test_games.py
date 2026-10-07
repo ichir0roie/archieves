@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -5,8 +7,8 @@ RECORDED_AT = "2026-01-01T00:00:00Z"
 
 
 def _create_user(client: TestClient, name: str = "Yumi") -> dict:
-    res = client.post("/api/v1/users", json={"name": name})
-    assert res.status_code == 201
+    res = client.get("/api/v1/users/me")
+    assert res.status_code == 200
     return res.json()
 
 
@@ -64,17 +66,21 @@ def test_get_missing_game_returns_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_list_games_filters_by_user_id(client: TestClient) -> None:
+def test_list_games_returns_only_my_games(client: TestClient, factories) -> None:
     user_id = _create_user(client)["id"]
+    own_game = _create_game(client)
+    factories.GameFactory()
 
-    own_game = client.post(
-        "/api/v1/games", json={"recorded_at": RECORDED_AT, "user_id": user_id}
-    ).json()
-    _create_game(client)
+    for url in ["/api/v1/games", f"/api/v1/games?user_id={user_id}"]:
+        response = client.get(url)
+        assert response.status_code == 200
+        assert [g["id"] for g in response.json()] == [own_game["id"]]
 
-    response = client.get(f"/api/v1/games?user_id={user_id}")
-    assert response.status_code == 200
-    assert [g["id"] for g in response.json()] == [own_game["id"]]
+
+def test_list_games_of_another_user_is_forbidden(client: TestClient, factories) -> None:
+    other = factories.GameFactory().user
+
+    assert client.get(f"/api/v1/games?user_id={other.id}").status_code == 403
 
 
 def test_update_and_delete_game(client: TestClient) -> None:
@@ -245,8 +251,10 @@ def test_restoring_missing_round_returns_404(client: TestClient) -> None:
     assert client.post("/api/v1/rounds/999/restore").status_code == 404
 
 
-def test_list_deleted_rounds_filters_by_game_id_and_user_id(client: TestClient) -> None:
-    user_res = client.post("/api/v1/users", json={"name": "Yumi"})
+def test_list_deleted_rounds_filters_by_game_id_and_user_id(
+    client: TestClient, factories
+) -> None:
+    user_res = client.get("/api/v1/users/me")
     user_id = user_res.json()["id"]
 
     own_game_res = client.post(
@@ -255,11 +263,10 @@ def test_list_deleted_rounds_filters_by_game_id_and_user_id(client: TestClient) 
     own_game = own_game_res.json()
     own_round = _create_round(client, own_game["id"])
 
-    other_game = _create_game(client)
-    other_round = _create_round(client, other_game["id"])
+    other_round = factories.RoundFactory(deleted_at=date(2026, 1, 2))
 
     assert client.delete(f"/api/v1/rounds/{own_round['id']}").status_code == 204
-    assert client.delete(f"/api/v1/rounds/{other_round['id']}").status_code == 204
+    assert other_round.deleted_at is not None
 
     by_game = client.get(f"/api/v1/trash/rounds?game_id={own_game['id']}")
     assert by_game.status_code == 200
@@ -268,6 +275,12 @@ def test_list_deleted_rounds_filters_by_game_id_and_user_id(client: TestClient) 
     by_user = client.get(f"/api/v1/trash/rounds?user_id={user_id}")
     assert by_user.status_code == 200
     assert [r["id"] for r in by_user.json()] == [own_round["id"]]
+
+    by_default = client.get("/api/v1/trash/rounds")
+    assert [r["id"] for r in by_default.json()] == [own_round["id"]]
+
+    forbidden = client.get(f"/api/v1/trash/rounds?user_id={other_round.user_id}")
+    assert forbidden.status_code == 403
 
 
 def test_list_ends_under_missing_round_returns_404(client: TestClient) -> None:
@@ -420,15 +433,15 @@ def test_delete_missing_point_returns_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_trash_games_filters_by_user(client: TestClient) -> None:
+def test_trash_games_filters_by_user(client: TestClient, factories) -> None:
     own = _create_user(client, name="Yumi")
-    other = _create_user(client, name="Kyudo")
     own_game = _create_game(client, user_id=own["id"])
-    other_game = _create_game(client, user_id=other["id"])
+    other_game = factories.GameFactory(deleted_at=date(2026, 1, 2))
     client.delete(f"/api/v1/games/{own_game['id']}")
-    client.delete(f"/api/v1/games/{other_game['id']}")
 
     res = client.get(f"/api/v1/trash/games?user_id={own['id']}")
     assert res.status_code == 200
     assert [g["id"] for g in res.json()] == [own_game["id"]]
 
+    assert client.get("/api/v1/trash/games").json() == res.json()
+    assert client.get(f"/api/v1/trash/games?user_id={other_game.user_id}").status_code == 403

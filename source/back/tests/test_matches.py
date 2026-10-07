@@ -4,8 +4,8 @@ RECORDED_AT = "2026-01-01T00:00:00Z"
 
 
 def _create_user(client: TestClient, name: str = "Yumi") -> dict:
-    res = client.post("/api/v1/users", json={"name": name})
-    assert res.status_code == 201
+    res = client.get("/api/v1/users/me")
+    assert res.status_code == 200
     return res.json()
 
 
@@ -75,15 +75,14 @@ def test_update_and_delete_match(client: TestClient) -> None:
     assert client.get(f"/api/v1/matches/{match['id']}").status_code == 404
 
 
-def test_list_matches_filters_by_user_and_period(client: TestClient) -> None:
-    user_res = client.post("/api/v1/users", json={"name": "Yumi"})
+def test_list_matches_filters_by_user_and_period(client: TestClient, factories) -> None:
+    user_res = client.get("/api/v1/users/me")
     user_id = user_res.json()["id"]
 
     own_game = _create_game(client, user_id=user_id)
     own_match = _create_match(client, own_game["id"], name="自分の大会")
 
-    other_game = _create_game(client)
-    _create_match(client, other_game["id"], name="他人の大会")
+    other_match = factories.MatchFactory(name="他人の大会")
 
     response = client.get(f"/api/v1/matches?user_id={user_id}")
     assert response.status_code == 200
@@ -96,6 +95,9 @@ def test_list_matches_filters_by_user_and_period(client: TestClient) -> None:
     )
     assert out_of_range.status_code == 200
     assert out_of_range.json() == []
+
+    assert [m["id"] for m in client.get("/api/v1/matches").json()] == [own_match["id"]]
+    assert client.get(f"/api/v1/matches?user_id={other_match.user_id}").status_code == 403
 
 
 def test_deleting_game_hides_its_match(client: TestClient) -> None:
