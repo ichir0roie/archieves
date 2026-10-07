@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLoad } from "@/hooks/useLoad";
 import StatSummaryCard from "@/components/StatSummaryCard";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import MonthScoreList from "@/components/MonthScoreList";
 import { currentMonthRange } from "@/lib/monthRange";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 import {
   RoundScoreSummary,
   ScoreStatistics,
@@ -13,8 +13,6 @@ import {
   getPointScoreStatistics,
   getRoundScoreStatistics,
   listRoundScores,
-  toErrorDetails,
-  type ErrorDetails,
 } from "@/lib/api";
 
 type MonthData = {
@@ -25,38 +23,16 @@ type MonthData = {
 };
 
 export default function MonthDashboard() {
-  const [data, setData] = useState<MonthData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<ErrorDetails | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const { start, end } = currentMonthRange();
-        const [roundStats, endStats, pointStats, rounds] = await Promise.all([
-          getRoundScoreStatistics({ start, end }),
-          getEndScoreStatistics({ start, end }),
-          getPointScoreStatistics({ start, end }),
-          listRoundScores({ start, end }),
-        ]);
-        if (!cancelled) {
-          setData({ roundStats, endStats, pointStats, rounds });
-        }
-      } catch (e) {
-        if (!cancelled) setError(toErrorDetails(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
+  const T = useT();
+  const { data, loading, error } = useLoad<MonthData>(async () => {
+    const { start, end } = currentMonthRange();
+    const [roundStats, endStats, pointStats, rounds] = await Promise.all([
+      getRoundScoreStatistics({ start, end }),
+      getEndScoreStatistics({ start, end }),
+      getPointScoreStatistics({ start, end }),
+      listRoundScores({ start, end }),
+    ]);
+    return { roundStats, endStats, pointStats, rounds };
   }, []);
 
   return (

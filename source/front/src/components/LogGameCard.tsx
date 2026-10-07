@@ -1,6 +1,6 @@
 import { useRouter } from "next/navigation";
 import { GameRead } from "@/lib/score/scoreManager";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 
 type Props = {
   game: GameRead;
@@ -8,11 +8,12 @@ type Props = {
 
 /** スコアログの一行。押すとそのゲームの点数表(score-view)へ移る。 */
 export default function LogGameCard({ game }: Props) {
+  const T = useT();
   const router = useRouter();
   const startDate = game.recorded_at ? new Date(game.recorded_at) : null;
   const formattedStart =
     startDate && !Number.isNaN(startDate.getTime())
-      ? new Intl.DateTimeFormat("ja-JP", {
+      ? new Intl.DateTimeFormat(T.intlLocale, {
           dateStyle: "medium",
           timeStyle: "short",
         }).format(startDate)

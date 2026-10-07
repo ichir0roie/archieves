@@ -3313,7 +3313,7 @@
           "statistics"
         ],
         "summary": "List User Ranking",
-        "description": "Users ranked by average game score, high to low, optionally filtered\nby organization, region, and/or period.",
+        "description": "Users ranked by total score, average round score or average point\nscore, high to low, optionally filtered by bow type, distance,\norganization, region, and/or period.",
         "operationId": "list_user_ranking_api_v1_statistics_ranking_get",
         "security": [
           {
@@ -3321,6 +3321,15 @@
           }
         ],
         "parameters": [
+          {
+            "name": "metric",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/RankingMetric",
+              "default": "total_score"
+            }
+          },
           {
             "name": "organization_id",
             "in": "query",
@@ -3351,6 +3360,38 @@
                 }
               ],
               "title": "Region Id"
+            }
+          },
+          {
+            "name": "bow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/BowType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bow Type"
+            }
+          },
+          {
+            "name": "distance_m",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Distance M"
             }
           },
           {
@@ -3477,6 +3518,16 @@
           "file"
         ],
         "title": "Body_import_sqlite_backup_api_v1_import_sqlite_backup_post"
+      },
+      "BowType": {
+        "type": "string",
+        "enum": [
+          "barebow",
+          "compound",
+          "recurve"
+        ],
+        "title": "BowType",
+        "description": "弓の種類。ランキングの種目の軸。フロントの scoreConfig.ts の BOW_TYPES と揃える。"
       },
       "CommentWrite": {
         "properties": {
@@ -3741,7 +3792,7 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 12.0,
+                "maximum": 100.0,
                 "minimum": 1.0
               },
               {
@@ -3749,6 +3800,19 @@
               }
             ],
             "title": "Game Size"
+          },
+          "bow_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bow Type"
           }
         },
         "type": "object",
@@ -3780,6 +3844,19 @@
             ],
             "title": "Game Size"
           },
+          "bow_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bow Type"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -3802,6 +3879,7 @@
           "user_id",
           "recorded_at",
           "game_size",
+          "bow_type",
           "id",
           "deleted_at"
         ],
@@ -3836,7 +3914,7 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 12.0,
+                "maximum": 100.0,
                 "minimum": 1.0
               },
               {
@@ -3844,6 +3922,19 @@
               }
             ],
             "title": "Game Size"
+          },
+          "bow_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bow Type"
           }
         },
         "type": "object",
@@ -4387,6 +4478,16 @@
         "type": "object",
         "title": "PointUpdate"
       },
+      "RankingMetric": {
+        "type": "string",
+        "enum": [
+          "total_score",
+          "average_round_score",
+          "average_point_score"
+        ],
+        "title": "RankingMetric",
+        "description": "ランキングの順位を決める値。"
+      },
       "RoundCommentRead": {
         "properties": {
           "body": {
@@ -4431,7 +4532,7 @@
           },
           "end_size": {
             "type": "integer",
-            "maximum": 12.0,
+            "maximum": 100.0,
             "minimum": 1.0,
             "title": "End Size"
           },
@@ -4439,7 +4540,7 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 30.0,
+                "maximum": 100.0,
                 "minimum": 1.0
               },
               {
@@ -4450,7 +4551,7 @@
           },
           "distance_m": {
             "type": "integer",
-            "maximum": 200.0,
+            "maximum": 100.0,
             "minimum": 1.0,
             "title": "Distance M"
           },
@@ -4624,7 +4725,7 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 12.0,
+                "maximum": 100.0,
                 "minimum": 1.0
               },
               {
@@ -4637,7 +4738,7 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 30.0,
+                "maximum": 100.0,
                 "minimum": 1.0
               },
               {
@@ -4650,7 +4751,7 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 200.0,
+                "maximum": 100.0,
                 "minimum": 1.0
               },
               {
@@ -4916,24 +5017,29 @@
           "user": {
             "$ref": "#/components/schemas/UserRead"
           },
-          "game_count": {
-            "type": "integer",
-            "title": "Game Count"
-          },
-          "average_score": {
+          "value": {
             "type": "number",
-            "title": "Average Score"
+            "title": "Value"
+          },
+          "round_count": {
+            "type": "integer",
+            "title": "Round Count"
+          },
+          "arrow_count": {
+            "type": "integer",
+            "title": "Arrow Count"
           }
         },
         "type": "object",
         "required": [
           "rank",
           "user",
-          "game_count",
-          "average_score"
+          "value",
+          "round_count",
+          "arrow_count"
         ],
         "title": "UserRanking",
-        "description": "A user's position in a ranking of average game score, high to low."
+        "description": "metric の値が高い順の、利用者の順位。"
       },
       "UserRead": {
         "properties": {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import Combobox from "@/components/Combobox";
 import Field from "@/components/Field";
@@ -17,9 +18,11 @@ import {
   type ErrorDetails,
 } from "@/lib/api";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 
 export default function Page() {
+  const T = useT();
+  const router = useRouter();
   const [userId, setUserId] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [nickname, setNickname] = useState("");
@@ -31,7 +34,6 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<ErrorDetails | null>(null);
-  const [saved, setSaved] = useState(false);
 
   function applyUser(user: UserRead) {
     setName(user.name);
@@ -102,7 +104,6 @@ export default function Page() {
 
   async function handleSave() {
     setSaving(true);
-    setSaved(false);
     setError(null);
     try {
       const id = userId ?? (await getCurrentAppUser()).id;
@@ -116,7 +117,7 @@ export default function Page() {
       setUserId(id);
       applyUser(updated);
       setOrganizationId(resolvedOrganizationId);
-      setSaved(true);
+      router.push("/");
     } catch (e) {
       setError(toErrorDetails(e));
     } finally {
@@ -132,7 +133,6 @@ export default function Page() {
       ) : (
         <div className="panel stack">
           {error && <ApiErrorAlert error={error} />}
-          {saved && !error && <div className="status ok">{T.saved}</div>}
 
           <Field
             label={T.profile.settings.name}

@@ -4,8 +4,8 @@ RECORDED_AT = "2026-01-01"
 
 
 def _create_user(client: TestClient, name: str = "Yumi") -> dict:
-    res = client.post("/api/v1/users", json={"name": name})
-    assert res.status_code == 201
+    res = client.get("/api/v1/users/me")
+    assert res.status_code == 200
     return res.json()
 
 

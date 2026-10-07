@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import MonthDashboard from "@/components/MonthDashboard";
 import { getMyUser, type UserRead } from "@/lib/api";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 
 export default function Page() {
-  const router = useRouter();
+  const T = useT();
   const [currentUser, setCurrentUser] = useState<UserRead | null>(null);
 
   useEffect(() => {
@@ -61,30 +60,6 @@ export default function Page() {
         </div>
         <h1>{T.appName}</h1>
         <p className="muted small">{currentUser ? T.home.welcome(currentUser.name) : T.home.tagline}</p>
-      </div>
-
-      <div className="panel stack tight">
-        <button
-          type="button"
-          className="primary large block"
-          onClick={() => router.push("/game")}
-        >
-          {T.home.startScore}
-        </button>
-        <button
-          type="button"
-          className="large block"
-          onClick={() => router.push("/profile/matches")}
-        >
-          {T.home.registerMatch}
-        </button>
-        <button
-          type="button"
-          className="ghost large block"
-          onClick={() => router.push("/profile/settings")}
-        >
-          {T.home.profileSettings}
-        </button>
       </div>
 
       <MonthDashboard />

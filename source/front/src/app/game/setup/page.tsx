@@ -1,12 +1,16 @@
 "use client";
 
 import Field from "@/components/Field";
+import Modal from "@/components/Modal";
 import PageHeader from "@/components/PageHeader";
 import Segment from "@/components/Segment";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
+  BOW_TYPES,
+  BOW_TYPE_MAX_LENGTH,
   DEFAULT_ROUND_SETUP,
+  DISTANCE_PRESETS_M,
   MAX_DISTANCE_M,
   MAX_END_SIZE,
   MAX_GAME_SIZE,
@@ -16,120 +20,186 @@ import {
   MIN_GAME_SIZE,
   MIN_ROUND_SIZE,
   TARGET_TYPES,
+  integerRange,
   type RoundSetup,
 } from "@/lib/score/scoreConfig";
 import {
   clearGameId,
   loadRoundSetup,
   markNewGameStart,
-  saveInputMode,
   saveRoundSetup,
-  type InputMode,
 } from "@/lib/storage";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 
 type CountFieldProps = {
   label: string;
-  value: string;
-  onChange: (value: string) => void;
+  value: number;
+  onChange: (value: number) => void;
   min: number;
   max: number;
   hint: string;
 };
 
-/** 数でなく文字のまま持つ。空にした欄が 0 になり、エンドの無いゲームが始まらないようにする */
 function CountField(props: CountFieldProps) {
-  const invalid = !isCount(props.value, props.min, props.max);
-
   return (
     <Field
       label={props.label}
       hint={props.hint}
-      error={invalid ? T.game.setup.outOfRange(props.min, props.max) : null}
     >
       {(id) => (
-        <input
+        <select
           id={id}
-          type="number"
           value={props.value}
-          min={props.min}
-          max={props.max}
-          step={1}
-          aria-invalid={invalid}
-          onChange={(e) => props.onChange(e.target.value)}
-        />
+          onChange={(e) => props.onChange(Number(e.target.value))}
+        >
+          {integerRange(props.min, props.max).map((n) => (
+            <option
+              key={n}
+              value={n}
+            >
+              {n}
+            </option>
+          ))}
+        </select>
       )}
     </Field>
   );
 }
 
-function isCount(raw: string, min: number, max: number): boolean {
-  const value = Number(raw);
-  return raw.trim() !== "" && Number.isInteger(value) && value >= min && value <= max;
+type OtherModalProps = {
+  title: string;
+  onClose: () => void;
+  onSubmit: () => void;
+  canSubmit: boolean;
+  children: ReactNode;
+};
+
+/** 「その他」を押したときの入力のモーダル。決定を押すまで設定には反映しない */
+function OtherModal(props: OtherModalProps) {
+  const T = useT();
+  return (
+    <Modal
+      title={props.title}
+      onClose={props.onClose}
+      actions={
+        <button
+          type="button"
+          className="primary"
+          disabled={!props.canSubmit}
+          onClick={props.onSubmit}
+        >
+          {T.game.setup.ok}
+        </button>
+      }
+    >
+      {props.children}
+    </Modal>
+  );
 }
 
-const TARGET_OPTIONS = TARGET_TYPES.map((targetType) => ({
-  value: targetType.id,
-  label: targetType.label,
+const DISTANCE_OPTIONS = DISTANCE_PRESETS_M.map((distanceM) => ({
+  value: String(distanceM),
+  label: `${distanceM}m`,
 }));
 
 export default function Page() {
+  const T = useT();
   const router = useRouter();
+  const BOW_OPTIONS = BOW_TYPES.map((bowType) => ({
+    value: bowType.id,
+    label: T.options.bowType[bowType.id],
+  }));
+  const TARGET_OPTIONS = TARGET_TYPES.map((targetType) => ({
+    value: targetType.id,
+    label: T.options.targetType[targetType.id],
+  }));
 
-  const [distance, setDistance] = useState(String(DEFAULT_ROUND_SETUP.distanceM));
+  const [bowType, setBowType] = useState<string>(DEFAULT_ROUND_SETUP.bowType);
+  const [distance, setDistance] = useState(DEFAULT_ROUND_SETUP.distanceM);
   const [targetTypeId, setTargetTypeId] = useState(DEFAULT_ROUND_SETUP.targetType);
-  const [endSize, setEndSize] = useState(String(DEFAULT_ROUND_SETUP.endSize));
-  const [roundSize, setRoundSize] = useState(String(DEFAULT_ROUND_SETUP.roundSize));
-  const [gameSize, setGameSize] = useState(String(DEFAULT_ROUND_SETUP.gameSize));
+  const [endSize, setEndSize] = useState(DEFAULT_ROUND_SETUP.endSize);
+  const [roundSize, setRoundSize] = useState(DEFAULT_ROUND_SETUP.roundSize);
+  const [gameSize, setGameSize] = useState(DEFAULT_ROUND_SETUP.gameSize);
+  const [otherOpen, setOtherOpen] = useState<"bowType" | "distance" | null>(null);
+  const [draftBowName, setDraftBowName] = useState("");
+  const [draftDistance, setDraftDistance] = useState(DEFAULT_ROUND_SETUP.distanceM);
 
   // サーバーでの描画中は localStorage を読めないので、前回の設定は画面に載ってから当てる
   useEffect(() => {
     const saved = loadRoundSetup();
     if (!saved) return;
-    setDistance(String(saved.distanceM));
+    setBowType(saved.bowType);
+    setDistance(saved.distanceM);
     setTargetTypeId(saved.targetType);
-    setEndSize(String(saved.endSize));
-    setRoundSize(String(saved.roundSize));
-    setGameSize(String(saved.gameSize));
+    setEndSize(saved.endSize);
+    setRoundSize(saved.roundSize);
+    setGameSize(saved.gameSize);
   }, []);
 
-  const isValid =
-    isCount(distance, MIN_DISTANCE_M, MAX_DISTANCE_M) &&
-    isCount(endSize, MIN_END_SIZE, MAX_END_SIZE) &&
-    isCount(roundSize, MIN_ROUND_SIZE, MAX_ROUND_SIZE) &&
-    isCount(gameSize, MIN_GAME_SIZE, MAX_GAME_SIZE);
+  const bowIsOther = !BOW_TYPES.some((b) => b.id === bowType);
+  const distanceIsOther = !DISTANCE_PRESETS_M.includes(distance);
+  const trimmedDraftBowName = draftBowName.trim();
 
-  const totalArrows = Number(endSize) * Number(roundSize) * Number(gameSize);
+  const totalArrows = endSize * roundSize * gameSize;
 
-  function start(mode: InputMode) {
-    if (!isValid) return;
+  function openBowOther() {
+    setDraftBowName(bowIsOther ? bowType : "");
+    setOtherOpen("bowType");
+  }
+
+  function openDistanceOther() {
+    setDraftDistance(distance);
+    setOtherOpen("distance");
+  }
+
+  function start() {
     const setup: RoundSetup = {
-      distanceM: Number(distance),
+      bowType,
+      distanceM: distance,
       targetType: targetTypeId,
-      endSize: Number(endSize),
-      roundSize: Number(roundSize),
-      gameSize: Number(gameSize),
+      endSize,
+      roundSize,
+      gameSize,
     };
     saveRoundSetup(setup);
-    saveInputMode(mode);
     // この画面からは必ず新しいゲームを始める。「続きから」はこの画面を通らない
     clearGameId();
     markNewGameStart();
-    router.push(mode === "simple" ? "/game/simple-score-card" : "/game/score-card");
+    router.push("/game/score-card");
   }
 
   return (
     <div className="page">
       <PageHeader title={T.game.setup.title} />
       <div className="panel stack">
-        <CountField
-          label={T.game.setup.distance}
-          value={distance}
-          onChange={setDistance}
-          min={MIN_DISTANCE_M}
-          max={MAX_DISTANCE_M}
-          hint={T.game.setup.distanceHint}
-        />
+        <div className="field">
+          <span className="field-label">{T.game.setup.bowType}</span>
+          <Segment
+            options={BOW_OPTIONS}
+            value={bowIsOther ? "" : bowType}
+            onChange={setBowType}
+            label={T.game.setup.bowType}
+            other={{
+              label: bowIsOther ? T.game.setup.otherValue(bowType) : T.game.setup.other,
+              on: bowIsOther,
+              onClick: openBowOther,
+            }}
+          />
+        </div>
+        <div className="field">
+          <span className="field-label">{T.game.setup.distance}</span>
+          <Segment
+            options={DISTANCE_OPTIONS}
+            value={distanceIsOther ? "" : String(distance)}
+            onChange={(value) => setDistance(Number(value))}
+            label={T.game.setup.distance}
+            other={{
+              label: distanceIsOther ? T.game.setup.otherValue(`${distance}m`) : T.game.setup.other,
+              on: distanceIsOther,
+              onClick: openDistanceOther,
+            }}
+          />
+        </div>
         <div className="field">
           <span className="field-label">{T.game.setup.targetType}</span>
           <Segment
@@ -164,36 +234,70 @@ export default function Page() {
           hint={T.game.setup.gameSizeHint}
         />
 
-        {isValid && (
-          <p className="SetupSummary game-note muted">
-            {T.game.setup.summary(
-              totalArrows,
-              endSize,
-              roundSize,
-              gameSize,
-            )}
-          </p>
-        )}
+        <p className="SetupSummary game-note muted">
+          {T.game.setup.summary(
+            totalArrows,
+            String(endSize),
+            String(roundSize),
+            String(gameSize),
+          )}
+        </p>
 
-        <div className="stack tight">
-          <button
-            type="button"
-            className="primary large block"
-            disabled={!isValid}
-            onClick={() => start("simple")}
-          >
-            {T.game.setup.simpleMode}
-          </button>
-          <button
-            type="button"
-            className="large block"
-            disabled={!isValid}
-            onClick={() => start("touch")}
-          >
-            {T.game.setup.touchMode}
-          </button>
-        </div>
+        <button
+          type="button"
+          className="primary large block"
+          onClick={start}
+        >
+          {T.game.setup.start}
+        </button>
       </div>
+      {otherOpen === "bowType" && (
+        <OtherModal
+          title={T.game.setup.bowTypeOther}
+          onClose={() => setOtherOpen(null)}
+          canSubmit={trimmedDraftBowName !== ""}
+          onSubmit={() => {
+            setBowType(trimmedDraftBowName);
+            setOtherOpen(null);
+          }}
+        >
+          <input
+            type="text"
+            aria-label={T.game.setup.bowTypeOtherPlaceholder}
+            placeholder={T.game.setup.bowTypeOtherPlaceholder}
+            maxLength={BOW_TYPE_MAX_LENGTH}
+            value={draftBowName}
+            onChange={(e) => setDraftBowName(e.target.value)}
+            autoFocus
+          />
+        </OtherModal>
+      )}
+      {otherOpen === "distance" && (
+        <OtherModal
+          title={T.game.setup.distanceOther}
+          onClose={() => setOtherOpen(null)}
+          canSubmit
+          onSubmit={() => {
+            setDistance(draftDistance);
+            setOtherOpen(null);
+          }}
+        >
+          <select
+            aria-label={T.game.setup.distance}
+            value={draftDistance}
+            onChange={(e) => setDraftDistance(Number(e.target.value))}
+          >
+            {integerRange(MIN_DISTANCE_M, MAX_DISTANCE_M).map((n) => (
+              <option
+                key={n}
+                value={n}
+              >
+                {n}m
+              </option>
+            ))}
+          </select>
+        </OtherModal>
+      )}
     </div>
   );
 }

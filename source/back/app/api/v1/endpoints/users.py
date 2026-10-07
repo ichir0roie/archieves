@@ -6,6 +6,7 @@ from app.core.errors import NotFoundError
 from app.crud import organization as organization_crud
 from app.crud import profile as profile_crud
 from app.crud import user as user_crud
+from app.db import User
 from app.schemas.profile import UserProfile
 from app.schemas.user import UserCreate, UserFindOrCreate, UserRead, UserUpdate
 
@@ -77,9 +78,13 @@ def get_user(user_id: int, s: Session = Depends(deps.get_session)) -> UserRead:
 
 @router.patch("/{user_id}", response_model=UserRead)
 def update_user(
-    user_id: int, user_in: UserUpdate, s: Session = Depends(deps.get_session)
+    user_id: int,
+    user_in: UserUpdate,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> UserRead:
     user = deps.get_or_404(user_crud.get_user, s, user_id, detail="User not found")
+    deps.require_self(me, user.id)
     _check_organization_exists(s, user_in.organization_id)
     result = user_crud.update_user(s, user, user_in)
     s.commit()

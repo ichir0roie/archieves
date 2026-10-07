@@ -1,39 +1,40 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import End, EndComment, Game, GameComment, Round, RoundComment
 
 
 def get_game_comment(s: Session, game_id: int) -> GameComment | None:
-    return s.query(GameComment).filter(GameComment.game_id == game_id).first()
+    return s.scalar(select(GameComment).where(GameComment.game_id == game_id))
 
 
 def get_round_comment(s: Session, round_id: int) -> RoundComment | None:
-    return s.query(RoundComment).filter(RoundComment.round_id == round_id).first()
+    return s.scalar(select(RoundComment).where(RoundComment.round_id == round_id))
 
 
 def get_end_comment(s: Session, end_id: int) -> EndComment | None:
-    return s.query(EndComment).filter(EndComment.end_id == end_id).first()
+    return s.scalar(select(EndComment).where(EndComment.end_id == end_id))
 
 
 def list_round_comments_for_game(s: Session, game_id: int) -> list[RoundComment]:
-    return list(
-        s.query(RoundComment)
+    stmt = (
+        select(RoundComment)
         .join(Round, Round.id == RoundComment.round_id)
-        .filter(Round.game_id == game_id, Round.deleted_at.is_(None))
+        .where(Round.game_id == game_id, Round.deleted_at.is_(None))
         .order_by(RoundComment.id)
-        .all()
     )
+    return list(s.scalars(stmt))
 
 
 def list_end_comments_for_game(s: Session, game_id: int) -> list[EndComment]:
-    return list(
-        s.query(EndComment)
+    stmt = (
+        select(EndComment)
         .join(End, End.id == EndComment.end_id)
         .join(Round, Round.id == End.round_id)
-        .filter(Round.game_id == game_id, Round.deleted_at.is_(None))
+        .where(Round.game_id == game_id, Round.deleted_at.is_(None))
         .order_by(EndComment.id)
-        .all()
     )
+    return list(s.scalars(stmt))
 
 
 def _save(s: Session, comment: GameComment | RoundComment | EndComment, body: str):

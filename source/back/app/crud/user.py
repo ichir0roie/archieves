@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -10,11 +11,11 @@ def get_user(s: Session, user_id: int) -> User | None:
 
 
 def get_user_by_sub(s: Session, sub: str) -> User | None:
-    return s.query(User).filter(User.sub == sub).first()
+    return s.scalar(select(User).where(User.sub == sub))
 
 
 def list_users(s: Session, skip: int = 0, limit: int = 100) -> list[User]:
-    return list(s.query(User).order_by(User.id).offset(skip).limit(limit).all())
+    return list(s.scalars(select(User).order_by(User.id).offset(skip).limit(limit)))
 
 
 def create_user(s: Session, user_in: UserCreate, sub: str | None = None) -> User:

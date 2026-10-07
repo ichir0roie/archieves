@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import Organization
@@ -9,25 +10,24 @@ def get_organization(s: Session, organization_id: int) -> Organization | None:
 
 
 def get_organization_by_name(s: Session, name: str) -> Organization | None:
-    return s.query(Organization).filter(Organization.name == name).first()
+    return s.scalar(select(Organization).where(Organization.name == name))
 
 
 def list_organizations(s: Session, skip: int = 0, limit: int = 100) -> list[Organization]:
-    return list(
-        s.query(Organization).order_by(Organization.id).offset(skip).limit(limit).all()
-    )
+    stmt = select(Organization).order_by(Organization.id).offset(skip).limit(limit)
+    return list(s.scalars(stmt))
 
 
 def search_organizations_by_prefix(
     s: Session, prefix: str, limit: int = 10
 ) -> list[Organization]:
-    return list(
-        s.query(Organization)
-        .filter(Organization.name.ilike(f"{prefix}%"))
+    stmt = (
+        select(Organization)
+        .where(Organization.name.ilike(f"{prefix}%"))
         .order_by(Organization.name)
         .limit(limit)
-        .all()
     )
+    return list(s.scalars(stmt))
 
 
 def create_organization(s: Session, organization_in: OrganizationCreate) -> Organization:

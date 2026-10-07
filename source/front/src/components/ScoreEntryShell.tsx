@@ -5,25 +5,31 @@ import { useRouter } from "next/navigation";
 import EndView from "@/components/EndView";
 import CommentBar from "@/components/CommentBar";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
+import { useGuardScoreEntry } from "@/hooks/useGuardScoreEntry";
 import { useScoreGame } from "@/lib/score/useScoreGame";
 import {
   DEFAULT_END_SIZE,
   DEFAULT_TARGET_TYPE_ID,
 } from "@/lib/score/scoreConfig";
 import type { PointRead } from "@/lib/api";
-import type { SheetRound } from "@/lib/score/scoreManager";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 
 export type ScoreInputProps = {
   points: Array<PointRead>;
   /** エンド・ラウンド・ゲームのコメントの行。点数のすぐ下に来るよう、置く場所は入力の側が決める */
   commentBar: ReactNode;
-  /** ここまでのゲームの全ラウンド・全エンド。点数表を出す入力のため */
-  sheet: Array<SheetRound>;
   next: (point: number, x?: number, y?: number) => void;
-  nextEnd: () => void;
-  back: () => void;
+  /** 今のエンドの最後の矢を消す / 消した矢を入れ直す */
+  backPoint: () => void;
+  forwardPoint: () => void;
+  /** 今のエンドを消して前のエンドに戻る / 消したエンドを入れ直す(無ければ次のエンドを開く) */
+  backEnd: () => void;
+  forwardEnd: () => void;
   finish: () => void;
+  canBackPoint: boolean;
+  canForwardPoint: boolean;
+  canBackEnd: boolean;
+  canForwardEnd: boolean;
   /** 1エンドが満ちたときの矢の数 */
   endSize: number;
   targetType: string;
@@ -36,27 +42,28 @@ export type ScoreInputProps = {
 
 type Props = {
   renderInput: (props: ScoreInputProps) => ReactNode;
-  /** 点数表を自分で出す入力では切る。入力の上の 1 エンドの帯が同じエンドの二つ目にならないように */
-  showEndView?: boolean;
 };
 
 /**
- * 的をタッチする入力と点数だけの入力(/game/score-card・/game/simple-score-card)の共通の枠。
+ * 点数の入力(/game/score-card)の枠。
  * 進み具合の帯、useScoreGame の読み込み・エラー・再試行、EndView を受け持ち、入力の部品だけを入れ替える。
  */
-export default function ScoreEntryShell({ renderInput, showEndView = true }: Props) {
+export default function ScoreEntryShell({ renderInput }: Props) {
+  const T = useT();
   const router = useRouter();
+  useGuardScoreEntry();
   const {
     manager,
     mirrorPoints,
     progress,
-    sheet,
     comments,
     saveComment,
     next,
-    back,
+    backPoint,
+    forwardPoint,
+    backEnd,
+    forwardEnd,
     finish,
-    addEnd,
     error,
     isSaving,
     isSettingUp,
@@ -127,29 +134,33 @@ export default function ScoreEntryShell({ renderInput, showEndView = true }: Pro
               <p className="EndCompleteNotice notice full">{T.game.entry.endComplete}</p>
             )
           )}
-          {showEndView && (
-            <EndView
-              points={mirrorPoints}
-              endSize={endSize}
-            />
-          )}
+          <EndView
+            points={mirrorPoints}
+            endSize={endSize}
+          />
           <div className="grow">
             {renderInput({
               points: mirrorPoints,
-              sheet,
               commentBar: (
                 <CommentBar
                   comments={comments}
                   roundNumber={progress?.roundNumber ?? 0}
                   endNumber={progress?.endNumber ?? 0}
+                  isRoundFull={progress?.isRoundFull ?? false}
                   onSave={saveComment}
                   disabled={isSaving}
                 />
               ),
               next,
-              nextEnd: addEnd,
-              back,
+              backPoint,
+              forwardPoint,
+              backEnd,
+              forwardEnd,
               finish,
+              canBackPoint: progress?.canBackPoint ?? false,
+              canForwardPoint: progress?.canForwardPoint ?? false,
+              canBackEnd: progress?.canBackEnd ?? false,
+              canForwardEnd: progress?.canForwardEnd ?? false,
               endSize,
               targetType: progress ? manager.targetType : DEFAULT_TARGET_TYPE_ID,
               isEndFull: progress?.isEndFull ?? false,

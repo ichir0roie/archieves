@@ -4,7 +4,7 @@ import { useState } from "react";
 import Field from "@/components/Field";
 import Modal from "@/components/Modal";
 import { MAX_COMMENT_LENGTH } from "@/lib/comment";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 
 // app/score-view/page.tsx でも使うので、この形を変えない
 type Props = {
@@ -18,6 +18,8 @@ type Props = {
   /** まだコメントが無いときに文の代わりに出す */
   emptyText?: string;
   className?: string;
+  /** アイコンだけを出す。保存済みの文は呼ぶ側が別に出す(コメントの無い所が縦に場所を取らないように) */
+  iconOnly?: boolean;
 };
 
 /**
@@ -25,6 +27,7 @@ type Props = {
  * アイコンを押すと同じ文を入れたモーダルが開き、保存すると別のコメントを足さずにそれを書き換える。
  */
 export default function CommentField(props: Props) {
+  const T = useT();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -46,31 +49,36 @@ export default function CommentField(props: Props) {
     }
   }
 
+  // モーダルは枠の外(兄弟)に置く。枠の onClick がモーダル内の操作で働いて、書きかけを戻さないため
   return (
-    <div className={`CommentField comment-field ${props.className ?? ""}`}>
-      <button
-        type="button"
-        className={`ghost icon ${props.body ? "has-body" : ""}`}
-        aria-label={T.game.comment.open(props.title)}
-        disabled={props.disabled}
-        onClick={openEditor}
+    <>
+      <div
+        className={`CommentField comment-field ${props.iconOnly ? "icon-only" : ""} ${props.className ?? ""}`}
+        onClick={props.disabled ? undefined : openEditor}
       >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinejoin="round"
-          aria-hidden="true"
+        <button
+          type="button"
+          className={`ghost icon ${props.body ? "has-body" : ""}`}
+          aria-label={T.game.comment.open(props.title)}
+          disabled={props.disabled}
         >
-          <path d="M4 5h16v11H9l-5 4z" />
-        </svg>
-      </button>
-      <span className={`CommentText text ${props.body ? "" : "empty"}`}>
-        {props.body ?? props.emptyText ?? ""}
-      </span>
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4 5h16v11H9l-5 4z" />
+          </svg>
+        </button>
+        {!props.iconOnly && (<span className={`CommentText text ${props.body ? "" : "empty"}`}>
+          {props.body ?? props.emptyText ?? ""}
+        </span>)}
+      </div>
 
       {open && (
         <Modal
@@ -109,6 +117,6 @@ export default function CommentField(props: Props) {
           </Field>
         </Modal>
       )}
-    </div>
+    </>
   );
 }

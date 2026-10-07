@@ -1,52 +1,81 @@
+from datetime import date
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db import Region
+from app.db import End, Game, Region, Round, User
+from mods import factory_db
 
 GAME_RECORDED_AT = "2026-01-01T00:00:00Z"
 
 
+def _day(recorded_at: str) -> date:
+    return date.fromisoformat(recorded_at[:10])
+
+
+# 集計は他人の行も読むので、持ち主がだれでもいいデータは API ではなく factory で作る
+# (API で作れるのは本人の行だけ)
 def _create_game(
-    client: TestClient, *, user_id: int | None = None, recorded_at: str = GAME_RECORDED_AT
+    client: TestClient,
+    *,
+    user_id: int | None = None,
+    recorded_at: str = GAME_RECORDED_AT,
+    bow_type: str | None = None,
 ) -> dict:
     if user_id is None:
-        user_res = client.post("/api/v1/users", json={"name": "Yumi"})
-        user_id = user_res.json()["id"]
-    payload = {"recorded_at": recorded_at, "user_id": user_id}
+        user_id = client.get("/api/v1/users/me").json()["id"]
+    game = factory_db.GameFactory(
+        user=factory_db.FactorySession.get(User, user_id),
+        recorded_at=_day(recorded_at),
+        bow_type=bow_type,
+    )
+    return {"id": game.id}
+
+
+def _create_own_game_via_api(client: TestClient, *, bow_type: str | None = None) -> dict:
+    user_id = client.get("/api/v1/users/me").json()["id"]
+    payload = {"recorded_at": GAME_RECORDED_AT, "user_id": user_id, "bow_type": bow_type}
     res = client.post("/api/v1/games", json=payload)
     assert res.status_code == 201
     return res.json()
 
 
-def _create_round(client: TestClient, game_id: int, *, recorded_at: str) -> dict:
-    payload = {
-        "number": 1,
-        "recorded_at": recorded_at,
-        "end_size": 6,
-        "distance_m": 30,
-        "target_type": "122cm",
-    }
-    res = client.post(f"/api/v1/games/{game_id}/rounds", json=payload)
-    assert res.status_code == 201
-    return res.json()
+def _create_round(
+    client: TestClient, game_id: int, *, recorded_at: str, distance_m: int = 30, number: int = 1
+) -> dict:
+    game = factory_db.FactorySession.get(Game, game_id)
+    round_ = factory_db.RoundFactory(
+        game=game, number=number, recorded_at=_day(recorded_at), distance_m=distance_m
+    )
+    return {"id": round_.id}
 
 
 def _create_end(client: TestClient, round_id: int, *, recorded_at: str) -> dict:
-    payload = {"number": 1, "recorded_at": recorded_at}
-    res = client.post(f"/api/v1/rounds/{round_id}/ends", json=payload)
-    assert res.status_code == 201
-    return res.json()
+    round_ = factory_db.FactorySession.get(Round, round_id)
+    end = factory_db.EndFactory(round=round_, number=1, recorded_at=_day(recorded_at))
+    return {"id": end.id}
 
 
 def _create_point(client: TestClient, end_id: int, *, score: int, recorded_at: str) -> dict:
-    payload = {"number": 1, "score": score, "x": 0.0, "y": 0.0, "recorded_at": recorded_at}
-    res = client.post(f"/api/v1/ends/{end_id}/points", json=payload)
-    assert res.status_code == 201
-    return res.json()
+    end = factory_db.FactorySession.get(End, end_id)
+    point = factory_db.PointFactory(
+        end=end, number=1, score=score, x=0.0, y=0.0, recorded_at=_day(recorded_at)
+    )
+    return {"id": point.id}
 
 
-def _build_round(client: TestClient, game_id: int, *, recorded_at: str, scores: list[int]) -> dict:
-    round_ = _create_round(client, game_id, recorded_at=recorded_at)
+def _build_round(
+    client: TestClient,
+    game_id: int,
+    *,
+    recorded_at: str,
+    scores: list[int],
+    distance_m: int = 30,
+    number: int = 1,
+) -> dict:
+    round_ = _create_round(
+        client, game_id, recorded_at=recorded_at, distance_m=distance_m, number=number
+    )
     end = _create_end(client, round_["id"], recorded_at=recorded_at)
     for score in scores:
         _create_point(client, end["id"], score=score, recorded_at=recorded_at)
@@ -158,14 +187,10 @@ def _create_user(
     organization_id: int | None = None,
     region_id: int | None = None,
 ) -> dict:
-    payload = {
-        "name": name,
-        "organization_id": organization_id,
-        "region_id": region_id,
-    }
-    res = client.post("/api/v1/users", json=payload)
-    assert res.status_code == 201
-    return res.json()
+    user = factory_db.UserFactory(
+        name=name, organization_id=organization_id, region_id=region_id
+    )
+    return {"id": user.id}
 
 
 def _create_organization(client: TestClient, *, name: str) -> dict:
@@ -174,7 +199,7 @@ def _create_organization(client: TestClient, *, name: str) -> dict:
     return res.json()
 
 
-def test_ranking_orders_users_by_average_game_score_desc(client: TestClient) -> None:
+def test_ranking_orders_users_by_total_score_desc_by_default(client: TestClient) -> None:
     high = _create_user(client, name="high")
     low = _create_user(client, name="low")
     high_game = _create_game(client, user_id=high["id"])
@@ -187,12 +212,13 @@ def test_ranking_orders_users_by_average_game_score_desc(client: TestClient) -> 
     body = res.json()
     assert [row["user"]["name"] for row in body] == ["high", "low"]
     assert [row["rank"] for row in body] == [1, 2]
-    assert body[0]["average_score"] == 20.0
-    assert body[0]["game_count"] == 1
-    assert body[1]["average_score"] == 2.0
+    assert body[0]["value"] == 20.0
+    assert body[0]["round_count"] == 1
+    assert body[0]["arrow_count"] == 2
+    assert body[1]["value"] == 2.0
 
 
-def test_ranking_averages_multiple_games_per_user(client: TestClient) -> None:
+def test_ranking_sums_multiple_games_per_user(client: TestClient) -> None:
     user = _create_user(client, name="steady")
     game_a = _create_game(client, user_id=user["id"])
     _build_round(client, game_a["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10])
@@ -203,8 +229,8 @@ def test_ranking_averages_multiple_games_per_user(client: TestClient) -> None:
     assert res.status_code == 200
     body = res.json()
     assert len(body) == 1
-    assert body[0]["game_count"] == 2
-    assert body[0]["average_score"] == 7.0
+    assert body[0]["round_count"] == 2
+    assert body[0]["value"] == 14.0
 
 
 def test_ranking_filters_by_organization(client: TestClient) -> None:
@@ -256,8 +282,8 @@ def test_ranking_filters_by_period(client: TestClient) -> None:
     assert res.status_code == 200
     body = res.json()
     assert len(body) == 1
-    assert body[0]["game_count"] == 1
-    assert body[0]["average_score"] == 2.0
+    assert body[0]["round_count"] == 1
+    assert body[0]["value"] == 2.0
 
 
 def test_ranking_excludes_users_without_games(client: TestClient) -> None:
@@ -295,8 +321,8 @@ def test_ranking_filters_by_period_end(client: TestClient) -> None:
     assert res.status_code == 200
     body = res.json()
     assert len(body) == 1
-    assert body[0]["game_count"] == 1
-    assert body[0]["average_score"] == 10.0
+    assert body[0]["round_count"] == 1
+    assert body[0]["value"] == 10.0
 
 
 def test_ranking_filters_by_both_period_bounds(client: TestClient) -> None:
@@ -316,5 +342,192 @@ def test_ranking_filters_by_both_period_bounds(client: TestClient) -> None:
     assert res.status_code == 200
     body = res.json()
     assert len(body) == 1
-    assert body[0]["game_count"] == 1
-    assert body[0]["average_score"] == 8.0
+    assert body[0]["round_count"] == 1
+    assert body[0]["value"] == 8.0
+
+
+def _ranking(client: TestClient, **params: str | int) -> list[dict]:
+    res = client.get("/api/v1/statistics/ranking", params=params)
+    assert res.status_code == 200
+    return res.json()
+
+
+def test_ranking_metrics_differ_in_how_they_rank(client: TestClient) -> None:
+    # volume は 3 ラウンドで合計が多いが、1 本あたりも 1 ラウンドあたりも低い。
+    # sharp は 1 ラウンドだけ、1 本あたりが高い。
+    volume = _create_user(client, name="volume")
+    sharp = _create_user(client, name="sharp")
+    volume_game = _create_game(client, user_id=volume["id"])
+    for number in (1, 2, 3):
+        _build_round(
+            client,
+            volume_game["id"],
+            recorded_at="2026-01-01T00:00:00Z",
+            scores=[6, 6, 6, 6],
+            number=number,
+        )
+    sharp_game = _create_game(client, user_id=sharp["id"])
+    _build_round(client, sharp_game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10, 10])
+
+    total = _ranking(client, metric="total_score")
+    assert [(row["user"]["name"], row["value"]) for row in total] == [
+        ("volume", 72.0),
+        ("sharp", 20.0),
+    ]
+    average_round = _ranking(client, metric="average_round_score")
+    assert [(row["user"]["name"], row["value"]) for row in average_round] == [
+        ("volume", 24.0),
+        ("sharp", 20.0),
+    ]
+    average_point = _ranking(client, metric="average_point_score")
+    assert [(row["user"]["name"], row["value"]) for row in average_point] == [
+        ("sharp", 10.0),
+        ("volume", 6.0),
+    ]
+    assert average_point[1]["round_count"] == 3
+    assert average_point[1]["arrow_count"] == 12
+
+
+def test_ranking_counts_x_as_ten_and_miss_as_zero(client: TestClient) -> None:
+    user = _create_user(client, name="player")
+    game = _create_game(client, user_id=user["id"])
+    _build_round(client, game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[11, 0, 8])
+
+    body = _ranking(client, metric="average_point_score")
+    assert body[0]["value"] == 6.0
+
+
+def test_ranking_rejects_an_unknown_metric(client: TestClient) -> None:
+    res = client.get("/api/v1/statistics/ranking", params={"metric": "median"})
+    assert res.status_code == 422
+
+
+def test_ranking_filters_by_bow_type(client: TestClient) -> None:
+    recurve = _create_user(client, name="recurve_user")
+    compound = _create_user(client, name="compound_user")
+    unset = _create_user(client, name="unset_user")
+    for user, bow_type, score in [
+        (recurve, "recurve", 9),
+        (compound, "compound", 10),
+        (unset, None, 8),
+    ]:
+        game = _create_game(client, user_id=user["id"], bow_type=bow_type)
+        _build_round(client, game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[score])
+
+    assert [row["user"]["name"] for row in _ranking(client, bow_type="recurve")] == [
+        "recurve_user"
+    ]
+    assert [row["user"]["name"] for row in _ranking(client, bow_type="barebow")] == []
+    # 絞り込まなければ、弓の種類が未設定の記録も数える
+    assert [row["user"]["name"] for row in _ranking(client)] == [
+        "compound_user",
+        "recurve_user",
+        "unset_user",
+    ]
+
+
+def test_ranking_rejects_an_unknown_bow_type(client: TestClient) -> None:
+    res = client.get("/api/v1/statistics/ranking", params={"bow_type": "crossbow"})
+    assert res.status_code == 422
+
+
+def test_ranking_filters_by_distance_per_round(client: TestClient) -> None:
+    # 一つのゲームの中で距離を変えたラウンドは、距離ごとに別々に数える
+    user = _create_user(client, name="player")
+    game = _create_game(client, user_id=user["id"])
+    _build_round(
+        client, game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10], distance_m=70
+    )
+    _build_round(
+        client,
+        game["id"],
+        recorded_at="2026-01-01T00:00:00Z",
+        scores=[4],
+        distance_m=30,
+        number=2,
+    )
+
+    near = _ranking(client, distance_m=30)
+    assert [(row["value"], row["round_count"]) for row in near] == [(4.0, 1)]
+    far = _ranking(client, distance_m=70)
+    assert [(row["value"], row["round_count"]) for row in far] == [(10.0, 1)]
+    assert _ranking(client, distance_m=18) == []
+    assert _ranking(client)[0]["value"] == 14.0
+
+
+def test_ranking_combines_bow_type_distance_and_period(client: TestClient) -> None:
+    user = _create_user(client, name="player")
+    for recorded_at, bow_type, distance_m, score in [
+        ("2026-01-10T00:00:00Z", "recurve", 70, 10),
+        ("2026-02-10T00:00:00Z", "recurve", 70, 7),
+        ("2026-02-11T00:00:00Z", "recurve", 30, 5),
+        ("2026-02-12T00:00:00Z", "compound", 70, 3),
+    ]:
+        game = _create_game(
+            client, user_id=user["id"], recorded_at=recorded_at, bow_type=bow_type
+        )
+        _build_round(
+            client, game["id"], recorded_at=recorded_at, scores=[score], distance_m=distance_m
+        )
+
+    body = _ranking(
+        client,
+        bow_type="recurve",
+        distance_m=70,
+        start="2026-02-01T00:00:00Z",
+        end="2026-02-28T00:00:00Z",
+    )
+    assert [(row["value"], row["round_count"]) for row in body] == [(7.0, 1)]
+
+
+def test_ranking_ignores_rounds_without_arrows(client: TestClient) -> None:
+    user = _create_user(client, name="player")
+    game = _create_game(client, user_id=user["id"])
+    _build_round(client, game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[8, 8])
+    _create_round(client, game["id"], recorded_at="2026-01-01T00:00:00Z", number=2)
+
+    body = _ranking(client, metric="average_round_score")
+    assert [(row["value"], row["round_count"]) for row in body] == [(16.0, 1)]
+
+
+def test_ranking_excludes_deleted_games(client: TestClient) -> None:
+    game = _create_game(client)
+    _build_round(client, game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[9])
+    assert client.delete(f"/api/v1/games/{game['id']}").status_code == 204
+
+    assert _ranking(client) == []
+
+
+def test_ranking_paginates_with_the_rank_continuing(client: TestClient) -> None:
+    for name, score in [("a", 9), ("b", 8), ("c", 7)]:
+        user = _create_user(client, name=name)
+        game = _create_game(client, user_id=user["id"])
+        _build_round(client, game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[score])
+
+    page = _ranking(client, skip=1, limit=1)
+    assert [(row["rank"], row["user"]["name"]) for row in page] == [(2, "b")]
+
+
+def test_game_keeps_its_bow_type(client: TestClient) -> None:
+    game = _create_own_game_via_api(client, bow_type="barebow")
+    assert game["bow_type"] == "barebow"
+    assert client.get(f"/api/v1/games/{game['id']}").json()["bow_type"] == "barebow"
+
+    res = client.patch(f"/api/v1/games/{game['id']}", json={"bow_type": "compound"})
+    assert res.status_code == 200
+    assert res.json()["bow_type"] == "compound"
+
+    res = client.patch(f"/api/v1/games/{game['id']}", json={"bow_type": "和弓"})
+    assert res.status_code == 200
+    assert res.json()["bow_type"] == "和弓"
+
+    for bow_type in ["", "x" * 21]:
+        res = client.post(
+            "/api/v1/games",
+            json={
+                "user_id": game["user_id"],
+                "recorded_at": GAME_RECORDED_AT,
+                "bow_type": bow_type,
+            },
+        )
+        assert res.status_code == 422

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Field from "@/components/Field";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 
 type Props = {
   startMonth: string;
@@ -25,6 +25,7 @@ export default function MonthRangeFilter({
   onReset,
   children,
 }: Props) {
+  const T = useT();
   return (
     <div className="panel toolbar">
       {children}

@@ -16,6 +16,10 @@ class NotFoundError(LookupError):
     """指した行が無い(消された行を含む)。"""
 
 
+class ForbiddenError(PermissionError):
+    """認証は通っているが、他人の行を読み書きしようとした。"""
+
+
 def _detail(status_code: int):
     def handler(request: Request, exc: Exception) -> JSONResponse:
         return JSONResponse(status_code=status_code, content={"detail": str(exc)})
@@ -32,6 +36,7 @@ def _internal_error(request: Request, exc: Exception) -> JSONResponse:
 
 def install_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(NotFoundError, _detail(404))
+    app.add_exception_handler(ForbiddenError, _detail(403))
     # ドメインの検証(LegacyImportError など)は ValueError を投げる
     app.add_exception_handler(ValueError, _detail(400))
     app.add_exception_handler(ValidationError, _internal_error)

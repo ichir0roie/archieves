@@ -10,7 +10,7 @@ Next.js(App Router)・React 19。スマホで使う前提の画面が多い。
 | `src/components/` | コンポーネント。`atoms/`・`auth/`(`AuthGate`)・`templates/<画面の種類>/` |
 | `src/lib/api/` | API の呼び出し(`client.ts`)と型(`schemas.ts`・生成した `openapi.d.ts`) |
 | `src/lib/auth/` | ログインの形(`mock` / `cognito`)とモックの利用者 |
-| `src/modules/` | 画面に依らない処理(点数の入力の状態 `data/score/scoreManager.ts` など)とナビ |
+| `src/modules/` | 画面に依らない処理とナビ。点数の入力の状態は `src/lib/score/scoreManager.ts` |
 | `src/hooks/` | 共有の hook |
 | `amplify/` | Amplify Gen 2 の Cognito の定義(認証だけ。データは API が持つ) |
 | `e2e/` | Playwright の spec(`.claude/docs/testing.md` の「E2E」) |
@@ -31,7 +31,7 @@ Next.js(App Router)・React 19。スマホで使う前提の画面が多い。
 
 ## 状態
 
-- データの読み込みは `useState` + `useEffect`(片付けで `cancelled` を立てる)。SWR などは使っていない
+- GET の読み込みは `src/hooks/useLoad.ts`(`{ data, loading, error }`。deps が変わると読み直し、古い応答は捨てる)。ページに `useState` + `useEffect` + `cancelled` を書き写さない。SWR などは使っていない
 - 非冪等な POST を StrictMode で二度送らないよう、`useRunOnce` を使う
 - 点数の入力は `ScoreManager`(可変のクラス)が持ち、`useScoreGame` が React の状態に写す。考え方は `source/front/docs/state-management-best-practices.md`
 - 画面をまたいで残す値は `localStorage` / `sessionStorage`(`src/modules/functions/localStorage.ts`)

@@ -34,7 +34,12 @@
 
 * { box-sizing: border-box; }
 /* 画面全体(window)はスクロールさせない。スクロールするのは main の中だけ */
-html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
+/* スマホの誤操作の対策: 引っ張って更新・端までスクロールしたあとの連鎖・左右スワイプの戻る(一部のブラウザ)を止め、
+   ダブルタップのズームと長押しのメニュー・タップの灰色の枠を出さない。ピンチのズームは残す(touch-action: manipulation) */
+html { overscroll-behavior: none; -webkit-text-size-adjust: 100%; }
+body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+button, a { -webkit-touch-callout: none; }
 /* スマホではアドレスバーの出入りで 100% が実際の表示より高くなり、下端(入力のボタンなど)が隠れるので、見えている高さに合わせる */
 body { height: 100dvh; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.6; display: flex; }
@@ -179,7 +184,7 @@ table.list th { color: var(--muted); font-weight: 600; background: var(--chip); 
 .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; padding: 0.7rem 1rem; border-top: 1px solid var(--line); }
 
 /* ---- 画面の枠 ---- */
-main { flex: 1; min-width: 0; min-height: 0; overflow: auto; padding: 10px; }
+main { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 10px; }
 /* 画面の中身の幅。スマホで片手で使う画面が多いので、広い画面でも読みやすい幅に止める */
 .page { width: 100%; max-width: 36rem; margin: 0 auto; display: flex; flex-direction: column; gap: 0.9rem; padding-bottom: 5rem; }
 .page.wide { max-width: 64rem; }
@@ -217,7 +222,7 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; padding: 10px; }
 .ring-white { --ring: #ffffff; --ring-ink: #1d2027; }
 .ring-miss { --ring: #d4d7dd; --ring-ink: #1d2027; }
 
-/* ---- 点数の入力(/game/score-card・/game/simple-score-card) ----
+/* ---- 点数の入力(/game/score-card) ----
    画面全体を使い、main の余白もメニューのボタンも出さない(components/Nav.tsx) */
 main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .score-entry { height: 100%; display: flex; flex-direction: column; background: var(--panel); }
@@ -244,35 +249,14 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .comment-bar { flex-shrink: 0; padding: 0.1rem 0.75rem; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .comment-bar .row { flex-wrap: nowrap; gap: 0.25rem; }
 .comment-bar .title { width: 4.5rem; flex-shrink: 0; font-size: 0.65rem; font-weight: 600; color: var(--muted); }
-.comment-field { display: flex; align-items: center; gap: 0.25rem; min-width: 0; flex: 1; }
+.comment-field { cursor: pointer; display: flex; align-items: center; gap: 0.25rem; min-width: 0; flex: 1; }
 .comment-field .text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; }
 .comment-field .text.empty { color: var(--muted); }
 .comment-field .icon.has-body { color: var(--accent); }
 .comment-field .icon:not(.has-body) { color: var(--muted); }
 
-/* 点数表(ラウンドごとの表、今のエンドの行に枠) */
-.score-sheet { flex: 1; min-height: 0; overflow-y: auto; padding: 0 0.5rem 0.5rem; background: var(--bg); }
-.score-sheet .sheet-round-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: baseline; padding: 0.5rem 0 0.25rem; background: var(--bg); font-weight: 700; }
-.score-sheet .sheet-round-head .round-total { font-size: 0.85rem; color: var(--muted); }
-.score-sheet table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: center; background: var(--panel); }
-.score-sheet th, .score-sheet td { border: 1px solid var(--line); padding: 0.3rem 0; }
-.score-sheet th { font-size: 0.75rem; font-weight: 600; color: var(--muted); background: var(--chip); }
-.score-sheet th.end-col { width: 3.5rem; }
-.score-sheet th.sum-col { width: 3rem; }
-.score-sheet th.run-col { width: 3.5rem; }
-.score-sheet td { font-size: 1.25rem; font-weight: 700; }
-.score-sheet td.arrow-cell { font-size: 1.4rem; line-height: 1; }
-.score-sheet td.arrow-cell.blank { color: var(--line); }
-.score-sheet td.running { color: var(--muted); font-weight: 600; }
-.score-sheet tr.current td { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
-.score-sheet tr.current { outline: 2px solid var(--accent); outline-offset: -2px; }
-
-/* 点数のキー。片手で持って親指の届く下半分に並べる */
-.keypad { height: 50%; flex-shrink: 0; display: flex; flex-direction: column; border-top: 2px solid var(--line); background: var(--panel); }
-.keypad .keys { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 1fr; gap: 0.5rem; padding: 0.5rem; }
-.keypad .keys button { background: var(--ring); color: var(--ring-ink); border: 1px solid #9aa0ab; border-radius: 14px; font-size: 1.8rem; font-weight: 700; }
-.keypad .keys button:active:not(:disabled) { transform: scale(0.95); }
-.score-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; padding: 0.6rem; border-top: 1px solid var(--line); flex-shrink: 0; }
+.score-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; padding: 0.6rem; border-top: 1px solid var(--line); flex-shrink: 0; }
+.score-actions > .finish { grid-column: 1 / -1; }
 
 /* 的をタッチする入力。帯は内側ほど上に重ね、押した所を覆ういちばん小さい帯に当たるようにする */
 .target-input { height: 100%; display: flex; flex-direction: column; }
@@ -281,13 +265,23 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .target-face .miss-area { position: absolute; inset: 0; z-index: 0; border: 0; border-radius: 0; background: none; padding: 0; }
 .target-face .target-ring { position: absolute; border-radius: 999px; background: var(--ring); border: 1px solid #6a7080; padding: 0; }
 .target-face .arrow-mark { position: absolute; width: 10px; height: 10px; border-radius: 999px; background: #fff; border: 2px solid #000; z-index: 100; pointer-events: none; }
+.target-face .target-ring:disabled { cursor: default; }
+/* 押しているあいだ指の上に出すズーム。指の下の帯と、離すと付く点数を見せる */
+.score-entry { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+.target-face { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.target-face .target-lens { position: absolute; z-index: 200; border-radius: 999px; overflow: hidden; border: 2px solid var(--line); background: var(--panel); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); pointer-events: none; }
+.target-face .target-lens .lens-content { position: absolute; }
+/* 十字は中央の帯(ringClass)の色を反転した色。帯と同じ色で埋もれないようにする */
+.target-face .target-lens .lens-crosshair { --crosshair: rgb(from var(--ring) calc(255 - r) calc(255 - g) calc(255 - b)); position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 999px; border: 2px solid var(--crosshair); z-index: 150; }
+.target-face .target-lens .lens-crosshair::before,
+.target-face .target-lens .lens-crosshair::after { content: ""; position: absolute; background: var(--crosshair); }
+.target-face .target-lens .lens-crosshair::before { left: 50%; top: -8px; width: 2px; height: 26px; margin-left: -1px; }
+.target-face .target-lens .lens-crosshair::after { top: 50%; left: -8px; height: 2px; width: 26px; margin-top: -1px; }
+.target-face .target-lens .lens-score { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 160; min-width: 2.2rem; padding: 0.1rem 0.5rem; border-radius: 999px; text-align: center; font-weight: 700; font-size: 1.1rem; background: var(--ring); color: var(--ring-ink); border: 1px solid #6a7080; }
 
 /* ---- 点数の入力の追加分 ---- */
 /* 入力の要素でない見出し(Segment の上の「的の種類」)。.field > label と同じ見た目にする */
 .field > .field-label { font-size: 0.85rem; color: var(--muted); }
-
-/* 点数だけの入力。上に点数表、下半分にキー */
-.simple-input { height: 100%; display: flex; flex-direction: column; }
 
 /* .stack の中の一行の説明。段の間は gap で空けるので p の余白を消す */
 .game-note { margin: 0; }
@@ -311,25 +305,45 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 
 /* スコアの表示(/score-view)。見出しとコメントを一行に並べる */
 .view-comment { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
-.view-comment > .section-label { flex-shrink: 0; }
-.view-comment > .end-label { width: 3.5rem; }
+.view-round-head { justify-content: space-between; }
+.view-comment-block { display: flex; flex-direction: column; gap: 0.25rem; }
+.view-comment-text { margin: 0; font-size: 0.85rem; white-space: pre-wrap; }
+.comment-field.icon-only { flex: none; }
 .view-round-title { font-weight: 700; }
+.view-summary { display: flex; justify-content: space-around; align-items: center; text-align: center; }
+.arrow-map { display: block; width: 100%; max-width: 360px; margin: 0 auto; }
+.view-summary-value { font-size: 1.4rem; font-weight: 700; }
 
-/* ラウンドの点数表。狭い画面で列が潰れるときは表だけを横にずらす */
+/* ラウンドの点数表。狭い画面で列が潰れるときは表だけを横にずらす。
+   コメントはアイコンだけを右端の列に置き、書かれたものだけ行の下に出す */
 .view-sheet-scroll { overflow-x: auto; }
 table.list.view-sheet { table-layout: fixed; }
 .view-sheet th, .view-sheet td { text-align: center; vertical-align: middle; }
 .view-sheet td { font-weight: 600; }
 .view-sheet .end-col { width: 2.5rem; }
 .view-sheet .sum-col { width: 3.5rem; }
-.view-sheet .comment-col { width: 14rem; text-align: left; font-weight: 400; }
+.view-sheet .icon-col { width: 2.5rem; padding: 0; }
+.view-sheet .comment-row td { text-align: left; font-weight: 400; font-size: 0.8rem; padding-top: 0; white-space: pre-wrap; }
 
-/* コメントの列は広い画面だけ。狭い画面は表の下に END ごとに並べる */
-.view-end-comments { display: none; flex-direction: column; gap: 0.25rem; }
-@media (max-width: 767px) {
-  .view-sheet .comment-col { display: none; }
-  .view-end-comments { display: flex; }
-}
+/* スコアログの年・月・日の見出し */
+.log-toolbar { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+.log-group { margin-bottom: 0.5rem; }
+.log-head { display: flex; align-items: center; gap: 0.5rem; width: 100%; text-align: left; background: var(--chip); border-color: transparent; }
+.log-arrow { font-size: 0.7rem; width: 1rem; }
+.log-title { font-weight: 700; flex: 1; }
+.log-month > .log-body, .log-day > .log-body, .log-year > .log-body { margin-top: 0.4rem; }
+.log-month, .log-day { margin-left: 0.75rem; }
+
+/* 設定画面で選んだ隅(未設定なら上の既定)。狭い画面の指定より強くするため nav[data-pos] を付ける */
+nav[data-pos] .nav-fab { width: 42px; height: 42px; }
+nav[data-pos^="top"] .nav-fab { top: 10px; bottom: auto; }
+nav[data-pos^="bottom"] .nav-fab { top: auto; bottom: 16px; }
+nav[data-pos$="left"] .nav-fab { left: 10px; right: auto; }
+nav[data-pos$="right"] .nav-fab { left: auto; right: 16px; }
+nav[data-pos^="top"] .nav-panel { top: 60px; bottom: auto; }
+nav[data-pos^="bottom"] .nav-panel { top: auto; bottom: 70px; }
+nav[data-pos$="left"] .nav-panel { left: 10px; right: auto; }
+nav[data-pos$="right"] .nav-panel { left: auto; right: 16px; }
 
 /* ---- 狭い画面 ---- */
 @media (max-width: 640px) {

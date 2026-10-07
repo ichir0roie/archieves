@@ -6,8 +6,8 @@ import { ensureRegistered } from "./ensureRegistered";
 
 test.beforeEach(async ({ page }) => {
   await ensureRegistered(page);
-  await page.goto("/import");
-  await expect(page.locator("header")).toContainText("インポート");
+  await page.goto("/settings");
+  await expect(page.locator("header")).toContainText("設定");
 });
 
 test("the import button stays disabled until a file is chosen", async ({ page }) => {

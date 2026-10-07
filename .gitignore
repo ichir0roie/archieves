@@ -17,3 +17,6 @@ secrets
 
 # web のセッションの用意の印とログ(.claude/hooks/session-start.sh)
 /.cache/
+
+# VS Code の launch.json が Chrome に渡すプロファイル
+/.vscode/chrome-user-data/

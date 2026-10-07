@@ -63,9 +63,8 @@ def test_get_missing_user_returns_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_update_user_basic_info(client: TestClient) -> None:
-    create_res = client.post("/api/v1/users", json={"name": "Yumi"})
-    user_id = create_res.json()["id"]
+def test_update_user_basic_info(client: TestClient, current_user) -> None:
+    user_id = current_user.id
 
     patch_res = client.patch(
         f"/api/v1/users/{user_id}",
@@ -78,12 +77,28 @@ def test_update_user_basic_info(client: TestClient) -> None:
     assert body["age"] == 30
 
 
-def test_update_user_with_missing_organization_returns_404(client: TestClient) -> None:
-    create_res = client.post("/api/v1/users", json={"name": "Yumi"})
-    user_id = create_res.json()["id"]
+def test_update_user_with_missing_organization_returns_404(
+    client: TestClient, current_user
+) -> None:
+    user_id = current_user.id
 
     response = client.patch(f"/api/v1/users/{user_id}", json={"organization_id": 999})
     assert response.status_code == 404
+
+
+def test_update_another_user_is_forbidden(client: TestClient, factories) -> None:
+    other = factories.UserFactory(name="Kenta")
+
+    response = client.patch(f"/api/v1/users/{other.id}", json={"nickname": "x"})
+    assert response.status_code == 403
+
+
+def test_get_another_user_is_allowed(client: TestClient, factories) -> None:
+    other = factories.UserFactory(name="Kenta")
+
+    response = client.get(f"/api/v1/users/{other.id}")
+    assert response.status_code == 200
+    assert response.json()["name"] == "Kenta"
 
 
 def test_update_missing_user_returns_404(client: TestClient) -> None:
@@ -118,8 +133,8 @@ def test_ensure_current_user_creates_then_reuses(client: TestClient) -> None:
     assert second.json() == created
 
 
-def test_get_me_returns_404_when_not_registered(client: TestClient) -> None:
-    response = client.get("/api/v1/users/me")
+def test_get_me_returns_404_when_not_registered(unregistered_client: TestClient) -> None:
+    response = unregistered_client.get("/api/v1/users/me")
     assert response.status_code == 404
 
 

@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { shoot, startGame } from "./scoreEntry";
 
 const ROUTE_TIMEOUT = 15_000;
 
@@ -8,31 +9,25 @@ export interface RecordedGame {
 }
 
 /**
- * Records one full end through the score-only entry screen and finishes the
- * game, so the pages that read archieves-api back (score log, statistics,
- * ranking, match registration) have something of this user's to show.
- * Returns the finished game's id, read off the score-view URL.
+ * 1 エンドぶんを的のタッチで記録して終了し、archieves-api を読む画面
+ * (スコア一覧・統計・ランキング・試合の登録)にこの利用者の記録を一つ作る。
+ * 終わったゲームの id を score-view の URL から読んで返す。
  */
 export async function recordGame(
   page: Page,
-  { score = "10", arrows = 6 }: { score?: string; arrows?: number } = {},
+  {
+    score = "10",
+    arrows = 6,
+    bowType,
+  }: { score?: string; arrows?: number; bowType?: string } = {},
 ): Promise<RecordedGame> {
-  await page.goto("/game/setup");
-  await page.getByLabel("1エンドの矢数").fill(String(arrows));
-  await page.getByLabel("エンド数").fill("1");
-  await page.getByLabel("ラウンド数").fill("1");
-  await page.getByRole("button", { name: "点数だけ入力" }).click();
-  await expect(page).toHaveURL(/\/game\/simple-score-card$/, { timeout: ROUTE_TIMEOUT });
-  await expect(page.locator(".ScoreProgress")).toBeVisible({ timeout: ROUTE_TIMEOUT });
-
-  const sheetArrows = page.locator(".ScoreSheet .CurrentEnd .ArrowValue");
-  const button = page
-    .locator(".SimpleScoreInput")
-    .getByRole("button", { name: score, exact: true });
-  for (let i = 0; i < arrows; i++) {
-    await button.click();
-    await expect(sheetArrows).toHaveCount(i + 1);
-  }
+  await startGame(page, {
+    bowType,
+    endSize: arrows,
+    roundSize: 1,
+    gameSize: 1,
+  });
+  await shoot(page, score, arrows);
 
   await page.getByRole("button", { name: "終了" }).click();
   await expect(page).toHaveURL(/\/score-view\?gameId=/, { timeout: ROUTE_TIMEOUT });

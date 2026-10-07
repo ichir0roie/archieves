@@ -66,8 +66,8 @@ def test_get_user_profile_returns_basic_info(client: TestClient) -> None:
     assert body["rounds"]["count"] == 0
 
 
-def test_get_missing_user_profile_returns_404(client: TestClient) -> None:
-    response = client.get("/api/v1/users/test-user-sub/profile")
+def test_get_missing_user_profile_returns_404(unregistered_client: TestClient) -> None:
+    response = unregistered_client.get("/api/v1/users/test-user-sub/profile")
     assert response.status_code == 404
 
 

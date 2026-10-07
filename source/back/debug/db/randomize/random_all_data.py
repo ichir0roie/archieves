@@ -2,6 +2,7 @@
 
 import random
 
+from app.core.bow_types import BowType
 from mods.factory_db import (
     EndFactory,
     FactorySession,
@@ -47,6 +48,7 @@ def _create_games(users: list) -> list:
         GameFactory.create(
             user=random.choice(users),
             game_size=random.randint(1, 10),
+            bow_type=random.choice([*BowType, None]),
         )
         for _ in range(GAME_COUNT)
     ]

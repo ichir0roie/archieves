@@ -62,7 +62,9 @@ def s() -> Generator[Session]:
 
 
 @pytest.fixture()
-def client(s: Session) -> Generator[TestClient]:
+def unregistered_client(s: Session) -> Generator[TestClient]:
+    """ログインはしているが、本人の `users` の行がまだ無い状態の client。"""
+
     # テストでは要求をまたいで同じセッションを使うので、コミットし忘れた書き込みも
     # 次の要求から見えてしまう。書いたのにコミットせずに返した要求をここで落とす
     def _flushed(session: Session, flush_context: object) -> None:
@@ -88,6 +90,12 @@ def client(s: Session) -> Generator[TestClient]:
 
 
 @pytest.fixture()
+def client(unregistered_client: TestClient, current_user) -> TestClient:
+    """本人の行がある状態の client(「本人のみ」のエンドポイントは本人の行を引く)。"""
+    return unregistered_client
+
+
+@pytest.fixture()
 def factories(s: Session):
     """Every factory_boy factory, already bound to this test's session.
 
@@ -105,12 +113,16 @@ def factories(s: Session):
 
 
 @pytest.fixture()
-def user(factories):
-    """One persisted user, for the many tests that just need an owner."""
-    return factories.UserFactory()
+def current_user(factories):
+    """The user `client`'s requests authenticate as (see TEST_CLAIMS)."""
+    return factories.UserFactory(sub=TEST_CLAIMS.sub, name="Yumi")
 
 
 @pytest.fixture()
-def current_user(factories):
-    """The user `client`'s requests authenticate as (see TEST_CLAIMS)."""
-    return factories.UserFactory(sub=TEST_CLAIMS.sub)
+def user(current_user):
+    """One persisted user, for the many tests that just need an owner.
+
+    「本人のみ」のエンドポイントは本人の行しか通さないので、`client` で操作する行の持ち主は
+    この利用者(`current_user` と同じ)にする。他人が要るテストは `factories.UserFactory()` で作る。
+    """
+    return current_user

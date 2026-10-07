@@ -10,7 +10,7 @@
 
 | 場所 | `CLAUDE_CODE_REMOTE` | SessionStart フック(`.claude/hooks/session-start.sh`) | PostgreSQL |
 | --- | --- | --- | --- |
-| 手元(CLI・VS Code) | `true` でない | 何もしない。`.claude/scripts/setup-dev-env.sh` を手で回す | Docker のコンテナ(:55432) |
+| 手元(CLI・VS Code) | `true` でない | 何もしない。`.claude/scripts/setup-dev-env.sh` を手で回す | Docker のコンテナ(:55434) |
 | web のセッション(Claude Code on the web) | `true` | venv・PostgreSQL・node_modules を裏で用意する(それを使うコマンドだけ用意が済むまで待たされる) | apt のクラスタ(:5432) |
 
 どちらも `infra_local/postgres.sh` が用意する。

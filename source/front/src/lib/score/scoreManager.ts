@@ -35,6 +35,7 @@ import {
 } from "@/lib/api";
 import { type CommentTarget } from "@/lib/comment";
 import {
+  DEFAULT_BOW_TYPE,
   DEFAULT_DISTANCE_M,
   DEFAULT_END_SIZE,
   DEFAULT_GAME_SIZE,
@@ -46,13 +47,10 @@ import {
 export type { GameRead, RoundRead, EndRead, PointRead };
 
 /**
- * Sentinel id for a round/end that only exists in memory. Real ids come from
- * the database and are always positive, so this can never collide with one.
- * Rounds/ends are built with this id the moment the UI needs to show them
- * (e.g. a fresh "END 1/6" header) but are only sent to the backend once the
- * player records their first point in them - see `ensurePersisted()`. This
- * is what stops an abandoned game (setup screen opened, then backed out of
- * before scoring anything) from leaving an empty game/round/end behind.
+ * まだ API に書いていないラウンド・エンド・矢の id。本物の id は正の数なのでぶつからない。
+ * 画面に「END 1/6」を出すために先に形だけ作り、エンドを動かす・終了するときに flushEnd() で
+ * 本物にする。設定の画面から来てそのまま離れた、何も撃っていないゲームが db に残らないようにするため。
+ * 仮のラウンド・エンドは、いちばん後ろ(末尾)にだけある。
  */
 const PENDING_ID = -1;
 
@@ -60,7 +58,7 @@ function isPending(entity: { id: number }): boolean {
   return entity.id === PENDING_ID;
 }
 
-/** Where the player is on the score sheet, for the entry screen's header. */
+/** 入力の画面の帯に出す、今の位置とボタンの可否 */
 export interface ScoreProgress {
   roundNumber: number;
   gameSize: number;
@@ -69,54 +67,68 @@ export interface ScoreProgress {
   arrowCount: number;
   endSize: number;
   isEndFull: boolean;
+  /** ラウンドの最後のエンドまで矢が埋まった */
+  isRoundFull: boolean;
   isGameComplete: boolean;
+  canBackPoint: boolean;
+  canForwardPoint: boolean;
+  canBackEnd: boolean;
+  canForwardEnd: boolean;
 }
 
-/** One end as the whole-game score sheet shows it. */
-export interface SheetEnd {
-  number: number;
-  points: Array<PointRead>;
-  /** The end the player is recording into right now. */
-  isCurrent: boolean;
+/** 「1ポイント戻る」で外した矢。「1ポイント進む」で同じ点数・位置を入れ直す */
+interface UndonePoint {
+  score: number;
+  x: number;
+  y: number;
 }
 
-/** One round as the whole-game score sheet shows it. */
-export interface SheetRound {
-  number: number;
-  endSize: number;
-  ends: Array<SheetEnd>;
+function toUndonePoint(point: PointRead): UndonePoint {
+  return { score: point.score, x: point.x, y: point.y };
 }
 
+/**
+ * 点数の入力の画面が持つ、ゲーム・ラウンド・エンド・矢の状態。
+ *
+ * ゲームの全部(ラウンド・エンド・矢)を持ち、今どこを見ているかを roundIndex / endIndex で表す。
+ * 矢はエンドごとにここへ溜め、API には書かない。エンドを動かす・終了するときに、flushEnd() が
+ * そのエンドの分をまとめて登録・削除する。
+ * データが消えるのは「1ポイント戻る」だけ。「1エンド戻る・進む」は位置を動かすだけで、
+ * 前後のエンドの矢もコメントも消さない。
+ *
+ * API を呼ぶメソッドは、呼び出しが済んでからローカルの状態を変える。途中で失敗しても、
+ * 画面に出すものと db が食い違わないようにするため。
+ */
 export class ScoreManager {
   gameId: string | null = null;
   userId: number;
   game: GameRead | null = null;
-  /** Distance/target size/arrows per end/end count/round count from the setup screen; only used for brand-new games. */
+  /** 設定の画面で選んだ距離・的・矢数・エンド数・ラウンド数。新しいゲームにだけ使う */
   setup: RoundSetup | null;
 
+  /** rounds[r] のエンドは endsOf[r]、その矢は pointsOf[r][e]。三つは常に同じ形 */
   rounds: Array<RoundRead> = [];
-  ends: Array<EndRead> = [];
+  private endsOf: Array<Array<EndRead>> = [];
+  private pointsOf: Array<Array<Array<PointRead>>> = [];
 
-  currentRound: RoundRead | null = null;
-  currentEnd: EndRead | null = null;
-  currentPoints: Array<PointRead> = [];
+  /** 今見ているラウンド・エンドの位置 */
+  private roundIndex = 0;
+  private endIndex = 0;
 
   /**
-   * Every comment already written under this game, fetched in one request
-   * when the game is loaded. The screen only ever shows the ones on the
-   * game and on the round/end being recorded into, so they are looked up
-   * by id rather than kept per screen position.
+   * このゲームに書かれたコメント全部。読み込み時に一度で取る。画面に出すのはゲームと
+   * 今のラウンド・エンドの分だけなので、位置でなく id で引く。
    */
   private comments: GameComments = { game: null, rounds: [], ends: [] };
 
   /**
-   * Arrows already recorded in this game, as recordedPoints[roundIndex][endIndex],
-   * so the score sheet can show the whole game and not just the end in progress.
-   * The end in progress is deliberately absent: `sheet` reads it from
-   * currentPoints, and archiveCurrentEnd() files it here the moment the player
-   * moves on to the next end.
+   * 「1ポイント戻る」で外した矢の控え。キーは `ラウンドの位置:エンドの位置`。エンドごとに持つので、
+   * 別のエンドへ動いて戻っても残る。そのエンドに新しく矢を撃つと、そのエンドの分だけ捨てる。
    */
-  private recordedPoints: Array<Array<Array<PointRead>>> = [];
+  private undonePoints = new Map<string, Array<UndonePoint>>();
+
+  /** 「1ポイント戻る」で外した、API に登録済みの矢。次の flushEnd() で API から消す */
+  private deletedPointIds: Array<number> = [];
 
   constructor(gameId: string | null, userId: number, setup: RoundSetup | null = null) {
     this.gameId = gameId;
@@ -124,17 +136,51 @@ export class ScoreManager {
     this.setup = setup;
   }
 
-  /** Rounds planned for this game. */
+  // ---- 今の位置 ----
+
+  get currentRound(): RoundRead | null {
+    return this.rounds[this.roundIndex] ?? null;
+  }
+
+  private get ends(): Array<EndRead> {
+    return this.endsOf[this.roundIndex] ?? [];
+  }
+
+  get currentEnd(): EndRead | null {
+    return this.ends[this.endIndex] ?? null;
+  }
+
+  /** 今のエンドの矢。同じ配列を返すので、呼ぶ側は写しを取ってから使う */
+  get currentPoints(): Array<PointRead> {
+    return this.pointsOf[this.roundIndex]?.[this.endIndex] ?? [];
+  }
+
+  private get undoneKey(): string {
+    return `${this.roundIndex}:${this.endIndex}`;
+  }
+
+  private get currentUndone(): Array<UndonePoint> {
+    return this.undonePoints.get(this.undoneKey) ?? [];
+  }
+
+  /** ゲームのいちばん後ろのエンドを見ている */
+  private get isAtTail(): boolean {
+    return this.roundIndex === this.rounds.length - 1 && this.endIndex === this.ends.length - 1;
+  }
+
+  // ---- ゲームの形 ----
+
+  /** このゲームのラウンド数 */
   get gameSize(): number {
     return this.game?.game_size ?? this.setup?.gameSize ?? DEFAULT_GAME_SIZE;
   }
 
-  /** Ends planned for the current round. */
+  /** 今のラウンドのエンド数 */
   get roundSize(): number {
     return this.currentRound?.round_size ?? this.setup?.roundSize ?? DEFAULT_ROUND_SIZE;
   }
 
-  /** Arrows planned for each end of the current round. */
+  /** 今のラウンドの、1 エンドの矢数 */
   get endSize(): number {
     return this.currentRound?.end_size ?? this.setup?.endSize ?? DEFAULT_END_SIZE;
   }
@@ -143,26 +189,53 @@ export class ScoreManager {
     return this.currentRound?.target_type ?? this.setup?.targetType ?? DEFAULT_TARGET_TYPE_ID;
   }
 
-  /** The note on the whole game, if one was written. */
+  get isEndFull(): boolean {
+    return this.currentPoints.length >= this.endSize;
+  }
+
+  get isRoundFull(): boolean {
+    return this.ends.length >= this.roundSize && this.endIndex === this.roundSize - 1 && this.isEndFull;
+  }
+
+  /** 最後のエンドまで来て、全ラウンドの全エンドの矢が入った */
+  get isGameComplete(): boolean {
+    return (
+      this.isAtTail &&
+      this.isEndFull &&
+      this.ends.length >= this.roundSize &&
+      this.rounds.length >= this.gameSize
+    );
+  }
+
+  private get hasAnyPoint(): boolean {
+    return this.pointsOf.some((round) => round.some((points) => points.length > 0));
+  }
+
+  // ---- コメント ----
+
   get gameComment(): string | null {
     return this.comments.game?.body ?? null;
   }
 
-  /** The note on the round being recorded into, if one was written. */
   get roundComment(): string | null {
-    const roundId = this.currentRound?.id;
-    if (roundId === undefined) return null;
-    return this.comments.rounds.find((c) => c.round_id === roundId)?.body ?? null;
+    return this.roundCommentOf(this.currentRound);
   }
 
-  /** The note on the end being recorded into, if one was written. */
   get endComment(): string | null {
-    const endId = this.currentEnd?.id;
-    if (endId === undefined) return null;
-    return this.comments.ends.find((c) => c.end_id === endId)?.body ?? null;
+    return this.endCommentOf(this.currentEnd);
   }
 
-  /** A comment is worth keeping even when no arrow was ever scored. */
+  private roundCommentOf(round: RoundRead | null | undefined): string | null {
+    if (!round) return null;
+    return this.comments.rounds.find((c) => c.round_id === round.id)?.body ?? null;
+  }
+
+  private endCommentOf(end: EndRead | null | undefined): string | null {
+    if (!end) return null;
+    return this.comments.ends.find((c) => c.end_id === end.id)?.body ?? null;
+  }
+
+  /** 矢が一本も無くても、コメントがあるゲームは残す値打ちがある */
   private get hasAnyComment(): boolean {
     return (
       this.comments.game !== null ||
@@ -171,22 +244,33 @@ export class ScoreManager {
     );
   }
 
-  get isEndFull(): boolean {
-    return this.currentPoints.length >= this.endSize;
+  // ---- ボタンの可否 ----
+
+  get canBackPoint(): boolean {
+    return this.currentPoints.length > 0;
   }
 
-  /** Every planned arrow of every planned end of every planned round is in. */
-  get isGameComplete(): boolean {
-    return (
-      this.isEndFull &&
-      this.ends.length >= this.roundSize &&
-      this.rounds.length >= this.gameSize
-    );
+  get canForwardPoint(): boolean {
+    return this.currentUndone.length > 0 && !this.isEndFull;
   }
 
-  /** True while the game holds no arrow at all - nothing worth keeping yet. */
-  get isEmpty(): boolean {
-    return this.rounds.length <= 1 && this.ends.length <= 1 && this.currentPoints.length === 0;
+  /** 空のゲームを消して設定の直後に戻せる: db にゲームがあり、矢もコメントも無い */
+  private get canDropEmptyGame(): boolean {
+    return this.game !== null && !this.hasAnyPoint && !this.hasAnyComment;
+  }
+
+  /** 前のエンドがあるか、ゲームの最初のエンドで消せる空のゲームがある */
+  get canBackEnd(): boolean {
+    return this.roundIndex > 0 || this.endIndex > 0 || this.canDropEmptyGame;
+  }
+
+  /**
+   * 後ろにエンドがあれば進める。いちばん後ろでは、矢が空でも次を開ける(撃たなかったエンドを飛ばせる)。
+   * ゲームの最後のエンドからは進めない(終了で閉じる)。
+   */
+  get canForwardEnd(): boolean {
+    if (!this.isAtTail) return true;
+    return this.ends.length < this.roundSize || this.rounds.length < this.gameSize;
   }
 
   get progress(): ScoreProgress {
@@ -198,52 +282,16 @@ export class ScoreManager {
       arrowCount: this.currentPoints.length,
       endSize: this.endSize,
       isEndFull: this.isEndFull,
+      isRoundFull: this.isRoundFull,
       isGameComplete: this.isGameComplete,
+      canBackPoint: this.canBackPoint,
+      canForwardPoint: this.canForwardPoint,
+      canBackEnd: this.canBackEnd,
+      canForwardEnd: this.canForwardEnd,
     };
   }
 
-  /** The whole game as a score sheet: every round, its ends and their arrows. */
-  get sheet(): Array<SheetRound> {
-    const lastRoundIndex = this.rounds.length - 1;
-    const lastEndIndex = this.ends.length - 1;
-
-    return this.rounds.map((round, roundIndex) => ({
-      number: round.number,
-      endSize: round.end_size ?? DEFAULT_END_SIZE,
-      ends: (this.recordedPoints[roundIndex] ?? []).map((points, endIndex) => {
-        const isCurrent = roundIndex === lastRoundIndex && endIndex === lastEndIndex;
-        return {
-          number: endIndex + 1,
-          points: isCurrent ? this.currentPoints : points,
-          isCurrent,
-        };
-      }),
-    }));
-  }
-
-  private get currentRoundPoints(): Array<Array<PointRead>> {
-    const recorded = this.recordedPoints[this.recordedPoints.length - 1];
-    if (recorded) return recorded;
-
-    const created: Array<Array<PointRead>> = [];
-    this.recordedPoints.push(created);
-    return created;
-  }
-
-  /**
-   * Files the end in progress into recordedPoints, right before currentPoints
-   * is handed over to a new end.
-   */
-  private archiveCurrentEnd() {
-    if (this.ends.length === 0) return;
-    this.currentRoundPoints[this.ends.length - 1] = [...this.currentPoints];
-  }
-
-  private async fetchRoundPoints(round: RoundRead): Promise<Array<Array<PointRead>>> {
-    if (isPending(round)) return [];
-    const ends = await listEnds(round.id);
-    return Promise.all(ends.map((end) => listPoints(end.id)));
-  }
+  // ---- 読み込み ----
 
   async setupGame() {
     if (!this.gameId) {
@@ -259,96 +307,61 @@ export class ScoreManager {
     }
 
     if (this.game) {
-      await this.loadGameData();
+      await this.loadGameData(this.game);
     } else {
-      // Nothing is written yet: addRound()/addEnd() only prepare the round/end
-      // the UI needs to display. The game itself is created lazily, along
-      // with this round and end, the first time a point is actually scored.
-      await this.addRound();
-      await this.addEnd();
+      // まだ何も書いていない。画面に出すためのラウンド・エンドの形だけ作る
+      this.openNextRound();
     }
   }
 
-  async loadGameData() {
-    if (!this.game) return;
+  private async loadGameData(game: GameRead) {
+    const [comments, rounds] = await Promise.all([
+      listGameComments(game.id),
+      listRounds(game.id),
+    ]);
+    const endsOf = await Promise.all(rounds.map((round) => listEnds(round.id)));
+    const pointsOf = await Promise.all(
+      endsOf.map((ends) => Promise.all(ends.map((end) => listPoints(end.id))))
+    );
 
-    await this.fetchComments();
-    await this.fetchRounds();
+    this.comments = comments;
+    this.rounds = rounds;
+    this.endsOf = endsOf;
+    this.pointsOf = pointsOf;
+    this.deletedPointIds = [];
+    this.undonePoints.clear();
 
-    if (!this.currentRound) {
-      // addRound() already appends to this.rounds and sets currentRound.
-      const round = await this.addRound();
-      if (!round) throw new Error("ラウンドを作成できませんでした。");
-    } else {
-      // fetchRounds() only ever hands back real, already-persisted rounds.
-      await this.fetchCurrentEnds();
-    }
-
-    if (!this.currentEnd) {
-      // addEnd() already appends to this.ends and sets currentEnd.
-      const end = await this.addEnd();
-      if (!end) throw new Error("エンドを作成できませんでした。");
-    } else {
-      await this.fetchCurrentPoints();
-    }
-
-    // A game put down mid-round comes back with its last end already full;
-    // opening straight onto it would swallow every tap. Move on to the end
-    // the player would actually shoot next, unless the game is over.
-    if (this.isEndFull && !this.isGameComplete) {
-      await this.addEnd();
-    }
-  }
-
-  /**
-   * Creates whatever this.game/currentRound/currentEnd is still only a local
-   * placeholder for, in that order, right before the first point is written
-   * to it. Called only from addPoint() - every other mutator stays purely
-   * local until this runs.
-   */
-  private async ensurePersisted() {
-    let game = this.game;
-    if (!game) {
-      game = await createGame(this.userId, new Date(), this.setup?.gameSize);
-      this.game = game;
-      this.gameId = String(game.id);
-      saveGameId(this.gameId);
-      clearNewGameStart();
-    }
-
-    let round = this.currentRound;
-    if (round && isPending(round)) {
-      const persisted = await createRound(game.id, {
-        number: round.number,
-        endSize: round.end_size,
-        roundSize: round.round_size ?? undefined,
-        distanceM: round.distance_m,
-        targetType: round.target_type,
-      });
-      this.rounds[this.rounds.length - 1] = persisted;
-      this.currentRound = persisted;
-      round = persisted;
-    }
-
-    const end = this.currentEnd;
-    if (round && end && isPending(end)) {
-      const persisted = await createEnd(round.id, end.number);
-      this.ends[this.ends.length - 1] = persisted;
-      this.currentEnd = persisted;
-    }
-  }
-
-  async addRound() {
-    if (this.rounds.length >= this.gameSize) {
+    if (rounds.length === 0) {
+      this.openNextRound();
       return;
     }
 
-    this.archiveCurrentEnd();
+    this.roundIndex = rounds.length - 1;
+    if (this.ends.length === 0) {
+      this.pushPendingEnd();
+    } else {
+      this.endIndex = this.ends.length - 1;
+    }
 
-    // Every round in a game shares one setup: reuse the previous round's
-    // values so later rounds don't silently fall back to the defaults.
-    const previous = this.currentRound;
-    const round: RoundRead = {
+    // ラウンドの途中で置いたゲームは、最後のエンドが満ちた形で戻ってくる。そのまま開くと
+    // 的を押しても何も入らないので、次に撃つエンドを開けておく。次のラウンドへは手動で進むので、
+    // ラウンドの最後のエンドは開けない
+    if (this.isEndFull && this.endIndex < this.roundSize - 1) {
+      this.openNextEnd();
+    }
+  }
+
+  // ---- ラウンド・エンドを開く(ローカルだけ) ----
+
+  /**
+   * 次のラウンドをローカルに開く(ラウンドとその最初のエンド)。ゲームが満ちていれば何もせず false。
+   * ゲームの中のラウンドは同じ設定なので、前のラウンドの値を引き継ぐ。
+   */
+  private openNextRound(): boolean {
+    if (this.rounds.length >= this.gameSize) return false;
+
+    const previous = this.rounds[this.rounds.length - 1];
+    this.rounds.push({
       id: PENDING_ID,
       game_id: this.game?.id ?? PENDING_ID,
       user_id: this.userId,
@@ -359,117 +372,213 @@ export class ScoreManager {
       distance_m: previous?.distance_m ?? this.setup?.distanceM ?? DEFAULT_DISTANCE_M,
       target_type: previous?.target_type ?? this.setup?.targetType ?? DEFAULT_TARGET_TYPE_ID,
       deleted_at: null,
-    };
-
-    this.rounds.push(round);
-    this.recordedPoints.push([]);
-    this.currentRound = round;
-
-    this.ends = [];
-    this.currentEnd = null;
-    this.currentPoints = [];
-
-    return round;
+    });
+    this.endsOf.push([]);
+    this.pointsOf.push([]);
+    this.roundIndex = this.rounds.length - 1;
+    this.pushPendingEnd();
+    return true;
   }
 
-  async removeRound() {
-    if (this.rounds.length <= 1) throw new Error("これ以上前のラウンドはありません。");
-
-    const roundToDelete = this.rounds.pop();
-    this.recordedPoints.pop();
-    if (!roundToDelete) throw new Error("削除するラウンドを取得できませんでした。");
-    if (!isPending(roundToDelete)) {
-      await deleteRound(roundToDelete.id);
-      this.forgetRoundComment(roundToDelete.id);
-    }
-
-    this.currentRound = this.rounds[this.rounds.length - 1] || null;
-    if (!this.currentRound) return;
-
-    await this.fetchCurrentEnds();
-
-    if (this.ends.length > 0) {
-      await this.fetchCurrentPoints();
-    } else {
-      await this.addEnd();
-    }
-  }
-
-  async addEnd() {
-    if (!this.currentRound) {
-      throw new Error("ラウンドが開始されていません。");
-    }
-
+  /** いちばん後ろに次のエンドを開く。ラウンドが満ちていれば次のラウンドへ。開けなければ false */
+  private openNextEnd(): boolean {
+    this.roundIndex = this.rounds.length - 1;
     if (this.ends.length >= this.roundSize) {
-      const round = await this.addRound();
-      if (!round) return;
-    } else {
-      this.archiveCurrentEnd();
+      return this.openNextRound();
     }
+    this.pushPendingEnd();
+    return true;
+  }
 
-    const end: EndRead = {
+  /** 今のラウンドの末尾に仮のエンドを足し、そこを見る */
+  private pushPendingEnd() {
+    const round = this.currentRound;
+    if (!round) throw new Error("ラウンドが開始されていません。");
+    const ends = this.endsOf[this.roundIndex];
+    ends.push({
       id: PENDING_ID,
-      round_id: this.currentRound.id,
+      round_id: round.id,
       user_id: this.userId,
-      number: this.currentEnd ? this.currentEnd.number + 1 : 1,
+      number: ends.length + 1,
+      recorded_at: toDateOnly(new Date()),
+    });
+    this.pointsOf[this.roundIndex].push([]);
+    this.endIndex = ends.length - 1;
+  }
+
+  // ---- 矢(ローカルだけ。API へは flushEnd で書く) ----
+
+  private newLocalPoint(point: UndonePoint, number: number): PointRead {
+    return {
+      id: PENDING_ID,
+      end_id: this.currentEnd?.id ?? PENDING_ID,
+      user_id: this.userId,
+      number,
+      score: point.score,
+      x: point.x,
+      y: point.y,
+      x_cm: null,
+      y_cm: null,
       recorded_at: toDateOnly(new Date()),
     };
-
-    this.ends.push(end);
-    this.currentRoundPoints.push([]);
-    this.currentEnd = end;
-
-    this.currentPoints = [];
-
-    return end;
   }
 
-  async removeEnd() {
-    if (!this.currentRound) {
-      throw new Error("ラウンドが開始されていません。");
+  /** 矢を一本記録する。エンドが満ちていれば何もしない */
+  async addPoint(score: number, x: number = 0, y: number = 0) {
+    if (this.isEndFull || !this.currentEnd) return;
+
+    // 新しく撃った矢で、このエンドの履歴が分かれる
+    this.undonePoints.delete(this.undoneKey);
+    const points = this.currentPoints;
+    points.push(this.newLocalPoint({ score, x, y }, points.length + 1));
+
+    // 矢が満ちたら、同じラウンドの次のエンドへ自動で進む。次のラウンドへは手動(goForwardEnd)。
+    // 書き込みに失敗しても矢はローカルに残り、「1エンド進む」で書き直せる
+    if (this.isEndFull && this.endIndex < this.roundSize - 1) {
+      await this.goForwardEnd();
     }
-    if (this.ends.length <= 1) {
-      if (this.rounds.length > 1) {
-        await this.removeRound();
-      } else if (this.currentPoints.length === 0) {
-        await this.restartEmptyGame();
-      }
+  }
+
+  /** 今のエンドの最後の矢を外す。データが消えるのはここだけ。restorePoint() で入れ直せる */
+  async removePoint() {
+    const point = this.currentPoints.pop();
+    if (!point) return;
+
+    if (!isPending(point)) this.deletedPointIds.push(point.id);
+    this.undonePoints.set(this.undoneKey, [...this.currentUndone, toUndonePoint(point)]);
+  }
+
+  /** removePoint() で外した矢を入れ直す */
+  async restorePoint() {
+    if (!this.canForwardPoint) return;
+
+    const undone = [...this.currentUndone];
+    const point = undone.pop();
+    if (!point) return;
+    this.undonePoints.set(this.undoneKey, undone);
+    const points = this.currentPoints;
+    points.push(this.newLocalPoint(point, points.length + 1));
+  }
+
+  // ---- エンドの行き来 ----
+
+  /**
+   * 「1エンド戻る」: 今のエンドを API へ書いてから、前のエンドへ位置を動かす。何も消さない。
+   * ゲームの最初のエンドでは、矢もコメントも無い空のゲームだけを消して、設定の直後の画面に戻す。
+   */
+  async goBackEnd() {
+    if (!this.canBackEnd) return;
+
+    if (this.roundIndex === 0 && this.endIndex === 0) {
+      await this.dropEmptyGame();
       return;
     }
-    const endToDelete = this.ends.pop();
-    this.recordedPoints[this.recordedPoints.length - 1]?.pop();
-    if (!endToDelete) {
-      throw new Error("削除するエンドを取得できませんでした。");
-    }
-    if (!isPending(endToDelete)) {
-      await deleteEnd(endToDelete.id);
-      this.forgetEndComment(endToDelete.id);
-    }
 
-    this.currentEnd = this.ends[this.ends.length - 1] || null;
-    if (this.currentEnd && !isPending(this.currentEnd)) {
-      await this.fetchCurrentPoints();
+    await this.flushEnd(this.roundIndex, this.endIndex);
+    if (this.endIndex > 0) {
+      this.endIndex -= 1;
     } else {
-      this.currentPoints = [];
+      this.roundIndex -= 1;
+      this.endIndex = this.ends.length - 1;
     }
   }
 
   /**
-   * Backing out past the very first arrow: the game/round/end that
-   * ensurePersisted() created are now empty, and leaving them behind would
-   * put a 0-arrow game in the score log and the statistics. Delete them and
-   * hand back the same still-empty screen, keeping the round shape the
-   * player set up.
+   * 「1エンド進む」: 今のエンドを API へ書いてから、後ろのエンドへ位置を動かす。
+   * いちばん後ろなら、次のエンドを新しく開く。
    */
-  private async restartEmptyGame() {
-    if (!this.game) return;
-    // Backing out of a game the player wrote a comment on: the comment is
-    // worth keeping even with no arrow behind it, so leave the game alone.
-    if (this.hasAnyComment) return;
+  async goForwardEnd() {
+    if (!this.canForwardEnd) return;
+
+    await this.flushEnd(this.roundIndex, this.endIndex);
+    // 矢が空でも、後ろへ進むエンドは本物にする。仮の物は末尾にしか置けない
+    if (isPending(this.ends[this.endIndex])) {
+      await this.ensurePersisted(this.roundIndex, this.endIndex);
+    }
+    if (!this.isAtTail) {
+      if (this.endIndex < this.ends.length - 1) {
+        this.endIndex += 1;
+      } else {
+        this.roundIndex += 1;
+        this.endIndex = 0;
+      }
+      return;
+    }
+    this.openNextEnd();
+  }
+
+  // ---- API への書き込み ----
+
+  /**
+   * ゲーム・ラウンド・エンドのうち、まだ仮の物を API に作る。矢・コメントを書く直前にだけ呼ぶ。
+   * 仮の物は末尾にしか無いので、渡された位置のものを作る。
+   */
+  private async ensurePersisted(roundIndex: number, endIndex: number) {
+    let game = this.game;
+    if (!game) {
+      game = await createGame(this.userId, new Date(), this.setup?.gameSize, this.setup?.bowType);
+      this.game = game;
+      this.gameId = String(game.id);
+      saveGameId(this.gameId);
+      clearNewGameStart();
+    }
+
+    let round = this.rounds[roundIndex];
+    if (isPending(round)) {
+      round = await createRound(game.id, {
+        number: round.number,
+        endSize: round.end_size,
+        roundSize: round.round_size ?? undefined,
+        distanceM: round.distance_m,
+        targetType: round.target_type,
+      });
+      this.rounds[roundIndex] = round;
+    }
+
+    const end = this.endsOf[roundIndex][endIndex];
+    if (isPending(end)) {
+      this.endsOf[roundIndex][endIndex] = await createEnd(round.id, end.number);
+    }
+  }
+
+  /**
+   * そのエンドの変更をまとめて API に書く。外した矢を消し、まだ登録していない矢を順に登録する。
+   * 途中で失敗すると例外になり、ローカルの状態は書けた所までしか進まない(呼び直せば続きから書く)。
+   */
+  private async flushEnd(roundIndex: number, endIndex: number) {
+    while (this.deletedPointIds.length > 0) {
+      await deletePoint(this.deletedPointIds[0]);
+      this.deletedPointIds.shift();
+    }
+
+    const points = this.pointsOf[roundIndex][endIndex];
+    if (!points.some(isPending)) return;
+
+    await this.ensurePersisted(roundIndex, endIndex);
+    const end = this.endsOf[roundIndex][endIndex];
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i];
+      if (!isPending(point)) continue;
+      points[i] = await createPoint(end.id, {
+        number: i + 1,
+        score: point.score,
+        x: point.x,
+        y: point.y,
+      });
+    }
+  }
+
+  // ---- 後始末 ----
+
+  /** 何も残っていないゲームを消し、同じ設定の空の画面(未保存のラウンド・エンド)に戻す */
+  private async dropEmptyGame() {
+    const game = this.game;
+    if (!game) return;
 
     const previous = this.currentRound;
     if (previous) {
       this.setup = {
+        bowType: game.bow_type ?? this.setup?.bowType ?? DEFAULT_BOW_TYPE,
         distanceM: previous.distance_m,
         targetType: previous.target_type,
         endSize: previous.end_size,
@@ -478,122 +587,97 @@ export class ScoreManager {
       };
     }
 
-    await deleteGame(this.game.id);
-    this.forgetGame();
-
-    await this.addRound();
-    await this.addEnd();
-  }
-
-  private forgetGame() {
+    await deleteGame(game.id);
     this.game = null;
     this.gameId = null;
     this.comments = { game: null, rounds: [], ends: [] };
     clearGameId();
     markNewGameStart();
+
     this.rounds = [];
-    this.ends = [];
-    this.recordedPoints = [];
-    this.currentRound = null;
-    this.currentEnd = null;
-    this.currentPoints = [];
+    this.endsOf = [];
+    this.pointsOf = [];
+    this.deletedPointIds = [];
+    this.undonePoints.clear();
+    this.roundIndex = 0;
+    this.endIndex = 0;
+    this.openNextRound();
+  }
+
+  /** いちばん後ろのエンドを(API に登録済みなら API からも)消す。ラウンドの最後の一つには使わない */
+  private async removeTailEnd() {
+    const roundIndex = this.rounds.length - 1;
+    const ends = this.endsOf[roundIndex];
+    const end = ends[ends.length - 1];
+    if (!isPending(end)) {
+      await deleteEnd(end.id);
+      this.comments.ends = this.comments.ends.filter((c) => c.end_id !== end.id);
+    }
+    ends.pop();
+    this.pointsOf[roundIndex].pop();
+    this.clampPosition();
+  }
+
+  /** いちばん後ろのラウンドを(登録済みなら API からも)消す */
+  private async removeTailRound() {
+    const roundIndex = this.rounds.length - 1;
+    const round = this.rounds[roundIndex];
+    if (!isPending(round)) {
+      await deleteRound(round.id);
+      const endIds = this.endsOf[roundIndex].map((end) => end.id);
+      this.comments.rounds = this.comments.rounds.filter((c) => c.round_id !== round.id);
+      this.comments.ends = this.comments.ends.filter((c) => !endIds.includes(c.end_id));
+    }
+    this.rounds.pop();
+    this.endsOf.pop();
+    this.pointsOf.pop();
+    this.clampPosition();
+  }
+
+  private clampPosition() {
+    this.roundIndex = Math.max(Math.min(this.roundIndex, this.rounds.length - 1), 0);
+    this.endIndex = Math.max(Math.min(this.endIndex, this.ends.length - 1), 0);
   }
 
   /**
-   * Drops the trailing end/round/game the player never put an arrow in,
-   * right before leaving the entry screen. Returns whether any scored game
-   * is left to show. Undoing an arrow leaves its end persisted but empty,
-   * so without this a score sheet can end on a blank row.
+   * 入力の画面を離れる直前に、今のエンドを API へ書き、矢の無い末尾のエンド・ラウンド・ゲームを消す。
+   * 残るゲームがあれば true。矢を外すとそのエンドは空のまま残るので、これが無いとスコア表の
+   * 末尾に空の行が出る。コメントの付いたエンド・ラウンド・ゲームは空でも記録なので残す。
    */
   async discardEmptyTail(): Promise<boolean> {
-    if (!this.game || this.currentPoints.length > 0) return this.game !== null;
+    await this.flushEnd(this.roundIndex, this.endIndex);
+    if (!this.game) return false;
 
-    // An end/round/game carrying a comment is not an empty tail: the note
-    // is the record, so it stays even though no arrow was scored in it.
-    const trailingEnd = this.ends[this.ends.length - 1];
-    if (trailingEnd && this.endComment !== null) return true;
+    for (;;) {
+      const roundIndex = this.rounds.length - 1;
+      const ends = this.endsOf[roundIndex];
+      const endIndex = ends.length - 1;
 
-    const end = this.ends.pop();
-    this.recordedPoints[this.recordedPoints.length - 1]?.pop();
-    if (end && !isPending(end)) {
-      await deleteEnd(end.id);
-      this.forgetEndComment(end.id);
+      if (this.pointsOf[roundIndex][endIndex].length > 0) return true;
+      if (this.endCommentOf(ends[endIndex]) !== null) return true;
+      if (ends.length > 1) {
+        await this.removeTailEnd();
+        continue;
+      }
+
+      if (this.roundCommentOf(this.rounds[roundIndex]) !== null) return true;
+      if (this.rounds.length > 1) {
+        await this.removeTailRound();
+        continue;
+      }
+
+      if (this.hasAnyComment) return true;
+      await this.dropEmptyGame();
+      return false;
     }
-    this.currentEnd = this.ends[this.ends.length - 1] || null;
-    if (this.ends.length > 0) return true;
-
-    const trailingRound = this.rounds[this.rounds.length - 1];
-    if (trailingRound && this.roundComment !== null) return true;
-
-    const round = this.rounds.pop();
-    this.recordedPoints.pop();
-    if (round && !isPending(round)) {
-      await deleteRound(round.id);
-      this.forgetRoundComment(round.id);
-    }
-    this.currentRound = this.rounds[this.rounds.length - 1] || null;
-    if (this.rounds.length > 0) return true;
-
-    if (this.hasAnyComment) return true;
-
-    await deleteGame(this.game.id);
-    this.forgetGame();
-    return false;
   }
 
-  async addPoint(score: number, x?: number, y?: number) {
-    if (this.isEndFull) {
-      return this.currentPoints;
-    }
-
-    await this.ensurePersisted();
-    if (!this.currentEnd) throw new Error("エンドを作成できませんでした。");
-
-    const newPoint = await createPoint(this.currentEnd.id, {
-      number:
-        this.currentPoints.length > 0
-          ? this.currentPoints[this.currentPoints.length - 1].number + 1
-          : 1,
-      score,
-      x: x ?? 0,
-      y: y ?? 0,
-    });
-
-    this.currentPoints.push(newPoint);
-
-    return this.currentPoints;
-  }
-
-  async removePoint() {
-    if (!this.currentEnd) {
-      throw new Error("エンドが開始されていません。");
-    }
-    if (this.currentPoints.length === 0) {
-      await this.removeEnd();
-      return;
-    }
-
-    const pointToDelete = this.currentPoints.pop();
-    if (!pointToDelete) {
-      throw new Error("削除する矢を取得できませんでした。");
-    }
-
-    await deletePoint(pointToDelete.id);
-    await this.fetchCurrentPoints();
-
-    return this.currentPoints;
-  }
-
-  async fetchComments() {
-    if (!this.game) return;
-    this.comments = await listGameComments(this.game.id);
-  }
+  // ---- コメント ----
 
   /**
-   * Writes the note on the game, the round in progress or the end in
-   * progress, replacing the one already stored for it. An empty text
-   * removes the comment instead. Like scoring an arrow, this is the first
-   * thing that can turn the still-local game/round/end into real rows.
+   * ゲーム・今のラウンド・今のエンドのコメントを書く(あれば置き換える)。空文字なら消す。
+   * コメントは仮のゲーム・ラウンド・エンドを本物にする最初のきっかけになりうる。矢は
+   * エンドを動かすときまで溜めたままにする。
    */
   async saveComment(target: CommentTarget, body: string) {
     const text = body.trim();
@@ -602,7 +686,7 @@ export class ScoreManager {
       return;
     }
 
-    await this.ensurePersisted();
+    await this.ensurePersisted(this.roundIndex, this.endIndex);
 
     if (target === "game") {
       const game = this.game;
@@ -615,17 +699,16 @@ export class ScoreManager {
       const round = this.currentRound;
       if (!round || isPending(round)) throw new Error("ラウンドを作成できませんでした。");
       const saved = await saveRoundComment(round.id, text);
-      this.comments.rounds = [
-        ...this.comments.rounds.filter((c) => c.round_id !== round.id),
-        saved,
-      ];
+      this.forgetRoundComment(round.id);
+      this.comments.rounds.push(saved);
       return;
     }
 
     const end = this.currentEnd;
     if (!end || isPending(end)) throw new Error("エンドを作成できませんでした。");
     const saved = await saveEndComment(end.id, text);
-    this.comments.ends = [...this.comments.ends.filter((c) => c.end_id !== end.id), saved];
+    this.forgetEndComment(end.id);
+    this.comments.ends.push(saved);
   }
 
   private async removeComment(target: CommentTarget) {
@@ -657,40 +740,5 @@ export class ScoreManager {
 
   private forgetEndComment(endId: number) {
     this.comments.ends = this.comments.ends.filter((c) => c.end_id !== endId);
-  }
-
-  async fetchRounds() {
-    if (!this.game)
-      throw new Error("ゲームが読み込まれていません。");
-
-    this.rounds = await listRounds(this.game.id);
-    this.currentRound = this.rounds[this.rounds.length - 1] || null;
-
-    // fetchCurrentEnds() reloads the last round's ends anyway, so only the
-    // rounds already behind the player are fetched here.
-    this.recordedPoints = await Promise.all(
-      this.rounds.map((round, index) =>
-        index < this.rounds.length - 1 ? this.fetchRoundPoints(round) : []
-      )
-    );
-  }
-
-  async fetchCurrentEnds() {
-    if (!this.currentRound)
-      throw new Error("ラウンドが開始されていません。");
-
-    this.ends = await listEnds(this.currentRound.id);
-
-    this.currentEnd = this.ends[this.ends.length - 1] || null;
-
-    this.recordedPoints[this.rounds.length - 1] = await Promise.all(
-      this.ends.map((end) => listPoints(end.id))
-    );
-  }
-  async fetchCurrentPoints() {
-    if (!this.currentEnd)
-      throw new Error("エンドが開始されていません。");
-
-    this.currentPoints = await listPoints(this.currentEnd.id);
   }
 }

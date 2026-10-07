@@ -1,6 +1,7 @@
 from datetime import date
 
-from sqlalchemy.orm import Query, Session
+from sqlalchemy import Select, select
+from sqlalchemy.orm import Session
 
 from app.core.target_types import resolve_target_size_cm
 from app.db import End, Game, Match, Point, Round
@@ -19,39 +20,39 @@ from app.schemas.game import (
 )
 
 
-def _visible_games(s: Session) -> Query:
-    return s.query(Game).filter(Game.deleted_at.is_(None))
+def _visible_games() -> Select[tuple[Game]]:
+    return select(Game).where(Game.deleted_at.is_(None))
 
 
-def _visible_rounds(s: Session) -> Query:
+def _visible_rounds() -> Select[tuple[Round]]:
     return (
-        s.query(Round)
+        select(Round)
         .join(Game, Game.id == Round.game_id)
-        .filter(Round.deleted_at.is_(None), Game.deleted_at.is_(None))
+        .where(Round.deleted_at.is_(None), Game.deleted_at.is_(None))
     )
 
 
-def _visible_ends(s: Session) -> Query:
+def _visible_ends() -> Select[tuple[End]]:
     return (
-        s.query(End)
+        select(End)
         .join(Round, Round.id == End.round_id)
         .join(Game, Game.id == Round.game_id)
-        .filter(Round.deleted_at.is_(None), Game.deleted_at.is_(None))
+        .where(Round.deleted_at.is_(None), Game.deleted_at.is_(None))
     )
 
 
-def _visible_points(s: Session) -> Query:
+def _visible_points() -> Select[tuple[Point]]:
     return (
-        s.query(Point)
+        select(Point)
         .join(End, End.id == Point.end_id)
         .join(Round, Round.id == End.round_id)
         .join(Game, Game.id == Round.game_id)
-        .filter(Round.deleted_at.is_(None), Game.deleted_at.is_(None))
+        .where(Round.deleted_at.is_(None), Game.deleted_at.is_(None))
     )
 
 
 def get_game(s: Session, game_id: int) -> Game | None:
-    return _visible_games(s).filter(Game.id == game_id).first()
+    return s.scalar(_visible_games().where(Game.id == game_id))
 
 
 def get_game_any(s: Session, game_id: int) -> Game | None:
@@ -62,19 +63,25 @@ def get_game_any(s: Session, game_id: int) -> Game | None:
 def list_games(
     s: Session, skip: int = 0, limit: int = 100, user_id: int | None = None
 ) -> list[Game]:
-    query = _visible_games(s)
+    stmt = _visible_games().order_by(Game.id).offset(skip).limit(limit)
     if user_id is not None:
-        query = query.filter(Game.user_id == user_id)
-    return list(query.order_by(Game.id).offset(skip).limit(limit).all())
+        stmt = stmt.where(Game.user_id == user_id)
+    return list(s.scalars(stmt))
 
 
 def list_deleted_games(
     s: Session, skip: int = 0, limit: int = 100, user_id: int | None = None
 ) -> list[Game]:
-    query = s.query(Game).filter(Game.deleted_at.isnot(None))
+    stmt = (
+        select(Game)
+        .where(Game.deleted_at.is_not(None))
+        .order_by(Game.deleted_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
     if user_id is not None:
-        query = query.filter(Game.user_id == user_id)
-    return list(query.order_by(Game.deleted_at.desc()).offset(skip).limit(limit).all())
+        stmt = stmt.where(Game.user_id == user_id)
+    return list(s.scalars(stmt))
 
 
 def create_game(s: Session, game_in: GameCreate) -> Game:
@@ -103,7 +110,7 @@ def restore_game(s: Session, game: Game) -> Game:
 
 
 def get_round(s: Session, round_id: int) -> Round | None:
-    return _visible_rounds(s).filter(Round.id == round_id).first()
+    return s.scalar(_visible_rounds().where(Round.id == round_id))
 
 
 def get_round_any(s: Session, round_id: int) -> Round | None:
@@ -114,14 +121,14 @@ def get_round_any(s: Session, round_id: int) -> Round | None:
 def list_rounds_for_game(
     s: Session, game_id: int, skip: int = 0, limit: int = 100
 ) -> list[Round]:
-    return list(
-        _visible_rounds(s)
-        .filter(Round.game_id == game_id)
+    stmt = (
+        _visible_rounds()
+        .where(Round.game_id == game_id)
         .order_by(Round.id)
         .offset(skip)
         .limit(limit)
-        .all()
     )
+    return list(s.scalars(stmt))
 
 
 def list_deleted_rounds(
@@ -131,16 +138,19 @@ def list_deleted_rounds(
     game_id: int | None = None,
     user_id: int | None = None,
 ) -> list[Round]:
-    query = (
-        s.query(Round)
+    stmt = (
+        select(Round)
         .join(Game, Game.id == Round.game_id)
-        .filter(Round.deleted_at.isnot(None), Game.deleted_at.is_(None))
+        .where(Round.deleted_at.is_not(None), Game.deleted_at.is_(None))
+        .order_by(Round.deleted_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
     if game_id is not None:
-        query = query.filter(Round.game_id == game_id)
+        stmt = stmt.where(Round.game_id == game_id)
     if user_id is not None:
-        query = query.filter(Game.user_id == user_id)
-    return list(query.order_by(Round.deleted_at.desc()).offset(skip).limit(limit).all())
+        stmt = stmt.where(Game.user_id == user_id)
+    return list(s.scalars(stmt))
 
 
 def create_round(s: Session, game: Game, round_in: RoundCreate) -> Round:
@@ -169,18 +179,14 @@ def restore_round(s: Session, round_: Round) -> Round:
 
 
 def get_end(s: Session, end_id: int) -> End | None:
-    return _visible_ends(s).filter(End.id == end_id).first()
+    return s.scalar(_visible_ends().where(End.id == end_id))
 
 
 def list_ends_for_round(s: Session, round_id: int, skip: int = 0, limit: int = 100) -> list[End]:
-    return list(
-        _visible_ends(s)
-        .filter(End.round_id == round_id)
-        .order_by(End.id)
-        .offset(skip)
-        .limit(limit)
-        .all()
+    stmt = (
+        _visible_ends().where(End.round_id == round_id).order_by(End.id).offset(skip).limit(limit)
     )
+    return list(s.scalars(stmt))
 
 
 def create_end(s: Session, round_: Round, end_in: EndCreate) -> End:
@@ -202,16 +208,16 @@ def delete_end(s: Session, end: End) -> None:
     s.flush()
 
 
-def _visible_matches(s: Session) -> Query:
-    return s.query(Match).join(Game, Game.id == Match.game_id).filter(Game.deleted_at.is_(None))
+def _visible_matches() -> Select[tuple[Match]]:
+    return select(Match).join(Game, Game.id == Match.game_id).where(Game.deleted_at.is_(None))
 
 
 def get_match(s: Session, match_id: int) -> Match | None:
-    return _visible_matches(s).filter(Match.id == match_id).first()
+    return s.scalar(_visible_matches().where(Match.id == match_id))
 
 
 def get_match_by_game(s: Session, game_id: int) -> Match | None:
-    return _visible_matches(s).filter(Match.game_id == game_id).first()
+    return s.scalar(_visible_matches().where(Match.game_id == game_id))
 
 
 def create_match(s: Session, game: Game, match_in: MatchCreate) -> Match:
@@ -243,16 +249,20 @@ def list_matches(
     limit: int = 100,
 ) -> list[MatchSummary]:
     """Matches joined with their game's date, most recent first."""
-    query = s.query(Match, Game.recorded_at).join(Game, Game.id == Match.game_id).filter(
-        Game.deleted_at.is_(None)
+    stmt = (
+        select(Match, Game.recorded_at)
+        .join(Game, Game.id == Match.game_id)
+        .where(Game.deleted_at.is_(None))
+        .order_by(Game.recorded_at.desc(), Match.id.desc())
+        .offset(skip)
+        .limit(limit)
     )
     if user_id is not None:
-        query = query.filter(Game.user_id == user_id)
+        stmt = stmt.where(Game.user_id == user_id)
     if start is not None:
-        query = query.filter(Game.recorded_at >= start)
+        stmt = stmt.where(Game.recorded_at >= start)
     if end is not None:
-        query = query.filter(Game.recorded_at <= end)
-    query = query.order_by(Game.recorded_at.desc(), Match.id.desc()).offset(skip).limit(limit)
+        stmt = stmt.where(Game.recorded_at <= end)
 
     return [
         MatchSummary(
@@ -263,7 +273,7 @@ def list_matches(
             link=match.link,
             recorded_at=recorded_at,
         )
-        for match, recorded_at in query.all()
+        for match, recorded_at in s.execute(stmt)
     ]
 
 
@@ -282,18 +292,18 @@ def _point_cm(round_: Round | None, x: float, y: float) -> tuple[float | None, f
 
 
 def get_point(s: Session, point_id: int) -> Point | None:
-    return _visible_points(s).filter(Point.id == point_id).first()
+    return s.scalar(_visible_points().where(Point.id == point_id))
 
 
 def list_points_for_end(s: Session, end_id: int, skip: int = 0, limit: int = 100) -> list[Point]:
-    return list(
-        _visible_points(s)
-        .filter(Point.end_id == end_id)
+    stmt = (
+        _visible_points()
+        .where(Point.end_id == end_id)
         .order_by(Point.id)
         .offset(skip)
         .limit(limit)
-        .all()
     )
+    return list(s.scalars(stmt))
 
 
 def create_point(s: Session, end: End, point_in: PointCreate) -> Point:

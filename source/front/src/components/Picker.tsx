@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Modal from "@/components/Modal";
-import { T } from "@/lib/text";
+import { useT } from "@/lib/text";
 
 export type PickerOption = { value: string; label: string };
 
@@ -22,6 +22,7 @@ const FILTER_THRESHOLD = 12;
 
 /** select の代わり。押すとモーダルを開き、選択肢を大きなボタンで並べる(スマホで押しやすいように)。 */
 export default function Picker({ id, title, options, value, onChange, emptyLabel }: Props) {
+  const T = useT();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const selected = options.find((option) => option.value === value);
