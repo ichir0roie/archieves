@@ -51,7 +51,7 @@ test("menu navigates to each primary destination", async ({ page }) => {
   await page.goto("/");
   await openMenuAndGo(page, "記録");
   await expect(page).toHaveURL(/\/score-log$/, { timeout: ROUTE_TIMEOUT });
-  await expect(page.locator("header")).toContainText("スコアログ");
+  await expect(page.locator("header")).toContainText("スコア");
 
   await page.goto("/");
   await openMenuAndGo(page, "統計");
@@ -69,7 +69,7 @@ test("menu navigates to each primary destination", async ({ page }) => {
   await expect(page.locator("header")).toContainText("設定");
 
   await page.goto("/");
-  await openMenuAndGo(page, "記録開始");
+  await openMenuAndGo(page, "ゲーム開始");
   await expect(page).toHaveURL(/\/game\/setup$/, { timeout: ROUTE_TIMEOUT });
 
   await page.goto("/");

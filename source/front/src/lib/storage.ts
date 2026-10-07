@@ -67,7 +67,7 @@ export function clearNewGameStart() {
 
 const SCORE_LOG_COLLAPSED_KEY = "scoreLogCollapsed";
 
-/** スコアログで閉じている見出しのキー(年・月・日)。localStorage が使えなければ全部開いた扱い */
+/** スコアで閉じている見出しのキー(年・月・日)。localStorage が使えなければ全部開いた扱い */
 export function loadScoreLogCollapsed(): Array<string> {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(SCORE_LOG_COLLAPSED_KEY) ?? "[]");

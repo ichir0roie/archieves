@@ -9,7 +9,7 @@ type Props = {
   children: ReactNode;
 };
 
-/** スコアログの年・月・日の見出し。押すと中を閉じる・開く */
+/** スコアの年・月・日の見出し。押すと中を閉じる・開く */
 export default function LogGroup({ level, title, count, open, onToggle, children }: Props) {
   return (
     <section className={`LogGroup log-group log-${level}`}>

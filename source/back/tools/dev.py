@@ -111,6 +111,23 @@ def seed(url: str) -> None:
     logger.info(f"{url.rsplit('/', 1)[1]} に乱数の行を足した")
 
 
+def migrate_local_database() -> None:
+    """.env の db が手元のものなら、マイグレーションを head まで流す。
+
+    db を作り直したあとに表が無いまま起動して、API が落ちるのを防ぐ。
+    RDS のトンネルなど手元でない db には、勝手に流さない。
+    """
+    from sqlalchemy.engine import make_url
+
+    from app.core.config import settings
+
+    url = make_url(settings.DATABASE_URL)
+    if url.host not in testing_db.LOCAL_HOSTS:
+        logger.info(f"{url.host} は手元の db でないので、マイグレーションは流さない")
+        return
+    testing_db.upgrade_head(settings.DATABASE_URL)
+
+
 def build_children(args: argparse.Namespace) -> list[Child]:
     api_env = dict(os.environ)
     web_env = dict(os.environ)
@@ -126,6 +143,8 @@ def build_children(args: argparse.Namespace) -> list[Child]:
         for key, value in MOCK_USER.items():
             api_env[f"MOCK_USER_{key}"] = value
             web_env[f"NEXT_PUBLIC_MOCK_USER_{key}"] = value
+    else:
+        migrate_local_database()
     web_env["ARCHIEVES_API_URL"] = f"http://127.0.0.1:{args.api_port}"
     if args.dist_dir:
         web_env["ARCHIEVES_WEB_DIST_DIR"] = args.dist_dir

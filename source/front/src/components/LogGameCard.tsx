@@ -6,7 +6,7 @@ type Props = {
   game: GameRead;
 };
 
-/** スコアログの一行。押すとそのゲームの点数表(score-view)へ移る。 */
+/** スコアの一行。押すとそのゲームの点数表(score-view)へ移る。 */
 export default function LogGameCard({ game }: Props) {
   const T = useT();
   const router = useRouter();

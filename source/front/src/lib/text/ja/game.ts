@@ -3,7 +3,7 @@ import { terms as t } from "./terms";
 /** game の画面(app/game/*・点数の入力・コメント)の文言。 */
 export const game = {
   setup: {
-    title: `${t.record}の設定`,
+    title: `${t.game}設定`,
     bowType: t.bowType,
     distance: `${t.distance} (m)`,
     other: "その他",
@@ -21,7 +21,7 @@ export const game = {
     gameSizeHint: `この${t.game}に含める${t.round}数`,
     summary: (total: number, endSize: string, roundSize: string, gameSize: string) =>
       `合計 ${total}本 (${endSize}本 × ${roundSize}${t.end} × ${gameSize}${t.round})`,
-    start: `${t.record}開始`,
+    start: `${t.game}開始`,
   },
   entry: {
     home: `${t.home}へ戻る`,
