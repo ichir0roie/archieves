@@ -14,6 +14,7 @@ from app.schemas.game import (
     EndUpdate,
     GameCreate,
     GameRead,
+    GameScoreSummary,
     GameUpdate,
     MatchCreate,
     MatchRead,
@@ -74,6 +75,17 @@ def list_game_years(
 ) -> list[int]:
     """ゲームのある年。新しい年が先"""
     return game_crud.list_game_years(s, user_id=deps.resolve_user_id(me, user_id))
+
+
+@router.get("/games/scores", response_model=list[GameScoreSummary])
+def list_game_scores(
+    year: int,
+    user_id: int | None = None,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
+) -> list[GameScoreSummary]:
+    """年内のゲームごとの合計点・エンド平均・ポイント平均(スコア一覧用)"""
+    return game_crud.list_game_scores(s, user_id=deps.resolve_user_id(me, user_id), year=year)
 
 
 @router.post("/games", response_model=GameRead, status_code=201)

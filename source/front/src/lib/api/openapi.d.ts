@@ -232,6 +232,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/games/scores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Game Scores
+         * @description 年内のゲームごとの合計点・エンド平均・ポイント平均(スコア一覧用)
+         */
+        get: operations["list_game_scores_api_v1_games_scores_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/games/{game_id}": {
         parameters: {
             query?: never;
@@ -933,6 +953,20 @@ export interface components {
             id: number;
             /** Deleted At */
             deleted_at: string | null;
+        };
+        /**
+         * GameScoreSummary
+         * @description スコア一覧の一行に出す、ゲームの点数の集計。矢のないゲームは平均が None。
+         */
+        GameScoreSummary: {
+            /** Game Id */
+            game_id: number;
+            /** Total Score */
+            total_score: number;
+            /** End Average */
+            end_average: number | null;
+            /** Point Average */
+            point_average: number | null;
         };
         /** GameUpdate */
         GameUpdate: {
@@ -1854,6 +1888,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": number[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_game_scores_api_v1_games_scores_get: {
+        parameters: {
+            query: {
+                year: number;
+                user_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameScoreSummary"][];
                 };
             };
             /** @description Validation Error */
