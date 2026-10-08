@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -41,10 +43,10 @@ def test_a_round_is_created_scoreable(s: Session, factories) -> None:
 
 
 def test_overrides_win_over_the_factory_defaults(s: Session, factories) -> None:
-    user = factories.UserFactory(name="Yumi", age=21)
+    user = factories.UserFactory(name="Yumi", birth_date=date(2000, 4, 1))
     game = factories.GameFactory(user=user, game_size=4)
 
-    assert (user.name, user.age) == ("Yumi", 21)
+    assert (user.name, user.birth_date) == ("Yumi", date(2000, 4, 1))
     assert game.game_size == 4
     assert game.user_id == user.id
 

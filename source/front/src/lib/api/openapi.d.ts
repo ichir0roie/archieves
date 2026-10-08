@@ -1143,8 +1143,8 @@ export interface components {
             name: string;
             /** Nickname */
             nickname?: string | null;
-            /** Age */
-            age?: number | null;
+            /** Birth Date */
+            birth_date?: string | null;
             /** Organization Id */
             organization_id?: number | null;
             /** Region Id */
@@ -1156,8 +1156,8 @@ export interface components {
             name: string;
             /** Nickname */
             nickname?: string | null;
-            /** Age */
-            age?: number | null;
+            /** Birth Date */
+            birth_date?: string | null;
             /** Organization Id */
             organization_id?: number | null;
             /** Region Id */
@@ -1208,8 +1208,8 @@ export interface components {
             name: string;
             /** Nickname */
             nickname: string | null;
-            /** Age */
-            age: number | null;
+            /** Birth Date */
+            birth_date: string | null;
             /** Organization Id */
             organization_id: number | null;
             /** Region Id */
@@ -1218,6 +1218,8 @@ export interface components {
             id: number;
             /** Sub */
             sub: string | null;
+            /** Age */
+            readonly age: number | null;
         };
         /** UserUpdate */
         UserUpdate: {
@@ -1225,8 +1227,8 @@ export interface components {
             name?: string | null;
             /** Nickname */
             nickname?: string | null;
-            /** Age */
-            age?: number | null;
+            /** Birth Date */
+            birth_date?: string | null;
             /** Organization Id */
             organization_id?: number | null;
             /** Region Id */

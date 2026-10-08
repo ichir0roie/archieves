@@ -4859,17 +4859,17 @@
             ],
             "title": "Nickname"
           },
-          "age": {
+          "birth_date": {
             "anyOf": [
               {
-                "type": "integer",
-                "minimum": 0.0
+                "type": "string",
+                "format": "date"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Age"
+            "title": "Birth Date"
           },
           "organization_id": {
             "anyOf": [
@@ -4917,17 +4917,17 @@
             ],
             "title": "Nickname"
           },
-          "age": {
+          "birth_date": {
             "anyOf": [
               {
-                "type": "integer",
-                "minimum": 0.0
+                "type": "string",
+                "format": "date"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Age"
+            "title": "Birth Date"
           },
           "organization_id": {
             "anyOf": [
@@ -5058,17 +5058,17 @@
             ],
             "title": "Nickname"
           },
-          "age": {
+          "birth_date": {
             "anyOf": [
               {
-                "type": "integer",
-                "minimum": 0.0
+                "type": "string",
+                "format": "date"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Age"
+            "title": "Birth Date"
           },
           "organization_id": {
             "anyOf": [
@@ -5106,17 +5106,30 @@
               }
             ],
             "title": "Sub"
+          },
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age",
+            "readOnly": true
           }
         },
         "type": "object",
         "required": [
           "name",
           "nickname",
-          "age",
+          "birth_date",
           "organization_id",
           "region_id",
           "id",
-          "sub"
+          "sub",
+          "age"
         ],
         "title": "UserRead"
       },
@@ -5144,17 +5157,17 @@
             ],
             "title": "Nickname"
           },
-          "age": {
+          "birth_date": {
             "anyOf": [
               {
-                "type": "integer",
-                "minimum": 0.0
+                "type": "string",
+                "format": "date"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Age"
+            "title": "Birth Date"
           },
           "organization_id": {
             "anyOf": [
