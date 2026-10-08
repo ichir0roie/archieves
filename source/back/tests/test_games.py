@@ -77,6 +77,28 @@ def test_list_games_returns_only_my_games(client: TestClient, factories) -> None
         assert [g["id"] for g in response.json()] == [own_game["id"]]
 
 
+def test_list_game_scores(client: TestClient, current_user, factories) -> None:
+    game = factories.GameFactory(user=current_user, recorded_at=date(2026, 1, 1))
+    round_ = factories.RoundFactory(game=game)
+    end1 = factories.EndFactory(round=round_, number=1)
+    end2 = factories.EndFactory(round=round_, number=2)
+    factories.EndFactory(round=round_, number=3)
+    for score in (10, 9, 8):
+        factories.PointFactory(end=end1, score=score)
+    factories.PointFactory(end=end2, score=7)
+    empty = factories.GameFactory(user=current_user, recorded_at=date(2026, 2, 1))
+    factories.GameFactory(user=current_user, recorded_at=date(2025, 2, 1))
+    factories.GameFactory(recorded_at=date(2026, 3, 1))
+
+    response = client.get("/api/v1/games/scores?year=2026")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {"game_id": game.id, "total_score": 34, "end_average": 17.0, "point_average": 8.5},
+        {"game_id": empty.id, "total_score": 0, "end_average": None, "point_average": None},
+    ]
+
+
 def test_list_games_by_year(client: TestClient, current_user, factories) -> None:
     old = factories.GameFactory(user=current_user, recorded_at=date(2024, 12, 31))
     new = factories.GameFactory(user=current_user, recorded_at=date(2026, 1, 1))

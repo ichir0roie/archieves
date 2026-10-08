@@ -15,20 +15,18 @@ test("the score log lists a game that was just recorded", async ({ page }) => {
   await page.goto("/score-log");
   await expect(page.locator("header")).toContainText("スコア");
 
-  const card = page.locator(".ScoreLogGame", { hasText: `Game ID` }).filter({
-    has: page.getByText(game.id, { exact: true }),
-  });
-  await expect(card.first()).toBeVisible();
+  const card = page.locator(`.ScoreLogGame[data-game-id="${game.id}"]`);
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("合計点");
+  await expect(card).toContainText("エンド平均");
+  await expect(card).toContainText("矢平均");
 });
 
 test("a score log card opens that game's score sheet", async ({ page }) => {
   const game = await recordGame(page);
 
   await page.goto("/score-log");
-  const card = page
-    .locator(".ScoreLogGame")
-    .filter({ has: page.getByText(game.id, { exact: true }) })
-    .first();
+  const card = page.locator(`.ScoreLogGame[data-game-id="${game.id}"]`);
   await expect(card).toBeVisible();
   await card.click();
 
@@ -40,10 +38,7 @@ test("スコアは月の見出しで閉じられ、開閉は再読み込みし�
   const game = await recordGame(page);
 
   await page.goto("/score-log");
-  const card = page
-    .locator(".ScoreLogGame")
-    .filter({ has: page.getByText(game.id, { exact: true }) })
-    .first();
+  const card = page.locator(`.ScoreLogGame[data-game-id="${game.id}"]`);
   await expect(card).toBeVisible();
 
   await page.getByRole("button", { name: "全部閉じる" }).click();
