@@ -70,7 +70,7 @@ export class ArchievesApiStack extends Stack {
     const fn = new lambda.DockerImageFunction(this, "Function", {
       functionName: api.functionName,
       code: lambda.DockerImageCode.fromEcr(repository, { tagOrDigest: api.imageTag }),
-      architecture: lambda.Architecture.X86_64,
+      architecture: lambda.Architecture.ARM_64,
       memorySize: api.memorySize,
       timeout: Duration.seconds(30),
       reservedConcurrentExecutions: api.reservedConcurrentExecutions,
@@ -102,7 +102,7 @@ export class ArchievesApiStack extends Stack {
     const migrationFunction = new lambda.DockerImageFunction(this, "MigrationFunction", {
       functionName: migration.functionName,
       code: lambda.DockerImageCode.fromEcr(repository, { tagOrDigest: api.imageTag, cmd: migration.command }),
-      architecture: lambda.Architecture.X86_64,
+      architecture: lambda.Architecture.ARM_64,
       memorySize: migration.memorySize,
       timeout: Duration.minutes(15),
       // 二つのマイグレーションが同時に流れないようにする
