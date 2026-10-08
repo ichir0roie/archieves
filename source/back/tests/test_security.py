@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
+from starlette.requests import Request
 
 from app.core import security
 from app.core.config import debug_settings, settings
@@ -67,6 +68,15 @@ def _make_token(private_pem: str, **claims: object) -> str:
 
 def _credentials(token: str) -> HTTPAuthorizationCredentials:
     return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+
+
+def _request(**headers: str) -> Request:
+    return Request(
+        {
+            "type": "http",
+            "headers": [(k.replace("_", "-").encode(), v.encode()) for k, v in headers.items()],
+        }
+    )
 
 
 def test_verify_token_returns_claims_for_a_valid_token(
@@ -136,7 +146,7 @@ def test_get_current_user_returns_claims_for_a_valid_token(
     cognito_auth: None,
     private_pem: str,
 ) -> None:
-    claims = security.get_current_user(_credentials(_make_token(private_pem)))
+    claims = security.cognito_user(_credentials(_make_token(private_pem)))
 
     assert claims.sub == "cognito-user-sub"
     assert claims.username == "yumi"
@@ -145,25 +155,50 @@ def test_get_current_user_returns_claims_for_a_valid_token(
 
 def test_get_current_user_raises_401_for_an_invalid_token(cognito_auth: None) -> None:
     with pytest.raises(HTTPException) as exc_info:
-        security.get_current_user(_credentials("not-a-jwt"))
+        security.cognito_user(_credentials("not-a-jwt"))
 
     assert exc_info.value.status_code == 401
     assert exc_info.value.headers == {"WWW-Authenticate": "Bearer"}
 
 
-def test_get_current_user_returns_mock_claims_in_mock_mode(
+def test_mock_user_returns_the_configured_claims(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(debug_settings, "AUTH_MODE", "mock")
     monkeypatch.setattr(debug_settings, "MOCK_USER_SUB", "mock-sub")
     monkeypatch.setattr(debug_settings, "MOCK_USER_USERNAME", "mock-user")
     monkeypatch.setattr(debug_settings, "MOCK_USER_EMAIL", "mock@example.com")
 
-    claims = security.get_current_user(_credentials("ignored"))
+    claims = security.mock_user(_credentials("ignored"))
 
     assert claims.sub == "mock-sub"
     assert claims.username == "mock-user"
     assert claims.email == "mock@example.com"
+
+
+def test_proxied_user_reads_the_verified_user_from_headers() -> None:
+    request = _request(
+        x_archieves_user_sub="proxy-sub",
+        x_archieves_user_username="proxy%20user",
+        x_archieves_user_email="proxy%40example.com",
+    )
+
+    claims = security.proxied_user(request)
+
+    assert claims.sub == "proxy-sub"
+    assert claims.username == "proxy user"
+    assert claims.email == "proxy@example.com"
+
+
+def test_proxied_user_raises_401_without_a_user() -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        security.proxied_user(_request())
+
+    assert exc_info.value.status_code == 401
+
+
+def test_get_current_user_is_chosen_by_auth_mode() -> None:
+    # conftest が AUTH_MODE=cognito にしてから import している
+    assert security.get_current_user is security.cognito_user
 
 
 def test_get_jwks_fetches_the_userpool_keys_once(

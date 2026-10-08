@@ -1,10 +1,14 @@
-"""Cognito JWT verification.
+"""利用者の確かめ。AUTH_MODE(app/core/config.py)で、import した時に一つを選ぶ。
 
-Same approach as all_diary_backend's module/api/auth/auth.py: verify a
-bearer token against the user pool's JWKS, then expose the token claims via
-a FastAPI dependency. The JWKS fetch is lazy and cached instead of running
-at import time, so the app can still start (and tests can override
-get_current_user) without Cognito configured.
+- cognito: この API が、Cognito の ID トークンを公開鍵(JWKS)で確かめる。
+  手元で本物の Cognito を使うとき
+- proxy: フロントのサーバー(source/front/src/app/api/v1)が確かめ、利用者を
+  x-archieves-user-* で渡す。本番。
+  Lambda は NAT のない VPC の中にいて JWKS を取りに行けない。合言葉(app/core/api_keys.py)を持つ
+  呼び出しだけが届くので、ヘッダーをそのまま信じる
+- mock: 確かめず、MOCK_USER_* の利用者として通す。手元・テスト
+
+JWKS の取得は import 時でなく初回に行い、キャッシュする(Cognito 無しでも app を起こせる)。
 """
 
 import json
@@ -12,8 +16,9 @@ import time
 import urllib.request
 from functools import lru_cache
 from typing import Annotated
+from urllib.parse import unquote
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwk, jwt
 from jose.utils import base64url_decode
@@ -22,6 +27,11 @@ from pydantic import BaseModel
 from app.core.config import debug_settings, settings
 
 bearer_scheme = HTTPBearer()
+
+# AUTH_MODE=proxy で利用者を受けるヘッダー(値は URL エンコード)
+USER_SUB_HEADER = "x-archieves-user-sub"
+USER_USERNAME_HEADER = "x-archieves-user-username"
+USER_EMAIL_HEADER = "x-archieves-user-email"
 
 
 class Claims(BaseModel):
@@ -43,7 +53,7 @@ def _get_jwks() -> list[dict]:
 
 
 def verify_token(token: str) -> dict:
-    """Verify a Cognito-issued JWT and return its claims.
+    """Cognito が発行した JWT を確かめて claims を返す。
 
     https://github.com/awslabs/aws-support-tools/blob/master/Cognito/decode-verify-jwt/decode-verify-jwt.py
     """
@@ -71,21 +81,9 @@ def verify_token(token: str) -> dict:
     return claims
 
 
-def get_current_user(
+def cognito_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
 ) -> Claims:
-    # Local/debug escape hatch (see DebugSettings.AUTH_MODE): skips the
-    # Cognito JWKS round-trip entirely, so the API needs no AWS access to
-    # run. The bearer scheme dependency above still requires *an*
-    # Authorization header, matching the shape of a real request; its value
-    # is ignored.
-    if debug_settings.AUTH_MODE == "mock":
-        return Claims(
-            sub=debug_settings.MOCK_USER_SUB,
-            username=debug_settings.MOCK_USER_USERNAME,
-            email=debug_settings.MOCK_USER_EMAIL,
-        )
-
     try:
         claims = verify_token(credentials.credentials)
     except Exception as exc:
@@ -95,3 +93,40 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
     return Claims.model_validate(claims)
+
+
+def _header(request: Request, name: str) -> str | None:
+    value = request.headers.get(name)
+    return unquote(value) if value else None
+
+
+def proxied_user(request: Request) -> Claims:
+    sub = _header(request, USER_SUB_HEADER)
+    if sub is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing verified user",
+        )
+    return Claims(
+        sub=sub,
+        username=_header(request, USER_USERNAME_HEADER),
+        email=_header(request, USER_EMAIL_HEADER),
+    )
+
+
+def mock_user(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+) -> Claims:
+    # 本物の要求と同じ形になるよう Authorization ヘッダーがあることだけは求め、値は見ない
+    return Claims(
+        sub=debug_settings.MOCK_USER_SUB,
+        username=debug_settings.MOCK_USER_USERNAME,
+        email=debug_settings.MOCK_USER_EMAIL,
+    )
+
+
+get_current_user = {
+    "cognito": cognito_user,
+    "proxy": proxied_user,
+    "mock": mock_user,
+}[debug_settings.AUTH_MODE]
