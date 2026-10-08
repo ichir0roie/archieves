@@ -36,7 +36,7 @@ test("a score log card opens that game's score sheet", async ({ page }) => {
   await expect(page.getByText("ラウンド：1")).toBeVisible();
 });
 
-test("スコアは年・月・日の見出しで閉じられ、開閉は再読み込みしても残る", async ({ page }) => {
+test("スコアは月の見出しで閉じられ、開閉は再読み込みしても残る", async ({ page }) => {
   const game = await recordGame(page);
 
   await page.goto("/score-log");
@@ -56,8 +56,8 @@ test("スコアは年・月・日の見出しで閉じられ、開閉は再読�
   await page.getByRole("button", { name: "全部開く" }).click();
   await expect(card).toBeVisible();
 
-  // 年の見出しだけを閉じる
-  await page.locator(".log-year > .log-head").first().click();
+  // 月の見出しだけを閉じる
+  await page.locator(".LogGroup > .log-head").first().click();
   await expect(card).toBeHidden();
 });
 

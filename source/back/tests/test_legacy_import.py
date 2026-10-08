@@ -1,8 +1,10 @@
 import pandas as pd
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.crud import user as user_crud
+from app.db import Point
 from app.schemas.user import UserCreate
 from app.services.legacy_import import (
     LegacyImportError,
@@ -130,3 +132,22 @@ def test_shot_referencing_an_unknown_end_reports_the_shot_table(
 
     with pytest.raises(LegacyImportError, match="'shot' table"):
         _import(s, user_id, shots=shots)
+
+
+def test_converts_mytargets_coordinates_to_target_fractions(s: Session, user_id: int) -> None:
+    # MyTargets は中心 0・縁 ±1。中心・右下の縁・的の外(縁に寄せる)を見る
+    shots = pd.DataFrame(
+        [
+            {"id": 1, "endId": 100, "index": 1, "scoringRing": 0, "x": 0.0, "y": 0.0},
+            {"id": 2, "endId": 100, "index": 2, "scoringRing": 10, "x": 1.0, "y": 1.0},
+            {"id": 3, "endId": 100, "index": 3, "scoringRing": -1, "x": -1.4, "y": 0.5},
+        ]
+    )
+    _import(s, user_id, shots=shots)
+
+    points = s.scalars(select(Point).where(Point.user_id == user_id).order_by(Point.number)).all()
+    assert [(p.x, p.y) for p in points] == [
+        (0.5, 0.5),
+        (1.0, 1.0),
+        (0.0, 0.75),
+    ]

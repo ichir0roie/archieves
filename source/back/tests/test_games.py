@@ -77,6 +77,22 @@ def test_list_games_returns_only_my_games(client: TestClient, factories) -> None
         assert [g["id"] for g in response.json()] == [own_game["id"]]
 
 
+def test_list_games_by_year(client: TestClient, current_user, factories) -> None:
+    old = factories.GameFactory(user=current_user, recorded_at=date(2024, 12, 31))
+    new = factories.GameFactory(user=current_user, recorded_at=date(2026, 1, 1))
+    factories.GameFactory(
+        user=current_user,
+        recorded_at=date(2026, 5, 1),
+        deleted_at=date(2026, 5, 2),
+    )
+    factories.GameFactory(recorded_at=date(2023, 1, 1))
+
+    assert client.get("/api/v1/games/years").json() == [2026, 2024]
+    assert [g["id"] for g in client.get("/api/v1/games?year=2024").json()] == [old.id]
+    assert [g["id"] for g in client.get("/api/v1/games?year=2026").json()] == [new.id]
+    assert client.get("/api/v1/games?year=2025").json() == []
+
+
 def test_list_games_of_another_user_is_forbidden(client: TestClient, factories) -> None:
     other = factories.GameFactory().user
 

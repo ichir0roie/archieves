@@ -5,9 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import ArrowMap, { hasPosition } from "@/components/ArrowMap";
 import CommentField from "@/components/CommentField";
+import BackButton from "@/components/BackButton";
+import Modal from "@/components/Modal";
 import PageHeader from "@/components/PageHeader";
 import {
   deleteEndComment,
+  deleteGame,
   deleteGameComment,
   deleteRoundComment,
   getGame,
@@ -66,6 +69,8 @@ function ScoreViewContent() {
   const [rounds, setRounds] = useState<Array<ViewRound> | null>(null);
   const [comments, setComments] = useState<GameComments>(NO_COMMENTS);
   const [error, setError] = useState<ErrorDetails | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -180,6 +185,20 @@ function ScoreViewContent() {
     router.push("/game/score-card");
   }
 
+  async function onDeleteGame() {
+    if (gameId === null) return;
+    setError(null);
+    setDeleting(true);
+    try {
+      await deleteGame(gameId);
+      router.push("/score-log");
+    } catch (e) {
+      setError(toErrorDetails(e));
+      setConfirmingDelete(false);
+      setDeleting(false);
+    }
+  }
+
   function endComment(endId: number): string | null {
     return comments.ends.find((c) => c.end_id === endId)?.body ?? null;
   }
@@ -226,8 +245,42 @@ function ScoreViewContent() {
               onEdit={editGame}
             />
           )}
+          <button
+            type="button"
+            className="DeleteGameButton danger block"
+            onClick={() => setConfirmingDelete(true)}
+          >
+            {T.profile.scoreView.deleteGame}
+          </button>
         </>
       )}
+      {confirmingDelete && (
+        <Modal
+          title={T.profile.scoreView.deleteConfirmTitle}
+          onClose={() => setConfirmingDelete(false)}
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+              >
+                {T.cancel}
+              </button>
+              <button
+                type="button"
+                className="danger"
+                disabled={deleting}
+                onClick={onDeleteGame}
+              >
+                {T.delete}
+              </button>
+            </>
+          }
+        >
+          <p>{T.profile.scoreView.deleteConfirm}</p>
+        </Modal>
+      )}
+      <BackButton />
     </div>
   );
 }

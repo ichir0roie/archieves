@@ -22,6 +22,11 @@ export const settings: typeof ja = {
   links: {
     title: "Account",
     profileSettings: `${t.profile} settings`,
-    registerMatch: `Register ${t.match.toLowerCase()} info`,
+  },
+  export: {
+    title: t.export,
+    description: `Download your ${t.record.toLowerCase()}s as an SQLite file (.db). It describes its own tables and columns, so other apps and AI tools can read it. You can import it again above.`,
+    submit: "Download (.db)",
+    exporting: "Preparing...",
   },
 };

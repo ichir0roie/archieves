@@ -30,7 +30,7 @@ const USER_HEADERS = {
 // ログインの前に叩かれるもの(死活の確かめ)
 const PUBLIC_PATHS = new Set(["health"]);
 const FORWARDED_REQUEST_HEADERS = ["content-type", "accept"];
-const FORWARDED_RESPONSE_HEADERS = ["content-type", "cache-control", "location"];
+const FORWARDED_RESPONSE_HEADERS = ["content-type", "content-disposition", "cache-control", "location"];
 
 // Lambda の関数 URL は認証が AWS_IAM なので、Amplify の SSR のコンピュートロールで SigV4 の署名を付ける。手元の API には付けない
 const lambdaUrlRegion = /\.lambda-url\.([a-z0-9-]+)\.on\.aws$/.exec(new URL(API_URL).hostname)?.[1];
@@ -73,7 +73,10 @@ async function verifiedUser(): Promise<VerifiedUser | null> {
       operation: (contextSpec) => fetchAuthSession(contextSpec),
     });
     const token = session.tokens?.idToken?.toString();
-    if (!token) return null;
+    if (!token) {
+      console.warn("クッキーに Cognito の ID トークンが無い");
+      return null;
+    }
     const claims = await verifier.verify(token);
     return {
       token,
@@ -81,8 +84,10 @@ async function verifiedUser(): Promise<VerifiedUser | null> {
       username: typeof claims["cognito:username"] === "string" ? claims["cognito:username"] : null,
       email: typeof claims.email === "string" ? claims.email : null,
     };
-  } catch {
-    // 署名・期限・クライアントが合わないトークンは、サインインしていない扱いにする
+  } catch (e) {
+    // 署名・期限・クライアントが合わないトークンは、サインインしていない扱いにする。
+    // 公開鍵の取得の失敗などもここに来るので、理由は残す
+    console.warn("Cognito のトークンを確かめられなかった", e);
     return null;
   }
 }

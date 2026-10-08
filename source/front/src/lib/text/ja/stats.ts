@@ -20,9 +20,9 @@ export const stats = {
   },
   chart: {
     empty: `表示できる${t.round}がありません`,
-    ariaLabel: `${t.round}ごとの${t.totalPoints}の推移を示す線グラフ`,
-    pointTitle: (number: number, date: string, total: number, average: string) =>
-      `${t.roundN(number)}(${date})\n${t.total}: ${total}${t.unit.point} / ${t.average}: ${average}${t.unit.point}`,
+    ariaLabel: (axis: string) => `日ごとの${axis}の推移を示す線グラフ`,
+    pointTitle: (date: string, value: string, count: number) =>
+      `${date}\n${value}${t.unit.point}(${count}件の${t.average})`,
   },
   filter: {
     startMonth: "開始月",
@@ -37,6 +37,20 @@ export const stats = {
       month: "直近1か月",
       all: t.allPeriod,
       custom: "その他",
+    },
+    axis: "グラフの軸",
+    axisOption: {
+      round: `${t.round}${t.average}`,
+      end: `${t.end}${t.average}`,
+      point: `${t.arrow}1本の${t.average}`,
+    },
+    kind: {
+      bowType: t.bowType,
+      distance: t.distance,
+      targetType: t.targetType,
+      endSize: `1${t.end}の${t.arrow}数`,
+      roundSize: `${t.end}数`,
+      gameSize: `${t.round}数`,
     },
   },
   ranking: {

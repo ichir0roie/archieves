@@ -1,7 +1,5 @@
 import type { GameRead } from "@/lib/score/scoreManager";
 
-export const NO_DATE_KEY = "none";
-
 export type DayGroup = { key: string; day: string; games: Array<GameRead> };
 export type MonthGroup = {
   key: string;
@@ -78,19 +76,4 @@ export function groupGamesByDate(games: Array<GameRead>): {
     });
 
   return { years: result, undated };
-}
-
-/** 全部の見出しのキー */
-export function allGroupKeys(groups: {
-  years: Array<YearGroup>;
-  undated: Array<GameRead>;
-}): Array<string> {
-  const keys = groups.years.flatMap((year) => [
-    year.key,
-    ...year.months.flatMap((month) => [
-      month.key,
-      ...month.days.map((day) => day.key),
-    ]),
-  ]);
-  return groups.undated.length > 0 ? [...keys, NO_DATE_KEY] : keys;
 }

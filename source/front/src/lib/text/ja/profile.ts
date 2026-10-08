@@ -6,7 +6,8 @@ export const profile = {
     title: `${t.profile}${t.settings}`,
     name: "名前",
     nickname: "ニックネーム",
-    age: "年齢",
+    birthDate: "生年月日",
+    age: (age: number) => `${age}歳`,
     organization: t.affiliation,
   },
   view: {
@@ -35,8 +36,15 @@ export const profile = {
   },
   import: {
     title: t.import,
-    description:
-      `旧アプリの${t.record}データが入った SQLite バックアップファイル (.sqlite / .sqlite3 / .db) をアップロードすると、自分の${t.game}として${t.import}します。`,
+    source: "エクスポート元",
+    sources: {
+      android_mytargets: "Android: MyTargets",
+      archieves: "archieves(このアプリ)",
+    },
+    descriptions: {
+      archieves: `このアプリで${t.export}したファイル (.db) をアップロードすると、自分の${t.game}として${t.import}します。`,
+      android_mytargets: `MyTargets のバックアップ (.sqlite / .sqlite3 / .db) をアップロードすると、自分の${t.game}として${t.import}します。`,
+    },
     done: `${t.import}が完了しました`,
     summary: (games: number, rounds: number, ends: number, points: number) =>
       `${t.game} ${games} 件 / ${t.round} ${rounds} 件 / ${t.end} ${ends} 件 / ${t.arrow} ${points} 本`,
@@ -64,6 +72,9 @@ export const profile = {
     subtotal: "小計",
     total: t.total,
     comment: t.comment,
+    deleteGame: `この${t.game}を削除`,
+    deleteConfirmTitle: `${t.game}の削除`,
+    deleteConfirm: `この${t.game}を削除します。削除した${t.game}はゴミ箱から戻せます。`,
   },
   scoreLog: {
     title: t.scoreLog,
@@ -73,12 +84,20 @@ export const profile = {
     startedAt: "開始日時",
     userId: "ユーザーID",
     gameSize: `予定${t.round}数`,
+    olderYear: "前の年",
+    newerYear: "次の年",
     collapseAll: "全部閉じる",
     expandAll: "全部開く",
     year: (year: string) => `${year}年`,
     month: (month: string) => `${Number(month)}月`,
     day: (day: string) => `${Number(day)}日`,
     count: (count: number) => `${count}件`,
-    noDate: "日付なし",
+    trash: "ゴミ箱",
+  },
+  trash: {
+    title: "ゴミ箱",
+    empty: `削除した${t.game}はありません`,
+    deletedAt: "削除日",
+    restore: "戻す",
   },
 };

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
-import SqliteImport from "@/components/SqliteImport";
+import ExportFileImport from "@/components/ExportFileImport";
+import RecordsExport from "@/components/RecordsExport";
 import {
   MENU_POSITIONS,
   saveMenuPosition,
@@ -73,10 +75,12 @@ export default function Page() {
       <section className="panel stack tight">
         <h2>{T.settings.links.title}</h2>
         <Link href="/profile/settings">{T.settings.links.profileSettings}</Link>
-        <Link href="/profile/matches">{T.settings.links.registerMatch}</Link>
       </section>
 
-      <SqliteImport />
+      <ExportFileImport />
+
+      <RecordsExport />
+      <BackButton />
     </div>
   );
 }

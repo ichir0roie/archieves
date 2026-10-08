@@ -2,6 +2,7 @@
 
 import Field from "@/components/Field";
 import Modal from "@/components/Modal";
+import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import Segment from "@/components/Segment";
 import { useRouter } from "next/navigation";
@@ -298,6 +299,7 @@ export default function Page() {
           </select>
         </OtherModal>
       )}
+      <BackButton />
     </div>
   );
 }

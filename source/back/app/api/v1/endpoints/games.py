@@ -53,12 +53,27 @@ def list_games(
     skip: int = 0,
     limit: int = 100,
     user_id: int | None = None,
+    year: int | None = None,
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
 ) -> list[GameRead]:
     return game_crud.list_games(
-        s, skip=skip, limit=limit, user_id=deps.resolve_user_id(me, user_id)
+        s,
+        skip=skip,
+        limit=limit,
+        user_id=deps.resolve_user_id(me, user_id),
+        year=year,
     )
+
+
+@router.get("/games/years", response_model=list[int])
+def list_game_years(
+    user_id: int | None = None,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
+) -> list[int]:
+    """ゲームのある年。新しい年が先"""
+    return game_crud.list_game_years(s, user_id=deps.resolve_user_id(me, user_id))
 
 
 @router.post("/games", response_model=GameRead, status_code=201)

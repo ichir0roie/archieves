@@ -8,10 +8,10 @@
 
 場所は環境変数 `CLAUDE_CODE_REMOTE` で見分ける。
 
-| 場所 | `CLAUDE_CODE_REMOTE` | SessionStart フック(`.claude/hooks/session-start.sh`) | PostgreSQL |
-| --- | --- | --- | --- |
-| 手元(CLI・VS Code) | `true` でない | 何もしない。`.claude/scripts/setup-dev-env.sh` を手で回す | Docker のコンテナ(:55434) |
-| web のセッション(Claude Code on the web) | `true` | venv・PostgreSQL・node_modules を裏で用意する(それを使うコマンドだけ用意が済むまで待たされる) | apt のクラスタ(:5432) |
+| 場所                                     | `CLAUDE_CODE_REMOTE` | SessionStart フック(`.claude/hooks/session-start.sh`)                                         | PostgreSQL                |
+| ---------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------- | ------------------------- |
+| 手元(CLI・VS Code)                       | `true` でない        | 何もしない。`.claude/scripts/setup-dev-env.sh` を手で回す                                     | Docker のコンテナ(:55434) |
+| web のセッション(Claude Code on the web) | `true`               | venv・PostgreSQL・node_modules を裏で用意する(それを使うコマンドだけ用意が済むまで待たされる) | apt のクラスタ(:5432)     |
 
 どちらも `infra_local/postgres.sh` が用意する。
 
@@ -19,7 +19,7 @@
 
 **デバッグ・テスト・動作確認(画面を起こして見る・スクショを撮る・行を足して試す)で db を読み書きするときは、手元でも web のセッションでも、必ず手元の PostgreSQL の `archieves_test` で始まる db を使う。本番の RDS(`scripts/rds-tunnel.sh` の転送など)には決して向けない。** 用意の仕方は `.claude/docs/testing.md`。
 
-# 実装からプルリクまで
+# 実装
 
 手元でも web のセッションでも、次の順で進める。
 
@@ -53,8 +53,7 @@ GitHub Actions の CI は無いので、網羅テストの結果がその代わ�
 
 - ベースブランチは develop。プルリクのマージ先も develop
 - web のセッション: セッションの指示(作業するブランチ・コミット・push)に従う。返答を終える前に、変えたものをコミットして指示のブランチへ push する。PR は上の順が来るまで作らない
-- 手元: 今のブランチで作業する。develop にいるときは作業用のブランチを切ってから変える
-- GitHub の操作は `gh` ではなく GitHub の MCP のツールで行う。`merge_pull_request` などに渡す `sha` は 40 桁(`git rev-parse HEAD`)
+- 手元: 今のブランチ(develop を含む)に直接直してよい。作業用のブランチは切らない
 - 作業中の変更は、ユーザが捨ててよいと言うまで捨てない(`git checkout -- .`・`git reset --hard`・`git stash drop` をしない)。取り消しか作り直しか読み切れないときは尋ねる
 - 日本語のファイル名が `"\346…"` になるときは `git -c core.quotePath=false` を付ける
 
@@ -62,14 +61,14 @@ GitHub Actions の CI は無いので、網羅テストの結果がその代わ�
 
 次の作業を始める前に、対応するファイルを Read して従う。パスはリポジトリのルートから。
 
-| 作業 | 読むファイル |
-| --- | --- |
-| venv・python・pytest・alembic・npm を動かす、依存を足す、環境変数を扱う、コマンドがエラーになった | `.claude/docs/setup.md` |
-| テスト・デバッグ・動作確認をする(画面を起こすときも)、E2E を書く・回す | `.claude/docs/testing.md` |
-| `source/back` のコードを書く・直す(エンドポイント・crud・モデル・マイグレーション・スキーマ) | `.claude/docs/backend.md` |
-| `source/front` のコードを書く・直す(画面・API の呼び出し・型) | `.claude/docs/frontend.md` |
-| フック(`.claude/hooks/`)・`.claude/settings.json` を書き換える | `.claude/docs/setup.md` の「フック」 |
-| インフラ(RDS・Cognito・Lambda)の方針を調べる | `docs/インフラ/` |
+| 作業                                                                                              | 読むファイル                         |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| venv・python・pytest・alembic・npm を動かす、依存を足す、環境変数を扱う、コマンドがエラーになった | `.claude/docs/setup.md`              |
+| テスト・デバッグ・動作確認をする(画面を起こすときも)、E2E を書く・回す                            | `.claude/docs/testing.md`            |
+| `source/back` のコードを書く・直す(エンドポイント・crud・モデル・マイグレーション・スキーマ)      | `.claude/docs/backend.md`            |
+| `source/front` のコードを書く・直す(画面・API の呼び出し・型)                                     | `.claude/docs/frontend.md`           |
+| フック(`.claude/hooks/`)・`.claude/settings.json` を書き換える                                    | `.claude/docs/setup.md` の「フック」 |
+| インフラ(RDS・Cognito・Lambda)の方針を調べる                                                      | `docs/インフラ/`                     |
 
 # コーディング規約
 

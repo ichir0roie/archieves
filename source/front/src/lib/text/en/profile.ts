@@ -6,7 +6,8 @@ export const profile: typeof ja = {
     title: `${t.profile} settings`,
     name: "Name",
     nickname: "Nickname",
-    age: "Age",
+    birthDate: "Date of birth",
+    age: (age: number) => `Age ${age}`,
     organization: t.affiliation,
   },
   view: {
@@ -35,8 +36,15 @@ export const profile: typeof ja = {
   },
   import: {
     title: t.import,
-    description:
-      "Upload a SQLite backup file (.sqlite / .sqlite3 / .db) from the old app to import its records as your own games.",
+    source: "Export source",
+    sources: {
+      android_mytargets: "Android: MyTargets",
+      archieves: "archieves (this app)",
+    },
+    descriptions: {
+      archieves: "Upload a file exported from this app (.db) to import its records as your own games.",
+      android_mytargets: "Upload a MyTargets backup (.sqlite / .sqlite3 / .db) to import its records as your own games.",
+    },
     done: "Import completed",
     summary: (games: number, rounds: number, ends: number, points: number) =>
       `${games} games / ${rounds} rounds / ${ends} ends / ${points} arrows`,
@@ -64,6 +72,9 @@ export const profile: typeof ja = {
     subtotal: "Subtotal",
     total: t.total,
     comment: t.comment,
+    deleteGame: "Delete this game",
+    deleteConfirmTitle: "Delete game",
+    deleteConfirm: "This game will be deleted. You can restore it from the trash.",
   },
   scoreLog: {
     title: t.scoreLog,
@@ -73,6 +84,8 @@ export const profile: typeof ja = {
     startedAt: "Started at",
     userId: "User ID",
     gameSize: "Planned rounds",
+    olderYear: "Previous year",
+    newerYear: "Next year",
     collapseAll: "Collapse all",
     expandAll: "Expand all",
     year: (year: string) => year,
@@ -80,6 +93,12 @@ export const profile: typeof ja = {
       new Date(2000, Number(month) - 1, 1).toLocaleString("en-US", { month: "short" }),
     day: (day: string) => `${Number(day)}`,
     count: (count: number) => (count === 1 ? "1 game" : `${count} games`),
-    noDate: "No date",
+    trash: "Trash",
+  },
+  trash: {
+    title: "Trash",
+    empty: "No deleted games",
+    deletedAt: "Deleted on",
+    restore: "Restore",
   },
 };

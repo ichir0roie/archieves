@@ -5,27 +5,36 @@ import { useEffect, useMemo, useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import LogGameCard from "@/components/LogGameCard";
 import LogGroup from "@/components/LogGroup";
+import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
-import { listGames } from "@/lib/api";
+import YearSwitcher from "@/components/YearSwitcher";
+import { listGameYears, listGamesOfYear } from "@/lib/api";
 import { useLoad } from "@/hooks/useLoad";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
-import {
-  allGroupKeys,
-  groupGamesByDate,
-  NO_DATE_KEY,
-} from "@/lib/scoreLogGroups";
+import { groupGamesByDate } from "@/lib/scoreLogGroups";
 import { loadScoreLogCollapsed, saveScoreLogCollapsed } from "@/lib/storage";
 import { useT } from "@/lib/text";
 
 export default function Page() {
   const T = useT();
   const router = useRouter();
+  // null のあいだは、ゲームのある一番新しい年を出す
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const { data, loading, error } = useLoad(async () => {
     const { id: userId } = await getCurrentAppUser();
-    return listGames(userId);
-  }, []);
-  const games = useMemo(() => data ?? [], [data]);
-  const groups = useMemo(() => groupGamesByDate(games), [games]);
+    const years = await listGameYears(userId);
+    const year = selectedYear ?? years[0] ?? null;
+    const games = year === null ? [] : await listGamesOfYear(userId, year);
+    return { years, year, games };
+  }, [selectedYear]);
+  const years = data?.years ?? [];
+  const year = data?.year ?? null;
+  const games = useMemo(() => data?.games ?? [], [data]);
+  const months = useMemo(
+    () => groupGamesByDate(games).years.flatMap((group) => group.months),
+    [games],
+  );
+  const yearIndex = year === null ? -1 : years.indexOf(year);
   const [collapsed, setCollapsed] = useState<Array<string>>([]);
 
   // サーバーでの描画中は localStorage を読めないので、前回の開閉は画面に載ってから当てる
@@ -46,16 +55,6 @@ export default function Page() {
     );
   }
 
-  function cards(list: typeof games) {
-    return (
-      <div className="ScoreLog row-list">
-        {list.map((game) => (
-          <LogGameCard key={game.id} game={game} />
-        ))}
-      </div>
-    );
-  }
-
   return (
     <div className="page">
       <PageHeader title={T.profile.scoreLog.title} />
@@ -67,16 +66,22 @@ export default function Page() {
         {T.profile.scoreLog.newRecord}
       </button>
       {error && <ApiErrorAlert error={error} />}
-      {loading && <p className="status empty">{T.loading}</p>}
-      {!loading && !error && games.length === 0 && (
+      {loading && !data && <p className="status empty">{T.loading}</p>}
+      {data && years.length === 0 && (
         <p className="status empty">{T.profile.scoreLog.empty}</p>
       )}
-      {games.length > 0 && (
+      {year !== null && (
         <>
+          <YearSwitcher
+            year={year}
+            older={years[yearIndex + 1] ?? null}
+            newer={yearIndex > 0 ? years[yearIndex - 1] : null}
+            onChange={setSelectedYear}
+          />
           <div className="log-toolbar">
             <button
               type="button"
-              onClick={() => updateCollapsed(allGroupKeys(groups))}
+              onClick={() => updateCollapsed(months.map((month) => month.key))}
             >
               {T.profile.scoreLog.collapseAll}
             </button>
@@ -84,53 +89,40 @@ export default function Page() {
               {T.profile.scoreLog.expandAll}
             </button>
           </div>
-          {groups.years.map((year) => (
+          {months.map((month) => (
             <LogGroup
-              key={year.key}
-              level="year"
-              title={T.profile.scoreLog.year(year.year)}
-              count={T.profile.scoreLog.count(year.count)}
-              open={!collapsed.includes(year.key)}
-              onToggle={() => toggle(year.key)}
+              key={month.key}
+              title={T.profile.scoreLog.month(month.month)}
+              count={T.profile.scoreLog.count(month.count)}
+              open={!collapsed.includes(month.key)}
+              onToggle={() => toggle(month.key)}
             >
-              {year.months.map((month) => (
-                <LogGroup
-                  key={month.key}
-                  level="month"
-                  title={T.profile.scoreLog.month(month.month)}
-                  count={T.profile.scoreLog.count(month.count)}
-                  open={!collapsed.includes(month.key)}
-                  onToggle={() => toggle(month.key)}
-                >
+              <table className="log-table">
+                <tbody>
                   {month.days.map((day) => (
-                    <LogGroup
-                      key={day.key}
-                      level="day"
-                      title={T.profile.scoreLog.day(day.day)}
-                      count={T.profile.scoreLog.count(day.games.length)}
-                      open={!collapsed.includes(day.key)}
-                      onToggle={() => toggle(day.key)}
-                    >
-                      {cards(day.games)}
-                    </LogGroup>
+                    <tr key={day.key}>
+                      <td className="log-day">{T.profile.scoreLog.day(day.day)}</td>
+                      <td>
+                        {day.games.map((game) => (
+                          <LogGameCard key={game.id} game={game} />
+                        ))}
+                      </td>
+                    </tr>
                   ))}
-                </LogGroup>
-              ))}
+                </tbody>
+              </table>
             </LogGroup>
           ))}
-          {groups.undated.length > 0 && (
-            <LogGroup
-              level="year"
-              title={T.profile.scoreLog.noDate}
-              count={T.profile.scoreLog.count(groups.undated.length)}
-              open={!collapsed.includes(NO_DATE_KEY)}
-              onToggle={() => toggle(NO_DATE_KEY)}
-            >
-              {cards(groups.undated)}
-            </LogGroup>
-          )}
         </>
       )}
+      <button
+        type="button"
+        className="TrashLink block"
+        onClick={() => router.push("/score-log/trash")}
+      >
+        {T.profile.scoreLog.trash}
+      </button>
+      <BackButton />
     </div>
   );
 }

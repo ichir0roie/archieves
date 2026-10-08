@@ -31,6 +31,7 @@ export const terms = {
   ranking: "ランキング",
   statistics: "統計",
   import: "インポート",
+  export: "エクスポート",
   distance: "距離",
   bowType: "弓の種類",
   targetType: "的の種類",

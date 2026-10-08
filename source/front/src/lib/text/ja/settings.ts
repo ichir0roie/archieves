@@ -22,6 +22,11 @@ export const settings = {
   links: {
     title: "アカウント",
     profileSettings: `${t.profile}${t.settings}`,
-    registerMatch: `${t.match}情報の登録`,
+  },
+  export: {
+    title: t.export,
+    description: `自分の${t.record}を SQLite のファイル (.db) でダウンロードします。表と列の説明もファイルの中に入っているので、他のアプリや AI でも読めます。この画面の${t.import}で取り込み直せます。`,
+    submit: "ダウンロード (.db)",
+    exporting: "作成中...",
   },
 };

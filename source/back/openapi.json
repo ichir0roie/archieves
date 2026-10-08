@@ -706,6 +706,22 @@
               ],
               "title": "User Id"
             }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Year"
+            }
           }
         ],
         "responses": {
@@ -763,6 +779,65 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GameRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/years": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "List Game Years",
+        "description": "ゲームのある年。新しい年が先",
+        "operationId": "list_game_years_api_v1_games_years_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "title": "Response List Game Years Api V1 Games Years Get"
                 }
               }
             }
@@ -2807,19 +2882,19 @@
         }
       }
     },
-    "/api/v1/import/sqlite-backup": {
+    "/api/v1/import": {
       "post": {
         "tags": [
           "imports"
         ],
-        "summary": "Import Sqlite Backup",
-        "description": "Import the legacy client app's local SQLite backup, attributed to the signed-in user.",
-        "operationId": "import_sqlite_backup_api_v1_import_sqlite_backup_post",
+        "summary": "Import Export File",
+        "description": "他のアプリのエクスポートファイルを、その種類(source)に合わせて読み、本人の記録として取り込む。",
+        "operationId": "import_export_file_api_v1_import_post",
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_import_sqlite_backup_api_v1_import_sqlite_backup_post"
+                "$ref": "#/components/schemas/Body_import_export_file_api_v1_import_post"
               }
             }
           },
@@ -2852,6 +2927,89 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/export/records.db": {
+      "get": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Export Records",
+        "description": "本人の記録を SQLite のファイルで返す。\n\n表と列の説明はファイルの中の `_about`・`_columns` にある。",
+        "operationId": "export_records_api_v1_export_records_db_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/vnd.sqlite3": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/statistics/game-kinds": {
+      "get": {
+        "tags": [
+          "statistics"
+        ],
+        "summary": "Get Game Kind Options",
+        "description": "統計の絞り込みに選べる種別の値。",
+        "operationId": "get_game_kind_options_api_v1_statistics_game_kinds_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameKindOptions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/statistics/rounds": {
@@ -2916,6 +3074,102 @@
                 }
               ],
               "title": "User Id"
+            }
+          },
+          {
+            "name": "bow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bow Type"
+            }
+          },
+          {
+            "name": "distance_m",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Distance M"
+            }
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Type"
+            }
+          },
+          {
+            "name": "end_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Size"
+            }
+          },
+          {
+            "name": "round_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Round Size"
+            }
+          },
+          {
+            "name": "game_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Game Size"
             }
           }
         ],
@@ -3010,6 +3264,102 @@
               ],
               "title": "User Id"
             }
+          },
+          {
+            "name": "bow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bow Type"
+            }
+          },
+          {
+            "name": "distance_m",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Distance M"
+            }
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Type"
+            }
+          },
+          {
+            "name": "end_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Size"
+            }
+          },
+          {
+            "name": "round_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Round Size"
+            }
+          },
+          {
+            "name": "game_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Game Size"
+            }
           }
         ],
         "responses": {
@@ -3098,6 +3448,102 @@
                 }
               ],
               "title": "User Id"
+            }
+          },
+          {
+            "name": "bow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bow Type"
+            }
+          },
+          {
+            "name": "distance_m",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Distance M"
+            }
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Type"
+            }
+          },
+          {
+            "name": "end_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Size"
+            }
+          },
+          {
+            "name": "round_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Round Size"
+            }
+          },
+          {
+            "name": "game_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Game Size"
             }
           }
         ],
@@ -3192,6 +3638,102 @@
               ],
               "title": "User Id"
             }
+          },
+          {
+            "name": "bow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bow Type"
+            }
+          },
+          {
+            "name": "distance_m",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Distance M"
+            }
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Type"
+            }
+          },
+          {
+            "name": "end_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Size"
+            }
+          },
+          {
+            "name": "round_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Round Size"
+            }
+          },
+          {
+            "name": "game_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Game Size"
+            }
           }
         ],
         "responses": {
@@ -3280,6 +3822,102 @@
                 }
               ],
               "title": "User Id"
+            }
+          },
+          {
+            "name": "bow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bow Type"
+            }
+          },
+          {
+            "name": "distance_m",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Distance M"
+            }
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Type"
+            }
+          },
+          {
+            "name": "end_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Size"
+            }
+          },
+          {
+            "name": "round_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Round Size"
+            }
+          },
+          {
+            "name": "game_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Game Size"
             }
           }
         ],
@@ -3505,8 +4143,11 @@
   },
   "components": {
     "schemas": {
-      "Body_import_sqlite_backup_api_v1_import_sqlite_backup_post": {
+      "Body_import_export_file_api_v1_import_post": {
         "properties": {
+          "source": {
+            "$ref": "#/components/schemas/ImportSource"
+          },
           "file": {
             "type": "string",
             "format": "binary",
@@ -3515,9 +4156,10 @@
         },
         "type": "object",
         "required": [
+          "source",
           "file"
         ],
-        "title": "Body_import_sqlite_backup_api_v1_import_sqlite_backup_post"
+        "title": "Body_import_export_file_api_v1_import_post"
       },
       "BowType": {
         "type": "string",
@@ -3822,6 +4464,63 @@
         ],
         "title": "GameCreate"
       },
+      "GameKindOptions": {
+        "properties": {
+          "bow_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bow Types"
+          },
+          "distances_m": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Distances M"
+          },
+          "target_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Target Types"
+          },
+          "end_sizes": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "End Sizes"
+          },
+          "round_sizes": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Round Sizes"
+          },
+          "game_sizes": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Game Sizes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bow_types",
+          "distances_m",
+          "target_types",
+          "end_sizes",
+          "round_sizes",
+          "game_sizes"
+        ],
+        "title": "GameKindOptions",
+        "description": "統計の絞り込みに選べる種別の値(利用者の記録にあるもの)。"
+      },
       "GameRead": {
         "properties": {
           "user_id": {
@@ -3980,6 +4679,14 @@
           "points"
         ],
         "title": "ImportResult"
+      },
+      "ImportSource": {
+        "type": "string",
+        "enum": [
+          "android_mytargets",
+          "archieves"
+        ],
+        "title": "ImportSource"
       },
       "MatchCreate": {
         "properties": {
@@ -4859,17 +5566,17 @@
             ],
             "title": "Nickname"
           },
-          "age": {
+          "birth_date": {
             "anyOf": [
               {
-                "type": "integer",
-                "minimum": 0.0
+                "type": "string",
+                "format": "date"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Age"
+            "title": "Birth Date"
           },
           "organization_id": {
             "anyOf": [
@@ -4917,17 +5624,17 @@
             ],
             "title": "Nickname"
           },
-          "age": {
+          "birth_date": {
             "anyOf": [
               {
-                "type": "integer",
-                "minimum": 0.0
+                "type": "string",
+                "format": "date"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Age"
+            "title": "Birth Date"
           },
           "organization_id": {
             "anyOf": [
@@ -5058,17 +5765,17 @@
             ],
             "title": "Nickname"
           },
-          "age": {
+          "birth_date": {
             "anyOf": [
               {
-                "type": "integer",
-                "minimum": 0.0
+                "type": "string",
+                "format": "date"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Age"
+            "title": "Birth Date"
           },
           "organization_id": {
             "anyOf": [
@@ -5106,17 +5813,30 @@
               }
             ],
             "title": "Sub"
+          },
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age",
+            "readOnly": true
           }
         },
         "type": "object",
         "required": [
           "name",
           "nickname",
-          "age",
+          "birth_date",
           "organization_id",
           "region_id",
           "id",
-          "sub"
+          "sub",
+          "age"
         ],
         "title": "UserRead"
       },
@@ -5144,17 +5864,17 @@
             ],
             "title": "Nickname"
           },
-          "age": {
+          "birth_date": {
             "anyOf": [
               {
-                "type": "integer",
-                "minimum": 0.0
+                "type": "string",
+                "format": "date"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Age"
+            "title": "Birth Date"
           },
           "organization_id": {
             "anyOf": [
