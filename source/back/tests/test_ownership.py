@@ -113,6 +113,7 @@ def test_trash_of_another_user_is_forbidden(client: TestClient, others: dict) ->
     assert client.get(f"/api/v1/trash/games?user_id={user_id}").status_code == 403
     assert client.get(f"/api/v1/trash/rounds?user_id={user_id}").status_code == 403
     assert client.get(f"/api/v1/matches?user_id={user_id}").status_code == 403
+    assert client.get(f"/api/v1/games/years?user_id={user_id}").status_code == 403
 
 
 def test_a_user_without_a_registered_row_is_not_found(
@@ -135,6 +136,16 @@ def test_statistics_can_be_read_for_another_user(client: TestClient, others: dic
         assert response.status_code == 200, path
 
     assert client.get("/api/v1/statistics/ranking").status_code == 200
+
+
+def test_statistics_without_user_id_exclude_other_users(client: TestClient, others: dict) -> None:
+    rounds = client.get("/api/v1/statistics/rounds")
+    assert rounds.status_code == 200
+    assert rounds.json() == []
+
+    summary = client.get("/api/v1/statistics/points/summary")
+    assert summary.status_code == 200
+    assert summary.json()["count"] == 0
 
 
 def test_user_profile_and_organizations_can_be_read_by_anyone_signed_in(

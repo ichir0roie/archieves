@@ -212,6 +212,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/games/years": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Game Years
+         * @description ゲームのある年。新しい年が先
+         */
+        get: operations["list_game_years_api_v1_games_years_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/games/{game_id}": {
         parameters: {
             query?: never;
@@ -545,7 +565,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/import/sqlite-backup": {
+    "/api/v1/import": {
         parameters: {
             query?: never;
             header?: never;
@@ -555,10 +575,52 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Import Sqlite Backup
-         * @description Import the legacy client app's local SQLite backup, attributed to the signed-in user.
+         * Import Export File
+         * @description 他のアプリのエクスポートファイルを、その種類(source)に合わせて読み、本人の記録として取り込む。
          */
-        post: operations["import_sqlite_backup_api_v1_import_sqlite_backup_post"];
+        post: operations["import_export_file_api_v1_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/export/records.db": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Records
+         * @description 本人の記録を SQLite のファイルで返す。
+         *
+         *     表と列の説明はファイルの中の `_about`・`_columns` にある。
+         */
+        get: operations["export_records_api_v1_export_records_db_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/statistics/game-kinds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Game Kind Options
+         * @description 統計の絞り込みに選べる種別の値。
+         */
+        get: operations["get_game_kind_options_api_v1_statistics_game_kinds_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -710,8 +772,9 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** Body_import_sqlite_backup_api_v1_import_sqlite_backup_post */
-        Body_import_sqlite_backup_api_v1_import_sqlite_backup_post: {
+        /** Body_import_export_file_api_v1_import_post */
+        Body_import_export_file_api_v1_import_post: {
+            source: components["schemas"]["ImportSource"];
             /**
              * File
              * Format: binary
@@ -835,6 +898,24 @@ export interface components {
             /** Bow Type */
             bow_type?: string | null;
         };
+        /**
+         * GameKindOptions
+         * @description 統計の絞り込みに選べる種別の値(利用者の記録にあるもの)。
+         */
+        GameKindOptions: {
+            /** Bow Types */
+            bow_types: string[];
+            /** Distances M */
+            distances_m: number[];
+            /** Target Types */
+            target_types: string[];
+            /** End Sizes */
+            end_sizes: number[];
+            /** Round Sizes */
+            round_sizes: number[];
+            /** Game Sizes */
+            game_sizes: number[];
+        };
         /** GameRead */
         GameRead: {
             /** User Id */
@@ -880,6 +961,11 @@ export interface components {
             /** Points */
             points: number;
         };
+        /**
+         * ImportSource
+         * @enum {string}
+         */
+        ImportSource: "android_mytargets" | "archieves";
         /** MatchCreate */
         MatchCreate: {
             /** Name */
@@ -1689,6 +1775,7 @@ export interface operations {
                 skip?: number;
                 limit?: number;
                 user_id?: number | null;
+                year?: number | null;
             };
             header?: never;
             path?: never;
@@ -1736,6 +1823,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GameRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_game_years_api_v1_games_years_get: {
+        parameters: {
+            query?: {
+                user_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number[];
                 };
             };
             /** @description Validation Error */
@@ -2977,7 +3095,7 @@ export interface operations {
             };
         };
     };
-    import_sqlite_backup_api_v1_import_sqlite_backup_post: {
+    import_export_file_api_v1_import_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2986,7 +3104,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_import_sqlite_backup_api_v1_import_sqlite_backup_post"];
+                "multipart/form-data": components["schemas"]["Body_import_export_file_api_v1_import_post"];
             };
         };
         responses: {
@@ -3010,12 +3128,69 @@ export interface operations {
             };
         };
     };
+    export_records_api_v1_export_records_db_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.sqlite3": string;
+                };
+            };
+        };
+    };
+    get_game_kind_options_api_v1_statistics_game_kinds_get: {
+        parameters: {
+            query?: {
+                user_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameKindOptions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_round_scores_api_v1_statistics_rounds_get: {
         parameters: {
             query?: {
                 start?: string | null;
                 end?: string | null;
                 user_id?: number | null;
+                bow_type?: string | null;
+                distance_m?: number | null;
+                target_type?: string | null;
+                end_size?: number | null;
+                round_size?: number | null;
+                game_size?: number | null;
             };
             header?: never;
             path?: never;
@@ -3049,6 +3224,12 @@ export interface operations {
                 start?: string | null;
                 end?: string | null;
                 user_id?: number | null;
+                bow_type?: string | null;
+                distance_m?: number | null;
+                target_type?: string | null;
+                end_size?: number | null;
+                round_size?: number | null;
+                game_size?: number | null;
             };
             header?: never;
             path?: never;
@@ -3082,6 +3263,12 @@ export interface operations {
                 start?: string | null;
                 end?: string | null;
                 user_id?: number | null;
+                bow_type?: string | null;
+                distance_m?: number | null;
+                target_type?: string | null;
+                end_size?: number | null;
+                round_size?: number | null;
+                game_size?: number | null;
             };
             header?: never;
             path?: never;
@@ -3115,6 +3302,12 @@ export interface operations {
                 start?: string | null;
                 end?: string | null;
                 user_id?: number | null;
+                bow_type?: string | null;
+                distance_m?: number | null;
+                target_type?: string | null;
+                end_size?: number | null;
+                round_size?: number | null;
+                game_size?: number | null;
             };
             header?: never;
             path?: never;
@@ -3148,6 +3341,12 @@ export interface operations {
                 start?: string | null;
                 end?: string | null;
                 user_id?: number | null;
+                bow_type?: string | null;
+                distance_m?: number | null;
+                target_type?: string | null;
+                end_size?: number | null;
+                round_size?: number | null;
+                game_size?: number | null;
             };
             header?: never;
             path?: never;

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import date
 
 from sqlalchemy import ColumnElement, Select, func, select
@@ -8,11 +9,42 @@ from app.core.scoring import scored_value_column
 from app.db import End, Game, Point, Round, User
 from app.schemas.statistics import (
     EndScoreSummary,
+    GameKindOptions,
     RankingMetric,
     RoundScoreSummary,
     ScoreStatistics,
     UserRanking,
 )
+
+
+@dataclass(frozen=True)
+class GameKindFilter:
+    """統計を絞るゲームの種別。None の欄は絞らない。"""
+
+    bow_type: str | None = None
+    distance_m: int | None = None
+    target_type: str | None = None
+    end_size: int | None = None
+    round_size: int | None = None
+    game_size: int | None = None
+
+
+def _where_kind(stmt: Select, kind: GameKindFilter | None) -> Select:
+    """Game と Round を join 済みの stmt を種別で絞る。"""
+    if kind is None:
+        return stmt
+    conditions = [
+        (Game.bow_type, kind.bow_type),
+        (Round.distance_m, kind.distance_m),
+        (Round.target_type, kind.target_type),
+        (Round.end_size, kind.end_size),
+        (Round.round_size, kind.round_size),
+        (Game.game_size, kind.game_size),
+    ]
+    for column, value in conditions:
+        if value is not None:
+            stmt = stmt.where(column == value)
+    return stmt
 
 
 def _statistics(s: Session, value: ColumnElement) -> ScoreStatistics:
@@ -37,7 +69,12 @@ def _statistics(s: Session, value: ColumnElement) -> ScoreStatistics:
     )
 
 
-def _round_totals(start: date | None, end: date | None, user_id: int | None) -> Select:
+def _round_totals(
+    start: date | None,
+    end: date | None,
+    user_id: int | None,
+    kind: GameKindFilter | None,
+) -> Select:
     stmt = (
         select(
             Round.id,
@@ -60,10 +97,15 @@ def _round_totals(start: date | None, end: date | None, user_id: int | None) -> 
         stmt = stmt.where(Round.recorded_at <= end)
     if user_id is not None:
         stmt = stmt.where(Game.user_id == user_id)
-    return stmt
+    return _where_kind(stmt, kind)
 
 
-def _end_totals(start: date | None, end: date | None, user_id: int | None) -> Select:
+def _end_totals(
+    start: date | None,
+    end: date | None,
+    user_id: int | None,
+    kind: GameKindFilter | None,
+) -> Select:
     stmt = (
         select(
             End.id,
@@ -86,7 +128,7 @@ def _end_totals(start: date | None, end: date | None, user_id: int | None) -> Se
         stmt = stmt.where(End.recorded_at <= end)
     if user_id is not None:
         stmt = stmt.where(Game.user_id == user_id)
-    return stmt
+    return _where_kind(stmt, kind)
 
 
 def list_round_scores(
@@ -95,6 +137,7 @@ def list_round_scores(
     start: date | None = None,
     end: date | None = None,
     user_id: int | None = None,
+    kind: GameKindFilter | None = None,
 ) -> list[RoundScoreSummary]:
     return [
         RoundScoreSummary(
@@ -106,7 +149,7 @@ def list_round_scores(
             total_score=row.total_score,
             average_score=(row.total_score / row.arrow_count) if row.arrow_count else None,
         )
-        for row in s.execute(_round_totals(start, end, user_id))
+        for row in s.execute(_round_totals(start, end, user_id, kind))
     ]
 
 
@@ -116,6 +159,7 @@ def list_end_scores(
     start: date | None = None,
     end: date | None = None,
     user_id: int | None = None,
+    kind: GameKindFilter | None = None,
 ) -> list[EndScoreSummary]:
     return [
         EndScoreSummary(
@@ -127,7 +171,7 @@ def list_end_scores(
             total_score=row.total_score,
             average_score=(row.total_score / row.arrow_count) if row.arrow_count else None,
         )
-        for row in s.execute(_end_totals(start, end, user_id))
+        for row in s.execute(_end_totals(start, end, user_id, kind))
     ]
 
 
@@ -137,8 +181,9 @@ def round_score_statistics(
     start: date | None = None,
     end: date | None = None,
     user_id: int | None = None,
+    kind: GameKindFilter | None = None,
 ) -> ScoreStatistics:
-    totals = _round_totals(start, end, user_id).order_by(None).subquery()
+    totals = _round_totals(start, end, user_id, kind).order_by(None).subquery()
     return _statistics(s, totals.c.total_score)
 
 
@@ -148,8 +193,9 @@ def end_score_statistics(
     start: date | None = None,
     end: date | None = None,
     user_id: int | None = None,
+    kind: GameKindFilter | None = None,
 ) -> ScoreStatistics:
-    totals = _end_totals(start, end, user_id).order_by(None).subquery()
+    totals = _end_totals(start, end, user_id, kind).order_by(None).subquery()
     return _statistics(s, totals.c.total_score)
 
 
@@ -159,6 +205,7 @@ def point_score_statistics(
     start: date | None = None,
     end: date | None = None,
     user_id: int | None = None,
+    kind: GameKindFilter | None = None,
 ) -> ScoreStatistics:
     scores = (
         select(scored_value_column(Point.score).label("score"))
@@ -173,7 +220,37 @@ def point_score_statistics(
         scores = scores.where(Point.recorded_at <= end)
     if user_id is not None:
         scores = scores.where(Game.user_id == user_id)
+    scores = _where_kind(scores, kind)
     return _statistics(s, scores.subquery().c.score)
+
+
+def game_kind_options(s: Session, *, user_id: int) -> GameKindOptions:
+    """利用者の記録にある種別の値。統計の絞り込みの選択肢にする。"""
+
+    def distinct(column) -> list:
+        stmt = (
+            select(column)
+            .select_from(Round)
+            .join(Game, Game.id == Round.game_id)
+            .where(
+                Round.deleted_at.is_(None),
+                Game.deleted_at.is_(None),
+                Game.user_id == user_id,
+                column.is_not(None),
+            )
+            .distinct()
+            .order_by(column)
+        )
+        return list(s.scalars(stmt))
+
+    return GameKindOptions(
+        bow_types=distinct(Game.bow_type),
+        distances_m=distinct(Round.distance_m),
+        target_types=distinct(Round.target_type),
+        end_sizes=distinct(Round.end_size),
+        round_sizes=distinct(Round.round_size),
+        game_sizes=distinct(Game.game_size),
+    )
 
 
 def list_user_ranking(

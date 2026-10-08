@@ -199,14 +199,15 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior
 
 /* 統計の一枚(平均を大きく、最小・最大・中央値・件数を小さく) */
 .stat-card { display: flex; flex-direction: column; gap: 0.5rem; }
-.stat-card .body { display: flex; align-items: center; gap: 1rem; }
+/* 平均と表を横に並べると、3 枚が横に並ぶ幅(1 枚 15rem)で表がはみ出して文字が縦に折れる。縦に積む */
+.stat-card .body { display: flex; flex-direction: column; align-items: stretch; gap: 0.6rem; }
 .stat-card .average { display: flex; align-items: baseline; gap: 0.25rem; }
 .stat-card .average .value { font-size: 2.2rem; font-weight: 700; line-height: 1; }
 .stat-card .metrics { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; }
-.stat-card .metric { display: flex; justify-content: space-between; gap: 0.4rem; background: var(--chip); border-radius: 6px; padding: 0.15rem 0.5rem; font-size: 0.85rem; }
+.stat-card .metric { display: flex; justify-content: space-between; align-items: baseline; gap: 0.4rem; white-space: nowrap; background: var(--chip); border-radius: 6px; padding: 0.15rem 0.5rem; font-size: 0.85rem; }
 .stat-card .metric .label { color: var(--muted); font-size: 0.75rem; font-weight: 600; }
 
-/* 折れ線のグラフ(components/RoundScoreChart.tsx)。色は CSS の変数から引くので、svg の中でも class で塗る */
+/* 折れ線のグラフ(components/ScoreTrendChart.tsx)。色は CSS の変数から引くので、svg の中でも class で塗る */
 .chart svg { display: block; width: 100%; height: auto; }
 .chart .grid { stroke: var(--line); stroke-width: 1; }
 .chart .axis { stroke: var(--muted); stroke-width: 1; }
@@ -299,7 +300,6 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .profile-item { display: flex; flex-direction: column; gap: 0.1rem; align-items: flex-start; }
 
 /* インポートの説明と結果 */
-.import-description { margin: 0; }
 .import-result p { margin: 0; }
 .import-result .summary { margin-top: 0.25rem; font-weight: 400; }
 
@@ -326,13 +326,22 @@ table.list.view-sheet { table-layout: fixed; }
 .view-sheet .comment-row td { text-align: left; font-weight: 400; font-size: 0.8rem; padding-top: 0; white-space: pre-wrap; }
 
 /* スコアの年・月・日の見出し */
+.year-switcher { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin: 0.25rem 0 0.5rem; }
+.year-switcher-year { font-size: 1.2rem; font-weight: 700; min-width: 5rem; text-align: center; }
 .log-toolbar { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
-.log-group { margin-bottom: 0.5rem; }
-.log-head { display: flex; align-items: center; gap: 0.5rem; width: 100%; text-align: left; background: var(--chip); border-color: transparent; }
+.log-toolbar button { padding: 0.25rem 0.7rem; font-size: 0.85rem; }
+.log-group { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); margin-bottom: 0.5rem; }
+.log-head { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.35rem 0.7rem; text-align: left; background: var(--chip); border: 0; border-radius: 0; }
 .log-arrow { font-size: 0.7rem; width: 1rem; }
 .log-title { font-weight: 700; flex: 1; }
-.log-month > .log-body, .log-day > .log-body, .log-year > .log-body { margin-top: 0.4rem; }
-.log-month, .log-day { margin-left: 0.75rem; }
+.log-table { width: 100%; border-collapse: collapse; }
+.log-table td { border-top: 1px solid var(--line); padding: 0; vertical-align: top; }
+.log-table .log-day { width: 3.5rem; padding: 0.35rem 0.5rem; border-right: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+.log-table .ScoreLogGame { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.35rem 0.7rem; border: 0; border-radius: 0; background: none; text-align: left; color: var(--ink); }
+.log-table .ScoreLogGame + .ScoreLogGame { border-top: 1px dashed var(--line); }
+.log-table .ScoreLogGame:hover { background: color-mix(in srgb, var(--accent) 6%, var(--panel)); }
+.log-game-id { flex: 1; font-weight: 700; }
+.log-game-go { color: var(--muted); }
 
 /* 設定画面で選んだ隅(未設定なら上の既定)。狭い画面の指定より強くするため nav[data-pos] を付ける */
 nav[data-pos] .nav-fab { width: 42px; height: 42px; }
@@ -353,3 +362,6 @@ nav[data-pos$="right"] .nav-panel { left: auto; right: 16px; }
   .modal-backdrop { padding: 0.5rem; }
   .modal { max-height: 95dvh; }
 }
+
+/* 画面の最下部の戻るボタン */
+.back-button { margin-top: 0.6rem; }

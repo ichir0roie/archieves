@@ -5,6 +5,7 @@ import ApiErrorAlert from "@/components/ApiErrorAlert";
 import ExternalLink from "@/components/ExternalLink";
 import Field from "@/components/Field";
 import Modal from "@/components/Modal";
+import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import {
   GameRead,
@@ -244,6 +245,7 @@ export default function Page() {
           onSaved={(match) => handleSaved(game.id, match)}
         />
       ))}
+      <BackButton />
     </div>
   );
 }

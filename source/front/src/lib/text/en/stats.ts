@@ -20,9 +20,9 @@ export const stats: typeof ja = {
   },
   chart: {
     empty: "No rounds to show",
-    ariaLabel: "Line chart of total points per round",
-    pointTitle: (number: number, date: string, total: number, average: string) =>
-      `${t.roundN(number)} (${date})\n${t.total}: ${total}${t.unit.point} / ${t.average}: ${average}${t.unit.point}`,
+    ariaLabel: (axis: string) => `Line chart of daily ${axis}`,
+    pointTitle: (date: string, value: string, count: number) =>
+      `${date}\n${value}${t.unit.point} (average of ${count})`,
   },
   filter: {
     startMonth: "Start month",
@@ -37,6 +37,20 @@ export const stats: typeof ja = {
       month: "Past month",
       all: t.allPeriod,
       custom: "Custom",
+    },
+    axis: "Chart axis",
+    axisOption: {
+      round: "Average per round",
+      end: "Average per end",
+      point: "Average per arrow",
+    },
+    kind: {
+      bowType: t.bowType,
+      distance: t.distance,
+      targetType: t.targetType,
+      endSize: "Arrows per end",
+      roundSize: "Ends per round",
+      gameSize: "Rounds per game",
     },
   },
   ranking: {

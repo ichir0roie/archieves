@@ -11,6 +11,7 @@ import type {
   GameCommentRead,
   GameRead,
   ImportResult,
+  ImportSource,
   MatchCreate,
   MatchRead,
   MatchSummary,
@@ -24,6 +25,7 @@ import type {
   RoundRead,
   RoundScoreSummary,
   ScoreStatistics,
+  GameKindOptions,
   UserCreate,
   UserProfile,
   UserRanking,
@@ -76,10 +78,10 @@ export function toErrorDetails(e: unknown): ErrorDetails {
  * 期限の切れかけた Cognito のトークンを更新して、クッキーに書き戻させる。
  * route handler はクッキーのトークンを読むだけで更新しないので、送る前にここで更新する。
  */
-async function refreshSession(): Promise<void> {
+async function refreshSession(forceRefresh = false): Promise<void> {
   if (isMockAuth()) return;
   try {
-    await fetchAuthSession();
+    await fetchAuthSession({ forceRefresh });
   } catch {
     // ログインしていなければ route handler が 401 を返す
   }
@@ -88,14 +90,22 @@ async function refreshSession(): Promise<void> {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const method = init?.method ?? 'GET';
   const url = `${API_BASE_URL}${path}`;
+  const send = () =>
+    fetch(url, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...init?.headers,
+      },
+    });
   await refreshSession();
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-  });
+  let response = await send();
+  // Amplify は期限の 5 秒前まで更新しないので、切れかけのトークンが route handler に着く間に切れて 401 になることがある。
+  // 強制的に更新して一度だけ送り直す(ログインしていなければもう一度 401 になる)
+  if (response.status === 401 && !isMockAuth()) {
+    await refreshSession(true);
+    response = await send();
+  }
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -226,9 +236,29 @@ export function deleteGame(gameId: number): Promise<void> {
   return request(`/games/${gameId}`, { method: 'DELETE' });
 }
 
+/** 論理削除したゲーム。消した日が新しい順。 */
+export function listDeletedGames(userId: number): Promise<GameRead[]> {
+  return request(`/trash/games?user_id=${userId}`);
+}
+
+/** 論理削除したゲームを、配下のラウンド・エンド・点ごと戻す。 */
+export function restoreGame(gameId: number): Promise<GameRead> {
+  return request(`/games/${gameId}/restore`, { method: 'POST' });
+}
+
 /** Games belonging to a single user, most recently created last. */
 export function listGames(userId: number): Promise<GameRead[]> {
   return request(`/games?user_id=${userId}`);
+}
+
+/** その年(recorded_at)のゲーム全部。既定の 100 件で切れないよう上限を広げる */
+export function listGamesOfYear(userId: number, year: number): Promise<GameRead[]> {
+  return request(`/games?user_id=${userId}&year=${year}&limit=10000`);
+}
+
+/** ゲームのある年。新しい年が先 */
+export function listGameYears(userId: number): Promise<number[]> {
+  return request(`/games/years?user_id=${userId}`);
 }
 
 /** Rounds within a single game, in creation order. */
@@ -388,6 +418,13 @@ export interface StatisticsQuery {
   /** "yyyy-mm-dd" date; inclusive upper bound on `recorded_at`. */
   end?: string;
   userId?: number;
+  /** ゲームの種別で絞る。/statistics だけが使い、未指定の欄は絞らない */
+  bowType?: string;
+  distanceM?: number;
+  targetType?: string;
+  endSize?: number;
+  roundSize?: number;
+  gameSize?: number;
 }
 
 function statisticsQueryString(params?: StatisticsQuery): string {
@@ -395,8 +432,19 @@ function statisticsQueryString(params?: StatisticsQuery): string {
   if (params?.start) query.set('start', params.start);
   if (params?.end) query.set('end', params.end);
   if (params?.userId !== undefined) query.set('user_id', String(params.userId));
+  if (params?.bowType) query.set('bow_type', params.bowType);
+  if (params?.distanceM !== undefined) query.set('distance_m', String(params.distanceM));
+  if (params?.targetType) query.set('target_type', params.targetType);
+  if (params?.endSize !== undefined) query.set('end_size', String(params.endSize));
+  if (params?.roundSize !== undefined) query.set('round_size', String(params.roundSize));
+  if (params?.gameSize !== undefined) query.set('game_size', String(params.gameSize));
   const qs = query.toString();
   return qs ? `?${qs}` : '';
+}
+
+/** 統計の絞り込みに選べる種別の値(利用者の記録にあるもの)。 */
+export function getGameKindOptions(userId?: number): Promise<GameKindOptions> {
+  return request(`/statistics/game-kinds${statisticsQueryString({ userId })}`);
 }
 
 /** Per-round score aggregation (total/average of its points). */
@@ -435,11 +483,12 @@ export interface RankingQuery {
   regionId?: number;
 }
 
-/** Imports the legacy client app's local SQLite backup, attributed to the signed-in user. */
-export async function importSqliteBackup(file: File): Promise<ImportResult> {
+/** 他のアプリのエクスポートファイルを、その種類(source)に合わせて本人の記録として取り込む。 */
+export async function importExportFile(source: ImportSource, file: File): Promise<ImportResult> {
   const method = 'POST';
-  const url = `${API_BASE_URL}/import/sqlite-backup`;
+  const url = `${API_BASE_URL}/import`;
   const formData = new FormData();
+  formData.append('source', source);
   formData.append('file', file);
 
   await refreshSession();
@@ -457,6 +506,27 @@ export async function importSqliteBackup(file: File): Promise<ImportResult> {
   }
 
   return (await response.json()) as ImportResult;
+}
+
+/** 本人の記録の SQLite のファイル。ファイル名は応答の Content-Disposition から取る。 */
+export async function exportRecords(): Promise<{ blob: Blob; filename: string }> {
+  const method = 'GET';
+  const url = `${API_BASE_URL}/export/records.db`;
+
+  await refreshSession();
+  const response = await fetch(url, { method });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const message =
+      (body && typeof body === 'object' && 'detail' in body && String(body.detail)) ||
+      response.statusText;
+    throw new ApiError(response.status, message, method, url, body);
+  }
+
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? 'records.db';
+  return { blob: await response.blob(), filename };
 }
 
 /** Users ranked by the chosen metric (total score by default), high to low. */

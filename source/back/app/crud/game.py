@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, extract, select
 from sqlalchemy.orm import Session
 
 from app.core.target_types import resolve_target_size_cm
@@ -61,12 +61,36 @@ def get_game_any(s: Session, game_id: int) -> Game | None:
 
 
 def list_games(
-    s: Session, skip: int = 0, limit: int = 100, user_id: int | None = None
+    s: Session,
+    skip: int = 0,
+    limit: int = 100,
+    user_id: int | None = None,
+    year: int | None = None,
 ) -> list[Game]:
     stmt = _visible_games().order_by(Game.id).offset(skip).limit(limit)
     if user_id is not None:
         stmt = stmt.where(Game.user_id == user_id)
+    if year is not None:
+        stmt = stmt.where(
+            Game.recorded_at >= date(year, 1, 1),
+            Game.recorded_at < date(year + 1, 1, 1),
+        )
     return list(s.scalars(stmt))
+
+
+def list_game_years(s: Session, user_id: int) -> list[int]:
+    """ゲームのある年。新しい年が先"""
+    year = extract("year", Game.recorded_at)
+    stmt = (
+        select(year)
+        .where(
+            Game.deleted_at.is_(None),
+            Game.user_id == user_id,
+        )
+        .group_by(year)
+        .order_by(year.desc())
+    )
+    return [int(value) for value in s.scalars(stmt)]
 
 
 def list_deleted_games(
@@ -277,7 +301,7 @@ def list_matches(
     ]
 
 
-def _point_cm(round_: Round | None, x: float, y: float) -> tuple[float | None, float | None]:
+def point_cm(round_: Round | None, x: float, y: float) -> tuple[float | None, float | None]:
     """x/y are the fraction (0-1, top-left origin) of the target face the
     arrow was tapped in, so (0.5, 0.5) is its center and the offset from
     there scales directly by the face's real size. (0, 0) is what the
@@ -308,7 +332,7 @@ def list_points_for_end(s: Session, end_id: int, skip: int = 0, limit: int = 100
 
 def create_point(s: Session, end: End, point_in: PointCreate) -> Point:
     round_ = s.get(Round, end.round_id)
-    x_cm, y_cm = _point_cm(round_, point_in.x, point_in.y)
+    x_cm, y_cm = point_cm(round_, point_in.x, point_in.y)
     point = Point(end_id=end.id, user_id=end.user_id, x_cm=x_cm, y_cm=y_cm, **point_in.model_dump())
     s.add(point)
     s.flush()
@@ -322,7 +346,7 @@ def update_point(s: Session, point: Point, point_in: PointUpdate) -> Point:
     if "x" in data or "y" in data:
         end = s.get(End, point.end_id)
         round_ = s.get(Round, end.round_id) if end is not None else None
-        point.x_cm, point.y_cm = _point_cm(round_, point.x, point.y)
+        point.x_cm, point.y_cm = point_cm(round_, point.x, point.y)
     s.flush()
     return point
 
