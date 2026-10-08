@@ -1,0 +1,182 @@
+{
+  // Local debug tasks. All of them use the local PostgreSQL (infra_local/postgres.sh, Docker :55434).
+  // Long-running tasks are isBackground; problemMatcher.endsPattern tells VS Code "it is up"
+  // (launch.json preLaunchTask waits for it).
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // Kill whatever is listening on the port before starting a server there (leftovers of a previous run)
+      "label": "free port: 8000",
+      "type": "shell",
+      "command": ".venv/bin/python",
+      "args": [
+        "-m",
+        "tools.free_port",
+        "8000"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/source/back"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "free port: 3000",
+      "type": "shell",
+      "command": ".venv/bin/python",
+      "args": [
+        "-m",
+        "tools.free_port",
+        "3000"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/source/back"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "api: prepare (postgres + free :8000)",
+      "dependsOn": [
+        "postgres: start",
+        "free port: 8000"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "postgres: start",
+      "type": "shell",
+      "command": "./infra_local/postgres.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "api: start (.env db, :8000)",
+      "type": "shell",
+      "command": ".venv/bin/python",
+      "args": [
+        "-m",
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000",
+        "--reload",
+        "--reload-dir",
+        "app",
+        "--reload-dir",
+        "mods"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/source/back"
+      },
+      "dependsOn": [
+        "api: prepare (postgres + free :8000)"
+      ],
+      "isBackground": true,
+      "presentation": {
+        "panel": "dedicated",
+        "group": "dev"
+      },
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^\\s+File \"(.*)\", line (\\d+)(.*)$",
+          "file": 1,
+          "line": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Started reloader process|Will watch for changes",
+          "endsPattern": "Application startup complete|Uvicorn running on"
+        }
+      }
+    },
+    {
+      "label": "front: start (.env.local, :3000)",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3000"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/source/front",
+        "env": {
+          "ARCHIEVES_API_URL": "http://127.0.0.1:8000"
+        }
+      },
+      "dependsOn": [
+        "free port: 3000"
+      ],
+      "isBackground": true,
+      "presentation": {
+        "panel": "dedicated",
+        "group": "dev"
+      },
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+)\\s+-\\s+(error|warning)\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Starting\\.\\.\\.|next dev",
+          "endsPattern": "Ready in|Local:\\s+http"
+        }
+      }
+    },
+    {
+      "label": "dev: API + web (.env db, Cognito)",
+      "dependsOn": [
+        "api: start (.env db, :8000)",
+        "front: start (.env.local, :3000)"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      // Recreate the test db (archieves_test_dev), add random rows, then start API (:8000) and web (:3000)
+      // with mock login. source/back/tools/dev.py watches both and restarts them if they die
+      "label": "dev: API + web (test db, mock login)",
+      "type": "shell",
+      "command": ".venv/bin/python",
+      "args": [
+        "-m",
+        "tools.dev",
+        "--test",
+        "--seed"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/source/back"
+      },
+      "isBackground": true,
+      "presentation": {
+        "panel": "dedicated",
+        "group": "dev"
+      },
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^\\s+File \"(.*)\", line (\\d+)(.*)$",
+          "file": 1,
+          "line": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "\\[tools\\.dev\\]",
+          "endsPattern": "\\[tools\\.dev\\] 画面: http://localhost"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+import type { common as ja } from "../ja/common";
+import { terms as t } from "./terms";
+
+export const common: typeof ja = {
+  intlLocale: "en-US",
+  terms: t,
+  appName: "Archieves",
+  appTitle: "Score Manager",
+  appDescription: "An app to record and manage your archery scores",
+  loading: "Loading...",
+  save: "Save",
+  saving: "Saving...",
+  saved: "Saved",
+  cancel: "Cancel",
+  close: "Close",
+  delete: "Delete",
+  apply: "Apply",
+  reset: "Reset",
+  retry: "Retry",
+  back: "Back",
+  notSet: "Not set",
+  none: "-",
+  all: "All",
+  filter: "Filter",
+  noMatch: "No matches",
+  unit: t.unit,
+  api: {
+    signInRequired: "Please sign in",
+    unreachable: (reason: string) => `Cannot reach the API: ${reason}`,
+    failed: "The request failed. Please try again.",
+    status: (status: number) => `status: ${status}`,
+  },
+  nav: {
+    menu: "Menu",
+    home: t.home,
+    startGame: "Start game",
+    scoreLog: t.scoreLog,
+    analysis: t.statistics,
+    profile: t.profile,
+    ranking: t.ranking,
+    settings: t.settings,
+    signOut: "Sign out",
+  },
+  options: {
+    targetType: {
+      "92cm": "92cm",
+      "122cm": "122cm (standard)",
+      compound: "Compound (80cm)",
+    },
+    bowType: {
+      recurve: "Recurve",
+      compound: "Compound",
+      barebow: "Barebow",
+    },
+  },
+  errors: {
+    roundNotStarted: "No round has been started.",
+    gameNotCreated: "Could not create the game.",
+    roundNotCreated: "Could not create the round.",
+    endNotCreated: "Could not create the end.",
+    commentNotSaved: "Could not save the comment.",
+  },
+};

@@ -1,0 +1,16 @@
+{
+  // factory_boy re-exports declarations like SubFactory from factory/__init__.py
+  // without an __all__, so Pylance/pyright flags every use as a private import
+  // even though it's the library's documented public API.
+  "reportPrivateImportUsage": false,
+  // Each factory_boy subclass declares its own `class Meta` with unrelated
+  // attributes (model=... vs abstract=True); factory_boy's metaclass consumes
+  // these specially rather than treating them as normal inherited overrides,
+  // so pyright's override check is a false positive here.
+  "reportIncompatibleVariableOverride": false,
+  "reportReturnType": false,
+  // ORM の行をそのまま応答のモデル(UserRead など)に渡す・列(InstrumentedAttribute)を式として渡すのを許す。
+  // どちらも pydantic(from_attributes)・SQLAlchemy が実行時に受けるが、型の上では別のクラスになる
+  "reportArgumentType": false,
+  "pythonVersion": "3.14"
+}

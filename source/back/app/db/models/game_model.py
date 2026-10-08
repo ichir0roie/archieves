@@ -1,0 +1,142 @@
+from __future__ import annotations
+
+from datetime import date
+from typing import TYPE_CHECKING
+
+from sqlalchemy import (
+    BigInteger,
+    Date,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base_class import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.db.models.comment_model import EndComment, GameComment, RoundComment
+    from app.db.models.system_model import User
+
+
+class Game(TimestampMixin, Base):
+    """An archery session/competition, made up of one or more rounds."""
+
+    __tablename__ = "games"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    recorded_at: Mapped[date] = mapped_column(Date)
+
+    # How many rounds the player set up for this game before recording started.
+    game_size: Mapped[int | None] = mapped_column(Integer, default=None)
+    # BowType の値、またはプリセット以外の自由入力の名前。
+    # 弓の種類を持たなかった頃の記録と旧アプリからの取り込みは null。
+    bow_type: Mapped[str | None] = mapped_column(String(20), default=None)
+
+    user: Mapped[User] = relationship(back_populates="games", lazy="noload")
+    rounds: Mapped[list[Round]] = relationship(
+        back_populates="game", cascade="all, delete-orphan", lazy="noload"
+    )
+    match: Mapped[Match | None] = relationship(
+        back_populates="game", cascade="all, delete-orphan", uselist=False, lazy="noload"
+    )
+    comment: Mapped[GameComment | None] = relationship(
+        back_populates="game", cascade="all, delete-orphan", uselist=False, lazy="noload"
+    )
+
+
+class Round(TimestampMixin, Base):
+    """A round within a game, made up of one or more ends."""
+
+    __tablename__ = "rounds"
+
+    game_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("games.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    number: Mapped[int] = mapped_column(Integer)
+    recorded_at: Mapped[date] = mapped_column(Date)
+    end_size: Mapped[int] = mapped_column(Integer)
+    round_size: Mapped[int | None] = mapped_column(Integer, default=None)
+    distance_m: Mapped[int] = mapped_column(Integer)
+    # Target face, e.g. "122cm".
+    target_type: Mapped[str] = mapped_column(String(50))
+
+    game: Mapped[Game] = relationship(back_populates="rounds", lazy="noload")
+    ends: Mapped[list[End]] = relationship(
+        back_populates="round", cascade="all, delete-orphan", lazy="noload"
+    )
+    comment: Mapped[RoundComment | None] = relationship(
+        back_populates="round", cascade="all, delete-orphan", uselist=False, lazy="noload"
+    )
+
+
+class End(TimestampMixin, Base):
+    """An end within a round: a group of arrows shot together, each recorded as a Point."""
+
+    __tablename__ = "ends"
+
+    round_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("rounds.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    number: Mapped[int] = mapped_column(Integer)
+    recorded_at: Mapped[date] = mapped_column(Date)
+
+    round: Mapped[Round] = relationship(back_populates="ends", lazy="noload")
+    points: Mapped[list[Point]] = relationship(
+        back_populates="end", cascade="all, delete-orphan", lazy="noload"
+    )
+    comment: Mapped[EndComment | None] = relationship(
+        back_populates="end", cascade="all, delete-orphan", uselist=False, lazy="noload"
+    )
+
+
+class Match(TimestampMixin, Base):
+    """Competition metadata attached to a Game: its name and an optional related link."""
+
+    __tablename__ = "matches"
+
+    game_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("games.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    link: Mapped[str | None] = mapped_column(String(500), default=None)
+
+    game: Mapped[Game] = relationship(back_populates="match", lazy="noload")
+
+
+class Point(TimestampMixin, Base):
+    """A single arrow's result within an end: its score and where it hit the target."""
+
+    __tablename__ = "points"
+
+    end_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("ends.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    number: Mapped[int] = mapped_column(Integer)
+    score: Mapped[int] = mapped_column(Integer)
+    # Hit position relative to the target center, e.g. in millimeters.
+    x: Mapped[float] = mapped_column(Float)
+    y: Mapped[float] = mapped_column(Float)
+    # x/y converted to real-world centimeters using the round's target_type
+    # size at save time; null when the target size couldn't be resolved or
+    # x/y carry no real position (see app.core.target_types).
+    x_cm: Mapped[float | None] = mapped_column(Float, default=None)
+    y_cm: Mapped[float | None] = mapped_column(Float, default=None)
+    recorded_at: Mapped[date] = mapped_column(Date)
+
+    end: Mapped[End] = relationship(back_populates="points", lazy="noload")

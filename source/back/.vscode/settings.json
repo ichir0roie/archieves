@@ -1,0 +1,21 @@
+{
+  "sqltools.connections": [
+    {
+      "previewLimit": 50,
+      "driver": "SQLite",
+      "name": "backup",
+      "database": ".data/backup/data.db"
+    },
+    {
+      "ssh": "Disabled",
+      "previewLimit": 50,
+      "server": "127.0.0.1",
+      "port": 55434,
+      "driver": "PostgreSQL",
+      "name": "archieves-dev",
+      "database": "archieves_dev",
+      "username": "archieves",
+      "password": "archieves"
+    }
+  ]
+}

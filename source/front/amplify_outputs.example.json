@@ -1,0 +1,22 @@
+{
+  "_comment": "Placeholder. AuthGate.tsx imports amplify_outputs.json unconditionally (it's a static import, resolved at build time), so a copy of this file must exist on disk in both auth modes - see scripts/ensure-amplify-outputs.mjs. In NEXT_PUBLIC_AUTH_MODE=mock these values are never read. For NEXT_PUBLIC_AUTH_MODE=cognito, replace amplify_outputs.json with the real output of `npx ampx sandbox` (or a deployed backend).",
+  "auth": {
+    "user_pool_id": "local-mock-user-pool-id",
+    "aws_region": "ap-northeast-1",
+    "user_pool_client_id": "local-mock-user-pool-client-id",
+    "identity_pool_id": "ap-northeast-1:00000000-0000-0000-0000-000000000000",
+    "mfa_methods": [],
+    "standard_required_attributes": ["email"],
+    "username_attributes": ["email"],
+    "user_verification_types": ["email"],
+    "unauthenticated_identities_enabled": true,
+    "password_policy": {
+      "min_length": 8,
+      "require_lowercase": true,
+      "require_numbers": true,
+      "require_symbols": false,
+      "require_uppercase": false
+    }
+  },
+  "version": "1.4"
+}

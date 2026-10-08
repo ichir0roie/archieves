@@ -1,0 +1,29 @@
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+# The one interpreter this project runs on, everywhere: the deployed image
+# (.build/Dockerfile) and the test container (.build/Dockerfile.test) are both
+# 3.14, so ruff may apply fixes that assume 3.14 semantics (PEP 649 deferred
+# annotations, PEP 695 generics, Generator's defaulted type arguments).
+target-version = "py314"
+# Alembic writes these from a template; they are a migration history rather
+# than hand-maintained source, so reformatting them would churn the history.
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008: FastAPI's Depends(...) in argument defaults is the documented,
+# idiomatic pattern, not a real mutable-default bug.
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# Deliberate re-export surfaces and the star-importing debug/tooling scripts
+# they exist for (see CLAUDE.md's "Debug scripts"): F403/F405 are the point,
+# not a mistake.
+"app/db/__init__.py" = ["F403"]
+"mods/**" = ["F403", "F405"]
+"debug/**" = ["F403", "F405"]
+"tools/**" = ["F403", "F405"]

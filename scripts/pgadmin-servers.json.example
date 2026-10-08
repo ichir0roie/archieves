@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "archieves RDS (via EICE tunnel)",
+      "Group": "Servers",
+      "Host": "localhost",
+      "Port": 54000,
+      "MaintenanceDB": "<DB_NAME>",
+      "Username": "<DB_USER>",
+      "SSLMode": "require",
+      "Comment": "scripts/rds-tunnel.sh でトンネルを開始してから接続する"
+    }
+  }
+}

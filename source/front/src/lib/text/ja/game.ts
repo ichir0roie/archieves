@@ -1,0 +1,49 @@
+import { terms as t } from "./terms";
+
+/** game の画面(app/game/*・点数の入力・コメント)の文言。 */
+export const game = {
+  setup: {
+    title: `${t.game}設定`,
+    bowType: t.bowType,
+    distance: `${t.distance} (m)`,
+    other: "その他",
+    otherValue: (value: string) => `その他(${value})`,
+    distanceOther: `${t.distance}を選ぶ (m)`,
+    bowTypeOther: `${t.bowType}を入力`,
+    bowTypeOtherPlaceholder: "弓の名前",
+    ok: "決定",
+    targetType: t.targetType,
+    endSize: `1${t.end}の${t.arrow}数`,
+    endSizeHint: `1${t.end}で射つ${t.arrow}の本数(屋外は6本、インドアは3本)`,
+    roundSize: `${t.end}数`,
+    roundSizeHint: `1${t.round}の${t.end}数`,
+    gameSize: `${t.round}数`,
+    gameSizeHint: `この${t.game}に含める${t.round}数`,
+    summary: (total: number, endSize: string, roundSize: string, gameSize: string) =>
+      `合計 ${total}本 (${endSize}本 × ${roundSize}${t.end} × ${gameSize}${t.round})`,
+    start: `${t.game}開始`,
+  },
+  entry: {
+    home: `${t.home}へ戻る`,
+    round: t.round,
+    end: t.end,
+    gameComplete: `全${t.round}の${t.record}が終わりました。「終了」で${t.score}を確認できます。`,
+    endComplete: `この${t.round}の最後の${t.end}が${t.record}済みです。「1${t.end}進む」で次の${t.round}に進みます。`,
+    backPoint: `1${t.arrow}戻る`,
+    forwardPoint: `1${t.arrow}進む`,
+    backEnd: `1${t.end}戻る`,
+    forwardEnd: `1${t.end}進む`,
+    finish: "終了",
+    ringLabel: (point: number) => `${point}${t.unit.point}`,
+    miss: "外れ",
+  },
+  comment: {
+    endTitle: t.endN,
+    roundTitle: t.roundN,
+    gameTitle: t.game,
+    empty: `${t.comment}を追加`,
+    open: (title: string) => `${title}の${t.comment}を入力`,
+    modalTitle: (title: string) => `${title}の${t.comment}`,
+    label: t.comment,
+  },
+};

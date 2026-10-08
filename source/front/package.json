@@ -1,0 +1,41 @@
+{
+  "name": "archieves",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "node scripts/ensure-amplify-outputs.mjs",
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "pretypecheck": "node scripts/ensure-amplify-outputs.mjs",
+    "typecheck": "tsc --noEmit",
+    "types": "openapi-typescript ../back/openapi.json -o src/lib/api/openapi.d.ts",
+    "pretest:e2e": "node scripts/ensure-amplify-outputs.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "dependencies": {
+    "@aws-amplify/adapter-nextjs": "^1.8.0",
+    "@aws-amplify/ui-react": "^6.11.2",
+    "aws-amplify": "^6.15.1",
+    "next": "^15.3.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@aws-amplify/backend": "^1.16.0",
+    "@aws-amplify/backend-cli": "^1.7.0",
+    "@eslint/eslintrc": "^3.3.7",
+    "@playwright/test": "1.56.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "aws-cdk-lib": "^2.189.1",
+    "constructs": "^10.8.1",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.1",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.8.3"
+  }
+}

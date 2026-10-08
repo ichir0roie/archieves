@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python Debugger: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "env": { "PYTHONPATH": "${workspaceFolder}" },
+      "justMyCode": true,
+      "autoReload": {
+        "enable": true,
+        "include": ["**/*.py", "**/*.pyw"],
+        "exclude": [
+          "**/.git/**",
+          "**/.metadata/**",
+          "**/__pycache__/**",
+          "**/node_modules/**",
+          "**/site-packages/**",
+          "scripts/**",
+          "tests/**"
+        ]
+      },
+      "suppressMultipleSessionWarning": true
+    }
+  ]
+}

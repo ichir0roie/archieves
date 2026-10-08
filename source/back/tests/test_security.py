@@ -1,0 +1,198 @@
+import json
+import time
+from contextlib import contextmanager
+
+import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from fastapi import HTTPException
+from fastapi.security import HTTPAuthorizationCredentials
+
+from app.core import security
+from app.core.config import debug_settings, settings
+
+KID = "test-key-id"
+CLIENT_ID = "test-app-client-id"
+
+
+@pytest.fixture(scope="module")
+def private_pem() -> str:
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    return key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode()
+
+
+@pytest.fixture(scope="module")
+def jwks(private_pem: str) -> list[dict]:
+    from jose.backends import RSAKey
+    from jose.constants import ALGORITHMS
+
+    assert RSAKey is not None
+    public_jwk = RSAKey(private_pem, ALGORITHMS.RS256).public_key().to_dict()
+    return [{**public_jwk, "kid": KID}]
+
+
+@pytest.fixture()
+def cognito_auth(
+    monkeypatch: pytest.MonkeyPatch,
+    jwks: list[dict],
+) -> None:
+    monkeypatch.setattr(security, "_get_jwks", lambda: jwks)
+    monkeypatch.setattr(settings, "APP_CLIENT_ID", CLIENT_ID)
+    monkeypatch.setattr(debug_settings, "AUTH_MODE", "cognito")
+
+
+def _make_token(private_pem: str, **claims: object) -> str:
+    from jose import jwt
+
+    payload = {
+        "sub": "cognito-user-sub",
+        "username": "yumi",
+        "email": "yumi@example.com",
+        "exp": int(time.time()) + 3600,
+        "client_id": CLIENT_ID,
+    }
+    payload.update(claims)
+    payload = {k: v for k, v in payload.items() if v is not None}
+    return jwt.encode(
+        payload,
+        private_pem,
+        algorithm="RS256",
+        headers={"kid": KID},
+    )
+
+
+def _credentials(token: str) -> HTTPAuthorizationCredentials:
+    return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+
+
+def test_verify_token_returns_claims_for_a_valid_token(
+    cognito_auth: None,
+    private_pem: str,
+) -> None:
+    claims = security.verify_token(_make_token(private_pem))
+
+    assert claims["sub"] == "cognito-user-sub"
+    assert claims["email"] == "yumi@example.com"
+
+
+def test_verify_token_accepts_aud_when_client_id_is_absent(
+    cognito_auth: None,
+    private_pem: str,
+) -> None:
+    token = _make_token(private_pem, client_id=None, aud=CLIENT_ID)
+
+    claims = security.verify_token(token)
+
+    assert claims["aud"] == CLIENT_ID
+
+
+def test_verify_token_rejects_an_unknown_kid(
+    monkeypatch: pytest.MonkeyPatch,
+    cognito_auth: None,
+    private_pem: str,
+) -> None:
+    monkeypatch.setattr(security, "_get_jwks", list)
+
+    with pytest.raises(ValueError, match="Public key not found"):
+        security.verify_token(_make_token(private_pem))
+
+
+def test_verify_token_rejects_a_tampered_signature(
+    cognito_auth: None,
+    private_pem: str,
+) -> None:
+    message, signature = _make_token(private_pem).rsplit(".", 1)
+    tampered = f"{message}.{'A' * len(signature)}"
+
+    with pytest.raises(ValueError, match="Signature verification failed"):
+        security.verify_token(tampered)
+
+
+def test_verify_token_rejects_an_expired_token(
+    cognito_auth: None,
+    private_pem: str,
+) -> None:
+    expired = _make_token(private_pem, exp=int(time.time()) - 1)
+
+    with pytest.raises(ValueError, match="Token is expired"):
+        security.verify_token(expired)
+
+
+def test_verify_token_rejects_a_token_issued_for_another_audience(
+    cognito_auth: None,
+    private_pem: str,
+) -> None:
+    other = _make_token(private_pem, client_id="some-other-client")
+
+    with pytest.raises(ValueError, match="not issued for this audience"):
+        security.verify_token(other)
+
+
+def test_get_current_user_returns_claims_for_a_valid_token(
+    cognito_auth: None,
+    private_pem: str,
+) -> None:
+    claims = security.get_current_user(_credentials(_make_token(private_pem)))
+
+    assert claims.sub == "cognito-user-sub"
+    assert claims.username == "yumi"
+    assert claims.email == "yumi@example.com"
+
+
+def test_get_current_user_raises_401_for_an_invalid_token(cognito_auth: None) -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        security.get_current_user(_credentials("not-a-jwt"))
+
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.headers == {"WWW-Authenticate": "Bearer"}
+
+
+def test_get_current_user_returns_mock_claims_in_mock_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(debug_settings, "AUTH_MODE", "mock")
+    monkeypatch.setattr(debug_settings, "MOCK_USER_SUB", "mock-sub")
+    monkeypatch.setattr(debug_settings, "MOCK_USER_USERNAME", "mock-user")
+    monkeypatch.setattr(debug_settings, "MOCK_USER_EMAIL", "mock@example.com")
+
+    claims = security.get_current_user(_credentials("ignored"))
+
+    assert claims.sub == "mock-sub"
+    assert claims.username == "mock-user"
+    assert claims.email == "mock@example.com"
+
+
+def test_get_jwks_fetches_the_userpool_keys_once(
+    monkeypatch: pytest.MonkeyPatch,
+    jwks: list[dict],
+) -> None:
+    requested: list[str] = []
+
+    @contextmanager
+    def _fake_urlopen(url: str):
+        requested.append(url)
+        yield _FakeResponse(json.dumps({"keys": jwks}).encode("utf-8"))
+
+    monkeypatch.setattr(settings, "USERPOOL_ID", "ap-northeast-1_testpool")
+    monkeypatch.setattr(security.urllib.request, "urlopen", _fake_urlopen)
+    security._get_jwks.cache_clear()
+    try:
+        assert security._get_jwks() == jwks
+        assert security._get_jwks() == jwks
+    finally:
+        security._get_jwks.cache_clear()
+
+    assert len(requested) == 1
+    assert requested[0].endswith("/ap-northeast-1_testpool/.well-known/jwks.json")
+
+
+class _FakeResponse:
+    def __init__(self, body: bytes) -> None:
+        self._body = body
+
+    def read(self) -> bytes:
+        return self._body

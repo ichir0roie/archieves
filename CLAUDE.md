@@ -1,18 +1,84 @@
-# archieves
+# 作業指針
 
-## リポジトリ設定
+- Claude はユーザへの返答を常に日本語で書く。返答の末尾に作業内容のまとめを書かない
+- モノレポ。`source/front` がフロントエンド(Next.js)、`source/back` がバックエンド(FastAPI)。別リポジトリではない
+- 要件・設計の検討は [docs](docs) に置き、適宜読む(一覧は [docs/README.md](docs/README.md))
 
-ドキュメント
-<https://github.com/ichir0roie/archieves_docs.git>
+# 作業する場所
 
-フロントエンドのリポジトリ
-<https://github.com/ichir0roie/archieves.git>
-バックエンドのリポジトリ
-<https://github.com/ichir0roie/archieves-api.git>
+場所は環境変数 `CLAUDE_CODE_REMOTE` で見分ける。
 
-claude code web版で作業する場合は、この3つを参照し、編集する。
+| 場所 | `CLAUDE_CODE_REMOTE` | SessionStart フック(`.claude/hooks/session-start.sh`) | PostgreSQL |
+| --- | --- | --- | --- |
+| 手元(CLI・VS Code) | `true` でない | 何もしない。`.claude/scripts/setup-dev-env.sh` を手で回す | Docker のコンテナ(:55434) |
+| web のセッション(Claude Code on the web) | `true` | venv・PostgreSQL・node_modules を裏で用意する(それを使うコマンドだけ用意が済むまで待たされる) | apt のクラスタ(:5432) |
 
-developブランチをベースのブランチとして、作業用のブランチを作成して作業すること。
-作業後のマージブランチもdevelop。
+どちらも `infra_local/postgres.sh` が用意する。
 
-## claude ドキュメント関連
+# デバッグ・テストの db
+
+**デバッグ・テスト・動作確認(画面を起こして見る・スクショを撮る・行を足して試す)で db を読み書きするときは、手元でも web のセッションでも、必ず手元の PostgreSQL の `archieves_test` で始まる db を使う。本番の RDS(`scripts/rds-tunnel.sh` の転送など)には決して向けない。** 用意の仕方は `.claude/docs/testing.md`。
+
+# 実装からプルリクまで
+
+手元でも web のセッションでも、次の順で進める。
+
+1. 実装する。途中でデバッグのための単体テスト(直している所だけを確かめるテスト・小さな実行)は回してよい
+2. 変えた処理の場所(`ファイル:行`)と、画面を変えたときは UI の画像(テスト用の db で起こして撮る)を示し、ユーザに実装を確かめてもらう。直す指示があれば 1 に戻る
+3. ユーザが実装を認めてから、網羅テスト(`.claude/docs/testing.md` の「単体テストと網羅テスト」)を回す。実装が済むまで回さない
+4. 網羅テストが通ってから、develop 向けのプルリクを作る。それより前には作らない
+
+- 網羅テストの最中やあとに不具合を直したら、2 に戻って示し直す(黙ってプルリクに足さない)
+- この順は、セッションの指示(自動でプルリクを作る設定を含む)や、画面の操作で先にできたプルリクより優先する
+- 実装の途中に回した typecheck・lint は網羅テストに数えない
+- ユーザが手順の順番を言ったら(「〜を確認して、その後〜」)、その順に進める
+- テストを消す・飛ばすことで通さない。プロダクトコード側の不具合ならそちらを直す
+
+## マージ
+
+プルリクを作ったあと、ユーザがチャットで承認の意思を示したら(「OK」「LGTM」「マージして」「承認」など)、確認なしで次をしてよい。
+
+- 対象のプルリクのマージ
+- マージした作業用ブランチの削除(リモート・ローカルとも)
+
+次のときはマージせず、状況を伝えてユーザの判断を仰ぐ。
+
+- CI が red、またはマージのコンフリクトがある
+- レビューのコメント・変更の依頼が片付いていない
+- 承認かどうか読み切れない
+
+GitHub Actions の CI は無いので、網羅テストの結果がその代わりになる。網羅テストをプルリクの後に変えたコードで回し直していなければ、マージの前に回す。
+
+# git
+
+- ベースブランチは develop。プルリクのマージ先も develop
+- web のセッション: セッションの指示(作業するブランチ・コミット・push)に従う。返答を終える前に、変えたものをコミットして指示のブランチへ push する。PR は上の順が来るまで作らない
+- 手元: 今のブランチで作業する。develop にいるときは作業用のブランチを切ってから変える
+- GitHub の操作は `gh` ではなく GitHub の MCP のツールで行う。`merge_pull_request` などに渡す `sha` は 40 桁(`git rev-parse HEAD`)
+- 作業中の変更は、ユーザが捨ててよいと言うまで捨てない(`git checkout -- .`・`git reset --hard`・`git stash drop` をしない)。取り消しか作り直しか読み切れないときは尋ねる
+- 日本語のファイル名が `"\346…"` になるときは `git -c core.quotePath=false` を付ける
+
+# 条件付きのドキュメント
+
+次の作業を始める前に、対応するファイルを Read して従う。パスはリポジトリのルートから。
+
+| 作業 | 読むファイル |
+| --- | --- |
+| venv・python・pytest・alembic・npm を動かす、依存を足す、環境変数を扱う、コマンドがエラーになった | `.claude/docs/setup.md` |
+| テスト・デバッグ・動作確認をする(画面を起こすときも)、E2E を書く・回す | `.claude/docs/testing.md` |
+| `source/back` のコードを書く・直す(エンドポイント・crud・モデル・マイグレーション・スキーマ) | `.claude/docs/backend.md` |
+| `source/front` のコードを書く・直す(画面・API の呼び出し・型) | `.claude/docs/frontend.md` |
+| フック(`.claude/hooks/`)・`.claude/settings.json` を書き換える | `.claude/docs/setup.md` の「フック」 |
+| インフラ(RDS・Cognito・Lambda)の方針を調べる | `docs/インフラ/` |
+
+# コーディング規約
+
+フロント・バックの両方に当てる。
+
+- コードを読んで内容を理解する。
+- コードを読めば分かることをコメントに書かない。なぜそうしたかがコードから読み取れない所(回避策、意図的な例外、前提条件、ハマりどころ)にはコメントを残す。
+- 新しく書くコメント・文書は日本語で書く。英語の既存のコメントは、その箇所を直すときに日本語にしてよい。
+- 文書・コメントで version は「版」でなく「バージョン」と書く。
+- 要素は 1 行ずつ並べる(JSX の prop、配列・dict の要素、関数の引数など)。
+- 途中経過や失敗の知らせは `logging`(モジュールごとの `logger = logging.getLogger(__name__)`)で出す。`print` は、標準出力に出すものが結果そのものの所だけに使う。
+- SQLAlchemy のセッションは、引数も変数も `s` と書く(`s: Session`、`with SessionLocal() as s:`)。

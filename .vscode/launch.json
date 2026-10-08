@@ -1,0 +1,84 @@
+{
+  // F5 default is the first one: start API and web with the test db and mock login, then open Chrome.
+  // Chrome profile (userDataDir) lives in .vscode/chrome-user-data (gitignored)
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Chrome: web (test db, mock login)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/source/front",
+      "userDataDir": "${workspaceFolder}/.vscode/chrome-user-data",
+      "preLaunchTask": "dev: API + web (test db, mock login)"
+    },
+    {
+      "name": "Chrome: web (.env db, Cognito)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/source/front",
+      "userDataDir": "${workspaceFolder}/.vscode/chrome-user-data",
+      "preLaunchTask": "dev: API + web (.env db, Cognito)"
+    },
+    {
+      "name": "Chrome: attach to running web (:3000)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/source/front",
+      "userDataDir": "${workspaceFolder}/.vscode/chrome-user-data"
+    },
+    {
+      // Use this to set breakpoints in the API (.env db)
+      "name": "Python: API (debugpy, :8000)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000",
+        "--reload",
+        "--reload-dir",
+        "app",
+        "--reload-dir",
+        "mods"
+      ],
+      "cwd": "${workspaceFolder}/source/back",
+      "python": "${workspaceFolder}/source/back/.venv/bin/python",
+      "envFile": "${workspaceFolder}/source/back/.env",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "api: prepare (postgres + free :8000)"
+    },
+    {
+      "name": "Python: current file (source/back)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}/source/back",
+      "python": "${workspaceFolder}/source/back/.venv/bin/python",
+      "envFile": "${workspaceFolder}/source/back/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/source/back"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ],
+  "compounds": [
+    {
+      // Start API with debugpy and web with next dev, then open Chrome
+      "name": "API (debugpy) + Chrome",
+      "configurations": [
+        "Python: API (debugpy, :8000)",
+        "Chrome: attach to running web (:3000)"
+      ],
+      "preLaunchTask": "front: start (.env.local, :3000)",
+      "stopAll": true
+    }
+  ]
+}
