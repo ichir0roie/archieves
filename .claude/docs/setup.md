@@ -41,10 +41,10 @@ uvx --from 'uv>=0.9' uv pip install --python .venv/bin/python -r requirements-de
 | 環境変数 | 中身 | 渡す所 |
 | --- | --- | --- |
 | `DATABASE_URL` | API が読み書きする db。無ければ `DB_*` から組む | `source/back/.env`(`.env.example` から作る) |
-| `AUTH_MODE` | `cognito`(既定。Cognito の ID トークンを確かめる)か `mock`(`MOCK_USER_*` の利用者として通す) | 同上 |
+| `AUTH_MODE` | `cognito`(既定。Cognito の ID トークンを確かめる)か `mock`(`MOCK_USER_*` の利用者として通す)。本番は `proxy`(フロントのサーバーが確かめた利用者をヘッダーで受ける。`API_KEYS` が必須) | 同上。本番は CDK(`infra/`)が渡す |
 | `ARCHIEVES_DEV_DATABASE_URL` | 手元の PostgreSQL の開発用の db(`archieves_dev`)。テスト用の db は同じサーバーに作る | 渡さなければ `tools/testing_db.py` が `infra_local/postgres.sh` を回して引く |
-| `API_KEYS` | API の合言葉(`x-archieves-api-key`)。`名前=鍵` をカンマで区切る。空なら確かめない | 本番は SAM の `ApiKeys`。手元・テストでは渡さない |
-| `ARCHIEVES_API_URL` | フロントの route handler(`src/app/api/v1`)が流す先の API(既定 `http://127.0.0.1:8000`)。サーバーだけが読む | `source/front/.env.local` か、起こすときの環境変数。本番は Amplify Hosting の環境変数 |
+| `API_KEYS` | API の合言葉(`x-archieves-api-key`)。`名前=鍵` をカンマで区切る。空なら確かめない | 本番は SSM の `/archieves/api-keys/web`(CDK が Lambda に渡す)。手元・テストでは渡さない |
+| `ARCHIEVES_API_URL` | フロントの route handler(`src/app/api/v1`)が流す先の API(既定 `http://127.0.0.1:8000`)。サーバーだけが読む。Lambda の関数 URL なら SigV4 の署名を付け、ID トークンの代わりに確かめた利用者をヘッダーで渡す | `source/front/.env.local` か、起こすときの環境変数。本番は Amplify Hosting の環境変数 |
 | `ARCHIEVES_API_KEY` | route handler が付ける合言葉。API の `API_KEYS` のうちの一つの鍵 | 同上 |
 | `NEXT_PUBLIC_AUTH_MODE` | `mock` なら Amplify を通さず `NEXT_PUBLIC_MOCK_USER_*` の利用者としてログインした扱い。API の `AUTH_MODE` と揃える | 同上 |
 | `ARCHIEVES_WEB_DIST_DIR` | `next dev` のビルド先(既定 `.next`)。二つ目の `next dev` を起こすときに `.next-test` などにする | 起こすときの環境変数 |

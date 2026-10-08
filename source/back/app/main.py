@@ -4,11 +4,16 @@ from fastapi import FastAPI
 
 from app.api.v1.api import api_router
 from app.core.api_keys import install_api_key_check, parse_api_keys
-from app.core.config import settings
+from app.core.config import debug_settings, settings
 from app.core.errors import install_exception_handlers
 
 # uvicorn は自分のロガーにしか出し先を付けないので、app.* の logger の出し先をここで付ける
 logging.basicConfig(level=logging.INFO, format="[%(name)s] %(message)s")
+
+api_keys = parse_api_keys(settings.API_KEYS)
+# proxy は合言葉を持つ呼び出しの言う利用者をそのまま信じるので、合言葉なしでは起こさない
+if debug_settings.AUTH_MODE == "proxy" and not api_keys:
+    raise RuntimeError("AUTH_MODE=proxy には API_KEYS が要る")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -16,7 +21,7 @@ app = FastAPI(
 )
 
 # ブラウザはフロントの Next.js のサーバー越しに同じ origin で呼ぶので、CORS は要らない
-install_api_key_check(app, parse_api_keys(settings.API_KEYS))
+install_api_key_check(app, api_keys)
 install_exception_handlers(app)
 app.include_router(api_router, prefix=settings.API_V1_STR)
 

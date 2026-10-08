@@ -35,12 +35,11 @@ openapi.json           The API's OpenAPI; the frontend's types are generated fro
 .build/                Build & deploy resources
   Dockerfile             Lambda container image (Lambda Web Adapter + uvicorn)
   docker-compose.yml     Local dev: api + postgres
-  template.yaml          AWS SAM scaffold: Lambda (image) + API Gateway HTTP API
 ```
 
 `.build/` holds everything related to building and running the container
-image (Dockerfile, compose files, the SAM template); the Docker build
-context is always the repo root (`..` from `.build/`), so these tools see
+image (Dockerfile, compose files); the Docker build
+context is always this directory (`..` from `.build/`), so these tools see
 `app/`, `alembic/`, `requirements.txt`, etc. as usual.
 
 ## Local development
@@ -126,22 +125,7 @@ repo root):
 
 ## Deploying to AWS
 
-`.build/template.yaml` is an AWS SAM scaffold: a `PackageType: Image`
-Lambda function (built from `.build/Dockerfile`) behind an API Gateway
-HTTP API, with `VpcConfig` so it can reach a PostgreSQL instance (e.g. RDS)
-inside a VPC. It expects an already-provisioned database and a Secrets
-Manager secret holding the `DATABASE_URL` connection string — provisioning
-RDS itself is out of scope for this scaffold.
-
-```bash
-sam build -t .build/template.yaml
-sam deploy --guided \
-  --parameter-overrides \
-    DatabaseUrlSecretArn=arn:aws:secretsmanager:...:secret:... \
-    VpcSubnetIds=subnet-aaa,subnet-bbb \
-    VpcSecurityGroupIds=sg-ccc
-```
-
-See the `NOTE` in `.build/template.yaml` about swapping the CloudFormation
-dynamic-reference secret injection for a runtime fetch if secret rotation
-matters in production.
+Lambda (image) functions in the RDS VPC, created by the CDK app in
+[`infra/`](../../infra) and updated by GitHub Actions
+(`.github/workflows/deploy-api.yml`). The procedure is in
+[`docs/インフラ/デプロイ.md`](../../docs/インフラ/デプロイ.md).

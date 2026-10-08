@@ -38,8 +38,7 @@ VPCアタッチを採用する場合の注意点:
 - `alembic/` マイグレーション設定
 - `Dockerfile`（Lambda Web Adapter 組み込み）
 - `docker-compose.yml`（ローカル開発用: API + Postgres）
-- `template.yaml`（AWS SAM: Lambda(イメージ) + API Gateway HTTP API の雛形。
-  RDS自体はこのテンプレートの範囲外で、上記の通りDB接続文字列はSecrets ManagerではなくLambda環境変数経由で渡す想定）
+- `infra/`（CDK: ECR・Lambda(イメージ)・マイグレーション用 Lambda・CI のロール。手順は [デプロイ](../インフラ/デプロイ.md)）
 - pytest によるテスト一式
 
 詳細は archieves-api リポジトリの README を参照。

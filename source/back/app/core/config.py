@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = "postgres"
     DB_NAME: str = "archieves"
 
+    # True なら DB_PASSWORD は使わず、接続のたびに IAM データベース認証のトークンを作って渡す
+    # (app/db/session.py)。本番の RDS はパスワードを RDS が回すため、これで繋ぐ。
+    # NAT のない VPC の Lambda でも、トークンは Lambda の中で署名するので外へ出なくてよい
+    DB_IAM_AUTH: bool = False
+
     # Full SQLAlchemy connection string. Leave unset to have it built from the
     # DB_* parts above; set it directly to override everything at once (e.g.
     # a full RDS Proxy or SQLite URL that doesn't fit the host/port shape).
@@ -62,12 +67,14 @@ class DebugSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # "cognito" verifies bearer tokens against the user pool (default,
-    # matches production). "mock" skips Cognito/JWKS entirely and makes
-    # get_current_user return MOCK_USER_* below, so the API can be run and
-    # debugged locally (e.g. alongside the archieves frontend) without any
-    # AWS credentials or a provisioned user pool.
-    AUTH_MODE: Literal["cognito", "mock"] = "cognito"
+    # "cognito" verifies bearer tokens against the user pool (default). "mock"
+    # skips Cognito/JWKS entirely and makes get_current_user return MOCK_USER_*
+    # below, so the API can be run and debugged locally (e.g. alongside the
+    # archieves frontend) without any AWS credentials or a provisioned user pool.
+    # "proxy" は本番。NAT のない VPC の Lambda は Cognito の公開鍵を取りに行けないので、
+    # トークンはフロントのサーバーが確かめ、利用者の sub をヘッダーで渡す(app/core/security.py)。
+    # API の合言葉が必須(空だと起動しない。app/main.py)
+    AUTH_MODE: Literal["cognito", "mock", "proxy"] = "cognito"
     MOCK_USER_SUB: str = "local-dev-user"
     MOCK_USER_USERNAME: str = "local-dev-user"
     MOCK_USER_EMAIL: str = "dev@example.com"
