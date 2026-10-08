@@ -855,6 +855,74 @@
         }
       }
     },
+    "/api/v1/games/scores": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "List Game Scores",
+        "description": "年内のゲームごとの合計点・エンド平均・ポイント平均(スコア一覧用)",
+        "operationId": "list_game_scores_api_v1_games_scores_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Year"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GameScoreSummary"
+                  },
+                  "title": "Response List Game Scores Api V1 Games Scores Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/games/{game_id}": {
       "get": {
         "tags": [
@@ -4583,6 +4651,49 @@
           "deleted_at"
         ],
         "title": "GameRead"
+      },
+      "GameScoreSummary": {
+        "properties": {
+          "game_id": {
+            "type": "integer",
+            "title": "Game Id"
+          },
+          "total_score": {
+            "type": "integer",
+            "title": "Total Score"
+          },
+          "end_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Average"
+          },
+          "point_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Point Average"
+          }
+        },
+        "type": "object",
+        "required": [
+          "game_id",
+          "total_score",
+          "end_average",
+          "point_average"
+        ],
+        "title": "GameScoreSummary",
+        "description": "スコア一覧の一行に出す、ゲームの点数の集計。矢のないゲームは平均が None。"
       },
       "GameUpdate": {
         "properties": {
