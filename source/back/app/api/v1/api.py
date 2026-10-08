@@ -10,7 +10,6 @@ from app.api.v1.endpoints import (
     statistics,
     users,
 )
-from app.core.config import debug_settings
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
@@ -20,12 +19,9 @@ api_router.include_router(health.router, tags=["health"])
 # authenticated router even though the rest of /users requires a token.
 api_router.include_router(users.public_router, prefix="/users", tags=["users"])
 
-# Everything below requires a verified Cognito bearer token, mirroring
-# all_diary_backend's auth_router.
-authenticated_router = APIRouter()
-
-if debug_settings.AUTH_MODE == "cognito":
-    authenticated_router.dependencies.append(Depends(deps.get_current_user))
+# ここから下は、確かめた利用者(AUTH_MODE ごとの get_current_user。app/core/security.py)が要る。
+# mock でも Authorization ヘッダーは求めるので、本物と同じ形の要求で試せる
+authenticated_router = APIRouter(dependencies=[Depends(deps.get_current_user)])
 
 authenticated_router.include_router(users.router, prefix="/users", tags=["users"])
 authenticated_router.include_router(
