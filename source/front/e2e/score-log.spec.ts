@@ -31,7 +31,7 @@ test("a score log card opens that game's score sheet", async ({ page }) => {
   await card.click();
 
   await expect(page).toHaveURL(new RegExp(`gameId=${game.id}`));
-  await expect(page.getByText("ラウンド：1")).toBeVisible();
+  await expect(page.getByText("ラウンド 1", { exact: true })).toBeVisible();
 });
 
 test("スコアは月の見出しで閉じられ、開閉は再読み込みしても残る", async ({ page }) => {

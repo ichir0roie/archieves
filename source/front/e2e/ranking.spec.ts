@@ -26,7 +26,10 @@ test("the ranking starts on this month's total score", async ({ page }) => {
 });
 
 test("each axis of the ranking is sent to the API", async ({ page }) => {
+  // 開いたときの要求を先に受けておかないと、最初の操作の要求と取り違える
+  const initial = rankingRequest(page);
   await page.goto("/ranking");
+  await initial;
 
   let request = rankingRequest(page);
   await page.getByRole("group", { name: "期間" }).getByRole("button", { name: "年間" }).click();
@@ -35,13 +38,13 @@ test("each axis of the ranking is sent to the API", async ({ page }) => {
   expect(url.searchParams.get("end")).toMatch(/^\d{4}-12-31$/);
 
   request = rankingRequest(page);
-  await page.getByRole("group", { name: "期間" }).getByRole("button", { name: "トータル" }).click();
+  await page.getByRole("group", { name: "期間" }).getByRole("button", { name: "全期間" }).click();
   url = new URL((await request).url());
   expect(url.searchParams.has("start")).toBe(false);
   expect(url.searchParams.has("end")).toBe(false);
 
   request = rankingRequest(page);
-  await page.getByRole("group", { name: "順位の基準" }).getByRole("button", { name: "平均ポイント" }).click();
+  await page.getByRole("group", { name: "順位の基準" }).getByRole("button", { name: "矢平均" }).click();
   url = new URL((await request).url());
   expect(url.searchParams.get("metric")).toBe("average_point_score");
 
