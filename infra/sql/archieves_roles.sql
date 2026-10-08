@@ -21,8 +21,8 @@ GRANT rds_iam TO archieves_migrator;
 GRANT rds_iam TO archieves_app;
 
 -- 持ち主を archieves_migrator にして db を作るには、マスターが一員でなければならない。
--- 一員のまま残すと、マスターも rds_iam を持つ側に数えられ(継承を外しても)、パスワードで入れなくなる。
--- そこで db を作る間だけ一員にし、終わりに外す
+-- 一員のまま新しく繋ぐと、マスターも rds_iam を持つ側に数えられ(継承を外しても)、パスワードで入れなくなる。
+-- そこで db を作る間だけ一員にし、\connect の前に外す
 GRANT archieves_migrator TO :"USER" WITH INHERIT TRUE, SET TRUE;
 SELECT 'CREATE DATABASE archieves OWNER archieves_migrator'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'archieves') \gexec
@@ -31,8 +31,12 @@ REVOKE archieves_migrator FROM :"USER";
 \connect archieves
 GRANT CONNECT ON DATABASE archieves TO archieves_app;
 GRANT USAGE ON SCHEMA public TO archieves_app;
--- これからマイグレーションで増える表・連番にも、archieves_app の行の読み書きの権限が付くようにする
+-- これからマイグレーションで増える表・連番にも、archieves_app の行の読み書きの権限が付くようにする。
+-- 既定の権限を変えるにも一員である要があるので、繋いだあと(この接続の中だけ)もう一度一員にして、最後に外す
+GRANT archieves_migrator TO :"USER" WITH INHERIT TRUE, SET TRUE;
 ALTER DEFAULT PRIVILEGES FOR ROLE archieves_migrator IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO archieves_app;
 ALTER DEFAULT PRIVILEGES FOR ROLE archieves_migrator IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO archieves_app;
+
+REVOKE archieves_migrator FROM :"USER";
