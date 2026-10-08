@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import ExternalLink from "@/components/ExternalLink";
+import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import StatSummaryCard from "@/components/StatSummaryCard";
 import {
@@ -121,6 +122,7 @@ export default function Page() {
           )}
         </>
       )}
+      <BackButton />
     </div>
   );
 }

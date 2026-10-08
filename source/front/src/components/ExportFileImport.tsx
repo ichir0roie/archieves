@@ -2,21 +2,45 @@
 
 import { useRef, useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
+import Field from "@/components/Field";
 import {
   ImportResult,
-  importSqliteBackup,
+  importExportFile,
   toErrorDetails,
   type ErrorDetails,
+  type ImportSource,
 } from "@/lib/api";
 import { useT } from "@/lib/text";
 
-export default function SqliteImport() {
+// 種類ごとに選べるファイルの拡張子。API の IMPORTERS の allowed_suffixes と揃える
+const ACCEPT_BY_SOURCE: Record<ImportSource, string> = {
+  android_mytargets: ".sqlite,.sqlite3,.db",
+  archieves: ".db,.sqlite,.sqlite3",
+};
+
+const SOURCES = Object.keys(ACCEPT_BY_SOURCE) as ImportSource[];
+
+export default function ExportFileImport() {
   const T = useT();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [source, setSource] = useState<ImportSource>(SOURCES[0]);
   const [fileName, setFileName] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<ErrorDetails | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
+
+  function clearFile() {
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setFileName(null);
+  }
+
+  function handleSourceChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    setSource(e.target.value as ImportSource);
+    // 選んだファイルが別の種類のものになるので選び直してもらう
+    clearFile();
+    setResult(null);
+    setError(null);
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -33,10 +57,9 @@ export default function SqliteImport() {
     setError(null);
     setResult(null);
     try {
-      const imported = await importSqliteBackup(file);
+      const imported = await importExportFile(source, file);
       setResult(imported);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      setFileName(null);
+      clearFile();
     } catch (e) {
       setError(toErrorDetails(e));
     } finally {
@@ -47,7 +70,29 @@ export default function SqliteImport() {
   return (
     <section className="panel stack">
         <h2>{T.profile.import.title}</h2>
-        <p className="muted small import-description">{T.profile.import.description}</p>
+
+        <Field
+          label={T.profile.import.source}
+          hint={T.profile.import.descriptions[source]}
+        >
+          {(id) => (
+            <select
+              id={id}
+              value={source}
+              onChange={handleSourceChange}
+              disabled={uploading}
+            >
+              {SOURCES.map((s) => (
+                <option
+                  key={s}
+                  value={s}
+                >
+                  {T.profile.import.sources[s]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
 
         {error && <ApiErrorAlert error={error} />}
 
@@ -63,7 +108,7 @@ export default function SqliteImport() {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".sqlite,.sqlite3,.db"
+          accept={ACCEPT_BY_SOURCE[source]}
           hidden
           onChange={handleFileChange}
         />

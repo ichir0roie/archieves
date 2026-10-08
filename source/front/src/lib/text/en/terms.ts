@@ -25,6 +25,7 @@ export const terms: typeof ja = {
   ranking: "Ranking",
   statistics: "Statistics",
   import: "Import",
+  export: "Export",
   distance: "Distance",
   bowType: "Bow type",
   targetType: "Target face",

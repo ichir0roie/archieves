@@ -1,8 +1,16 @@
-import { RoundScoreSummary } from "@/lib/api";
 import { useT, type Texts } from "@/lib/text";
 
+/** グラフの 1 点。`value` はその日の平均、`count` は平均を取った件数。 */
+export type TrendPoint = {
+  date: string;
+  value: number;
+  count: number;
+};
+
 type Props = {
-  rounds: RoundScoreSummary[];
+  points: TrendPoint[];
+  /** 軸の名前(「ラウンド平均」など)。読み上げに使う */
+  axisLabel: string;
 };
 
 const CHART_WIDTH = 1200;
@@ -18,24 +26,25 @@ function formatDate(T: Texts, iso: string): string {
   }).format(d);
 }
 
-export default function RoundScoreChart({ rounds }: Props) {
+export default function ScoreTrendChart({ points: series, axisLabel }: Props) {
   const T = useT();
-  if (rounds.length === 0) {
+  if (series.length === 0) {
     return <p className="status empty">{T.stats.chart.empty}</p>;
   }
 
-  const maxScore = Math.max(...rounds.map((r) => r.total_score), 1);
+  const maxScore = Math.max(...series.map((p) => p.value), 1);
   const step = Math.pow(10, Math.max(0, Math.floor(Math.log10(maxScore)) - 1)) || 1;
-  const axisMax = Math.ceil(maxScore / step) * step;
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(axisMax * f));
+  // 4 等分の目盛りが step の倍数(整数)になるよう、上限を 4 * step の倍数にする
+  const axisMax = Math.ceil(maxScore / (4 * step)) * 4 * step;
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map((f) => axisMax * f);
 
   const innerWidth = CHART_WIDTH - PADDING.left - PADDING.right;
   const innerHeight = CHART_HEIGHT - PADDING.top - PADDING.bottom;
 
-  const points = rounds.map((round, index) => {
-    const x = PADDING.left + (rounds.length === 1 ? innerWidth / 2 : (index / (rounds.length - 1)) * innerWidth);
-    const y = PADDING.top + (1 - round.total_score / (axisMax || 1)) * innerHeight;
-    return { ...round, x, y };
+  const points = series.map((point, index) => {
+    const x = PADDING.left + (series.length === 1 ? innerWidth / 2 : (index / (series.length - 1)) * innerWidth);
+    const y = PADDING.top + (1 - point.value / (axisMax || 1)) * innerHeight;
+    return { ...point, x, y };
   });
 
   const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`).join(" ");
@@ -45,7 +54,7 @@ export default function RoundScoreChart({ rounds }: Props) {
       <svg
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
         role="img"
-        aria-label={T.stats.chart.ariaLabel}
+        aria-label={T.stats.chart.ariaLabel(axisLabel)}
       >
         {gridLines.map((value) => {
           const y = PADDING.top + (1 - value / (axisMax || 1)) * innerHeight;
@@ -85,7 +94,7 @@ export default function RoundScoreChart({ rounds }: Props) {
 
         {points.map((point) => (
           <circle
-            key={point.round_id}
+            key={point.date}
             className="dot"
             cx={point.x}
             cy={point.y}
@@ -93,10 +102,9 @@ export default function RoundScoreChart({ rounds }: Props) {
           >
             <title>
               {T.stats.chart.pointTitle(
-                point.number,
-                formatDate(T, point.recorded_at),
-                point.total_score,
-                point.average_score !== null ? point.average_score.toFixed(1) : T.none,
+                formatDate(T, point.date),
+                point.value.toFixed(1),
+                point.count,
               )}
             </title>
           </circle>
@@ -109,13 +117,13 @@ export default function RoundScoreChart({ rounds }: Props) {
 
           return (
             <text
-              key={`${point.round_id}-label`}
+              key={`${point.date}-label`}
               className="label"
               x={point.x}
               y={CHART_HEIGHT - PADDING.bottom + 18}
               textAnchor="middle"
             >
-              {formatDate(T, point.recorded_at)}
+              {formatDate(T, point.date)}
             </text>
           );
         })}

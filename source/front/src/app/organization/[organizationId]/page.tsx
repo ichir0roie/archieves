@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import ExternalLink from "@/components/ExternalLink";
+import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import { getOrganization } from "@/lib/api";
 import { useLoad } from "@/hooks/useLoad";
@@ -59,6 +60,7 @@ export default function Page() {
           )}
         </section>
       )}
+      <BackButton />
     </div>
   );
 }

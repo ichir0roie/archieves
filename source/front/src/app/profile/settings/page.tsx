@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import Combobox from "@/components/Combobox";
 import Field from "@/components/Field";
+import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import {
   OrganizationSummary,
@@ -204,6 +205,7 @@ export default function Page() {
           </button>
         </div>
       )}
+      <BackButton />
     </div>
   );
 }

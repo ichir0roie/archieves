@@ -66,7 +66,7 @@ cd source/front && npm run types
 
 | 区分 | 対象 | 見るもの |
 | --- | --- | --- |
-| 本人のみ | `games`・`rounds`・`ends`・`points`・`matches`・コメントの読み書き全部、`trash/*`、`/matches`、`PATCH /users/{user_id}`、`/users/me`・`/users/me/ensure`・`/import/sqlite-backup` | トークンの `sub` の利用者の行(`deps.get_me`)と、行の `user_id` が同じこと |
+| 本人のみ | `games`・`rounds`・`ends`・`points`・`matches`・コメントの読み書き全部、`trash/*`、`/matches`、`PATCH /users/{user_id}`、`/users/me`・`/users/me/ensure`・`/import`・`/export/records.db` | トークンの `sub` の利用者の行(`deps.get_me`)と、行の `user_id` が同じこと |
 | 本人以外も | `/statistics/*`(ランキング含む)、`GET /users/{user_id}`、`GET /users/{sub}/profile`、`/organizations/*` | トークンが通っていること |
 
 - 「本人のみ」の書き方: 引数に `me: User = Depends(deps.get_me)` を足す。行を引くところは `deps.get_or_404` ではなく `deps.get_own_or_404(me, ...)`(持ち主が違えば 403)。`user_id` を要求で受けるところは `deps.require_self(me, user_id)`、絞り込みの `user_id`(省略可)は `deps.resolve_user_id(me, user_id)`(省略したら本人、他人なら 403)

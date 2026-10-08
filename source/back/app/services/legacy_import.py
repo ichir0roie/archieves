@@ -40,6 +40,13 @@ def _calc_point_from_scoring_ring(scoring_ring: int) -> int:
     return 11 - scoring_ring
 
 
+def _to_target_fraction(raw: object) -> float:
+    # MyTargets は中心を 0、縁を ±1 とする(半径で割った値)。このアプリは的の左上を 0、
+    # 右下を 1 とする(直径に対する割合)ので写し直す。的の外の矢は、画面で押したときと
+    # 同じく縁に寄せる(PointCreate が 0〜1 しか受けない)
+    return min(max(0.5 + float(raw) / 2, 0.0), 1.0)
+
+
 def _insert_games(s: Session, training: pd.DataFrame, user_id: int) -> dict[str, Game]:
     games = []
     old_ids = []
@@ -121,8 +128,8 @@ def _insert_points(
                     user_id=end.user_id,
                     number=int(row["index"]),
                     score=_calc_point_from_scoring_ring(row["scoringRing"]),
-                    x=float(row["x"]),
-                    y=float(row["y"]),
+                    x=_to_target_fraction(row["x"]),
+                    y=_to_target_fraction(row["y"]),
                     recorded_at=end.recorded_at,
                 )
             )

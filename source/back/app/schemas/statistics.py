@@ -16,6 +16,17 @@ class ScoreStatistics(ResponseModel):
     median: float | None = None
 
 
+class GameKindOptions(ResponseModel):
+    """統計の絞り込みに選べる種別の値(利用者の記録にあるもの)。"""
+
+    bow_types: list[str]
+    distances_m: list[int]
+    target_types: list[str]
+    end_sizes: list[int]
+    round_sizes: list[int]
+    game_sizes: list[int]
+
+
 class RoundScoreSummary(ResponseModel):
     round_id: int
     game_id: int

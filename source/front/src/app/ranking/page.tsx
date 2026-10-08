@@ -1,5 +1,6 @@
 "use client";
 
+import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import Field from "@/components/Field";
@@ -184,6 +185,7 @@ export default function Page() {
           })}
         </div>
       )}
+      <BackButton />
     </div>
   );
 }

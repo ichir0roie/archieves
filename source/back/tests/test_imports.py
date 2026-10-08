@@ -34,7 +34,7 @@ def _register_current_user(client: TestClient) -> dict:
     return res.json()
 
 
-def test_import_sqlite_backup(client: TestClient, tmp_path) -> None:
+def test_import_android_mytargets_backup(client: TestClient, tmp_path) -> None:
     user = _register_current_user(client)
 
     backup_path = tmp_path / "backup.sqlite"
@@ -42,7 +42,8 @@ def test_import_sqlite_backup(client: TestClient, tmp_path) -> None:
 
     with open(backup_path, "rb") as f:
         res = client.post(
-            "/api/v1/import/sqlite-backup",
+            "/api/v1/import",
+            data={"source": "android_mytargets"},
             files={"file": ("backup.sqlite", f, "application/octet-stream")},
         )
     assert res.status_code == 201
@@ -84,7 +85,8 @@ def test_import_without_registered_user_returns_404(
 
     with open(backup_path, "rb") as f:
         res = unregistered_client.post(
-            "/api/v1/import/sqlite-backup",
+            "/api/v1/import",
+            data={"source": "android_mytargets"},
             files={"file": ("backup.sqlite", f, "application/octet-stream")},
         )
     assert res.status_code == 404
@@ -94,7 +96,8 @@ def test_import_rejects_non_sqlite_filename(client: TestClient) -> None:
     _register_current_user(client)
 
     res = client.post(
-        "/api/v1/import/sqlite-backup",
+        "/api/v1/import",
+        data={"source": "android_mytargets"},
         files={"file": ("backup.csv", b"not sqlite", "text/csv")},
     )
     assert res.status_code == 400
@@ -111,7 +114,8 @@ def test_import_rejects_sqlite_file_missing_tables(client: TestClient, tmp_path)
 
     with open(backup_path, "rb") as f:
         res = client.post(
-            "/api/v1/import/sqlite-backup",
+            "/api/v1/import",
+            data={"source": "android_mytargets"},
             files={"file": ("backup.sqlite", f, "application/octet-stream")},
         )
     assert res.status_code == 400
@@ -121,7 +125,8 @@ def test_import_rejects_a_file_that_is_not_sqlite(client: TestClient) -> None:
     _register_current_user(client)
 
     res = client.post(
-        "/api/v1/import/sqlite-backup",
+        "/api/v1/import",
+        data={"source": "android_mytargets"},
         files={"file": ("backup.sqlite", b"definitely not a database", "application/octet-stream")},
     )
     assert res.status_code == 400
@@ -140,7 +145,8 @@ def test_import_rejects_a_backup_with_malformed_rows(client: TestClient, tmp_pat
 
     with open(backup_path, "rb") as f:
         res = client.post(
-            "/api/v1/import/sqlite-backup",
+            "/api/v1/import",
+            data={"source": "android_mytargets"},
             files={"file": ("backup.sqlite", f, "application/octet-stream")},
         )
     assert res.status_code == 400
@@ -161,7 +167,8 @@ def test_import_keeps_no_partial_rows_when_a_later_table_is_malformed(
 
     with open(backup_path, "rb") as f:
         res = client.post(
-            "/api/v1/import/sqlite-backup",
+            "/api/v1/import",
+            data={"source": "android_mytargets"},
             files={"file": ("backup.sqlite", f, "application/octet-stream")},
         )
     assert res.status_code == 400
@@ -180,7 +187,8 @@ def test_points_imported_onto_a_legacy_target_face_have_no_centimeter_position(
     with open(backup_path, "rb") as f:
         assert (
             client.post(
-                "/api/v1/import/sqlite-backup",
+                "/api/v1/import",
+            data={"source": "android_mytargets"},
                 files={"file": ("backup.sqlite", f, "application/octet-stream")},
             ).status_code
             == 201
@@ -204,7 +212,8 @@ def test_a_legacy_target_face_does_not_constrain_new_scores(
     _build_legacy_backup(str(backup_path))
     with open(backup_path, "rb") as f:
         client.post(
-            "/api/v1/import/sqlite-backup",
+            "/api/v1/import",
+            data={"source": "android_mytargets"},
             files={"file": ("backup.sqlite", f, "application/octet-stream")},
         )
 
@@ -218,3 +227,40 @@ def test_a_legacy_target_face_does_not_constrain_new_scores(
     )
     assert res.status_code == 201
     assert res.json()["x_cm"] is None
+
+
+def test_import_rejects_an_unknown_source(client: TestClient, tmp_path) -> None:
+    _register_current_user(client)
+
+    backup_path = tmp_path / "backup.sqlite"
+    _build_legacy_backup(str(backup_path))
+    with open(backup_path, "rb") as f:
+        res = client.post(
+            "/api/v1/import",
+            data={"source": "unknown_app"},
+            files={"file": ("backup.sqlite", f, "application/octet-stream")},
+        )
+    assert res.status_code == 422
+
+
+def test_import_accepts_capitalized_table_names(client: TestClient, tmp_path) -> None:
+    # 本物の MyTargets のバックアップは表名が大文字で始まる
+    _register_current_user(client)
+
+    backup_path = tmp_path / "backup.db"
+    _build_legacy_backup(str(backup_path))
+    conn = sqlite3.connect(str(backup_path))
+    for name in ("training", "round", "end", "shot"):
+        conn.execute(f'ALTER TABLE "{name}" RENAME TO "{name}_tmp"')
+        conn.execute(f'ALTER TABLE "{name}_tmp" RENAME TO "{name.capitalize()}"')
+    conn.commit()
+    conn.close()
+
+    with open(backup_path, "rb") as f:
+        res = client.post(
+            "/api/v1/import",
+            data={"source": "android_mytargets"},
+            files={"file": ("backup.db", f, "application/octet-stream")},
+        )
+    assert res.status_code == 201
+    assert res.json() == {"games": 1, "rounds": 1, "ends": 1, "points": 2}

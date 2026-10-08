@@ -187,9 +187,7 @@ def _create_user(
     organization_id: int | None = None,
     region_id: int | None = None,
 ) -> dict:
-    user = factory_db.UserFactory(
-        name=name, organization_id=organization_id, region_id=region_id
-    )
+    user = factory_db.UserFactory(name=name, organization_id=organization_id, region_id=region_id)
     return {"id": user.id}
 
 
@@ -276,9 +274,7 @@ def test_ranking_filters_by_period(client: TestClient) -> None:
     _build_round(client, early_game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10])
     _build_round(client, late_game["id"], recorded_at="2026-02-01T00:00:00Z", scores=[2])
 
-    res = client.get(
-        "/api/v1/statistics/ranking", params={"start": "2026-01-15T00:00:00Z"}
-    )
+    res = client.get("/api/v1/statistics/ranking", params={"start": "2026-01-15T00:00:00Z"})
     assert res.status_code == 200
     body = res.json()
     assert len(body) == 1
@@ -315,9 +311,7 @@ def test_ranking_filters_by_period_end(client: TestClient) -> None:
     _build_round(client, early_game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10])
     _build_round(client, late_game["id"], recorded_at="2026-02-01T00:00:00Z", scores=[2])
 
-    res = client.get(
-        "/api/v1/statistics/ranking", params={"end": "2026-01-15T00:00:00Z"}
-    )
+    res = client.get("/api/v1/statistics/ranking", params={"end": "2026-01-15T00:00:00Z"})
     assert res.status_code == 200
     body = res.json()
     assert len(body) == 1
@@ -414,9 +408,7 @@ def test_ranking_filters_by_bow_type(client: TestClient) -> None:
         game = _create_game(client, user_id=user["id"], bow_type=bow_type)
         _build_round(client, game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[score])
 
-    assert [row["user"]["name"] for row in _ranking(client, bow_type="recurve")] == [
-        "recurve_user"
-    ]
+    assert [row["user"]["name"] for row in _ranking(client, bow_type="recurve")] == ["recurve_user"]
     assert [row["user"]["name"] for row in _ranking(client, bow_type="barebow")] == []
     # 絞り込まなければ、弓の種類が未設定の記録も数える
     assert [row["user"]["name"] for row in _ranking(client)] == [
@@ -435,9 +427,7 @@ def test_ranking_filters_by_distance_per_round(client: TestClient) -> None:
     # 一つのゲームの中で距離を変えたラウンドは、距離ごとに別々に数える
     user = _create_user(client, name="player")
     game = _create_game(client, user_id=user["id"])
-    _build_round(
-        client, game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10], distance_m=70
-    )
+    _build_round(client, game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10], distance_m=70)
     _build_round(
         client,
         game["id"],
@@ -463,9 +453,7 @@ def test_ranking_combines_bow_type_distance_and_period(client: TestClient) -> No
         ("2026-02-11T00:00:00Z", "recurve", 30, 5),
         ("2026-02-12T00:00:00Z", "compound", 70, 3),
     ]:
-        game = _create_game(
-            client, user_id=user["id"], recorded_at=recorded_at, bow_type=bow_type
-        )
+        game = _create_game(client, user_id=user["id"], recorded_at=recorded_at, bow_type=bow_type)
         _build_round(
             client, game["id"], recorded_at=recorded_at, scores=[score], distance_m=distance_m
         )
@@ -531,3 +519,56 @@ def test_game_keeps_its_bow_type(client: TestClient) -> None:
             },
         )
         assert res.status_code == 422
+
+
+def test_statistics_are_filtered_by_game_kind(client: TestClient) -> None:
+    recurve = _create_game(client, bow_type="recurve")
+    compound = _create_game(client, bow_type="compound")
+    _build_round(client, recurve["id"], recorded_at=GAME_RECORDED_AT, scores=[9, 9], distance_m=70)
+    _build_round(client, recurve["id"], recorded_at=GAME_RECORDED_AT, scores=[5, 5], distance_m=30)
+    _build_round(
+        client, compound["id"], recorded_at=GAME_RECORDED_AT, scores=[10, 10], distance_m=70
+    )
+
+    rounds = client.get("/api/v1/statistics/rounds", params={"bow_type": "recurve"}).json()
+    assert sorted(r["total_score"] for r in rounds) == [10, 18]
+
+    params = {"bow_type": "recurve", "distance_m": 70}
+    for path, expected_total in [
+        ("/statistics/rounds/summary", 18),
+        ("/statistics/ends/summary", 18),
+        ("/statistics/points/summary", 18),
+    ]:
+        body = client.get(f"/api/v1{path}", params=params).json()
+        assert body["total"] == expected_total, path
+
+    ends = client.get("/api/v1/statistics/ends", params={"distance_m": 70}).json()
+    assert sorted(e["total_score"] for e in ends) == [18, 20]
+
+    assert client.get("/api/v1/statistics/rounds", params={"distance_m": 50}).json() == []
+
+
+def test_game_kind_options_list_own_values_only(client: TestClient, factories) -> None:
+    game = _create_game(client, bow_type="recurve")
+    game_model = factory_db.FactorySession.get(Game, game["id"])
+    assert game_model is not None
+    game_model.game_size = 2
+    factory_db.RoundFactory(
+        game=game_model, distance_m=70, target_type="122cm", end_size=6, round_size=6
+    )
+    factory_db.RoundFactory(
+        game=game_model, distance_m=30, target_type="80cm", end_size=3, round_size=10
+    )
+    other = factories.GameFactory(bow_type="barebow")
+    factories.RoundFactory(game=other, distance_m=18)
+
+    res = client.get("/api/v1/statistics/game-kinds")
+    assert res.status_code == 200
+    assert res.json() == {
+        "bow_types": ["recurve"],
+        "distances_m": [30, 70],
+        "target_types": ["122cm", "80cm"],
+        "end_sizes": [3, 6],
+        "round_sizes": [6, 10],
+        "game_sizes": [2],
+    }
