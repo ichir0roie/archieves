@@ -37,6 +37,9 @@ export async function startGame(page: Page, setup: GameSetup = {}) {
   });
 }
 
+/** 狙う点は押した所の真上 107px(TargetCircleInput の AIM_OFFSET_Y)。押す位置はそのぶん下にずらす */
+const AIM_OFFSET_Y = 107;
+
 /** 的の帯のボタン。点数表の文字("10"・"X"・"M")で引く。 */
 export function ringButton(page: Page, label: string) {
   if (label === "M") return page.getByRole("button", { name: "外れ", exact: true });
@@ -74,32 +77,47 @@ async function settledBoundingBox(button: Locator) {
 }
 
 /**
- * 的の帯を押して矢を記録する。帯は同心円で内側の帯が上に重なるので、ボタンの中心でなく
- * 帯の幅の真ん中(内側の帯の外に当たる所)を押す。X は中心、外れは的の枠の隅。
+ * 的の帯を狙って矢を記録する。帯は同心円で内側の帯が上に重なるので、ボタンの中心でなく
+ * 帯の幅の真ん中(内側の帯の外に当たる所)を狙う。X は中心、外れは的の枠の左上の隅。
+ * 狙う点の AIM_OFFSET_Y 下を、座標を指定して押す。
  */
 export async function shoot(page: Page, label: string, times: number) {
   const button = ringButton(page, label);
   // 矢をまとめて書き込む間は帯が無効のまま、書き終えると「記録済み」の帯が消えて的の大きさが
-  // 変わる。有効になってから位置を測らないと、古い大きさで隣の帯を押し続ける
+  // 変わる。有効になってから位置を測らないと、古い大きさで隣の帯を狙い続ける
   await expect(button).toBeEnabled();
   const box = await settledBoundingBox(button);
 
-  let position: { x: number; y: number };
+  let aim: { x: number; y: number };
   if (label === "M") {
-    position = { x: 6, y: 6 };
+    aim = { x: box.x + 6, y: box.y + 6 };
   } else if (label === "X") {
-    position = { x: box.width / 2, y: box.height / 2 };
+    aim = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   } else {
     const point = Number(label);
     const outer = box.width / 2;
     // 外側の半径に対する内側の帯の半径の割合。10 の内側は X で、10 の帯の半分
     const innerRatio = point === 10 ? 0.5 : (10 - point) / (11 - point);
-    position = { x: outer + (outer + outer * innerRatio) / 2, y: outer };
+    aim = {
+      x: box.x + outer + (outer + outer * innerRatio) / 2,
+      y: box.y + outer,
+    };
   }
 
   for (let i = 0; i < times; i++) {
     const before = await recordedArrows(page).count();
-    await button.click({ position });
-    await expect(recordedArrows(page)).toHaveCount(before + 1, { timeout: 10_000 });
+    const progressBefore = await page.locator(".ScoreProgress").innerText();
+    await page.mouse.click(aim.x, aim.y + AIM_OFFSET_Y);
+    // エンドが満ちる最後の矢は、次のエンドへ自動で進んで表示の矢が 0 に戻る
+    await expect
+      .poll(
+        async () => {
+          const count = await recordedArrows(page).count();
+          if (count === before + 1) return true;
+          return count === 0 && (await page.locator(".ScoreProgress").innerText()) !== progressBefore;
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(true);
   }
 }
