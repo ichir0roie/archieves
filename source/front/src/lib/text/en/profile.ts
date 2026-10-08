@@ -6,7 +6,8 @@ export const profile: typeof ja = {
     title: `${t.profile} settings`,
     name: "Name",
     nickname: "Nickname",
-    age: "Age",
+    birthDate: "Date of birth",
+    age: (age: number) => `Age ${age}`,
     organization: t.affiliation,
   },
   view: {

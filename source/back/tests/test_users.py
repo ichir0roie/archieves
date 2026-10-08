@@ -1,17 +1,19 @@
+from datetime import date, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.crud import user as user_crud
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, calc_age
 
 
 def test_create_and_get_user(client: TestClient) -> None:
     payload = {
         "name": "Yumi",
         "nickname": "Yu",
-        "age": 25,
+        "birth_date": "2000-04-01",
     }
 
     create_res = client.post("/api/v1/users", json=payload)
@@ -19,7 +21,8 @@ def test_create_and_get_user(client: TestClient) -> None:
     user = create_res.json()
     assert user["name"] == "Yumi"
     assert user["nickname"] == "Yu"
-    assert user["age"] == 25
+    assert user["birth_date"] == "2000-04-01"
+    assert user["age"] == calc_age(date(2000, 4, 1), date.today())
 
     get_res = client.get(f"/api/v1/users/{user['id']}")
     assert get_res.status_code == 200
@@ -52,8 +55,8 @@ def test_create_user_with_missing_organization_returns_404(client: TestClient) -
     assert response.status_code == 404
 
 
-def test_create_user_with_negative_age_is_rejected(client: TestClient) -> None:
-    payload = {"name": "Kenta", "age": -1}
+def test_create_user_with_future_birth_date_is_rejected(client: TestClient) -> None:
+    payload = {"name": "Kenta", "birth_date": (date.today() + timedelta(days=1)).isoformat()}
     response = client.post("/api/v1/users", json=payload)
     assert response.status_code == 422
 
@@ -68,13 +71,13 @@ def test_update_user_basic_info(client: TestClient, current_user) -> None:
 
     patch_res = client.patch(
         f"/api/v1/users/{user_id}",
-        json={"nickname": "Yu-chan", "age": 30},
+        json={"nickname": "Yu-chan", "birth_date": "1995-12-31"},
     )
     assert patch_res.status_code == 200
     body = patch_res.json()
     assert body["name"] == "Yumi"
     assert body["nickname"] == "Yu-chan"
-    assert body["age"] == 30
+    assert body["birth_date"] == "1995-12-31"
 
 
 def test_update_user_with_missing_organization_returns_404(
@@ -155,3 +158,20 @@ def test_ensuring_a_user_reraises_an_integrity_error_that_is_not_a_race(
 
     with pytest.raises(IntegrityError):
         user_crud.get_or_create_user(s, UserCreate(name="Yumi"), sub="taken-sub")
+
+
+@pytest.mark.parametrize(
+    ("today", "expected"),
+    [
+        (date(2026, 3, 31), 25),
+        (date(2026, 4, 1), 26),
+        (date(2026, 12, 31), 26),
+    ],
+)
+def test_calc_age_counts_up_on_birthday(today: date, expected: int) -> None:
+    assert calc_age(date(2000, 4, 1), today) == expected
+
+
+def test_calc_age_for_leap_day_birth() -> None:
+    assert calc_age(date(2004, 2, 29), date(2026, 2, 28)) == 21
+    assert calc_age(date(2004, 2, 29), date(2026, 3, 1)) == 22

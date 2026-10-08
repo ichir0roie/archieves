@@ -147,7 +147,7 @@ export function getMyUser(): Promise<UserRead> {
   return request('/users/me');
 }
 
-/** Updates a user's basic profile info (name, nickname, age, organization, region). */
+/** Updates a user's basic profile info (name, nickname, birth date, organization, region). */
 export function updateUser(userId: number, user: UserUpdate): Promise<UserRead> {
   return request(`/users/${userId}`, {
     method: 'PATCH',
