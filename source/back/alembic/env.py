@@ -1,10 +1,11 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, event, pool
 
 from alembic import context
 from app.core.config import settings
 from app.db.base import Base
+from app.db.session import inject_iam_token
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
@@ -34,6 +35,9 @@ def run_migrations_online() -> None:
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
+
+    # 本番の RDS へは IAM データベース認証で繋ぐ(DB_IAM_AUTH のときだけ働く)
+    event.listen(connectable, "do_connect", inject_iam_token)
 
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)

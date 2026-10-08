@@ -100,5 +100,6 @@ export DATABASE_URL=$(../../infra_local/postgres.sh)
 
 ## デプロイ
 
-- `.build/Dockerfile` が Lambda(Lambda Web Adapter)の image。`requirements.txt`(ハッシュ付き)を入れる
-- `.build/template.yaml` が SAM の雛形
+- `.build/Dockerfile` が Lambda(Lambda Web Adapter)の image。`requirements.txt`(ハッシュ付き)を入れる。起動する ASGI アプリは CMD で決まり、マイグレーションの Lambda は同じ image で `app.migration_app:app` に差し替える
+- 本番の Lambda は NAT のない VPC の中にあるので、Cognito の公開鍵を取りに行けない。`AUTH_MODE=proxy` で、フロントの route handler が確かめた利用者を `x-archieves-user-*` ヘッダーで受ける(`API_KEYS` が必須)。db へは `DB_IAM_AUTH=true` の IAM データベース認証で繋ぐ
+- `infra/`(CDK)が ECR・Lambda・CI のロールを持ち、GitHub Actions(`.github/workflows/deploy-api.yml`)が image の差し替えとマイグレーションを行う。手順は `docs/インフラ/デプロイ.md`

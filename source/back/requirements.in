@@ -13,3 +13,5 @@ python-jose[cryptography]>=3.3,<4.0
 python-multipart>=0.0.9,<0.1
 # 旧アプリのバックアップの読み込み
 pandas>=2.2,<3.0
+# 本番の RDS へ繋ぐ IAM データベース認証のトークンを作る(app/db/session.py)
+boto3>=1.35,<2.0
