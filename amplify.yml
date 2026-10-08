@@ -1,5 +1,5 @@
 # AWS Amplify Hosting のビルド設定。画面(source/front、Next.js)をモノレポの一つのアプリとして建てる。
-# Amplify のアプリの環境変数に AMPLIFY_MONOREPO_APP_ROOT=source/front、ARCHIEVES_API_URL(API Gateway の URL)、
+# Amplify のアプリの環境変数に AMPLIFY_MONOREPO_APP_ROOT=source/front、ARCHIEVES_API_URL(API の Lambda の関数 URL。末尾の / は付けても外してもよい)、
 # ARCHIEVES_API_KEY(API の API_KEYS のうちの一つの鍵)を置く。NEXT_PUBLIC_AUTH_MODE は置かない(既定の cognito)。
 version: 1
 applications:

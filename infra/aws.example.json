@@ -1,0 +1,8 @@
+{
+  "github": { "repository": "<owner>/<repo>", "branch": "main" },
+  "db": {
+    "instanceIdentifier": "<RDS のインスタンス名>",
+    "name": "archieves"
+  },
+  "functionSubnetIds": ["subnet-xxxxxxxx", "subnet-yyyyyyyy"]
+}
