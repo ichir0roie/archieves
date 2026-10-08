@@ -53,7 +53,7 @@ GitHub Actions の CI は無いので、網羅テストの結果がその代わ�
 
 - ベースブランチは develop。プルリクのマージ先も develop
 - web のセッション: セッションの指示(作業するブランチ・コミット・push)に従う。返答を終える前に、変えたものをコミットして指示のブランチへ push する。PR は上の順が来るまで作らない
-- 手元: 今のブランチで作業する。develop にいるときは作業用のブランチを切ってから変える
+- 手元: 今のブランチ(develop を含む)に直接直してよい。作業用のブランチは切らない
 - GitHub の操作は `gh` ではなく GitHub の MCP のツールで行う。`merge_pull_request` などに渡す `sha` は 40 桁(`git rev-parse HEAD`)
 - 作業中の変更は、ユーザが捨ててよいと言うまで捨てない(`git checkout -- .`・`git reset --hard`・`git stash drop` をしない)。取り消しか作り直しか読み切れないときは尋ねる
 - 日本語のファイル名が `"\346…"` になるときは `git -c core.quotePath=false` を付ける
