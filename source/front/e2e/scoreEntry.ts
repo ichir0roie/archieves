@@ -83,7 +83,7 @@ async function settledBoundingBox(button: Locator) {
 export async function shoot(page: Page, label: string, times: number) {
   const button = ringButton(page, label);
   // 矢をまとめて書き込む間は帯が無効のまま、書き終えると「記録済み」の帯が消えて的の大きさが
-  // 変わる。有効になってから位置を測らないと、古い大きさで隣の帯を押し続ける
+  // 変わる。有効になってから位置を測らないと、古い大きさで隣の帯を狙い続ける
   await expect(button).toBeEnabled();
   const box = await settledBoundingBox(button);
 
@@ -100,16 +100,27 @@ export async function shoot(page: Page, label: string, times: number) {
     const outer = box.width / 2;
     // 外側の半径に対する内側の帯の半径の割合。10 の内側は X で、10 の帯の半分
     const innerRatio = point === 10 ? 0.5 : (10 - point) / (11 - point);
-    aim = { x: box.x + outer + (outer + outer * innerRatio) / 2, y: box.y + outer };
+    aim = {
+      x: box.x + outer + (outer + outer * innerRatio) / 2,
+      y: box.y + outer,
+    };
   }
 
   for (let i = 0; i < times; i++) {
     const before = await recordedArrows(page).count();
+    const progressBefore = await page.locator(".ScoreProgress").innerText();
     await page.mouse.click(aim.x, aim.y + AIM_OFFSET_Y);
-    // エンドが満ちると次のエンドへ自動で進み、並ぶ矢が 0 本に戻る。増えたか空になったかで待つ
+    // エンドが満ちる最後の矢は、次のエンドへ自動で進んで表示の矢が 0 に戻る
     await expect
-      .poll(() => recordedArrows(page).count(), { timeout: 10_000 })
-      .not.toBe(before);
+      .poll(
+        async () => {
+          const count = await recordedArrows(page).count();
+          if (count === before + 1) return true;
+          return count === 0 && (await page.locator(".ScoreProgress").innerText()) !== progressBefore;
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(true);
   }
 }
 

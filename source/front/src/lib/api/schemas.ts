@@ -21,6 +21,7 @@ export type GameCommentRead = Schemas['GameCommentRead'];
 export type GameComments = Schemas['GameComments'];
 export type GameCreate = Schemas['GameCreate'];
 export type GameRead = Schemas['GameRead'];
+export type GameScoreSummary = Schemas['GameScoreSummary'];
 export type GameUpdate = Schemas['GameUpdate'];
 export type ImportResult = Schemas['ImportResult'];
 export type ImportSource = Schemas['ImportSource'];

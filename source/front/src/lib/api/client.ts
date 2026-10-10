@@ -13,6 +13,7 @@ import type {
   GameComments,
   GameCommentRead,
   GameRead,
+  GameScoreSummary,
   ImportResult,
   ImportSource,
   OrganizationCreate,
@@ -253,6 +254,11 @@ export function listGames(userId: number): Promise<GameRead[]> {
 /** その年(recorded_at)のゲーム全部。既定の 100 件で切れないよう上限を広げる */
 export function listGamesOfYear(userId: number, year: number): Promise<GameRead[]> {
   return request(`/games?user_id=${userId}&year=${year}&limit=10000`);
+}
+
+/** その年のゲームごとの合計点・エンド平均・ポイント平均 */
+export function listGameScoresOfYear(userId: number, year: number): Promise<GameScoreSummary[]> {
+  return request(`/games/scores?user_id=${userId}&year=${year}`);
 }
 
 /** ゲームのある年。新しい年が先 */

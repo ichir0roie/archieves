@@ -261,10 +261,18 @@ test("resuming a game whose end is already full opens the next end", async ({ pa
   await startGame(page, { endSize: 3, roundSize: 6, gameSize: 2 });
 
   // 満ちると次のエンドへ自動で進み、そのときに矢を書く
+  const arrowPosts: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && /\/ends\/\d+\/points$/.test(request.url())) {
+      arrowPosts.push(request.url());
+    }
+  });
   await shoot(page, "10", 3);
   await expect(page.locator(".ScoreProgress")).toContainText("エンド 2/6");
   await page.getByRole("button", { name: "1エンド戻る", exact: true }).click();
   await expect(page.locator(".ScoreProgress")).toContainText("エンド 1/6");
+  // 書き込みが終わる前に読み直すと、書きかけの矢が読めない
+  await expect.poll(() => arrowPosts.length).toBe(3);
 
   await reloadAfterWrites(page);
 

@@ -1,16 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 import { recordGame } from "./recordGame";
 
 // Needs archieves-api running (see .claude/docs/testing.md's "E2E"): every page
 // here reads the recorded game back through it.
-
-/** スコア一覧の、id の一致するゲームの枠。id は「Game ID 79」のように見出しと一つの文字列に並ぶ */
-function scoreLogCard(page: Page, gameId: string) {
-  return page.locator(".ScoreLogGame").filter({
-    has: page.locator(".log-game-id", { hasText: new RegExp(`\\s${gameId}$`) }),
-  });
-}
 
 test.beforeEach(async ({ page }) => {
   await ensureRegistered(page);
@@ -22,15 +15,18 @@ test("the score log lists a game that was just recorded", async ({ page }) => {
   await page.goto("/score-log");
   await expect(page.locator("header")).toContainText("スコア");
 
-  const card = scoreLogCard(page, game.id);
-  await expect(card.first()).toBeVisible();
+  const card = page.locator(`.ScoreLogGame[data-game-id="${game.id}"]`);
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("合計点");
+  await expect(card).toContainText("エンド平均");
+  await expect(card).toContainText("矢平均");
 });
 
 test("a score log card opens that game's score sheet", async ({ page }) => {
   const game = await recordGame(page);
 
   await page.goto("/score-log");
-  const card = scoreLogCard(page, game.id).first();
+  const card = page.locator(`.ScoreLogGame[data-game-id="${game.id}"]`);
   await expect(card).toBeVisible();
   await card.click();
 
@@ -42,7 +38,7 @@ test("スコアは月の見出しで閉じられ、開閉は再読み込みし�
   const game = await recordGame(page);
 
   await page.goto("/score-log");
-  const card = scoreLogCard(page, game.id).first();
+  const card = page.locator(`.ScoreLogGame[data-game-id="${game.id}"]`);
   await expect(card).toBeVisible();
 
   await page.getByRole("button", { name: "全部閉じる" }).click();

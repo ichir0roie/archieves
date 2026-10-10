@@ -39,6 +39,15 @@ class GameRead(GameBase, ResponseModel):
     deleted_at: date | None = None
 
 
+class GameScoreSummary(ResponseModel):
+    """スコア一覧の一行に出す、ゲームの点数の集計。矢のないゲームは平均が None。"""
+
+    game_id: int
+    total_score: int
+    end_average: float | None = None
+    point_average: float | None = None
+
+
 def _validate_target_type(target_type: str) -> str:
     if target_type not in TARGET_TYPE_IDS:
         raise ValueError(f"target_type must be one of {TARGET_TYPE_IDS}")
