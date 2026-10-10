@@ -58,6 +58,15 @@ function isPending(entity: { id: number }): boolean {
   return entity.id === PENDING_ID;
 }
 
+/** 応答を失った削除が API に届いていると、書き直しは 404 になる。もう無ければ消せたものとする */
+async function ignoreNotFound(removal: Promise<void>): Promise<void> {
+  try {
+    await removal;
+  } catch (e) {
+    if (!(e instanceof ApiError && e.status === 404)) throw e;
+  }
+}
+
 /** 入力の画面の帯に出す、今の位置とボタンの可否 */
 export interface ScoreProgress {
   roundNumber: number;
@@ -107,7 +116,10 @@ function toUndonePoint(point: PointRead): UndonePoint {
  *
  * API への書き込みは、すべて writing の列に並べて一つずつ流す。ゲーム・ラウンド・エンドを二重に作ったり、
  * 書き込み中のエンドを消したりしないため。バックグラウンドの書き込みが失敗したら onBackgroundError で
- * 知らせ、そのエンドは unflushed に残して、次のエンド移動・終了のときに書き直す。
+ * 知らせ、そのエンドは unflushed に残して、次のエンド移動・終了・retryUnsaved() のときに書き直す。
+ * 通信が切れた失敗(スマホの画面を消す・アプリを切り替える)は、API に届いて書けたあとで応答だけを
+ * 失ったのかもしれない。そのまま書き直すと同じ矢を二重に登録するので、以後は書く前に API の中身と
+ * 突き合わせる(mayHaveLostResponse)。
  * 仮の物を本物にすると id が変わるので、エンドの round_id や矢の end_id などの親の id は古いままに
  * なりうる。親は位置(roundIndex / endIndex)で引き、これらの欄は読まない。
  */
@@ -151,8 +163,17 @@ export class ScoreManager {
   /** 列に並んでいて、まだ終わっていない書き込みの数 */
   private queuedWrites = 0;
 
+  /**
+   * 応答を受け取れなかった書き込みがあった。API には届いていたかもしれないので、仮のラウンド・エンド・矢を
+   * 作る前に API にもう無いかを確かめる。どの書き込みが届いたかは分からないので、このゲームの間は下ろさない
+   */
+  private mayHaveLostResponse = false;
+
   /** バックグラウンドの書き込みが失敗したときに呼ぶ。失敗した分は次の書き込みで書き直す */
   onBackgroundError: ((error: unknown) => void) | null = null;
+
+  /** バックグラウンドの書き込みで、書いていない分が無くなったときに呼ぶ */
+  onBackgroundSaved: (() => void) | null = null;
 
   constructor(gameId: string | null, userId: number, setup: RoundSetup | null = null) {
     this.gameId = gameId;
@@ -531,7 +552,11 @@ export class ScoreManager {
   /** 書き込みを列の末尾に並べる。前のものが失敗していても流す */
   private enqueue<T>(job: () => Promise<T>): Promise<T> {
     this.queuedWrites += 1;
-    const result = this.writing.then(job);
+    const result = this.writing.then(job).catch((e: unknown) => {
+      // ApiError は API が応答を返した失敗。それ以外(fetch の TypeError)は応答を受け取れなかった
+      if (!(e instanceof ApiError)) this.mayHaveLostResponse = true;
+      throw e;
+    });
     this.writing = result.then(
       () => undefined,
       () => undefined
@@ -561,7 +586,22 @@ export class ScoreManager {
       endIndex,
       persist: persist || (queued?.persist ?? false),
     });
-    this.enqueue(() => this.flushPending()).catch((e) => this.onBackgroundError?.(e));
+    this.flushInBackground();
+  }
+
+  private flushInBackground() {
+    this.enqueue(() => this.flushPending()).then(
+      () => {
+        if (this.unflushed.size === 0) this.onBackgroundSaved?.();
+      },
+      (e) => this.onBackgroundError?.(e)
+    );
+  }
+
+  /** 失敗して書いていないエンドを、エンドを動かすのを待たずに書き直す(通信が戻ったときなど) */
+  retryUnsaved() {
+    if (this.unflushed.size === 0) return;
+    this.flushInBackground();
   }
 
   /**
@@ -606,6 +646,11 @@ export class ScoreManager {
     }
 
     let round = this.rounds[roundIndex];
+    if (isPending(round) && this.mayHaveLostResponse) {
+      const number = round.number;
+      round = (await listRounds(game.id)).find((r) => r.number === number) ?? round;
+      this.rounds[roundIndex] = round;
+    }
     if (isPending(round)) {
       round = await createRound(game.id, {
         number: round.number,
@@ -617,9 +662,42 @@ export class ScoreManager {
       this.rounds[roundIndex] = round;
     }
 
-    const end = this.endsOf[roundIndex][endIndex];
+    let end = this.endsOf[roundIndex][endIndex];
+    if (isPending(end) && this.mayHaveLostResponse) {
+      const number = end.number;
+      end = (await listEnds(round.id)).find((e) => e.number === number) ?? end;
+      this.endsOf[roundIndex][endIndex] = end;
+    }
     if (isPending(end)) {
       this.endsOf[roundIndex][endIndex] = await createEnd(round.id, end.number);
+    }
+  }
+
+  /**
+   * 応答を失った矢の登録が API に届いていたら、その矢を仮の矢の代わりに使う。同じ番号に仮の矢が無い
+   * (書いている間に外された)・点数が違う矢は、API から消す側に回す。
+   */
+  private async adoptLostPoints(roundIndex: number, endIndex: number) {
+    const end = this.endsOf[roundIndex][endIndex];
+    const points = this.pointsOf[roundIndex][endIndex];
+    const knownIds = new Set([
+      ...points.map((point) => point.id),
+      ...this.deletedPointIds,
+    ]);
+    for (const saved of await listPoints(end.id)) {
+      if (knownIds.has(saved.id)) continue;
+      const local = points[saved.number - 1];
+      if (
+        local &&
+        isPending(local) &&
+        local.score === saved.score &&
+        local.x === saved.x &&
+        local.y === saved.y
+      ) {
+        points[saved.number - 1] = saved;
+      } else {
+        this.deletedPointIds.push(saved.id);
+      }
     }
   }
 
@@ -634,6 +712,10 @@ export class ScoreManager {
     if (!points.some(isPending)) return;
 
     await this.ensurePersisted(roundIndex, endIndex);
+    if (this.mayHaveLostResponse) {
+      await this.adoptLostPoints(roundIndex, endIndex);
+      await this.deleteRemovedPoints();
+    }
     const end = this.endsOf[roundIndex][endIndex];
     // 書いている間も画面は動くので、写しを取って回し、位置は書く直前に引き直す
     for (const point of points.filter(isPending)) {
@@ -659,7 +741,7 @@ export class ScoreManager {
 
   private async deleteRemovedPoints() {
     while (this.deletedPointIds.length > 0) {
-      await deletePoint(this.deletedPointIds[0]);
+      await ignoreNotFound(deletePoint(this.deletedPointIds[0]));
       this.deletedPointIds.shift();
     }
   }
@@ -683,7 +765,7 @@ export class ScoreManager {
       };
     }
 
-    await deleteGame(game.id);
+    await ignoreNotFound(deleteGame(game.id));
     this.game = null;
     this.gameId = null;
     this.comments = { game: null, rounds: [], ends: [] };
@@ -707,7 +789,7 @@ export class ScoreManager {
     const ends = this.endsOf[roundIndex];
     const end = ends[ends.length - 1];
     if (!isPending(end)) {
-      await deleteEnd(end.id);
+      await ignoreNotFound(deleteEnd(end.id));
       this.comments.ends = this.comments.ends.filter((c) => c.end_id !== end.id);
     }
     ends.pop();
@@ -720,7 +802,7 @@ export class ScoreManager {
     const roundIndex = this.rounds.length - 1;
     const round = this.rounds[roundIndex];
     if (!isPending(round)) {
-      await deleteRound(round.id);
+      await ignoreNotFound(deleteRound(round.id));
       const endIds = this.endsOf[roundIndex].map((end) => end.id);
       this.comments.rounds = this.comments.rounds.filter((c) => c.round_id !== round.id);
       this.comments.ends = this.comments.ends.filter((c) => !endIds.includes(c.end_id));
@@ -833,7 +915,7 @@ export class ScoreManager {
     if (target === "game") {
       const game = this.game;
       if (!game || this.comments.game === null) return;
-      await deleteGameComment(game.id);
+      await ignoreNotFound(deleteGameComment(game.id));
       this.comments.game = null;
       return;
     }
@@ -841,14 +923,14 @@ export class ScoreManager {
     if (target === "round") {
       const round = this.rounds[roundIndex];
       if (!round || this.roundCommentOf(round) === null) return;
-      await deleteRoundComment(round.id);
+      await ignoreNotFound(deleteRoundComment(round.id));
       this.forgetRoundComment(round.id);
       return;
     }
 
     const end = this.endsOf[roundIndex]?.[endIndex];
     if (!end || this.endCommentOf(end) === null) return;
-    await deleteEndComment(end.id);
+    await ignoreNotFound(deleteEndComment(end.id));
     this.forgetEndComment(end.id);
   }
 
