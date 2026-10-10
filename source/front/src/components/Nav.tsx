@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSignOut } from "@/components/AuthGate";
+import { useLoad } from "@/hooks/useLoad";
+import { getMyUser } from "@/lib/api";
 import { isMockAuth } from "@/lib/auth/config";
 import { useMenuPosition } from "@/lib/menuPosition";
 import { useT } from "@/lib/text";
@@ -30,6 +32,9 @@ export default function Nav() {
   const position = useMenuPosition();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLElement>(null);
+  // 管理者は db を直に書き換えて決めるので、読み直しは画面を開き直したときでよい。
+  // 行の無い利用者(登録の前)は 404 になるが、そのときは管理者でないとみなす
+  const { data: me } = useLoad(getMyUser, []);
 
   useEffect(() => {
     setOpen(false);
@@ -102,6 +107,17 @@ export default function Nav() {
               {T.nav[item.label]}
             </Link>
           ))}
+          {me?.is_admin && (
+            <>
+              <hr />
+              <Link
+                href="/admin/feedbacks"
+                className={pathname.startsWith("/admin/feedbacks") ? "active" : ""}
+              >
+                {T.nav.adminFeedback}
+              </Link>
+            </>
+          )}
           {!isMockAuth() && (
             <>
               <hr />

@@ -161,5 +161,17 @@ def test_feedbacks_of_another_user_are_not_listed(
     assert [f["id"] for f in response.json()] == [mine.id]
 
 
+def test_admin_endpoints_are_forbidden_for_non_admins(client: TestClient, factories) -> None:
+    feedback = factories.FeedbackFactory()
+
+    assert client.get("/api/v1/admin/feedbacks").status_code == 403
+    assert (
+        client.put(
+            f"/api/v1/admin/feedbacks/{feedback.id}/reply", json={"reply": "x"}
+        ).status_code
+        == 403
+    )
+
+
 def test_announcements_can_be_read_by_anyone_signed_in(client: TestClient) -> None:
     assert client.get("/api/v1/announcements").status_code == 200
