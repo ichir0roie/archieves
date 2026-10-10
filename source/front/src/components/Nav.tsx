@@ -4,21 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSignOut } from "@/components/AuthGate";
-import { useLoad } from "@/hooks/useLoad";
-import { getMyUser } from "@/lib/api";
+import { useCachedAppUser } from "@/hooks/useCachedAppUser";
 import { isMockAuth } from "@/lib/auth/config";
+import { DESTINATIONS } from "@/lib/destinations";
 import { useMenuPosition } from "@/lib/menuPosition";
 import { useT } from "@/lib/text";
-
-const DESTINATIONS = [
-  { href: "/game/setup", label: "startGame" },
-  { href: "/score-log", label: "scoreLog" },
-  { href: "/analysis", label: "analysis" },
-  { href: "/profile/me", label: "profile" },
-  { href: "/ranking", label: "ranking" },
-  { href: "/feedback", label: "feedback" },
-  { href: "/settings", label: "settings" },
-] as const;
 
 // 点数の入力の画面は画面全体をキーと的に使い、右下のボタンがキーに重なるので出さない(戻るは画面の ✕)
 const FULL_SCREEN_PATHS = ["/game/score-card"];
@@ -32,9 +22,8 @@ export default function Nav() {
   const position = useMenuPosition();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLElement>(null);
-  // 管理者は db を直に書き換えて決めるので、読み直しは画面を開き直したときでよい。
-  // 行の無い利用者(登録の前)は 404 になるが、そのときは管理者でないとみなす
-  const { data: me } = useLoad(getMyUser, []);
+  // 画面を開くたびに API を叩かないよう、キャッシュの値で決める。登録の前は無いので、管理者でないとみなす
+  const me = useCachedAppUser();
 
   useEffect(() => {
     setOpen(false);
@@ -107,7 +96,7 @@ export default function Nav() {
               {T.nav[item.label]}
             </Link>
           ))}
-          {me?.is_admin && (
+          {me?.isAdmin && (
             <>
               <hr />
               <Link

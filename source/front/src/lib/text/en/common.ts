@@ -38,6 +38,7 @@ export const common: typeof ja = {
     analysis: t.statistics,
     profile: t.profile,
     ranking: t.ranking,
+    announcements: t.announcement,
     settings: t.settings,
     feedback: t.feedback,
     adminFeedback: "Review feedback",

@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import outputs from "../../amplify_outputs.json";
 import { isMockAuth } from "@/lib/auth/config";
 import { isCurrentAppUserRegistered } from "@/lib/auth/currentUser";
+import { clearCachedAppUser } from "@/lib/storage";
 
 if (!isMockAuth()) {
   // ssr: トークンをクッキーに置き、route handler(src/app/api/v1)が読めるようにする
@@ -22,7 +23,7 @@ export function useSignOut(): () => void {
   return useContext(SignOutContext);
 }
 
-/** API に行の無い利用者(初めてログインした人)を、プロフィールの登録へ送る。 */
+/** API に行の無い利用者(初めてログインした人)を、プロフィールの登録へ送る。登録が済んでキャッシュにあれば API は叩かない。 */
 function RegistrationGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -49,7 +50,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   return (
     <Authenticator>
       {({ signOut }) => (
-        <SignOutContext.Provider value={() => signOut?.()}>
+        <SignOutContext.Provider
+          value={() => {
+            clearCachedAppUser();
+            signOut?.();
+          }}
+        >
           <RegistrationGate>{children}</RegistrationGate>
         </SignOutContext.Provider>
       )}

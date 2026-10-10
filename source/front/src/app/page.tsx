@@ -1,27 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Announcements from "@/components/Announcements";
-import MonthDashboard from "@/components/MonthDashboard";
-import { getMyUser, type UserRead } from "@/lib/api";
+import Link from "next/link";
+import { useCachedAppUser } from "@/hooks/useCachedAppUser";
+import { DESTINATIONS } from "@/lib/destinations";
 import { useT } from "@/lib/text";
 
+const [START_GAME, ...OTHER_DESTINATIONS] = DESTINATIONS;
+
+/** ホーム。開いただけで API を叩かないよう、行き先のボタンだけを並べ、名前はキャッシュから出す */
 export default function Page() {
   const T = useT();
-  const [currentUser, setCurrentUser] = useState<UserRead | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    // 登録の前(AuthGate がプロフィールの登録へ送る前)は無いので、失敗しても名前を出さないだけにする
-    getMyUser()
-      .then((user) => {
-        if (!cancelled) setCurrentUser(user);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const currentUser = useCachedAppUser();
 
   return (
     <div className="page">
@@ -63,9 +52,25 @@ export default function Page() {
         <p className="muted small">{currentUser ? T.home.welcome(currentUser.name) : T.home.tagline}</p>
       </div>
 
-      <MonthDashboard />
-
-      <Announcements />
+      <div className="HomeMenu">
+        <Link
+          href={START_GAME.href}
+          className="start"
+        >
+          {T.nav[START_GAME.label]}
+        </Link>
+        <div className="grid">
+          {OTHER_DESTINATIONS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+            >
+              {T.nav[item.label]}
+            </Link>
+          ))}
+          {currentUser?.isAdmin && <Link href="/admin/feedbacks">{T.nav.adminFeedback}</Link>}
+        </div>
+      </div>
     </div>
   );
 }

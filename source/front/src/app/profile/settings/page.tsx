@@ -12,13 +12,16 @@ import {
   UserRead,
   findOrCreateOrganization,
   getOrganization,
-  getUser,
   searchOrganizations,
   toErrorDetails,
   updateUser,
   type ErrorDetails,
 } from "@/lib/api";
-import { getCurrentAppUser } from "@/lib/auth/currentUser";
+import {
+  getCurrentAppUser,
+  refreshCurrentAppUser,
+  updateCachedAppUser,
+} from "@/lib/auth/currentUser";
 import { useT } from "@/lib/text";
 
 export default function Page() {
@@ -51,10 +54,10 @@ export default function Page() {
       setLoading(true);
       setError(null);
       try {
-        const { id } = await getCurrentAppUser();
-        const user = await getUser(id);
+        // 登録(行が無ければ作る)を兼ねる。キャッシュの名前・管理者のフラグもここで新しくする
+        const { user } = await refreshCurrentAppUser();
         if (cancelled) return;
-        setUserId(id);
+        setUserId(user.id);
         applyUser(user);
         if (user.organization_id !== null) {
           const organization = await getOrganization(user.organization_id);
@@ -119,6 +122,7 @@ export default function Page() {
       });
       setUserId(id);
       applyUser(updated);
+      await updateCachedAppUser(updated);
       setOrganizationId(resolvedOrganizationId);
       router.push("/");
     } catch (e) {

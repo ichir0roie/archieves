@@ -39,6 +39,7 @@ export const common = {
     analysis: t.statistics,
     profile: t.profile,
     ranking: t.ranking,
+    announcements: t.announcement,
     settings: t.settings,
     feedback: t.feedback,
     adminFeedback: `${t.feedback}の確認`,
