@@ -7,7 +7,7 @@
       "name": "Chrome: web (test db, mock login)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:3000",
+      "url": "http://localhost:3100",
       "webRoot": "${workspaceFolder}/source/front",
       "userDataDir": "${workspaceFolder}/.vscode/chrome-user-data",
       "preLaunchTask": "dev: API + web (test db, mock login)"
@@ -16,16 +16,16 @@
       "name": "Chrome: web (.env db, Cognito)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:3000",
+      "url": "http://localhost:3100",
       "webRoot": "${workspaceFolder}/source/front",
       "userDataDir": "${workspaceFolder}/.vscode/chrome-user-data",
       "preLaunchTask": "dev: API + web (.env db, Cognito)"
     },
     {
-      "name": "Chrome: attach to running web (:3000)",
+      "name": "Chrome: attach to running web (:3100)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:3000",
+      "url": "http://localhost:3100",
       "webRoot": "${workspaceFolder}/source/front",
       "userDataDir": "${workspaceFolder}/.vscode/chrome-user-data"
     },
@@ -75,9 +75,9 @@
       "name": "API (debugpy) + Chrome",
       "configurations": [
         "Python: API (debugpy, :8000)",
-        "Chrome: attach to running web (:3000)"
+        "Chrome: attach to running web (:3100)"
       ],
-      "preLaunchTask": "front: start (.env.local, :3000)",
+      "preLaunchTask": "front: start (.env.local, :3100)",
       "stopAll": true
     }
   ]

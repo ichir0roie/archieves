@@ -8,7 +8,7 @@
       "name": "Launch Chrome",
       "request": "launch",
       "type": "chrome",
-      "url": "http://localhost:3000",
+      "url": "http://localhost:3100",
       "webRoot": "${workspaceFolder}",
       "userDataDir": "${workspaceFolder}/tmp/chrome/"
     }

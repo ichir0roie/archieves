@@ -20,13 +20,13 @@
       "problemMatcher": []
     },
     {
-      "label": "free port: 3000",
+      "label": "free port: 3100",
       "type": "shell",
       "command": ".venv/bin/python",
       "args": [
         "-m",
         "tools.free_port",
-        "3000"
+        "3100"
       ],
       "options": {
         "cwd": "${workspaceFolder}/source/back"
@@ -95,7 +95,7 @@
       }
     },
     {
-      "label": "front: start (.env.local, :3000)",
+      "label": "front: start (.env.local, :3100)",
       "type": "shell",
       "command": "npm",
       "args": [
@@ -103,7 +103,7 @@
         "dev",
         "--",
         "--port",
-        "3000"
+        "3100"
       ],
       "options": {
         "cwd": "${workspaceFolder}/source/front",
@@ -112,7 +112,7 @@
         }
       },
       "dependsOn": [
-        "free port: 3000"
+        "free port: 3100"
       ],
       "isBackground": true,
       "presentation": {
@@ -139,13 +139,13 @@
       "label": "dev: API + web (.env db, Cognito)",
       "dependsOn": [
         "api: start (.env db, :8000)",
-        "front: start (.env.local, :3000)"
+        "front: start (.env.local, :3100)"
       ],
       "dependsOrder": "parallel",
       "problemMatcher": []
     },
     {
-      // Recreate the test db (archieves_test_dev), add random rows, then start API (:8000) and web (:3000)
+      // Recreate the test db (archieves_test_dev), add random rows, then start API (:8000) and web (:3100)
       // with mock login. source/back/tools/dev.py watches both and restarts them if they die
       "label": "dev: API + web (test db, mock login)",
       "type": "shell",
