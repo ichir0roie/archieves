@@ -100,10 +100,7 @@
       "command": "npm",
       "args": [
         "run",
-        "dev",
-        "--",
-        "--port",
-        "3100"
+        "dev"
       ],
       "options": {
         "cwd": "${workspaceFolder}/source/front",
