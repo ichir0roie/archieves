@@ -6,7 +6,12 @@ import {
   ScoreManager,
   type ScoreProgress,
 } from "@/lib/score/scoreManager";
-import { toErrorDetails, type ErrorDetails, type PointRead } from "@/lib/api";
+import {
+  ApiError,
+  toErrorDetails,
+  type ErrorDetails,
+  type PointRead,
+} from "@/lib/api";
 import { type RoundSetup } from "@/lib/score/scoreConfig";
 import { type CommentTarget } from "@/lib/comment";
 import {
@@ -17,6 +22,7 @@ import {
   loadRoundSetup,
 } from "@/lib/storage";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
+import { getT } from "@/lib/text";
 import { useRunOnce } from "@/lib/useRunOnce";
 
 /** The notes shown on the entry screen: the game's, and the round/end in progress. */
@@ -27,6 +33,21 @@ export interface ScoreComments {
 }
 
 let setupInFlight: Promise<ScoreManager> | null = null;
+
+/** 裏の書き込みが失敗している間、書き直しを試す間隔 */
+const RETRY_INTERVAL_MS = 15_000;
+
+/**
+ * スマホで画面を消す・アプリを切り替えると、書いている途中の fetch が切られる(Failed to fetch)。
+ * 書いていない分は残っていて書き直せば済むので、fetch の文言でなく、どうなるかを出す
+ */
+function toBackgroundErrorDetails(e: unknown): ErrorDetails {
+  if (e instanceof ApiError) return toErrorDetails(e);
+  return {
+    message: getT().game.entry.unsent,
+    body: e instanceof Error ? e.message : undefined,
+  };
+}
 
 function setupOrResumeGame(
   userId: number,
@@ -59,6 +80,8 @@ export function useScoreGame() {
     end: null,
   });
   const [error, setError] = useState<ErrorDetails | null>(null);
+  // 操作の失敗(error)と分けて持ち、書き直せたら消す
+  const [backgroundError, setBackgroundError] = useState<ErrorDetails | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSettingUp, setIsSettingUp] = useState(false);
   // isSaving は画面用。閉じ込められた古い値を見て二つ目の操作が通ることがあるので、
@@ -91,7 +114,8 @@ export function useScoreGame() {
       const { id: userId } = await getCurrentAppUser();
       const scoreManager = await setupOrResumeGame(userId, loadRoundSetup());
       // エンドを動かしたあとの書き込みは裏で流れるので、失敗はここで画面に出す
-      scoreManager.onBackgroundError = (e) => setError(toErrorDetails(e));
+      scoreManager.onBackgroundError = (e) => setBackgroundError(toBackgroundErrorDetails(e));
+      scoreManager.onBackgroundSaved = () => setBackgroundError(null);
       setManager(scoreManager);
       syncFrom(scoreManager);
     } catch (e) {
@@ -111,6 +135,22 @@ export function useScoreGame() {
     window.addEventListener("beforeunload", confirmLeave);
     return () => window.removeEventListener("beforeunload", confirmLeave);
   }, [manager]);
+
+  // 裏の書き込みが失敗したら、エンドを動かすのを待たずに、画面に戻った・通信が戻った・一定の間隔で書き直す
+  useEffect(() => {
+    if (!manager || !backgroundError) return;
+    function retryUnsaved() {
+      if (document.visibilityState === "visible") manager?.retryUnsaved();
+    }
+    document.addEventListener("visibilitychange", retryUnsaved);
+    window.addEventListener("online", retryUnsaved);
+    const timer = window.setInterval(retryUnsaved, RETRY_INTERVAL_MS);
+    return () => {
+      document.removeEventListener("visibilitychange", retryUnsaved);
+      window.removeEventListener("online", retryUnsaved);
+      window.clearInterval(timer);
+    };
+  }, [manager, backgroundError]);
 
   const { runOnMount, run: retrySetupGame } = useRunOnce(setupGame);
 
@@ -208,7 +248,7 @@ export function useScoreGame() {
     backEnd,
     forwardEnd,
     finish,
-    error,
+    error: error ?? backgroundError,
     isSaving,
     isSettingUp,
     retry: retrySetupGame,

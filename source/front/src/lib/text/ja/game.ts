@@ -36,6 +36,7 @@ export const game = {
     finish: "終了",
     ringLabel: (point: number) => `${point}${t.unit.point}`,
     miss: "外れ",
+    unsent: `通信が切れたため、まだ送れていない${t.arrow}があります。つながると自動で送り直します。`,
   },
   comment: {
     endTitle: t.endN,

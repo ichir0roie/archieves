@@ -36,6 +36,7 @@ export const game: typeof ja = {
     finish: "Finish",
     ringLabel: (point: number) => `${point}${t.unit.point}`,
     miss: "Miss",
+    unsent: "The connection dropped, so some arrows are not saved yet. They will be sent again once you are back online.",
   },
   comment: {
     endTitle: t.endN,
