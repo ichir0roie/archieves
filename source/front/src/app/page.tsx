@@ -63,9 +63,9 @@ export default function Page() {
         <p className="muted small">{currentUser ? T.home.welcome(currentUser.name) : T.home.tagline}</p>
       </div>
 
-      <Announcements />
-
       <MonthDashboard />
+
+      <Announcements />
     </div>
   );
 }
