@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     imports,
     organizations,
     statistics,
+    support,
     users,
 )
 
@@ -35,4 +36,5 @@ authenticated_router.include_router(exports.router, tags=["exports"])
 authenticated_router.include_router(
     statistics.router, prefix="/statistics", tags=["statistics"]
 )
+authenticated_router.include_router(support.router, tags=["support"])
 api_router.include_router(authenticated_router)

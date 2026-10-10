@@ -6,9 +6,12 @@ from mods.factory_db.models.comment_model import (  # noqa: F401
 from mods.factory_db.models.game_model import (  # noqa: F401
     EndFactory,
     GameFactory,
-    MatchFactory,
     PointFactory,
     RoundFactory,
+)
+from mods.factory_db.models.support_model import (  # noqa: F401
+    AnnouncementFactory,
+    FeedbackFactory,
 )
 from mods.factory_db.models.system_model import (  # noqa: F401
     OrganizationFactory,

@@ -62,7 +62,6 @@ def test_get_user_profile_returns_basic_info(client: TestClient) -> None:
     body = res.json()
     assert body["user"]["id"] == user["id"]
     assert body["user"]["name"] == "Yumi"
-    assert body["matches"] == []
     assert body["rounds"]["count"] == 0
 
 
@@ -101,27 +100,6 @@ def test_user_profile_only_counts_last_year_activity(client: TestClient) -> None
     assert body["rounds"]["count"] == 1
     assert body["rounds"]["total"] == 24
     assert body["points"]["count"] == 3
-
-
-def test_user_profile_includes_recent_matches(client: TestClient) -> None:
-    user = _create_user(client)
-    now = date.today()
-
-    recent_game = _create_game(client, user["id"], now - timedelta(days=5))
-    match_res = client.post(
-        f"/api/v1/games/{recent_game['id']}/match",
-        json={"name": "全日本選手権", "link": "https://example.com/results"},
-    )
-    assert match_res.status_code == 201
-
-    old_game = _create_game(client, user["id"], now - timedelta(days=400))
-    client.post(f"/api/v1/games/{old_game['id']}/match", json={"name": "去年の大会"})
-
-    res = client.get("/api/v1/users/test-user-sub/profile")
-    assert res.status_code == 200
-    body = res.json()
-    assert [m["name"] for m in body["matches"]] == ["全日本選手権"]
-    assert body["matches"][0]["game_id"] == recent_game["id"]
 
 
 def test_profile_of_a_user_id_that_does_not_exist_is_none(s: Session) -> None:

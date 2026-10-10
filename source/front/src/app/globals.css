@@ -58,7 +58,7 @@ h2 { font-size: 1.05rem; margin: 1.25rem 0 0.5rem; }
 
 /* ---- 入力 ---- */
 input, select, textarea, button { font: inherit; color: inherit; }
-input[type="text"], input[type="search"], input[type="number"], input[type="url"], input[type="date"], select, textarea {
+input[type="text"], input[type="search"], input[type="number"], input[type="url"], input[type="email"], input[type="date"], select, textarea {
   width: 100%; padding: 0.55rem 0.65rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
 }
 textarea { min-height: 8rem; resize: vertical; line-height: 1.7; }
@@ -365,3 +365,10 @@ nav[data-pos$="right"] .nav-panel { left: auto; right: 16px; }
 
 /* 画面の最下部の戻るボタン */
 .back-button { margin-top: 0.6rem; }
+
+/* ---- 意見箱・お知らせ ---- */
+.pre-wrap { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.FeedbackItem p,
+.Announcements p { margin: 0; }
+.Announcements { margin: 0; list-style: none; }
+.Announcements li + li { border-top: 1px solid var(--line); padding-top: 0.6rem; }

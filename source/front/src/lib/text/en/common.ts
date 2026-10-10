@@ -39,6 +39,7 @@ export const common: typeof ja = {
     profile: t.profile,
     ranking: t.ranking,
     settings: t.settings,
+    feedback: t.feedback,
     signOut: "Sign out",
   },
   options: {

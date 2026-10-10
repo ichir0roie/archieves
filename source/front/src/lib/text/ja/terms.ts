@@ -8,7 +8,6 @@
  * - 記録: 「ゲーム開始」のように、スコアを付ける動作
  * - 矢: 射った1本。数えるときは「本」
  * - 点: 得点の単位。合計は「合計点」
- * - 大会: 大会情報として登録するもの(ゲームとは別)
  */
 export const terms = {
   game: "ゲーム",
@@ -22,7 +21,6 @@ export const terms = {
   totalPoints: "合計点",
   average: "平均",
   comment: "コメント",
-  match: "大会",
   organization: "組織",
   affiliation: "所属",
   profile: "プロフィール",
@@ -36,6 +34,8 @@ export const terms = {
   bowType: "弓の種類",
   targetType: "的の種類",
   link: "リンク",
+  feedback: "意見箱",
+  announcement: "お知らせ",
   allPeriod: "全期間",
   roundN: (n: number) => `ラウンド ${n}`,
   endN: (n: number) => `エンド ${n}`,

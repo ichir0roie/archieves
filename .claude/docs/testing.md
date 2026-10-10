@@ -60,12 +60,12 @@ cd source/back && .venv/bin/python debug/test_env/run_test_api_server.py
 - それから `source/front` で `npm run test:e2e`(画面で見ながらなら `npm run test:e2e:ui`)。`playwright.config.ts` が `next dev` を `:13000`・ビルド先 `.next-test`・`NEXT_PUBLIC_AUTH_MODE=mock`・`ARCHIEVES_API_URL=http://127.0.0.1:8080` で起こす。ユーザの `next dev`(`:3000`・`.next`)とは別なので、使い回されない。API の向け先は `ARCHIEVES_API_URL`、画面のポートは `ARCHIEVES_E2E_WEB_PORT` で変えられる
 - API の合言葉まで確かめるときは、API を `API_KEYS=web=<鍵>` で起こし、E2E に `ARCHIEVES_API_KEY=<鍵>` を渡す
 - 前の E2E の `next dev`(:13000)が残っていると使い回される。API の向け先を変えたときは止めてから回す
-- どの画面も `AuthGate` を通り、API に行の無い利用者を `/profile/settings` へ飛ばす。spec は `ensureRegistered(page)` から始める。利用者にデータが要る画面(スコアログ・統計・ランキング・試合の登録)は `e2e/recordGame.ts` で一試合を記録してから見る
+- どの画面も `AuthGate` を通り、API に行の無い利用者を `/profile/settings` へ飛ばす。spec は `ensureRegistered(page)` から始める。利用者にデータが要る画面(スコアログ・統計・ランキング)は `e2e/recordGame.ts` で一試合を記録してから見る
 - spec は一つの API の db に対して並べて走る。数・件数ではなく、そのテストが作ったもの(返った試合の id、一意の名前)で確かめる
 - どの spec も同じモックの利用者(`local-dev-user`)で動く。プロフィールを保存するテストは、並べると互いの保存を上書きするので、`e2e/profile-settings.spec.ts` に集めて一つずつ(`mode: "serial"`)走らせる
 - テストの時間切れは 120 秒、expect は 15 秒に上げてある。Turbopack は route を初めて開いたときにコンパイルするので、既定(30 秒 / 5 秒)では空の `.next-test` で何も壊れていなくても切れる
 - 空の `.next-test` での最初の一回は、並べてコンパイルするので、いくつもの route を回す spec(`navigation.spec.ts`)が `読み込み中...` のまま切れることがある。不具合と決める前に、温まったキャッシュでもう一度回す。本当に壊れていればまた落ちる。このために時間切れをさらに上げない
-- 役割や文字で指せない要素を spec から指すときは、コンポーネントに意味の分かる class(`.ScoreLogGame`・`.MatchRow`・`.ScoreSheet`)を足してそれで選ぶ
+- 役割や文字で指せない要素を spec から指すときは、コンポーネントに意味の分かる class(`.ScoreLogGame`・`.ScoreSheet`)を足してそれで選ぶ
 
 ## 画面を起こす
 
