@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "predev": "node scripts/ensure-amplify-outputs.mjs",
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbopack --port 3100",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

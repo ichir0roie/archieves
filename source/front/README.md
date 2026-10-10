@@ -44,7 +44,7 @@ both together.
    there (both are the default) so neither side needs real Cognito. Flip
    both to `cognito`/a real sandbox together when you need to debug against
    the real auth flow.
-3. `npm run dev` (`:3000`).
+3. `npm run dev` (`:3100`).
 
 ## Getting Started
 
@@ -60,7 +60,7 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3100](http://localhost:3100) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

@@ -1,6 +1,6 @@
 """API(uvicorn)と画面(next dev)をまとめて起こす開発用のランチャー。
 
-    .venv/bin/python -m tools.dev                 # .env の db に向けて :8000 / :3000
+    .venv/bin/python -m tools.dev                 # .env の db に向けて :8000 / :3100
     .venv/bin/python -m tools.dev --test          # テスト用の db とモックのログインで起こす
     .venv/bin/python -m tools.dev --test --seed   # db を作り直したときは乱数の行も足して起こす
 
@@ -205,7 +205,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--web-port",
         type=int,
-        default=3000,
+        default=3100,
     )
     parser.add_argument(
         "--test",

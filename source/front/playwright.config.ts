@@ -1,8 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// ユーザが起こしている next dev(:3000, .next)と別のポート・ビルド先で起こす。
+// ユーザが起こしている next dev(:3100, .next)と別のポート・ビルド先で起こす。
 // 同じだと reuseExistingServer がそちらを使い回し、API の向け先も古いままになる
-const webPort = Number(process.env.ARCHIEVES_E2E_WEB_PORT ?? 13000);
+const webPort = Number(process.env.ARCHIEVES_E2E_WEB_PORT ?? 13100);
 // 既定はテスト用の API サーバー(source/back/debug/test_env/run_test_api_server.py)
 const apiUrl = process.env.ARCHIEVES_API_URL ?? "http://127.0.0.1:8080";
 

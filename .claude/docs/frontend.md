@@ -47,7 +47,7 @@ Next.js(App Router)・React 19。スマホで使う前提の画面が多い。
 
 | コマンド | 中身 |
 | --- | --- |
-| `npm run dev` | `next dev --turbopack`(:3000)。API と一緒に起こすなら `source/back` の `python -m tools.dev` |
+| `npm run dev` | `next dev --turbopack`(:3100)。API と一緒に起こすなら `source/back` の `python -m tools.dev` |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | `eslint .` |
 | `npm run types` | `../back/openapi.json` から `src/lib/api/openapi.d.ts` を作る |

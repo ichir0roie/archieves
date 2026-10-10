@@ -57,9 +57,9 @@ cd source/back && .venv/bin/python debug/test_env/run_test_api_server.py
 ```
 
 - `archieves_test_api` は pytest と同じく、マイグレーションの版が変わったときだけ作り直す(`--reset` で必ず作り直す)。前の E2E の行は残るが、spec はそのテストが作ったもので確かめるので差し支えない。`AUTH_MODE=mock` で `:8080` を聞く(`--port` / `--db` で変えられる)
-- それから `source/front` で `npm run test:e2e`(画面で見ながらなら `npm run test:e2e:ui`)。`playwright.config.ts` が `next dev` を `:13000`・ビルド先 `.next-test`・`NEXT_PUBLIC_AUTH_MODE=mock`・`ARCHIEVES_API_URL=http://127.0.0.1:8080` で起こす。ユーザの `next dev`(`:3000`・`.next`)とは別なので、使い回されない。API の向け先は `ARCHIEVES_API_URL`、画面のポートは `ARCHIEVES_E2E_WEB_PORT` で変えられる
+- それから `source/front` で `npm run test:e2e`(画面で見ながらなら `npm run test:e2e:ui`)。`playwright.config.ts` が `next dev` を `:13100`・ビルド先 `.next-test`・`NEXT_PUBLIC_AUTH_MODE=mock`・`ARCHIEVES_API_URL=http://127.0.0.1:8080` で起こす。ユーザの `next dev`(`:3100`・`.next`)とは別なので、使い回されない。API の向け先は `ARCHIEVES_API_URL`、画面のポートは `ARCHIEVES_E2E_WEB_PORT` で変えられる
 - API の合言葉まで確かめるときは、API を `API_KEYS=web=<鍵>` で起こし、E2E に `ARCHIEVES_API_KEY=<鍵>` を渡す
-- 前の E2E の `next dev`(:13000)が残っていると使い回される。API の向け先を変えたときは止めてから回す
+- 前の E2E の `next dev`(:13100)が残っていると使い回される。API の向け先を変えたときは止めてから回す
 - どの画面も `AuthGate` を通り、API に行の無い利用者を `/profile/settings` へ飛ばす。spec は `ensureRegistered(page)` から始める。利用者にデータが要る画面(スコアログ・統計・ランキング)は `e2e/recordGame.ts` で一試合を記録してから見る
 - spec は一つの API の db に対して並べて走る。数・件数ではなく、そのテストが作ったもの(返った試合の id、一意の名前)で確かめる
 - どの spec も同じモックの利用者(`local-dev-user`)で動く。プロフィールを保存するテストは、並べると互いの保存を上書きするので、`e2e/profile-settings.spec.ts` に集めて一つずつ(`mode: "serial"`)走らせる
@@ -72,11 +72,11 @@ cd source/back && .venv/bin/python debug/test_env/run_test_api_server.py
 - テスト・動作確認で画面が要るときは、ランチャーで API と画面をまとめて起こす(`run_in_background`):
 
 ```
-cd source/back && .venv/bin/python -m tools.dev --test --seed --api-port 18000 --web-port 13001 --dist-dir .next-test
+cd source/back && .venv/bin/python -m tools.dev --test --seed --api-port 18000 --web-port 13101 --dist-dir .next-test
 ```
 
 - `--test` は `archieves_test_dev` に向け、API と画面をモックのログインにする。db はマイグレーションの版が変わったとき(と `--reset`)だけ作り直し、それ以外は前の行を残して使う。`--seed` は、作り直したときだけ乱数の行(`debug/db/randomize`)と、モックの利用者・その 5 年分の試合(`random_user_history.py`)を足す。使い回すときは足さない。行を入れ直したいときは `--reset --seed`。`--test` を付けずに起こすと `source/back/.env` の db に向くので、確かめでは必ず付ける
-- ポート・ビルド先はユーザのもの(:8000 / :3000 / `.next`)と分ける。同じだと `tools.dev` がユーザの起動を止める(指定のポートを使うプロセスを止めてから起こす)。E2E の `next dev` も `.next-test` を使うので、並べて起こすときは `--web-port` を E2E の 13000 と違えるか、片方を止める
+- ポート・ビルド先はユーザのもの(:8000 / :3100 / `.next`)と分ける。同じだと `tools.dev` がユーザの起動を止める(指定のポートを使うプロセスを止めてから起こす)。E2E の `next dev` も `.next-test` を使うので、並べて起こすときは `--web-port` を E2E の 13100 と違えるか、片方を止める
 - `source/front` の依存が無ければランチャーが `npm ci` する
 - どちらかが落ちる・20 秒を越えて応答しないと、そちらだけを起こし直す
 
