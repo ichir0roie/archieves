@@ -79,6 +79,9 @@ export const profile: typeof ja = {
     month: (month: string) =>
       new Date(2000, Number(month) - 1, 1).toLocaleString("en-US", { month: "short" }),
     day: (day: string) => `${Number(day)}`,
+    total: "Total",
+    endAverage: "End avg",
+    pointAverage: "Arrow avg",
     count: (count: number) => (count === 1 ? "1 game" : `${count} games`),
     trash: "Trash",
   },

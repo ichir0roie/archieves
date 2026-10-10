@@ -8,7 +8,7 @@ import LogGroup from "@/components/LogGroup";
 import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import YearSwitcher from "@/components/YearSwitcher";
-import { listGameYears, listGamesOfYear } from "@/lib/api";
+import { listGameScoresOfYear, listGameYears, listGamesOfYear } from "@/lib/api";
 import { useLoad } from "@/hooks/useLoad";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
 import { groupGamesByDate } from "@/lib/scoreLogGroups";
@@ -24,12 +24,22 @@ export default function Page() {
     const { id: userId } = await getCurrentAppUser();
     const years = await listGameYears(userId);
     const year = selectedYear ?? years[0] ?? null;
-    const games = year === null ? [] : await listGamesOfYear(userId, year);
-    return { years, year, games };
+    const [games, scores] =
+      year === null
+        ? [[], []]
+        : await Promise.all([
+            listGamesOfYear(userId, year),
+            listGameScoresOfYear(userId, year),
+          ]);
+    return { years, year, games, scores };
   }, [selectedYear]);
   const years = data?.years ?? [];
   const year = data?.year ?? null;
   const games = useMemo(() => data?.games ?? [], [data]);
+  const scoreByGameId = useMemo(
+    () => new Map((data?.scores ?? []).map((score) => [score.game_id, score])),
+    [data],
+  );
   const months = useMemo(
     () => groupGamesByDate(games).years.flatMap((group) => group.months),
     [games],
@@ -97,20 +107,18 @@ export default function Page() {
               open={!collapsed.includes(month.key)}
               onToggle={() => toggle(month.key)}
             >
-              <table className="log-table">
-                <tbody>
-                  {month.days.map((day) => (
-                    <tr key={day.key}>
-                      <td className="log-day">{T.profile.scoreLog.day(day.day)}</td>
-                      <td>
-                        {day.games.map((game) => (
-                          <LogGameCard key={game.id} game={game} />
-                        ))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="log-table">
+                {month.days.flatMap((day) =>
+                  day.games.map((game) => (
+                    <LogGameCard
+                      key={game.id}
+                      game={game}
+                      day={day.day}
+                      summary={scoreByGameId.get(game.id)}
+                    />
+                  )),
+                )}
+              </div>
             </LogGroup>
           ))}
         </>

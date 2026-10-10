@@ -55,10 +55,16 @@ test("comments written while recording are kept on the end and round", async ({
   await expect(commentBar).toContainText("押し手を修正");
   await expect(commentBar).not.toContainText("押し手が流れた");
 
-  // A reload reads the stored comments back onto the screen. ゲームの最後のエンドの矢は
-  // エンドを動かすまで書かないので、動かして書かせる(矢が無いとラウンドが埋まらず、ラウンドのコメントが出ない)
-  await page.getByRole("button", { name: "1エンド戻る", exact: true }).click();
+  // 矢はエンドを動かすときに書くので、最後のエンドの矢も書かせてから読み直す
+  // (矢が無いとラウンドが埋まらず、ラウンドのコメントが出ない)
+  const back = page.getByRole("button", { name: "1エンド戻る", exact: true });
+  await back.click();
+  await expect(page.locator(".ScoreProgress")).toContainText("エンド 1/2");
   await page.getByRole("button", { name: "1エンド進む", exact: true }).click();
+  await expect(page.locator(".ScoreProgress")).toContainText("エンド 2/2");
+  await expect(back).toBeEnabled();
+
+  // A reload reads the stored comments back onto the screen.
   await reloadAfterWrites(page);
   await expect(page.locator(".ScoreProgress")).toBeVisible({ timeout: ROUTE_TIMEOUT });
   await expect(page.locator(".CommentBar")).toContainText("向かい風");

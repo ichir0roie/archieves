@@ -84,5 +84,6 @@ test("menu navigates to each primary destination", async ({ page }) => {
 test("the menu is hidden on the full-screen score entry", async ({ page }) => {
   // 入力の画面は、ゲームを始めずに開くとホームへ戻されるので、設定の画面から入る
   await startGame(page);
+  await expect(page.locator(".score-entry")).toBeVisible({ timeout: ROUTE_TIMEOUT });
   await expect(page.getByRole("button", { name: "メニュー" })).toHaveCount(0);
 });

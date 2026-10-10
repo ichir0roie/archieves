@@ -102,6 +102,7 @@ def test_trash_of_another_user_is_forbidden(client: TestClient, others: dict) ->
     assert client.get(f"/api/v1/trash/games?user_id={user_id}").status_code == 403
     assert client.get(f"/api/v1/trash/rounds?user_id={user_id}").status_code == 403
     assert client.get(f"/api/v1/games/years?user_id={user_id}").status_code == 403
+    assert client.get(f"/api/v1/games/scores?year=2026&user_id={user_id}").status_code == 403
 
 
 def test_a_user_without_a_registered_row_is_not_found(
