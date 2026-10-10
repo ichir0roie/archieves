@@ -40,6 +40,7 @@ export const common: typeof ja = {
     ranking: t.ranking,
     settings: t.settings,
     feedback: t.feedback,
+    adminFeedback: "Review feedback",
     signOut: "Sign out",
   },
   options: {

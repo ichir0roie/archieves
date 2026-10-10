@@ -732,6 +732,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/feedbacks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List All Feedbacks */
+        get: operations["list_all_feedbacks_api_v1_admin_feedbacks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/feedbacks/{feedback_id}/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reply To Feedback */
+        put: operations["reply_to_feedback_api_v1_admin_feedbacks__feedback_id__reply_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/announcements": {
         parameters: {
             query?: never;
@@ -770,6 +804,33 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AdminFeedbackRead
+         * @description 管理者が見る意見。誰が送ったかを添える。
+         */
+        AdminFeedbackRead: {
+            /** Id */
+            id: number;
+            /** User Id */
+            user_id: number;
+            /** Email */
+            email: string | null;
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Reply */
+            reply: string | null;
+            /** Replied At */
+            replied_at: string | null;
+            /** User Name */
+            user_name: string;
+            /** User Nickname */
+            user_nickname: string | null;
+        };
         /** AnnouncementRead */
         AnnouncementRead: {
             /** Id */
@@ -892,6 +953,11 @@ export interface components {
             reply: string | null;
             /** Replied At */
             replied_at: string | null;
+        };
+        /** FeedbackReply */
+        FeedbackReply: {
+            /** Reply */
+            reply: string;
         };
         /** GameCommentRead */
         GameCommentRead: {
@@ -1017,6 +1083,30 @@ export interface components {
          * @enum {string}
          */
         ImportSource: "android_mytargets" | "archieves";
+        /**
+         * MeRead
+         * @description 本人の行。管理者かどうかは本人にだけ返し、他人の行(UserRead)には載せない。
+         */
+        MeRead: {
+            /** Name */
+            name: string;
+            /** Nickname */
+            nickname: string | null;
+            /** Birth Date */
+            birth_date: string | null;
+            /** Organization Id */
+            organization_id: number | null;
+            /** Region Id */
+            region_id: number | null;
+            /** Id */
+            id: number;
+            /** Sub */
+            sub: string | null;
+            /** Is Admin */
+            is_admin: boolean;
+            /** Age */
+            readonly age: number | null;
+        };
         /** OrganizationCreate */
         OrganizationCreate: {
             /** Name */
@@ -1478,7 +1568,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserRead"];
+                    "application/json": components["schemas"]["MeRead"];
                 };
             };
             /** @description Validation Error */
@@ -1507,7 +1597,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserRead"];
+                    "application/json": components["schemas"]["MeRead"];
                 };
             };
         };
@@ -3290,6 +3380,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeedbackRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_all_feedbacks_api_v1_admin_feedbacks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFeedbackRead"][];
+                };
+            };
+        };
+    };
+    reply_to_feedback_api_v1_admin_feedbacks__feedback_id__reply_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feedback_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackReply"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFeedbackRead"];
                 };
             };
             /** @description Validation Error */

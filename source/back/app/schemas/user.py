@@ -56,3 +56,9 @@ class UserRead(UserBase, ResponseModel):
         if self.birth_date is None:
             return None
         return calc_age(self.birth_date, date.today())
+
+
+class MeRead(UserRead):
+    """本人の行。管理者かどうかは本人にだけ返し、他人の行(UserRead)には載せない。"""
+
+    is_admin: bool

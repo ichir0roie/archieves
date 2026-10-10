@@ -22,6 +22,17 @@ class FeedbackRead(ResponseModel):
     replied_at: datetime | None
 
 
+class FeedbackReply(BaseModel):
+    reply: str = Field(min_length=1, max_length=MAX_FEEDBACK_LENGTH)
+
+
+class AdminFeedbackRead(FeedbackRead):
+    """管理者が見る意見。誰が送ったかを添える。"""
+
+    user_name: str
+    user_nickname: str | None
+
+
 class AnnouncementRead(ResponseModel):
     id: int
     published_at: datetime

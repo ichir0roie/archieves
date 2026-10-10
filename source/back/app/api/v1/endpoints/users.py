@@ -8,7 +8,7 @@ from app.crud import profile as profile_crud
 from app.crud import user as user_crud
 from app.db import User
 from app.schemas.profile import UserProfile
-from app.schemas.user import UserCreate, UserFindOrCreate, UserRead, UserUpdate
+from app.schemas.user import MeRead, UserCreate, UserFindOrCreate, UserRead, UserUpdate
 
 router = APIRouter()
 public_router = APIRouter()
@@ -48,23 +48,23 @@ def find_or_create_user(
     return result
 
 
-@router.post("/me/ensure", response_model=UserRead)
+@router.post("/me/ensure", response_model=MeRead)
 def ensure_current_user(
     user_in: UserCreate,
     current_user: deps.Claims = Depends(deps.get_current_user),
     s: Session = Depends(deps.get_session),
-) -> UserRead:
+) -> MeRead:
     _check_organization_exists(s, user_in.organization_id)
     result = user_crud.get_or_create_user(s, user_in, sub=current_user.sub)
     s.commit()
     return result
 
 
-@router.get("/me", response_model=UserRead)
+@router.get("/me", response_model=MeRead)
 def get_my_user(
     current_user: deps.Claims = Depends(deps.get_current_user),
     s: Session = Depends(deps.get_session),
-) -> UserRead:
+) -> MeRead:
     user = user_crud.get_user_by_sub(s, current_user.sub)
     if user is None:
         raise NotFoundError("User not found")

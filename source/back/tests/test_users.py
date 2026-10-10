@@ -175,3 +175,16 @@ def test_calc_age_counts_up_on_birthday(today: date, expected: int) -> None:
 def test_calc_age_for_leap_day_birth() -> None:
     assert calc_age(date(2004, 2, 29), date(2026, 2, 28)) == 21
     assert calc_age(date(2004, 2, 29), date(2026, 3, 1)) == 22
+
+
+def test_is_admin_is_returned_only_for_myself(
+    client: TestClient, s: Session, current_user, factories
+) -> None:
+    assert client.get("/api/v1/users/me").json()["is_admin"] is False
+
+    current_user.is_admin = True
+    s.flush()
+    other = factories.UserFactory(is_admin=True)
+
+    assert client.get("/api/v1/users/me").json()["is_admin"] is True
+    assert "is_admin" not in client.get(f"/api/v1/users/{other.id}").json()

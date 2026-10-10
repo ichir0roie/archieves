@@ -3,6 +3,7 @@ import { isMockAuth } from '../auth/config';
 import { toDateOnly } from '../toDateOnly';
 import { getT } from '../text';
 import type {
+  AdminFeedbackRead,
   AnnouncementRead,
   BowType,
   EndCommentRead,
@@ -10,6 +11,7 @@ import type {
   EndScoreSummary,
   FeedbackCreate,
   FeedbackRead,
+  FeedbackReply,
   GameComments,
   GameCommentRead,
   GameRead,
@@ -26,6 +28,7 @@ import type {
   RoundScoreSummary,
   ScoreStatistics,
   GameKindOptions,
+  MeRead,
   UserCreate,
   UserProfile,
   UserRanking,
@@ -146,14 +149,14 @@ export function createUser(user: UserCreate): Promise<UserRead> {
 }
 
 /** Finds or creates the signed-in user's row, keyed off their Cognito sub. */
-export function ensureCurrentUser(user: UserCreate): Promise<UserRead> {
+export function ensureCurrentUser(user: UserCreate): Promise<MeRead> {
   return request('/users/me/ensure', {
     method: 'POST',
     body: JSON.stringify(user),
   });
 }
 
-export function getMyUser(): Promise<UserRead> {
+export function getMyUser(): Promise<MeRead> {
   return request('/users/me');
 }
 
@@ -531,6 +534,19 @@ export function createFeedback(feedback: FeedbackCreate): Promise<FeedbackRead> 
   return request('/feedbacks', {
     method: 'POST',
     body: JSON.stringify(feedback),
+  });
+}
+
+/** 全員の意見と、送った利用者。新しい順。管理者だけが読める(ほかは 403)。 */
+export function listAllFeedbacks(): Promise<AdminFeedbackRead[]> {
+  return request('/admin/feedbacks');
+}
+
+/** 意見に返信を書く(書き直しもこれ)。管理者だけが使える。 */
+export function replyToFeedback(feedbackId: number, reply: FeedbackReply): Promise<AdminFeedbackRead> {
+  return request(`/admin/feedbacks/${feedbackId}/reply`, {
+    method: 'PUT',
+    body: JSON.stringify(reply),
   });
 }
 

@@ -13,6 +13,7 @@ __all__ = [
     "Claims",
     "get_current_user",
     "get_me",
+    "get_admin",
     "get_or_404",
     "get_own_or_404",
     "get_session",
@@ -43,6 +44,13 @@ def get_me(
     if user is None:
         raise NotFoundError("User not found")
     return user
+
+
+def get_admin(me: User = Depends(get_me)) -> User:
+    """管理者(users.is_admin)の利用者の行。「管理者のみ」のエンドポイントが使う。"""
+    if not me.is_admin:
+        raise ForbiddenError("Admin only")
+    return me
 
 
 def require_self(me: User, user_id: int) -> None:

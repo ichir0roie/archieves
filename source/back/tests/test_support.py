@@ -91,3 +91,66 @@ def test_updated_at_is_set_by_the_database_on_update(s: Session, factories) -> N
     game.game_size = 3
     s.flush()
     assert game.updated_at == s.scalar(select(func.now()))
+
+
+def test_admin_feedbacks_list_everyones_feedbacks_with_the_sender(
+    client: TestClient, s: Session, current_user, factories
+) -> None:
+    current_user.is_admin = True
+    s.flush()
+    other = factories.UserFactory(name="Taro", nickname="たろう")
+    older = factories.FeedbackFactory(user=other, body="他人の意見")
+    newer = factories.FeedbackFactory(user=current_user)
+    factories.FeedbackFactory(user=other, deleted_at=datetime(2026, 1, 1).date())
+
+    response = client.get("/api/v1/admin/feedbacks")
+
+    assert response.status_code == 200
+    rows = response.json()
+    # 同じトランザクションの中では created_at が同じなので、id で並ぶ
+    assert [r["id"] for r in rows] == [newer.id, older.id]
+    assert rows[1]["user_id"] == other.id
+    assert rows[1]["user_name"] == "Taro"
+    assert rows[1]["user_nickname"] == "たろう"
+    assert rows[1]["body"] == "他人の意見"
+
+
+def test_admin_can_reply_and_the_sender_sees_it(
+    client: TestClient, s: Session, current_user, factories
+) -> None:
+    current_user.is_admin = True
+    s.flush()
+    other = factories.UserFactory(name="Taro")
+    feedback = factories.FeedbackFactory(user=other)
+
+    response = client.put(
+        f"/api/v1/admin/feedbacks/{feedback.id}/reply", json={"reply": "直しました"}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reply"] == "直しました"
+    assert body["replied_at"] is not None
+    assert body["user_name"] == "Taro"
+    s.refresh(feedback)
+    assert feedback.reply == "直しました"
+    assert feedback.replied_at is not None
+
+
+def test_admin_reply_rejects_empty_and_missing_feedbacks(
+    client: TestClient, s: Session, current_user, factories
+) -> None:
+    current_user.is_admin = True
+    s.flush()
+    feedback = factories.FeedbackFactory()
+    deleted = factories.FeedbackFactory(deleted_at=datetime(2026, 1, 1).date())
+
+    assert (
+        client.put(f"/api/v1/admin/feedbacks/{feedback.id}/reply", json={"reply": ""}).status_code
+        == 422
+    )
+    for feedback_id in [deleted.id, 0]:
+        response = client.put(
+            f"/api/v1/admin/feedbacks/{feedback_id}/reply", json={"reply": "x"}
+        )
+        assert response.status_code == 404

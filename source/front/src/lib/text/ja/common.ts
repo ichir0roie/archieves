@@ -41,6 +41,7 @@ export const common = {
     ranking: t.ranking,
     settings: t.settings,
     feedback: t.feedback,
+    adminFeedback: `${t.feedback}の確認`,
     signOut: "サインアウト",
   },
   options: {

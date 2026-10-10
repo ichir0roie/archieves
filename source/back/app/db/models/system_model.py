@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, Date, ForeignKey, String
+from sqlalchemy import BigInteger, Boolean, Date, ForeignKey, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base, TimestampMixin
@@ -62,6 +62,10 @@ class User(TimestampMixin, Base):
     region_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("regions.id", ondelete="SET NULL"), index=True, default=None
     )
+
+    # 管理者は画面から付け外しせず、db の行を直に書き換えて決める。
+    # 直に INSERT しても埋まるよう、既定は db の側にも置く
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     organization: Mapped[Organization | None] = relationship(
         back_populates="users", lazy="noload"
