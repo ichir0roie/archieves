@@ -1,8 +1,10 @@
 """API(uvicorn)と画面(next dev)をまとめて起こす開発用のランチャー。
 
     .venv/bin/python -m tools.dev                 # .env の db に向けて :8000 / :3000
-    .venv/bin/python -m tools.dev --test          # 空のテスト用の db とモックのログインで起こす
-    .venv/bin/python -m tools.dev --test --seed   # そのテスト用の db に乱数の行を足してから起こす
+    .venv/bin/python -m tools.dev --test          # テスト用の db とモックのログインで起こす
+    .venv/bin/python -m tools.dev --test --seed   # db を作り直したときは乱数の行も足して起こす
+
+テスト用の db は、マイグレーションが変わったとき(と --reset)だけ作り直し、それ以外は行ごと使い回す。
 
 どちらかが落ちる・応答しなくなったら、そちらだけを起こし直す。Ctrl+C で両方を止める。
 """
@@ -101,13 +103,14 @@ class Child:
 
 
 def seed(url: str) -> None:
-    """テスト用の db に、全部の表の乱数の行と、モックのログインの利用者を足す。"""
+    """テスト用の db に、全部の表の乱数の行と、モックの利用者・その 5 年分の試合を足す。"""
     # pin() のあとに読む。先に読むと .env の db に向けた engine ができる
     from debug.db.randomize.random_all_data import randomize_all_data
+    from debug.db.randomize.random_user_history import create_user_history
     from debug.db.setup.setup_debug_user import create_debug_user
 
     randomize_all_data()
-    create_debug_user()
+    create_user_history(create_debug_user(), years=5)
     logger.info(f"{url.rsplit('/', 1)[1]} に乱数の行を足した")
 
 
@@ -133,9 +136,9 @@ def build_children(args: argparse.Namespace) -> list[Child]:
     web_env = dict(os.environ)
     if args.test:
         url = testing_db.pin("archieves_test_dev")
-        testing_db.recreate_database(url)
-        testing_db.upgrade_head(url)
-        if args.seed:
+        recreated = testing_db.prepare_database(url, reset=args.reset)
+        # 使い回す db に足すと、起こすたびに行が増えていく
+        if args.seed and recreated:
             seed(url)
         api_env["DATABASE_URL"] = url
         api_env["AUTH_MODE"] = "mock"
@@ -207,12 +210,17 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--test",
         action="store_true",
-        help="空のテスト用の db(archieves_test_dev)とモックのログインで起こす",
+        help="テスト用の db(archieves_test_dev)とモックのログインで起こす",
     )
     parser.add_argument(
         "--seed",
         action="store_true",
-        help="--test の db に乱数の行(debug/db/randomize)とモックの利用者を足す",
+        help="--test の db を作り直したとき、乱数の行(debug/db/randomize)とモックの利用者を足す",
+    )
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="--test の db を、マイグレーションが最新でも作り直す",
     )
     parser.add_argument(
         "--dist-dir",
@@ -226,6 +234,8 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     if args.seed and not args.test:
         parser.error("--seed は --test と一緒に使う(.env の db には足さない)")
+    if args.reset and not args.test:
+        parser.error("--reset は --test と一緒に使う(.env の db は作り直さない)")
     logging.basicConfig(level=logging.INFO, format="[%(name)s] %(message)s")
 
     if not (FRONT_DIR / "node_modules").is_dir():

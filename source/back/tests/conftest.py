@@ -27,13 +27,17 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False)
 
 @pytest.fixture(scope="session", autouse=True)
 def _schema() -> None:
-    """回すたびに archieves_test を空で作り直し、マイグレーションで本番と同じ表を作る。
+    """archieves_test を、マイグレーションで本番と同じ表にする。
 
-    終わったあとは消さないので、落ちたテストの後でも psql で表を覗ける(行は各テストが巻き戻す)。
+    行は各テストが巻き戻すので、マイグレーションが変わったときだけ作り直す
+    (ARCHIEVES_TEST_DB_RESET=1 で必ず作り直す)。
+    終わったあとは消さないので、落ちたテストの後でも psql で表を覗ける。
     """
     engine.dispose()
-    testing_db.recreate_database(TEST_DATABASE_URL)
-    testing_db.upgrade_head(TEST_DATABASE_URL)
+    testing_db.prepare_database(
+        TEST_DATABASE_URL,
+        reset=os.environ.get("ARCHIEVES_TEST_DB_RESET") == "1",
+    )
 
 
 @pytest.fixture()
