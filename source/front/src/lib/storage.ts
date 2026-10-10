@@ -84,3 +84,68 @@ export function saveScoreLogCollapsed(keys: Array<string>) {
     // 保存できなくても、開閉そのものは画面の中で動く
   }
 }
+
+const APP_USER_KEY = "appUser";
+const APP_USER_EVENT = "archieves:app-user";
+
+/** API の利用者(`/users/me`)のうち、画面を開くたびに読み直さずに済ませたいもの */
+export interface CachedAppUser {
+  sub: string;
+  id: number;
+  name: string;
+  isAdmin: boolean;
+}
+
+/** 別の人がログインし直したときに前の人の値を使わないよう、今のログインの sub と合うときだけ返す */
+export function loadCachedAppUser(sub: string): CachedAppUser | null {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(APP_USER_KEY) ?? "null");
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const user = parsed as Partial<CachedAppUser>;
+    if (
+      user.sub !== sub ||
+      typeof user.id !== "number" ||
+      typeof user.name !== "string" ||
+      typeof user.isAdmin !== "boolean"
+    ) {
+      return null;
+    }
+    return {
+      sub: user.sub,
+      id: user.id,
+      name: user.name,
+      isAdmin: user.isAdmin,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** 書いたら、開いたままのメニュー(Nav)などが読み直せるよう知らせる */
+export function saveCachedAppUser(user: CachedAppUser) {
+  try {
+    localStorage.setItem(APP_USER_KEY, JSON.stringify(user));
+  } catch {
+    // 保存できなければ、次に要るときに API から読む
+  }
+  window.dispatchEvent(new Event(APP_USER_EVENT));
+}
+
+export function clearCachedAppUser() {
+  try {
+    localStorage.removeItem(APP_USER_KEY);
+  } catch {
+    // 消せなくても、sub が違えば使われない
+  }
+  window.dispatchEvent(new Event(APP_USER_EVENT));
+}
+
+export function subscribeCachedAppUser(onChange: () => void): () => void {
+  window.addEventListener(APP_USER_EVENT, onChange);
+  // 別のタブでの書き換え
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(APP_USER_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}

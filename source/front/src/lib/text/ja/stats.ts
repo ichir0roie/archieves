@@ -1,11 +1,7 @@
 import { terms as t } from "./terms";
 
-/** stats の画面(ホームの今月のまとめ・統計ダッシュボード・ランキング)の文言。 */
+/** stats の画面(統計ダッシュボード・ランキング)の文言。 */
 export const stats = {
-  monthSummary: "今月のまとめ",
-  noMonthRecords: `今月の${t.game}はまだありません`,
-  roundLabel: (date: string, number: number) => `${date} ${t.roundN(number)}`,
-  average: (value: string) => `${t.average}${value}${t.unit.point}`,
   averageUnit: (unit: string) => `${t.average}${unit}`,
   card: {
     round: `${t.round}${t.totalPoints}`,

@@ -2,10 +2,6 @@ import type { stats as ja } from "../ja/stats";
 import { terms as t } from "./terms";
 
 export const stats: typeof ja = {
-  monthSummary: "This month's summary",
-  noMonthRecords: "No games this month yet",
-  roundLabel: (date: string, number: number) => `${date} ${t.roundN(number)}`,
-  average: (value: string) => `Avg ${value}${t.unit.point}`,
   averageUnit: (unit: string) => `Avg ${unit}`,
   card: {
     round: "Total points per round",
