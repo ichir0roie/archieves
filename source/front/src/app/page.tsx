@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Announcements from "@/components/Announcements";
 import MonthDashboard from "@/components/MonthDashboard";
 import { getMyUser, type UserRead } from "@/lib/api";
 import { useT } from "@/lib/text";
@@ -63,6 +64,8 @@ export default function Page() {
       </div>
 
       <MonthDashboard />
+
+      <Announcements />
     </div>
   );
 }

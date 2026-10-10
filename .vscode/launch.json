@@ -1,31 +1,15 @@
 {
-  // F5 default is the first one: start API and web with the test db and mock login, then open Chrome.
-  // Chrome profile (userDataDir) lives in .vscode/chrome-user-data (gitignored)
+  // F5 の既定は一番上。起きている画面(:3100)を Brave で開く。画面と API は tasks.json のタスクか tools.dev で先に起こす
+  // Brave profile (userDataDir) lives in .vscode/chrome-user-data (gitignored)
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Chrome: web (test db, mock login)",
+      "name": "Brave: attach to running web (:3100)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:3000",
-      "webRoot": "${workspaceFolder}/source/front",
-      "userDataDir": "${workspaceFolder}/.vscode/chrome-user-data",
-      "preLaunchTask": "dev: API + web (test db, mock login)"
-    },
-    {
-      "name": "Chrome: web (.env db, Cognito)",
-      "type": "chrome",
-      "request": "launch",
-      "url": "http://localhost:3000",
-      "webRoot": "${workspaceFolder}/source/front",
-      "userDataDir": "${workspaceFolder}/.vscode/chrome-user-data",
-      "preLaunchTask": "dev: API + web (.env db, Cognito)"
-    },
-    {
-      "name": "Chrome: attach to running web (:3000)",
-      "type": "chrome",
-      "request": "launch",
-      "url": "http://localhost:3000",
+      // chrome の型のデバッガーのまま、起こすブラウザーを Brave にする
+      "runtimeExecutable": "/usr/bin/brave-browser",
+      "url": "http://localhost:3100",
       "webRoot": "${workspaceFolder}/source/front",
       "userDataDir": "${workspaceFolder}/.vscode/chrome-user-data"
     },
@@ -71,13 +55,13 @@
   ],
   "compounds": [
     {
-      // Start API with debugpy and web with next dev, then open Chrome
-      "name": "API (debugpy) + Chrome",
+      // Start API with debugpy and web with next dev, then open Brave
+      "name": "API (debugpy) + Brave",
       "configurations": [
         "Python: API (debugpy, :8000)",
-        "Chrome: attach to running web (:3000)"
+        "Brave: attach to running web (:3100)"
       ],
-      "preLaunchTask": "front: start (.env.local, :3000)",
+      "preLaunchTask": "front: start (.env.local, :3100)",
       "stopAll": true
     }
   ]

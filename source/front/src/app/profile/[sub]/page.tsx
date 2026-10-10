@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
-import ExternalLink from "@/components/ExternalLink";
 import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import StatSummaryCard from "@/components/StatSummaryCard";
@@ -103,23 +102,6 @@ export default function Page() {
               stats={profile.points}
             />
           </div>
-
-          <span className="section-label">{T.profile.view.matches}</span>
-          {profile.matches.length === 0 ? (
-            <p className="status empty">{T.profile.view.noMatches}</p>
-          ) : (
-            <div className="row-list">
-              {profile.matches.map((match) => (
-                <div key={match.id}>
-                  <div className="main">
-                    <span>{match.name}</span>
-                    <span className="muted small">{formatDate(T, match.recorded_at)}</span>
-                  </div>
-                  {match.link && <ExternalLink href={match.link}>{T.profile.link}</ExternalLink>}
-                </div>
-              ))}
-            </div>
-          )}
         </>
       )}
       <BackButton />

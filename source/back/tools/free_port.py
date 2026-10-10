@@ -1,6 +1,6 @@
 """指定したポートで聞いているプロセスを止める。起動の前に、前の起動の残りを片付けるのに使う。
 
-.venv/bin/python -m tools.free_port 8000 3000
+.venv/bin/python -m tools.free_port 8000 3100
 """
 
 import logging

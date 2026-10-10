@@ -7,7 +7,7 @@
 | `app/main.py` | FastAPI の app。CORS・例外ハンドラ・`/api/v1` の router を付ける |
 | `app/api/v1/endpoints/` | エンドポイント。引数を受け、crud・services を呼び、コミットして返すだけにする |
 | `app/api/deps.py` | `get_session`・`get_current_user`・`get_or_404` |
-| `app/crud/` | 表ごとの読み書き(`game.py` は game・round・end・point・match)。SQL はここに置く |
+| `app/crud/` | 表ごとの読み書き(`game.py` は game・round・end・point)。SQL はここに置く |
 | `app/services/` | いくつもの表にまたがる処理(旧アプリのバックアップの取り込み) |
 | `app/schemas/` | 要求・応答の pydantic のモデル |
 | `app/db/models/` | SQLAlchemy のモデル。`app/db/base.py` が全部を読み込む(Alembic 用) |
@@ -62,18 +62,20 @@ cd source/front && npm run types
 ## 認証
 
 - `AUTH_MODE=cognito`(既定)は、`authenticated_router` の下のすべてに Cognito の ID トークンを求める(`app/core/security.py`)。`mock` は `MOCK_USER_*` の利用者として通す。どちらにするかは import した時に決まる
-- エンドポイントは「本人のみ」と「本人以外も」に分ける。どちらも Cognito の ID トークンが通っていること(上の `authenticated_router`)が前提で、「本人のみ」はさらに行の持ち主が本人であることを求める
+- エンドポイントは「本人のみ」「本人以外も」「管理者のみ」に分ける。どれも Cognito の ID トークンが通っていること(上の `authenticated_router`)が前提で、「本人のみ」はさらに行の持ち主が本人であることを求める
 
 | 区分 | 対象 | 見るもの |
 | --- | --- | --- |
-| 本人のみ | `games`・`rounds`・`ends`・`points`・`matches`・コメントの読み書き全部、`trash/*`、`/matches`、`PATCH /users/{user_id}`、`/users/me`・`/users/me/ensure`・`/import`・`/export/records.db` | トークンの `sub` の利用者の行(`deps.get_me`)と、行の `user_id` が同じこと |
-| 本人以外も | `/statistics/*`(ランキング含む)、`GET /users/{user_id}`、`GET /users/{sub}/profile`、`/organizations/*` | トークンが通っていること |
+| 本人のみ | `games`・`rounds`・`ends`・`points`・コメントの読み書き全部、`trash/*`、`PATCH /users/{user_id}`、`/users/me`・`/users/me/ensure`・`/import`・`/export/records.db`、`/feedbacks` | トークンの `sub` の利用者の行(`deps.get_me`)と、行の `user_id` が同じこと |
+| 本人以外も | `/statistics/*`(ランキング含む)、`GET /users/{user_id}`、`GET /users/{sub}/profile`、`/organizations/*`、`/announcements` | トークンが通っていること |
+| 管理者のみ | `/admin/*`(全員の意見 `GET /admin/feedbacks`、返信 `PUT /admin/feedbacks/{feedback_id}/reply`) | 本人の行の `users.is_admin` が true であること(`deps.get_admin`。違えば 403) |
 
 - 「本人のみ」の書き方: 引数に `me: User = Depends(deps.get_me)` を足す。行を引くところは `deps.get_or_404` ではなく `deps.get_own_or_404(me, ...)`(持ち主が違えば 403)。`user_id` を要求で受けるところは `deps.require_self(me, user_id)`、絞り込みの `user_id`(省略可)は `deps.resolve_user_id(me, user_id)`(省略したら本人、他人なら 403)
 - 利用者の行がまだ無いトークンは、「本人のみ」で 404(`User not found`)になる。先に `/users/me/ensure` で作る
-- 「本人以外も」に game 配下(`games`〜`points`・`matches`・コメント)の読み取りは入れない。他人に見せる範囲を広げるときは、この表も直す
+- 「本人以外も」に game 配下(`games`〜`points`・コメント)の読み取りは入れない。他人に見せる範囲を広げるときは、この表も直す
 - `GET/POST /users` は持ち主のいない操作なので、どちらにも分けず、トークンが通れば使える(フロントは使っていない)
-- 新しいエンドポイントを足したら、どちらの区分かを決めて `tests/test_ownership.py` に足す
+- 新しいエンドポイントを足したら、どの区分かを決めて `tests/test_ownership.py` に足す
+- 管理者は画面からは決めない。db の行を直に書き換える(`UPDATE users SET is_admin = true WHERE sub = '<Cognito の sub>';`)。`is_admin` は本人の行(`GET /users/me`・`/users/me/ensure` の `MeRead`)にだけ載せ、他人の行(`UserRead`)には出さない
 - テストの `client` は `current_user`(`TEST_CLAIMS` の `sub` の利用者)がいる状態。他人の行は `factories` で作る。利用者の行が無い状態は `unregistered_client`
 
 ## モデルとマイグレーション

@@ -3,19 +3,21 @@ import { isMockAuth } from '../auth/config';
 import { toDateOnly } from '../toDateOnly';
 import { getT } from '../text';
 import type {
+  AdminFeedbackRead,
+  AnnouncementRead,
   BowType,
   EndCommentRead,
   EndRead,
   EndScoreSummary,
+  FeedbackCreate,
+  FeedbackRead,
+  FeedbackReply,
   GameComments,
   GameCommentRead,
   GameRead,
+  GameScoreSummary,
   ImportResult,
   ImportSource,
-  MatchCreate,
-  MatchRead,
-  MatchSummary,
-  MatchUpdate,
   OrganizationCreate,
   OrganizationRead,
   OrganizationSummary,
@@ -26,6 +28,7 @@ import type {
   RoundScoreSummary,
   ScoreStatistics,
   GameKindOptions,
+  MeRead,
   UserCreate,
   UserProfile,
   UserRanking,
@@ -146,14 +149,14 @@ export function createUser(user: UserCreate): Promise<UserRead> {
 }
 
 /** Finds or creates the signed-in user's row, keyed off their Cognito sub. */
-export function ensureCurrentUser(user: UserCreate): Promise<UserRead> {
+export function ensureCurrentUser(user: UserCreate): Promise<MeRead> {
   return request('/users/me/ensure', {
     method: 'POST',
     body: JSON.stringify(user),
   });
 }
 
-export function getMyUser(): Promise<UserRead> {
+export function getMyUser(): Promise<MeRead> {
   return request('/users/me');
 }
 
@@ -165,7 +168,7 @@ export function updateUser(userId: number, user: UserUpdate): Promise<UserRead> 
   });
 }
 
-/** Public profile: basic info plus the user's activity (stats + matches) over the last year. */
+/** Public profile: basic info plus the user's activity (stats) over the last year. */
 export function getUserProfile(sub: string): Promise<UserProfile> {
   return request(`/users/${encodeURIComponent(sub)}/profile`);
 }
@@ -256,6 +259,11 @@ export function listGamesOfYear(userId: number, year: number): Promise<GameRead[
   return request(`/games?user_id=${userId}&year=${year}&limit=10000`);
 }
 
+/** その年のゲームごとの合計点・エンド平均・ポイント平均 */
+export function listGameScoresOfYear(userId: number, year: number): Promise<GameScoreSummary[]> {
+  return request(`/games/scores?user_id=${userId}&year=${year}`);
+}
+
 /** ゲームのある年。新しい年が先 */
 export function listGameYears(userId: number): Promise<number[]> {
   return request(`/games/years?user_id=${userId}`);
@@ -337,34 +345,6 @@ export function createPoint(endId: number, params: CreatePointParams): Promise<P
 
 export function deletePoint(pointId: number): Promise<void> {
   return request(`/points/${pointId}`, { method: 'DELETE' });
-}
-
-/** The match (competition) info attached to a game, if any. */
-export function getMatch(gameId: number): Promise<MatchRead> {
-  return request(`/games/${gameId}/match`);
-}
-
-export function createMatch(gameId: number, match: MatchCreate): Promise<MatchRead> {
-  return request(`/games/${gameId}/match`, {
-    method: 'POST',
-    body: JSON.stringify(match),
-  });
-}
-
-export function updateMatch(matchId: number, match: MatchUpdate): Promise<MatchRead> {
-  return request(`/matches/${matchId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(match),
-  });
-}
-
-export function deleteMatch(matchId: number): Promise<void> {
-  return request(`/matches/${matchId}`, { method: 'DELETE' });
-}
-
-/** Matches joined with their game's date, optionally filtered to a period and/or a user. */
-export function listMatches(params?: StatisticsQuery): Promise<MatchSummary[]> {
-  return request(`/matches${statisticsQueryString(params)}`);
 }
 
 /**
@@ -543,4 +523,34 @@ export function listUserRanking(params?: RankingQuery): Promise<UserRanking[]> {
   if (params?.regionId !== undefined) query.set('region_id', String(params.regionId));
   const qs = query.toString();
   return request(`/statistics/ranking${qs ? `?${qs}` : ''}`);
+}
+
+/** 自分が意見箱に送った内容と、その返信。新しい順。 */
+export function listFeedbacks(): Promise<FeedbackRead[]> {
+  return request('/feedbacks');
+}
+
+export function createFeedback(feedback: FeedbackCreate): Promise<FeedbackRead> {
+  return request('/feedbacks', {
+    method: 'POST',
+    body: JSON.stringify(feedback),
+  });
+}
+
+/** 全員の意見と、送った利用者。新しい順。管理者だけが読める(ほかは 403)。 */
+export function listAllFeedbacks(): Promise<AdminFeedbackRead[]> {
+  return request('/admin/feedbacks');
+}
+
+/** 意見に返信を書く(書き直しもこれ)。管理者だけが使える。 */
+export function replyToFeedback(feedbackId: number, reply: FeedbackReply): Promise<AdminFeedbackRead> {
+  return request(`/admin/feedbacks/${feedbackId}/reply`, {
+    method: 'PUT',
+    body: JSON.stringify(reply),
+  });
+}
+
+/** 直近のお知らせ(API が件数を絞る)。新しい順。 */
+export function listAnnouncements(): Promise<AnnouncementRead[]> {
+  return request('/announcements');
 }

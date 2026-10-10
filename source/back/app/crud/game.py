@@ -1,18 +1,17 @@
 from datetime import date
 
-from sqlalchemy import Select, extract, select
+from sqlalchemy import Select, extract, func, select
 from sqlalchemy.orm import Session
 
+from app.core.scoring import scored_value_column
 from app.core.target_types import resolve_target_size_cm
-from app.db import End, Game, Match, Point, Round
+from app.db import End, Game, Point, Round
 from app.schemas.game import (
     EndCreate,
     EndUpdate,
     GameCreate,
+    GameScoreSummary,
     GameUpdate,
-    MatchCreate,
-    MatchSummary,
-    MatchUpdate,
     PointCreate,
     PointUpdate,
     RoundCreate,
@@ -76,6 +75,53 @@ def list_games(
             Game.recorded_at < date(year + 1, 1, 1),
         )
     return list(s.scalars(stmt))
+
+
+def list_game_scores(s: Session, user_id: int, year: int) -> list[GameScoreSummary]:
+    """年内のゲームごとの合計点・エンド平均・ポイント(矢)平均。集計は db に任せる。"""
+    # 矢のないエンド(outer join で残る)はエンド平均の分母に数えない
+    end_totals = (
+        select(
+            Round.game_id.label("game_id"),
+            End.id.label("end_id"),
+            func.count(Point.id).label("arrow_count"),
+            func.coalesce(func.sum(scored_value_column(Point.score)), 0).label("end_total"),
+        )
+        .join(End, End.round_id == Round.id)
+        .outerjoin(Point, Point.end_id == End.id)
+        .where(Round.deleted_at.is_(None))
+        .group_by(Round.game_id, End.id)
+        .subquery()
+    )
+    total = func.coalesce(func.sum(end_totals.c.end_total), 0)
+    arrows = func.coalesce(func.sum(end_totals.c.arrow_count), 0)
+    scored_ends = func.count(end_totals.c.end_id).filter(end_totals.c.arrow_count > 0)
+    stmt = (
+        select(
+            Game.id,
+            total,
+            total / func.nullif(scored_ends, 0),
+            total / func.nullif(arrows, 0),
+        )
+        .outerjoin(end_totals, end_totals.c.game_id == Game.id)
+        .where(
+            Game.deleted_at.is_(None),
+            Game.user_id == user_id,
+            Game.recorded_at >= date(year, 1, 1),
+            Game.recorded_at < date(year + 1, 1, 1),
+        )
+        .group_by(Game.id)
+        .order_by(Game.id)
+    )
+    return [
+        GameScoreSummary(
+            game_id=game_id,
+            total_score=int(total_score),
+            end_average=None if end_average is None else float(end_average),
+            point_average=None if point_average is None else float(point_average),
+        )
+        for game_id, total_score, end_average, point_average in s.execute(stmt)
+    ]
 
 
 def list_game_years(s: Session, user_id: int) -> list[int]:
@@ -230,75 +276,6 @@ def update_end(s: Session, end: End, end_in: EndUpdate) -> End:
 def delete_end(s: Session, end: End) -> None:
     s.delete(end)
     s.flush()
-
-
-def _visible_matches() -> Select[tuple[Match]]:
-    return select(Match).join(Game, Game.id == Match.game_id).where(Game.deleted_at.is_(None))
-
-
-def get_match(s: Session, match_id: int) -> Match | None:
-    return s.scalar(_visible_matches().where(Match.id == match_id))
-
-
-def get_match_by_game(s: Session, game_id: int) -> Match | None:
-    return s.scalar(_visible_matches().where(Match.game_id == game_id))
-
-
-def create_match(s: Session, game: Game, match_in: MatchCreate) -> Match:
-    match = Match(game_id=game.id, user_id=game.user_id, **match_in.model_dump())
-    s.add(match)
-    s.flush()
-    return match
-
-
-def update_match(s: Session, match: Match, match_in: MatchUpdate) -> Match:
-    for field, value in match_in.model_dump(exclude_unset=True).items():
-        setattr(match, field, value)
-    s.flush()
-    return match
-
-
-def delete_match(s: Session, match: Match) -> None:
-    s.delete(match)
-    s.flush()
-
-
-def list_matches(
-    s: Session,
-    *,
-    user_id: int | None = None,
-    start: date | None = None,
-    end: date | None = None,
-    skip: int = 0,
-    limit: int = 100,
-) -> list[MatchSummary]:
-    """Matches joined with their game's date, most recent first."""
-    stmt = (
-        select(Match, Game.recorded_at)
-        .join(Game, Game.id == Match.game_id)
-        .where(Game.deleted_at.is_(None))
-        .order_by(Game.recorded_at.desc(), Match.id.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-    if user_id is not None:
-        stmt = stmt.where(Game.user_id == user_id)
-    if start is not None:
-        stmt = stmt.where(Game.recorded_at >= start)
-    if end is not None:
-        stmt = stmt.where(Game.recorded_at <= end)
-
-    return [
-        MatchSummary(
-            id=match.id,
-            game_id=match.game_id,
-            user_id=match.user_id,
-            name=match.name,
-            link=match.link,
-            recorded_at=recorded_at,
-        )
-        for match, recorded_at in s.execute(stmt)
-    ]
 
 
 def point_cm(round_: Round | None, x: float, y: float) -> tuple[float | None, float | None]:

@@ -16,7 +16,7 @@ logger = logging.getLogger("debug.test_env.run_test_api_server")
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="E2E・画面の確かめ用に、空のテスト用の db に向けた API を起こす",
+        description="E2E・画面の確かめ用に、テスト用の db に向けた API を起こす",
     )
     parser.add_argument(
         "--port",
@@ -28,14 +28,18 @@ def main(argv: list[str] | None = None) -> None:
         default="archieves_test_api",
         help="手元の PostgreSQL に作る db の名前(archieves_test で始める)",
     )
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="マイグレーションが最新でも db を作り直す",
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="[%(name)s] %(message)s")
 
     # pytest(archieves_test)と並べて回しても、互いの表を作り直さないよう db を分ける
     url = testing_db.pin(args.db)
     os.environ["AUTH_MODE"] = "mock"
-    testing_db.recreate_database(url)
-    testing_db.upgrade_head(url)
+    testing_db.prepare_database(url, reset=args.reset)
     logger.info(f"{args.db} に向けて :{args.port} で起こす")
 
     import uvicorn

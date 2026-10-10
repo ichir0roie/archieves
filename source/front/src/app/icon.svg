@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E6EEF3"/>
+      <stop offset="1" stop-color="#C9DAE6"/>
+    </linearGradient>
+    <clipPath id="bg"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#g-bg)"/>
+  <!-- 的の輪は矢の中心に合わせ、背景になじむ濃さに抑える -->
+  <g clip-path="url(#bg)" fill="none">
+    <circle cx="264" cy="320" r="104" stroke="#E0B347" stroke-width="16" opacity="0.7"/>
+    <circle cx="264" cy="320" r="184" stroke="#FFFFFF" stroke-width="16" opacity="0.6"/>
+  </g>
+  <g transform="translate(-20 0)">
+    <path d="M136 440 L256 82 Q410 220 376 440" fill="none" stroke="#1B2547" stroke-width="46" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M112 320 H436 M92 282 L112 320 L92 358" fill="none" stroke="#D2442A" stroke-width="24" stroke-linejoin="miter"/>
+    <path d="M430 280 L476 320 L430 360 Z" fill="#D2442A"/>
+  </g>
+</svg>

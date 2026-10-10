@@ -1,4 +1,3 @@
-from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -14,11 +13,8 @@ from app.schemas.game import (
     EndUpdate,
     GameCreate,
     GameRead,
+    GameScoreSummary,
     GameUpdate,
-    MatchCreate,
-    MatchRead,
-    MatchSummary,
-    MatchUpdate,
     PointCreate,
     PointRead,
     PointUpdate,
@@ -74,6 +70,17 @@ def list_game_years(
 ) -> list[int]:
     """ゲームのある年。新しい年が先"""
     return game_crud.list_game_years(s, user_id=deps.resolve_user_id(me, user_id))
+
+
+@router.get("/games/scores", response_model=list[GameScoreSummary])
+def list_game_scores(
+    year: int,
+    user_id: int | None = None,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
+) -> list[GameScoreSummary]:
+    """年内のゲームごとの合計点・エンド平均・ポイント平均(スコア一覧用)"""
+    return game_crud.list_game_scores(s, user_id=deps.resolve_user_id(me, user_id), year=year)
 
 
 @router.post("/games", response_model=GameRead, status_code=201)
@@ -140,76 +147,6 @@ def restore_game(
     result = game_crud.restore_game(s, game)
     s.commit()
     return result
-
-
-@router.get("/matches", response_model=list[MatchSummary])
-def list_matches(
-    skip: int = 0,
-    limit: int = 100,
-    user_id: int | None = None,
-    start: date | None = None,
-    end: date | None = None,
-    me: User = Depends(deps.get_me),
-    s: Session = Depends(deps.get_session),
-) -> list[MatchSummary]:
-    """Matches joined with their game's date, optionally filtered to a period and/or a user."""
-    return game_crud.list_matches(
-        s, user_id=deps.resolve_user_id(me, user_id), start=start, end=end, skip=skip, limit=limit
-    )
-
-
-@router.get("/games/{game_id}/match", response_model=MatchRead)
-def get_match_for_game(
-    game_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
-) -> MatchRead:
-    deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
-    return deps.get_own_or_404(
-        me, game_crud.get_match_by_game, s, game_id, detail="Match not found"
-    )
-
-
-@router.post("/games/{game_id}/match", response_model=MatchRead, status_code=201)
-def create_match_for_game(
-    game_id: int,
-    match_in: MatchCreate,
-    me: User = Depends(deps.get_me),
-    s: Session = Depends(deps.get_session),
-) -> MatchRead:
-    game = deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
-    if game_crud.get_match_by_game(s, game_id) is not None:
-        raise HTTPException(status_code=409, detail="Game already has a match")
-    result = game_crud.create_match(s, game, match_in)
-    s.commit()
-    return result
-
-
-@router.get("/matches/{match_id}", response_model=MatchRead)
-def get_match(
-    match_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
-) -> MatchRead:
-    return deps.get_own_or_404(me, game_crud.get_match, s, match_id, detail="Match not found")
-
-
-@router.patch("/matches/{match_id}", response_model=MatchRead)
-def update_match(
-    match_id: int,
-    match_in: MatchUpdate,
-    me: User = Depends(deps.get_me),
-    s: Session = Depends(deps.get_session),
-) -> MatchRead:
-    match = deps.get_own_or_404(me, game_crud.get_match, s, match_id, detail="Match not found")
-    result = game_crud.update_match(s, match, match_in)
-    s.commit()
-    return result
-
-
-@router.delete("/matches/{match_id}", status_code=204)
-def delete_match(
-    match_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
-) -> None:
-    match = deps.get_own_or_404(me, game_crud.get_match, s, match_id, detail="Match not found")
-    game_crud.delete_match(s, match)
-    s.commit()
 
 
 @router.get("/games/{game_id}/rounds", response_model=list[RoundRead])

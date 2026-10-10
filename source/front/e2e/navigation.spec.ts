@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
+import { startGame } from "./scoreEntry";
 
 // First navigation into each route dev-compiles it on demand (Turbopack),
 // which can take well past the default 5s assertion timeout (see home.spec.ts).
@@ -9,14 +10,9 @@ test.beforeEach(async ({ page }) => {
   await ensureRegistered(page);
 });
 
-test("settings page links to match registration and profile settings", async ({ page }) => {
+test("settings page links to profile settings", async ({ page }) => {
   await page.goto("/settings");
 
-  await page.getByRole("link", { name: "大会情報の登録" }).click();
-  await expect(page).toHaveURL(/\/profile\/matches$/, { timeout: ROUTE_TIMEOUT });
-  await expect(page.locator("header")).toContainText("大会情報の登録");
-
-  await page.goBack();
   await page.getByRole("link", { name: "プロフィール設定" }).click();
   await expect(page).toHaveURL(/\/profile\/settings$/, { timeout: ROUTE_TIMEOUT });
   await expect(page.locator("header")).toContainText("プロフィール設定");
@@ -49,7 +45,7 @@ async function openMenuAndGo(page: Page, label: string) {
 // 行き先ごとに "/" から開き直す(前の行き先のコンパイル待ちに引きずられないように)
 test("menu navigates to each primary destination", async ({ page }) => {
   await page.goto("/");
-  await openMenuAndGo(page, "記録");
+  await openMenuAndGo(page, "スコア");
   await expect(page).toHaveURL(/\/score-log$/, { timeout: ROUTE_TIMEOUT });
   await expect(page.locator("header")).toContainText("スコア");
 
@@ -62,6 +58,11 @@ test("menu navigates to each primary destination", async ({ page }) => {
   await openMenuAndGo(page, "ランキング");
   await expect(page).toHaveURL(/\/ranking$/, { timeout: ROUTE_TIMEOUT });
   await expect(page.locator("header")).toContainText("ランキング");
+
+  await page.goto("/");
+  await openMenuAndGo(page, "意見箱");
+  await expect(page).toHaveURL(/\/feedback$/, { timeout: ROUTE_TIMEOUT });
+  await expect(page.locator("header")).toContainText("意見箱");
 
   await page.goto("/");
   await openMenuAndGo(page, "設定");
@@ -81,7 +82,8 @@ test("menu navigates to each primary destination", async ({ page }) => {
 });
 
 test("the menu is hidden on the full-screen score entry", async ({ page }) => {
-  await page.goto("/game/score-card");
+  // 入力の画面は、ゲームを始めずに開くとホームへ戻されるので、設定の画面から入る
+  await startGame(page);
   await expect(page.locator(".score-entry")).toBeVisible({ timeout: ROUTE_TIMEOUT });
   await expect(page.getByRole("button", { name: "メニュー" })).toHaveCount(0);
 });

@@ -14,7 +14,6 @@ def _open(response, tmp_path) -> sqlite3.Connection:
 
 def _my_game(factories, user):
     game = factories.GameFactory(user=user, recorded_at=date(2026, 5, 1), bow_type="recurve")
-    factories.MatchFactory(game=game, name="全日本選手権")
     factories.GameCommentFactory(game=game, body="風が強い")
     round_ = factories.RoundFactory(game=game, number=1, distance_m=70, target_type="122cm")
     end = factories.EndFactory(round=round_, number=1)
@@ -36,7 +35,8 @@ def test_exports_my_records_as_sqlite(
     conn = _open(response, tmp_path)
     games = conn.execute("SELECT recorded_at, bow_type FROM games").fetchall()
     assert games == [("2026-05-01", "recurve")]
-    assert conn.execute("SELECT name FROM matches").fetchall() == [("全日本選手権",)]
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert "matches" not in tables
     assert conn.execute("SELECT body FROM game_comments").fetchall() == [("風が強い",)]
     assert conn.execute("SELECT distance_m, target_type FROM rounds").fetchall() == [(70, "122cm")]
     points = conn.execute("SELECT number, score FROM points ORDER BY number").fetchall()
@@ -104,13 +104,35 @@ def test_exported_file_can_be_imported_again(client: TestClient, current_user, f
     games = client.get(f"/api/v1/games?user_id={current_user.id}").json()
     assert len(games) == 2
     imported = max(games, key=lambda g: g["id"])
-    assert client.get(f"/api/v1/games/{imported['id']}/match").json()["name"] == "全日本選手権"
     assert client.get(f"/api/v1/games/{imported['id']}/comments").status_code == 200
     rounds = client.get(f"/api/v1/games/{imported['id']}/rounds").json()
     ends = client.get(f"/api/v1/rounds/{rounds[0]['id']}/ends").json()
     points = client.get(f"/api/v1/ends/{ends[0]['id']}/points").json()
     got = sorted((p["number"], p["score"], p["x_cm"]) for p in points)
     assert got == [(1, 11, 0.0), (2, 0, None)]
+
+
+def test_a_file_exported_while_matches_existed_still_imports(
+    client: TestClient, current_user, factories, tmp_path
+) -> None:
+    _my_game(factories, current_user)
+    path = tmp_path / "old.db"
+    path.write_bytes(client.get(PATH).content)
+    # 大会の情報を持っていた頃のファイルには matches の表がある
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            "CREATE TABLE matches (id INTEGER PRIMARY KEY, game_id INTEGER, name TEXT, link TEXT)"
+        )
+        conn.execute("INSERT INTO matches VALUES (1, 1, '全日本選手権', NULL)")
+
+    res = client.post(
+        "/api/v1/import",
+        data={"source": "archieves"},
+        files={"file": ("archieves-records.db", path.read_bytes(), "application/vnd.sqlite3")},
+    )
+
+    assert res.status_code == 201
+    assert res.json()["games"] == 1
 
 
 def test_import_rejects_a_sqlite_file_that_is_not_an_archieves_export(

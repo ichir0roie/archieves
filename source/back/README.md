@@ -99,7 +99,7 @@ The quickest way to run both is `.venv/bin/python -m tools.dev` (`--test
    `:8000`, or `docker compose -f .build/docker-compose.yml up`, which
    listens on `:8080`).
 2. In `../front`, point `ARCHIEVES_API_URL` at it (default
-   `http://127.0.0.1:8000`) and run `npm run dev` (`:3000`).
+   `http://127.0.0.1:8000`) and run `npm run dev` (`:3100`).
 3. Keep `AUTH_MODE=mock` here in sync with `NEXT_PUBLIC_AUTH_MODE=mock` in
    `../front` (both are the default) so neither side needs real Cognito
    during local development. Flip both to `cognito`/real Amplify sandbox

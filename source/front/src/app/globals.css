@@ -58,7 +58,7 @@ h2 { font-size: 1.05rem; margin: 1.25rem 0 0.5rem; }
 
 /* ---- 入力 ---- */
 input, select, textarea, button { font: inherit; color: inherit; }
-input[type="text"], input[type="search"], input[type="number"], input[type="url"], input[type="date"], select, textarea {
+input[type="text"], input[type="search"], input[type="number"], input[type="url"], input[type="email"], input[type="date"], select, textarea {
   width: 100%; padding: 0.55rem 0.65rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
 }
 textarea { min-height: 8rem; resize: vertical; line-height: 1.7; }
@@ -334,13 +334,12 @@ table.list.view-sheet { table-layout: fixed; }
 .log-head { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.35rem 0.7rem; text-align: left; background: var(--chip); border: 0; border-radius: 0; }
 .log-arrow { font-size: 0.7rem; width: 1rem; }
 .log-title { font-weight: 700; flex: 1; }
-.log-table { width: 100%; border-collapse: collapse; }
-.log-table td { border-top: 1px solid var(--line); padding: 0; vertical-align: top; }
-.log-table .log-day { width: 3.5rem; padding: 0.35rem 0.5rem; border-right: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
-.log-table .ScoreLogGame { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.35rem 0.7rem; border: 0; border-radius: 0; background: none; text-align: left; color: var(--ink); }
-.log-table .ScoreLogGame + .ScoreLogGame { border-top: 1px dashed var(--line); }
+.log-table { width: 100%; }
+.log-table .ScoreLogGame { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.35rem 0.7rem; border: 0; border-radius: 0; background: none; text-align: left; color: var(--ink); }
+.log-table .ScoreLogGame + .ScoreLogGame { border-top: 1px solid var(--line); }
 .log-table .ScoreLogGame:hover { background: color-mix(in srgb, var(--accent) 6%, var(--panel)); }
-.log-game-id { flex: 1; font-weight: 700; }
+.log-cell { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.log-cell.log-day { flex: 0 0 2.5rem; font-weight: 700; white-space: nowrap; }
 .log-game-go { color: var(--muted); }
 
 /* 設定画面で選んだ隅(未設定なら上の既定)。狭い画面の指定より強くするため nav[data-pos] を付ける */
@@ -365,3 +364,10 @@ nav[data-pos$="right"] .nav-panel { left: auto; right: 16px; }
 
 /* 画面の最下部の戻るボタン */
 .back-button { margin-top: 0.6rem; }
+
+/* ---- 意見箱・お知らせ ---- */
+.pre-wrap { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.FeedbackItem p,
+.Announcements p { margin: 0; }
+.Announcements { margin: 0; list-style: none; }
+.Announcements li + li { border-top: 1px solid var(--line); padding-top: 0.6rem; }

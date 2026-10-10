@@ -2,7 +2,6 @@ from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
-from app.crud import game as game_crud
 from app.crud import statistics as statistics_crud
 from app.crud import user as user_crud
 from app.schemas.profile import UserProfile
@@ -34,8 +33,5 @@ def get_user_profile(
         ),
         points=statistics_crud.point_score_statistics(
             s, start=period_start, end=period_end, user_id=user_id
-        ),
-        matches=game_crud.list_matches(
-            s, user_id=user_id, start=period_start, end=period_end, limit=100
         ),
     )

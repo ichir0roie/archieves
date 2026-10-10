@@ -19,6 +19,8 @@ const eslintConfig = [
       ".next-test/**",
       "playwright-report/**",
       "test-results/**",
+      // ブラウザのプロファイルなど、手元の使い捨ての置き場(git の外)
+      "tmp/**",
     ],
   },
   ...compat.config({

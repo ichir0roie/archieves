@@ -40,9 +40,6 @@ class Game(TimestampMixin, Base):
     rounds: Mapped[list[Round]] = relationship(
         back_populates="game", cascade="all, delete-orphan", lazy="noload"
     )
-    match: Mapped[Match | None] = relationship(
-        back_populates="game", cascade="all, delete-orphan", uselist=False, lazy="noload"
-    )
     comment: Mapped[GameComment | None] = relationship(
         back_populates="game", cascade="all, delete-orphan", uselist=False, lazy="noload"
     )
@@ -97,23 +94,6 @@ class End(TimestampMixin, Base):
     comment: Mapped[EndComment | None] = relationship(
         back_populates="end", cascade="all, delete-orphan", uselist=False, lazy="noload"
     )
-
-
-class Match(TimestampMixin, Base):
-    """Competition metadata attached to a Game: its name and an optional related link."""
-
-    __tablename__ = "matches"
-
-    game_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("games.id", ondelete="CASCADE"), unique=True, index=True
-    )
-    user_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
-    )
-    name: Mapped[str] = mapped_column(String(200))
-    link: Mapped[str | None] = mapped_column(String(500), default=None)
-
-    game: Mapped[Game] = relationship(back_populates="match", lazy="noload")
 
 
 class Point(TimestampMixin, Base):

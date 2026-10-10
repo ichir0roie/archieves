@@ -2,6 +2,9 @@ import { expect, type Locator, type Page } from "@playwright/test";
 
 const ROUTE_TIMEOUT = 15_000;
 
+// 的は指の上を狙う(TargetCircleInput の AIM_OFFSET_Y)ので、狙う点よりこのぶん下を押す
+export const AIM_OFFSET_Y = 107;
+
 export interface GameSetup {
   bowType?: string;
   endSize?: number;
@@ -74,32 +77,58 @@ async function settledBoundingBox(button: Locator) {
 }
 
 /**
- * 的の帯を押して矢を記録する。帯は同心円で内側の帯が上に重なるので、ボタンの中心でなく
- * 帯の幅の真ん中(内側の帯の外に当たる所)を押す。X は中心、外れは的の枠の隅。
+ * 的の帯を押して矢を記録する。帯は同心円なので、ボタンの中心でなく帯の幅の真ん中
+ * (内側の帯の外に当たる所)を狙う。X は中心、外れは的の枠の隅。
  */
 export async function shoot(page: Page, label: string, times: number) {
   const button = ringButton(page, label);
   // 矢をまとめて書き込む間は帯が無効のまま、書き終えると「記録済み」の帯が消えて的の大きさが
-  // 変わる。有効になってから位置を測らないと、古い大きさで隣の帯を押し続ける
+  // 変わる。有効になってから位置を測らないと、古い大きさで隣の帯を狙い続ける
   await expect(button).toBeEnabled();
   const box = await settledBoundingBox(button);
 
-  let position: { x: number; y: number };
+  // 狙う点(帯の中の位置)。外れは的の枠の隅
+  let aim: { x: number; y: number };
   if (label === "M") {
-    position = { x: 6, y: 6 };
+    const face = await page.locator(".TargetCircleInput .TargetFace").boundingBox();
+    if (!face) throw new Error("target not laid out");
+    aim = { x: face.x + 6, y: face.y + 6 };
   } else if (label === "X") {
-    position = { x: box.width / 2, y: box.height / 2 };
+    aim = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   } else {
     const point = Number(label);
     const outer = box.width / 2;
     // 外側の半径に対する内側の帯の半径の割合。10 の内側は X で、10 の帯の半分
     const innerRatio = point === 10 ? 0.5 : (10 - point) / (11 - point);
-    position = { x: outer + (outer + outer * innerRatio) / 2, y: outer };
+    aim = {
+      x: box.x + outer + (outer + outer * innerRatio) / 2,
+      y: box.y + outer,
+    };
   }
 
   for (let i = 0; i < times; i++) {
     const before = await recordedArrows(page).count();
-    await button.click({ position });
-    await expect(recordedArrows(page)).toHaveCount(before + 1, { timeout: 10_000 });
+    const progressBefore = await page.locator(".ScoreProgress").innerText();
+    await page.mouse.click(aim.x, aim.y + AIM_OFFSET_Y);
+    // エンドが満ちる最後の矢は、次のエンドへ自動で進んで表示の矢が 0 に戻る
+    await expect
+      .poll(
+        async () => {
+          const count = await recordedArrows(page).count();
+          if (count === before + 1) return true;
+          return count === 0 && (await page.locator(".ScoreProgress").innerText()) !== progressBefore;
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(true);
   }
+}
+
+/**
+ * 裏で書いている矢・コメントが API に届いてから再読み込みする。画面は書き終えていないと
+ * beforeunload で引き止めるが、Playwright の reload はそれを通らないので、通信が止むのを待つ。
+ */
+export async function reloadAfterWrites(page: Page) {
+  await page.waitForLoadState("networkidle");
+  await page.reload();
 }

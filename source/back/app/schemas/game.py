@@ -39,6 +39,15 @@ class GameRead(GameBase, ResponseModel):
     deleted_at: date | None = None
 
 
+class GameScoreSummary(ResponseModel):
+    """スコア一覧の一行に出す、ゲームの点数の集計。矢のないゲームは平均が None。"""
+
+    game_id: int
+    total_score: int
+    end_average: float | None = None
+    point_average: float | None = None
+
+
 def _validate_target_type(target_type: str) -> str:
     if target_type not in TARGET_TYPE_IDS:
         raise ValueError(f"target_type must be one of {TARGET_TYPE_IDS}")
@@ -139,32 +148,3 @@ class PointRead(PointBase, ResponseModel):
     # null when the target size couldn't be resolved.
     x_cm: float | None = None
     y_cm: float | None = None
-
-
-class MatchBase(BaseModel):
-    name: str
-    link: str | None = None
-
-
-class MatchCreate(MatchBase):
-    pass
-
-
-class MatchUpdate(BaseModel):
-    name: str | None = None
-    link: str | None = None
-
-
-class MatchRead(MatchBase, ResponseModel):
-    id: int
-    game_id: int
-    user_id: int
-
-
-class MatchSummary(MatchBase, ResponseModel):
-    """A match joined with its game's date, for recent-activity displays."""
-
-    id: int
-    game_id: int
-    user_id: int
-    recorded_at: date

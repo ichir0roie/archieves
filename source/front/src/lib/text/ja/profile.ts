@@ -1,6 +1,6 @@
 import { terms as t } from "./terms";
 
-/** profile の画面(プロフィール・大会情報・組織・インポート・スコアの表示・スコア)の文言。 */
+/** profile の画面(プロフィール・組織・インポート・スコアの表示・スコア)の文言。 */
 export const profile = {
   settings: {
     title: `${t.profile}${t.settings}`,
@@ -14,19 +14,6 @@ export const profile = {
     title: t.profile,
     nickname: (nickname: string) => `(${nickname})`,
     period: (start: string, end: string) => `直近1年間の${t.statistics} (${start} 〜 ${end})`,
-    matches: `出場${t.match}`,
-    noMatches: `直近1年間の${t.match}はありません`,
-  },
-  link: t.link,
-  matches: {
-    title: `${t.match}情報の登録`,
-    register: `${t.match}情報を登録`,
-    edit: "編集",
-    name: `${t.match}名`,
-    link: `関連${t.link}`,
-    notRegistered: `${t.match}情報は未登録です`,
-    empty: `まだ${t.game}がありません`,
-    newRecord: "新規",
   },
   organization: {
     title: `${t.organization}情報`,
@@ -91,6 +78,9 @@ export const profile = {
     year: (year: string) => `${year}年`,
     month: (month: string) => `${Number(month)}月`,
     day: (day: string) => `${Number(day)}日`,
+    total: `${t.total}${t.unit.point}`,
+    endAverage: `${t.end}${t.average}`,
+    pointAverage: `${t.arrow}${t.average}`,
     count: (count: number) => `${count}件`,
     trash: "ゴミ箱",
   },
