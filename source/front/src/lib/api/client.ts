@@ -161,7 +161,7 @@ export function getMyUser(): Promise<MeRead> {
 }
 
 /** Updates a user's basic profile info (name, nickname, birth date, organization, region). */
-export function updateUser(userId: number, user: UserUpdate): Promise<UserRead> {
+export function updateUser(userId: number, user: UserUpdate): Promise<MeRead> {
   return request(`/users/${userId}`, {
     method: 'PATCH',
     body: JSON.stringify(user),

@@ -333,7 +333,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserRead"
+                  "$ref": "#/components/schemas/MeRead"
                 }
               }
             }
@@ -3664,7 +3664,7 @@
           "statistics"
         ],
         "summary": "List User Ranking",
-        "description": "Users ranked by total score, average round score or average point\nscore, high to low, optionally filtered by bow type, distance,\norganization, region, and/or period.",
+        "description": "Users ranked by total score, average round score or average point\nscore, high to low, optionally filtered by bow type, distance,\norganization, region, and/or period. ランキングを本人に公開している人だけを載せる。",
         "operationId": "list_user_ranking_api_v1_statistics_ranking_get",
         "security": [
           {
@@ -4921,6 +4921,12 @@
             "type": "boolean",
             "title": "Is Admin"
           },
+          "profile_visibility": {
+            "$ref": "#/components/schemas/Visibility"
+          },
+          "ranking_visibility": {
+            "$ref": "#/components/schemas/Visibility"
+          },
           "age": {
             "anyOf": [
               {
@@ -4944,10 +4950,12 @@
           "id",
           "sub",
           "is_admin",
+          "profile_visibility",
+          "ranking_visibility",
           "age"
         ],
         "title": "MeRead",
-        "description": "本人の行。管理者かどうかは本人にだけ返し、他人の行(UserRead)には載せない。"
+        "description": "本人の行。管理者かどうか・公開範囲は本人にだけ返し、他人の行(UserRead)には載せない。"
       },
       "OrganizationCreate": {
         "properties": {
@@ -6011,6 +6019,26 @@
               }
             ],
             "title": "Region Id"
+          },
+          "profile_visibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Visibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ranking_visibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Visibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6048,6 +6076,16 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "Visibility": {
+        "type": "string",
+        "enum": [
+          "private",
+          "organization",
+          "public"
+        ],
+        "title": "Visibility",
+        "description": "プロフィール・ランキングを、本人のほかにだれへ見せるか。既定は private。"
       }
     },
     "securitySchemes": {

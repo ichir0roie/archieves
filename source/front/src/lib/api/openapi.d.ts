@@ -703,7 +703,7 @@ export interface paths {
          * List User Ranking
          * @description Users ranked by total score, average round score or average point
          *     score, high to low, optionally filtered by bow type, distance,
-         *     organization, region, and/or period.
+         *     organization, region, and/or period. ランキングを本人に公開している人だけを載せる。
          */
         get: operations["list_user_ranking_api_v1_statistics_ranking_get"];
         put?: never;
@@ -1085,7 +1085,7 @@ export interface components {
         ImportSource: "android_mytargets" | "archieves";
         /**
          * MeRead
-         * @description 本人の行。管理者かどうかは本人にだけ返し、他人の行(UserRead)には載せない。
+         * @description 本人の行。管理者かどうか・公開範囲は本人にだけ返し、他人の行(UserRead)には載せない。
          */
         MeRead: {
             /** Name */
@@ -1104,6 +1104,8 @@ export interface components {
             sub: string | null;
             /** Is Admin */
             is_admin: boolean;
+            profile_visibility: components["schemas"]["Visibility"];
+            ranking_visibility: components["schemas"]["Visibility"];
             /** Age */
             readonly age: number | null;
         };
@@ -1410,6 +1412,8 @@ export interface components {
             organization_id?: number | null;
             /** Region Id */
             region_id?: number | null;
+            profile_visibility?: components["schemas"]["Visibility"] | null;
+            ranking_visibility?: components["schemas"]["Visibility"] | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1420,6 +1424,12 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /**
+         * Visibility
+         * @description プロフィール・ランキングを、本人のほかにだれへ見せるか。既定は private。
+         * @enum {string}
+         */
+        Visibility: "private" | "organization" | "public";
     };
     responses: never;
     parameters: never;
@@ -1654,7 +1664,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserRead"];
+                    "application/json": components["schemas"]["MeRead"];
                 };
             };
             /** @description Validation Error */

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import ForbiddenError, NotFoundError
 from app.core.security import Claims, get_current_user
+from app.core.visibility import is_visible
 from app.crud import user as user_crud
 from app.db import User
 from app.db.session import get_session
@@ -17,6 +18,7 @@ __all__ = [
     "get_or_404",
     "get_own_or_404",
     "get_session",
+    "require_profile_visible",
     "require_self",
     "resolve_user_id",
 ]
@@ -57,6 +59,12 @@ def require_self(me: User, user_id: int) -> None:
     """行の持ち主 `user_id` が本人でなければ 403 にする。"""
     if user_id != me.id:
         raise ForbiddenError("Not allowed to access another user's data")
+
+
+def require_profile_visible(me: User, user: User) -> None:
+    """本人でなく、プロフィールを本人に公開していない利用者なら 403 にする。"""
+    if user.id != me.id and not is_visible(me, user, user.profile_visibility):
+        raise ForbiddenError("This profile is private")
 
 
 def resolve_user_id(me: User, user_id: int | None) -> int:

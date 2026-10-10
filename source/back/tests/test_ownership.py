@@ -111,20 +111,41 @@ def test_a_user_without_a_registered_row_is_not_found(
     assert unregistered_client.get("/api/v1/games").status_code == 404
 
 
-def test_statistics_can_be_read_for_another_user(client: TestClient, others: dict) -> None:
-    user_id = others["game"].user_id
+OTHER_USER_STATISTICS_PATHS = [
+    "/statistics/game-kinds",
+    "/statistics/rounds",
+    "/statistics/rounds/summary",
+    "/statistics/ends",
+    "/statistics/ends/summary",
+    "/statistics/points/summary",
+]
 
-    for path in [
-        "/statistics/rounds",
-        "/statistics/rounds/summary",
-        "/statistics/ends",
-        "/statistics/ends/summary",
-        "/statistics/points/summary",
-    ]:
-        response = client.get(f"/api/v1{path}?user_id={user_id}")
+
+def test_statistics_can_be_read_for_another_user_with_a_public_profile(
+    client: TestClient, others: dict
+) -> None:
+    owner = others["game"].user
+    owner.profile_visibility = "public"
+
+    for path in OTHER_USER_STATISTICS_PATHS:
+        response = client.get(f"/api/v1{path}?user_id={owner.id}")
         assert response.status_code == 200, path
 
     assert client.get("/api/v1/statistics/ranking").status_code == 200
+
+
+def test_statistics_of_another_user_with_a_private_profile_are_forbidden(
+    client: TestClient, others: dict
+) -> None:
+    user_id = others["game"].user_id
+
+    for path in OTHER_USER_STATISTICS_PATHS:
+        response = client.get(f"/api/v1{path}?user_id={user_id}")
+        assert response.status_code == 403, path
+
+
+def test_statistics_of_a_missing_user_are_not_found(client: TestClient) -> None:
+    assert client.get("/api/v1/statistics/rounds?user_id=999999999").status_code == 404
 
 
 def test_statistics_without_user_id_exclude_other_users(client: TestClient, others: dict) -> None:
@@ -137,10 +158,10 @@ def test_statistics_without_user_id_exclude_other_users(client: TestClient, othe
     assert summary.json()["count"] == 0
 
 
-def test_user_profile_and_organizations_can_be_read_by_anyone_signed_in(
+def test_public_profiles_and_organizations_can_be_read_by_anyone_signed_in(
     client: TestClient, factories
 ) -> None:
-    other = factories.UserFactory(sub="other-sub")
+    other = factories.UserFactory(sub="other-sub", profile_visibility="public")
     organization = factories.OrganizationFactory()
 
     assert client.get(f"/api/v1/users/{other.id}").status_code == 200

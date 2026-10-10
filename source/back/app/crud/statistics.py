@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.bow_types import BowType
 from app.core.scoring import scored_value_column
+from app.crud import user as user_crud
 from app.db import End, Game, Point, Round, User
 from app.schemas.statistics import (
     EndScoreSummary,
@@ -256,6 +257,7 @@ def game_kind_options(s: Session, *, user_id: int) -> GameKindOptions:
 def list_user_ranking(
     s: Session,
     *,
+    viewer: User,
     metric: RankingMetric = RankingMetric.TOTAL_SCORE,
     organization_id: int | None = None,
     region_id: int | None = None,
@@ -268,7 +270,8 @@ def list_user_ranking(
 ) -> list[UserRanking]:
     """期間・種目(弓の種類・距離)・組織・地域の中で、metric の値が高い順の利用者。
 
-    矢が一本も無いラウンドは、どの metric にも数えない。
+    ランキングを viewer に公開している利用者(全体公開か、同じ組織への公開)だけを載せる。
+    非公開なら viewer 本人も載らない。矢が一本も無いラウンドは、どの metric にも数えない。
     """
     round_scores = (
         select(
@@ -303,7 +306,10 @@ def list_user_ranking(
     stmt = (
         select(User, value, func.count(round_scores.c.round_id), arrow_count)
         .join(round_scores, round_scores.c.user_id == User.id)
-        .where(User.deleted_at.is_(None))
+        .where(
+            User.deleted_at.is_(None),
+            user_crud.visible_condition(viewer, User.ranking_visibility),
+        )
         .group_by(User.id)
         .order_by(value.desc(), User.id)
         .offset(skip)

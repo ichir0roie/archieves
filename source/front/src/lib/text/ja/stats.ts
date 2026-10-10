@@ -54,6 +54,7 @@ export const stats = {
     organization: t.affiliation,
     region: "地域ID",
     empty: "該当するデータがありません",
+    visibilityNote: `${t.ranking}を公開している人(全体公開か、同じ${t.affiliation}へのグループ公開)だけが載ります。`,
     period: "期間",
     periodOption: {
       month: "月間",

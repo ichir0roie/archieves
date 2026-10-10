@@ -23,9 +23,12 @@ def _check_organization_exists(s: Session, organization_id: int | None) -> None:
 
 @router.get("", response_model=list[UserRead])
 def list_users(
-    skip: int = 0, limit: int = 100, s: Session = Depends(deps.get_session)
+    skip: int = 0,
+    limit: int = 100,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> list[UserRead]:
-    return user_crud.list_users(s, skip=skip, limit=limit)
+    return user_crud.list_users(s, me, skip=skip, limit=limit)
 
 
 @router.post("", response_model=UserRead, status_code=201)
@@ -72,17 +75,23 @@ def get_my_user(
 
 
 @router.get("/{user_id}", response_model=UserRead)
-def get_user(user_id: int, s: Session = Depends(deps.get_session)) -> UserRead:
-    return deps.get_or_404(user_crud.get_user, s, user_id, detail="User not found")
+def get_user(
+    user_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
+) -> UserRead:
+    user = deps.get_or_404(user_crud.get_user, s, user_id, detail="User not found")
+    deps.require_profile_visible(me, user)
+    return user
 
 
-@router.patch("/{user_id}", response_model=UserRead)
+@router.patch("/{user_id}", response_model=MeRead)
 def update_user(
     user_id: int,
     user_in: UserUpdate,
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
-) -> UserRead:
+) -> MeRead:
     user = deps.get_or_404(user_crud.get_user, s, user_id, detail="User not found")
     deps.require_self(me, user.id)
     _check_organization_exists(s, user_in.organization_id)
@@ -92,8 +101,13 @@ def update_user(
 
 
 @router.get("/{sub}/profile", response_model=UserProfile)
-def get_user_profile(sub: str, s: Session = Depends(deps.get_session)) -> UserProfile:
+def get_user_profile(
+    sub: str,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
+) -> UserProfile:
     user = user_crud.get_user_by_sub(s, sub)
     if user is None:
         raise NotFoundError("User not found")
+    deps.require_profile_visible(me, user)
     return deps.get_or_404(profile_crud.get_user_profile, s, user.id, detail="User not found")

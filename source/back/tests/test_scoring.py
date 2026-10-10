@@ -93,7 +93,8 @@ def test_an_x_is_worth_ten_in_the_point_summary(client: TestClient) -> None:
     assert body["total"] == 28
 
 
-def test_an_x_is_worth_ten_in_the_ranking(client: TestClient) -> None:
+def test_an_x_is_worth_ten_in_the_ranking(client: TestClient, current_user) -> None:
+    current_user.ranking_visibility = "public"
     _end_of_scores(client, [X_SCORE] * 6)
 
     body = client.get("/api/v1/statistics/ranking").json()
