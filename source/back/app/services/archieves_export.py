@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.timezone import JST
 from app.crud.game import point_cm
-from app.db import End, Game, Match, Point, Round
+from app.db import End, Game, Point, Round
 from app.db.models.comment_model import EndComment, GameComment, RoundComment
 from app.services.legacy_import import ImportSummary
 
@@ -73,37 +73,6 @@ TABLES: tuple[Table, ...] = (
                 "弓の種類(recurve・compound・barebow など、または自由入力)。不明なら NULL",
             ),
         ),
-    ),
-    Table(
-        "matches",
-        "大会の情報。試合として行ったゲームにだけ付く(ゲーム 1 つに 0 か 1 行)。",
-        (
-            Column(
-                "id",
-                "INTEGER PRIMARY KEY",
-                "",
-                "このファイルの中だけで通じる id",
-            ),
-            Column(
-                "game_id",
-                "INTEGER NOT NULL UNIQUE",
-                "",
-                "games.id",
-            ),
-            Column(
-                "name",
-                "TEXT NOT NULL",
-                "",
-                "大会名",
-            ),
-            Column(
-                "link",
-                "TEXT",
-                "URL",
-                "結果などの関連リンク。無ければ NULL",
-            ),
-        ),
-        ("game_id", "games(id)"),
     ),
     Table(
         "rounds",
@@ -326,7 +295,6 @@ ABOUT = {
         "games 1—n rounds(rounds.game_id)、"
         "rounds 1—n ends(ends.round_id)、"
         "ends 1—n points(points.end_id)。"
-        "games 1—0..1 matches(matches.game_id)。"
         "game_comments・round_comments・end_comments は、"
         "それぞれ games・rounds・ends に 0..1 で付く。"
     ),
@@ -403,9 +371,6 @@ def export_sqlite(s: Session, user_id: int) -> bytes:
         "games": select(Game.id, Game.recorded_at, Game.game_size, Game.bow_type)
         .where(Game.id.in_(visible_games))
         .order_by(Game.id),
-        "matches": select(Match.id, Match.game_id, Match.name, Match.link)
-        .where(Match.game_id.in_(visible_games))
-        .order_by(Match.id),
         "rounds": select(
             Round.id,
             Round.game_id,
@@ -499,16 +464,7 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
             s.add_all(games.values())
             s.flush()
 
-            s.add_all(
-                Match(
-                    game_id=games[r["game_id"]].id,
-                    user_id=user_id,
-                    name=r["name"],
-                    link=r["link"],
-                )
-                for r in _read(conn, "matches")
-            )
-
+            # 大会の情報を持っていた頃のファイルには matches の表もあるが、機能を消したので読まない
             rounds: dict[int, Round] = {}
             for r in _read(conn, "rounds"):
                 rounds[r["id"]] = Round(

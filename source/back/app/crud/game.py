@@ -4,15 +4,12 @@ from sqlalchemy import Select, extract, select
 from sqlalchemy.orm import Session
 
 from app.core.target_types import resolve_target_size_cm
-from app.db import End, Game, Match, Point, Round
+from app.db import End, Game, Point, Round
 from app.schemas.game import (
     EndCreate,
     EndUpdate,
     GameCreate,
     GameUpdate,
-    MatchCreate,
-    MatchSummary,
-    MatchUpdate,
     PointCreate,
     PointUpdate,
     RoundCreate,
@@ -230,75 +227,6 @@ def update_end(s: Session, end: End, end_in: EndUpdate) -> End:
 def delete_end(s: Session, end: End) -> None:
     s.delete(end)
     s.flush()
-
-
-def _visible_matches() -> Select[tuple[Match]]:
-    return select(Match).join(Game, Game.id == Match.game_id).where(Game.deleted_at.is_(None))
-
-
-def get_match(s: Session, match_id: int) -> Match | None:
-    return s.scalar(_visible_matches().where(Match.id == match_id))
-
-
-def get_match_by_game(s: Session, game_id: int) -> Match | None:
-    return s.scalar(_visible_matches().where(Match.game_id == game_id))
-
-
-def create_match(s: Session, game: Game, match_in: MatchCreate) -> Match:
-    match = Match(game_id=game.id, user_id=game.user_id, **match_in.model_dump())
-    s.add(match)
-    s.flush()
-    return match
-
-
-def update_match(s: Session, match: Match, match_in: MatchUpdate) -> Match:
-    for field, value in match_in.model_dump(exclude_unset=True).items():
-        setattr(match, field, value)
-    s.flush()
-    return match
-
-
-def delete_match(s: Session, match: Match) -> None:
-    s.delete(match)
-    s.flush()
-
-
-def list_matches(
-    s: Session,
-    *,
-    user_id: int | None = None,
-    start: date | None = None,
-    end: date | None = None,
-    skip: int = 0,
-    limit: int = 100,
-) -> list[MatchSummary]:
-    """Matches joined with their game's date, most recent first."""
-    stmt = (
-        select(Match, Game.recorded_at)
-        .join(Game, Game.id == Match.game_id)
-        .where(Game.deleted_at.is_(None))
-        .order_by(Game.recorded_at.desc(), Match.id.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-    if user_id is not None:
-        stmt = stmt.where(Game.user_id == user_id)
-    if start is not None:
-        stmt = stmt.where(Game.recorded_at >= start)
-    if end is not None:
-        stmt = stmt.where(Game.recorded_at <= end)
-
-    return [
-        MatchSummary(
-            id=match.id,
-            game_id=match.game_id,
-            user_id=match.user_id,
-            name=match.name,
-            link=match.link,
-            recorded_at=recorded_at,
-        )
-        for match, recorded_at in s.execute(stmt)
-    ]
 
 
 def point_cm(round_: Round | None, x: float, y: float) -> tuple[float | None, float | None]:

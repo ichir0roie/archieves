@@ -1,7 +1,6 @@
 from datetime import date
 
 from app.schemas.base import ResponseModel
-from app.schemas.game import MatchSummary
 from app.schemas.statistics import ScoreStatistics
 from app.schemas.user import UserRead
 
@@ -15,4 +14,3 @@ class UserProfile(ResponseModel):
     rounds: ScoreStatistics
     ends: ScoreStatistics
     points: ScoreStatistics
-    matches: list[MatchSummary]

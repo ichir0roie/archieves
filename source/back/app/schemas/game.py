@@ -139,32 +139,3 @@ class PointRead(PointBase, ResponseModel):
     # null when the target size couldn't be resolved.
     x_cm: float | None = None
     y_cm: float | None = None
-
-
-class MatchBase(BaseModel):
-    name: str
-    link: str | None = None
-
-
-class MatchCreate(MatchBase):
-    pass
-
-
-class MatchUpdate(BaseModel):
-    name: str | None = None
-    link: str | None = None
-
-
-class MatchRead(MatchBase, ResponseModel):
-    id: int
-    game_id: int
-    user_id: int
-
-
-class MatchSummary(MatchBase, ResponseModel):
-    """A match joined with its game's date, for recent-activity displays."""
-
-    id: int
-    game_id: int
-    user_id: int
-    recorded_at: date

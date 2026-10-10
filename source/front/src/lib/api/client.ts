@@ -3,19 +3,18 @@ import { isMockAuth } from '../auth/config';
 import { toDateOnly } from '../toDateOnly';
 import { getT } from '../text';
 import type {
+  AnnouncementRead,
   BowType,
   EndCommentRead,
   EndRead,
   EndScoreSummary,
+  FeedbackCreate,
+  FeedbackRead,
   GameComments,
   GameCommentRead,
   GameRead,
   ImportResult,
   ImportSource,
-  MatchCreate,
-  MatchRead,
-  MatchSummary,
-  MatchUpdate,
   OrganizationCreate,
   OrganizationRead,
   OrganizationSummary,
@@ -165,7 +164,7 @@ export function updateUser(userId: number, user: UserUpdate): Promise<UserRead> 
   });
 }
 
-/** Public profile: basic info plus the user's activity (stats + matches) over the last year. */
+/** Public profile: basic info plus the user's activity (stats) over the last year. */
 export function getUserProfile(sub: string): Promise<UserProfile> {
   return request(`/users/${encodeURIComponent(sub)}/profile`);
 }
@@ -337,34 +336,6 @@ export function createPoint(endId: number, params: CreatePointParams): Promise<P
 
 export function deletePoint(pointId: number): Promise<void> {
   return request(`/points/${pointId}`, { method: 'DELETE' });
-}
-
-/** The match (competition) info attached to a game, if any. */
-export function getMatch(gameId: number): Promise<MatchRead> {
-  return request(`/games/${gameId}/match`);
-}
-
-export function createMatch(gameId: number, match: MatchCreate): Promise<MatchRead> {
-  return request(`/games/${gameId}/match`, {
-    method: 'POST',
-    body: JSON.stringify(match),
-  });
-}
-
-export function updateMatch(matchId: number, match: MatchUpdate): Promise<MatchRead> {
-  return request(`/matches/${matchId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(match),
-  });
-}
-
-export function deleteMatch(matchId: number): Promise<void> {
-  return request(`/matches/${matchId}`, { method: 'DELETE' });
-}
-
-/** Matches joined with their game's date, optionally filtered to a period and/or a user. */
-export function listMatches(params?: StatisticsQuery): Promise<MatchSummary[]> {
-  return request(`/matches${statisticsQueryString(params)}`);
 }
 
 /**
@@ -543,4 +514,21 @@ export function listUserRanking(params?: RankingQuery): Promise<UserRanking[]> {
   if (params?.regionId !== undefined) query.set('region_id', String(params.regionId));
   const qs = query.toString();
   return request(`/statistics/ranking${qs ? `?${qs}` : ''}`);
+}
+
+/** 自分が意見箱に送った内容と、その返信。新しい順。 */
+export function listFeedbacks(): Promise<FeedbackRead[]> {
+  return request('/feedbacks');
+}
+
+export function createFeedback(feedback: FeedbackCreate): Promise<FeedbackRead> {
+  return request('/feedbacks', {
+    method: 'POST',
+    body: JSON.stringify(feedback),
+  });
+}
+
+/** 直近のお知らせ(API が件数を絞る)。新しい順。 */
+export function listAnnouncements(): Promise<AnnouncementRead[]> {
+  return request('/announcements');
 }

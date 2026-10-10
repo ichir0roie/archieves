@@ -14,6 +14,7 @@ const DESTINATIONS = [
   { href: "/analysis", label: "analysis" },
   { href: "/profile/me", label: "profile" },
   { href: "/ranking", label: "ranking" },
+  { href: "/feedback", label: "feedback" },
   { href: "/settings", label: "settings" },
 ] as const;
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Announcements from "@/components/Announcements";
 import MonthDashboard from "@/components/MonthDashboard";
 import { getMyUser, type UserRead } from "@/lib/api";
 import { useT } from "@/lib/text";
@@ -61,6 +62,8 @@ export default function Page() {
         <h1>{T.appName}</h1>
         <p className="muted small">{currentUser ? T.home.welcome(currentUser.name) : T.home.tagline}</p>
       </div>
+
+      <Announcements />
 
       <MonthDashboard />
     </div>

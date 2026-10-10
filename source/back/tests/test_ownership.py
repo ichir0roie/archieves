@@ -8,16 +8,15 @@ RECORDED_AT = "2026-01-01"
 
 @pytest.fixture()
 def others(factories):
-    """他人が持つ、game から point までと match・各コメントの一式。"""
+    """他人が持つ、game から point までと各コメントの一式。"""
     point = factories.PointFactory()
     end = point.end
     round_ = end.round
     game = round_.game
-    match = factories.MatchFactory(game=game)
     factories.GameCommentFactory(game=game)
     factories.RoundCommentFactory(round=round_)
     factories.EndCommentFactory(end=end)
-    return {"game": game, "round": round_, "end": end, "point": point, "match": match}
+    return {"game": game, "round": round_, "end": end, "point": point}
 
 
 @pytest.mark.parametrize(
@@ -27,8 +26,6 @@ def others(factories):
         ("patch", "/games/{game}"),
         ("delete", "/games/{game}"),
         ("post", "/games/{game}/restore"),
-        ("get", "/games/{game}/match"),
-        ("post", "/games/{game}/match"),
         ("get", "/games/{game}/rounds"),
         ("post", "/games/{game}/rounds"),
         ("get", "/games/{game}/comments"),
@@ -80,14 +77,6 @@ def test_another_users_rows_are_forbidden(
     assert response.status_code == 403
 
 
-def test_matches_of_another_user_are_forbidden(client: TestClient, others: dict) -> None:
-    match_id = others["match"].id
-
-    assert client.get(f"/api/v1/matches/{match_id}").status_code == 403
-    assert client.patch(f"/api/v1/matches/{match_id}", json={}).status_code == 403
-    assert client.delete(f"/api/v1/matches/{match_id}").status_code == 403
-
-
 def test_cannot_create_a_game_for_another_user(client: TestClient, others: dict) -> None:
     response = client.post(
         "/api/v1/games",
@@ -112,7 +101,6 @@ def test_trash_of_another_user_is_forbidden(client: TestClient, others: dict) ->
 
     assert client.get(f"/api/v1/trash/games?user_id={user_id}").status_code == 403
     assert client.get(f"/api/v1/trash/rounds?user_id={user_id}").status_code == 403
-    assert client.get(f"/api/v1/matches?user_id={user_id}").status_code == 403
     assert client.get(f"/api/v1/games/years?user_id={user_id}").status_code == 403
 
 
@@ -158,3 +146,19 @@ def test_user_profile_and_organizations_can_be_read_by_anyone_signed_in(
     assert client.get("/api/v1/users/other-sub/profile").status_code == 200
     assert client.get("/api/v1/organizations").status_code == 200
     assert client.get(f"/api/v1/organizations/{organization.id}").status_code == 200
+
+
+def test_feedbacks_of_another_user_are_not_listed(
+    client: TestClient, current_user, factories
+) -> None:
+    factories.FeedbackFactory()
+    mine = factories.FeedbackFactory(user=current_user)
+
+    response = client.get("/api/v1/feedbacks")
+
+    assert response.status_code == 200
+    assert [f["id"] for f in response.json()] == [mine.id]
+
+
+def test_announcements_can_be_read_by_anyone_signed_in(client: TestClient) -> None:
+    assert client.get("/api/v1/announcements").status_code == 200

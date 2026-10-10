@@ -1,6 +1,6 @@
 import factory
 
-from app.db.models.game_model import End, Game, Match, Point, Round
+from app.db.models.game_model import End, Game, Point, Round
 from mods.factory_db.base_class import BaseFactory
 from mods.factory_db.models.system_model import UserFactory
 
@@ -48,13 +48,3 @@ class PointFactory(BaseFactory):
     x = factory.Faker("pyfloat", min_value=0, max_value=1)
     y = factory.Faker("pyfloat", min_value=0, max_value=1)
     recorded_at = factory.LazyAttribute(lambda o: o.end.recorded_at)
-
-
-class MatchFactory(BaseFactory):
-    class Meta:
-        model = Match
-
-    game = factory.SubFactory(GameFactory)
-    user_id = factory.LazyAttribute(lambda o: o.game.user_id)
-    name = factory.Sequence(lambda n: f"Match {n}")
-    link = factory.Faker("url")

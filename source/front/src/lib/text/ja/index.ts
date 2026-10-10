@@ -4,6 +4,7 @@ import { home } from "./home";
 import { profile } from "./profile";
 import { settings } from "./settings";
 import { stats } from "./stats";
+import { support } from "./support";
 
 export const texts = {
   ...common,
@@ -12,4 +13,5 @@ export const texts = {
   game,
   profile,
   settings,
+  support,
 };

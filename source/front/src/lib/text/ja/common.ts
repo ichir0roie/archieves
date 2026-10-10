@@ -40,6 +40,7 @@ export const common = {
     profile: t.profile,
     ranking: t.ranking,
     settings: t.settings,
+    feedback: t.feedback,
     signOut: "サインアウト",
   },
   options: {

@@ -10,7 +10,7 @@ export interface RecordedGame {
 
 /**
  * 1 エンドぶんを的のタッチで記録して終了し、archieves-api を読む画面
- * (スコア一覧・統計・ランキング・試合の登録)にこの利用者の記録を一つ作る。
+ * (スコア一覧・統計・ランキング)にこの利用者の記録を一つ作る。
  * 終わったゲームの id を score-view の URL から読んで返す。
  */
 export async function recordGame(

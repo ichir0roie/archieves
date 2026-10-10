@@ -1,9 +1,16 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 import { recordGame } from "./recordGame";
 
 // Needs archieves-api running (see .claude/docs/testing.md's "E2E"): every page
 // here reads the recorded game back through it.
+
+/** スコア一覧の、id の一致するゲームの枠。id は「Game ID 79」のように見出しと一つの文字列に並ぶ */
+function scoreLogCard(page: Page, gameId: string) {
+  return page.locator(".ScoreLogGame").filter({
+    has: page.locator(".log-game-id", { hasText: new RegExp(`\\s${gameId}$`) }),
+  });
+}
 
 test.beforeEach(async ({ page }) => {
   await ensureRegistered(page);
@@ -15,9 +22,7 @@ test("the score log lists a game that was just recorded", async ({ page }) => {
   await page.goto("/score-log");
   await expect(page.locator("header")).toContainText("スコア");
 
-  const card = page.locator(".ScoreLogGame", { hasText: `Game ID` }).filter({
-    has: page.getByText(game.id, { exact: true }),
-  });
+  const card = scoreLogCard(page, game.id);
   await expect(card.first()).toBeVisible();
 });
 
@@ -25,25 +30,19 @@ test("a score log card opens that game's score sheet", async ({ page }) => {
   const game = await recordGame(page);
 
   await page.goto("/score-log");
-  const card = page
-    .locator(".ScoreLogGame")
-    .filter({ has: page.getByText(game.id, { exact: true }) })
-    .first();
+  const card = scoreLogCard(page, game.id).first();
   await expect(card).toBeVisible();
   await card.click();
 
   await expect(page).toHaveURL(new RegExp(`gameId=${game.id}`));
-  await expect(page.getByText("ラウンド：1")).toBeVisible();
+  await expect(page.getByText("ラウンド 1", { exact: true })).toBeVisible();
 });
 
 test("スコアは月の見出しで閉じられ、開閉は再読み込みしても残る", async ({ page }) => {
   const game = await recordGame(page);
 
   await page.goto("/score-log");
-  const card = page
-    .locator(".ScoreLogGame")
-    .filter({ has: page.getByText(game.id, { exact: true }) })
-    .first();
+  const card = scoreLogCard(page, game.id).first();
   await expect(card).toBeVisible();
 
   await page.getByRole("button", { name: "全部閉じる" }).click();

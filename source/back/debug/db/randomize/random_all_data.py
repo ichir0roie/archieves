@@ -7,7 +7,6 @@ from mods.factory_db import (
     EndFactory,
     FactorySession,
     GameFactory,
-    MatchFactory,
     OrganizationFactory,
     PointFactory,
     RoundFactory,
@@ -17,7 +16,6 @@ from mods.factory_db import (
 ORGANIZATION_COUNT = 3
 USER_COUNT = 10
 GAME_COUNT = 30
-MATCH_COUNT = 10
 ROUND_COUNT = 100
 ENDS_PER_ROUND = 6
 POINTS_PER_END = 6
@@ -54,12 +52,6 @@ def _create_games(users: list) -> list:
     ]
     FactorySession.commit()
     return games
-
-
-def _create_matches(games: list) -> None:
-    for game in random.sample(games, MATCH_COUNT):
-        MatchFactory.create(game=game)
-    FactorySession.commit()
 
 
 def _create_rounds(games: list) -> list:
@@ -110,7 +102,6 @@ def randomize_all_data() -> None:
     organizations = _create_organizations()
     users = _create_users(organizations)
     games = _create_games(users)
-    _create_matches(games)
     rounds = _create_rounds(games)
     ends = _create_ends(rounds)
     _create_points(ends)
