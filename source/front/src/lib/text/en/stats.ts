@@ -54,6 +54,7 @@ export const stats: typeof ja = {
     organization: t.affiliation,
     region: "Region ID",
     empty: "No data found",
+    visibilityNote: "Only people who share their ranking (with everyone, or with your group) are listed.",
     period: "Period",
     periodOption: {
       month: "Monthly",

@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
-import { recordGame } from "./recordGame";
 
 // Needs archieves-api running (see .claude/docs/testing.md's "E2E").
+// 自分がランキングに載るかは公開範囲の保存が要るので、profile-settings.spec.ts で確かめる
 
 test.beforeEach(async ({ page }) => {
   await ensureRegistered(page);
@@ -58,14 +58,4 @@ test("each axis of the ranking is sent to the API", async ({ page }) => {
   await page.getByRole("button", { name: "70m", exact: true }).click();
   url = new URL((await request).url());
   expect(url.searchParams.get("distance_m")).toBe("70");
-});
-
-test("a game recorded with a bow type shows up under that bow", async ({ page }) => {
-  await recordGame(page, { bowType: "コンパウンド" });
-
-  await page.goto("/ranking");
-  await page.getByRole("group", { name: "弓の種類" }).getByRole("button", { name: "コンパウンド" }).click();
-  await expect(page.getByText("読み込み中...")).toHaveCount(0);
-  await expect(page.getByText("該当するデータがありません")).toHaveCount(0);
-  await expect(page.locator(".RankingList .big").first()).toContainText("点");
 });
