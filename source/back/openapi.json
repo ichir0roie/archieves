@@ -333,7 +333,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserRead"
+                  "$ref": "#/components/schemas/MeRead"
                 }
               }
             }
@@ -906,6 +906,101 @@
                     "$ref": "#/components/schemas/GameScoreSummary"
                   },
                   "title": "Response List Game Scores Api V1 Games Scores Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/sheet": {
+      "put": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Save Game Sheet",
+        "description": "入力の画面が手元に溜めたゲームの記録を、一度に保存する。\n\nid の無いゲームは作り(同じ client_key のゲームがあればそれを上書きする)、\nあるゲームは送られた中身で丸ごと上書きする。",
+        "operationId": "save_game_sheet_api_v1_games_sheet_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameSheetWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameSheetRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/games/{game_id}/sheet": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Get Game Sheet",
+        "description": "ゲームの記録(ラウンド・エンド・矢・コメント)を丸ごと。入力の画面で編集を始めるときに読む。",
+        "operationId": "get_game_sheet_api_v1_games__game_id__sheet_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameSheetRead"
                 }
               }
             }
@@ -3664,7 +3759,7 @@
           "statistics"
         ],
         "summary": "List User Ranking",
-        "description": "Users ranked by total score, average round score or average point\nscore, high to low, optionally filtered by bow type, distance,\norganization, region, and/or period.",
+        "description": "Users ranked by total score, average round score or average point\nscore, high to low, optionally filtered by bow type, distance,\norganization, region, and/or period. ランキングを本人に公開している人だけを載せる。",
         "operationId": "list_user_ranking_api_v1_statistics_ranking_get",
         "security": [
           {
@@ -4333,6 +4428,102 @@
         ],
         "title": "EndScoreSummary"
       },
+      "EndSheetRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Recorded At"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/PointRead"
+            },
+            "type": "array",
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "recorded_at",
+          "comment",
+          "points"
+        ],
+        "title": "EndSheetRead"
+      },
+      "EndSheetWrite": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Number"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Recorded At"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/PointSheetWrite"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "title": "Points",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "recorded_at"
+        ],
+        "title": "EndSheetWrite"
+      },
       "EndUpdate": {
         "properties": {
           "number": {
@@ -4747,6 +4938,171 @@
         "title": "GameScoreSummary",
         "description": "スコア一覧の一行に出す、ゲームの点数の集計。矢のないゲームは平均が None。"
       },
+      "GameSheetRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "client_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Key"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Recorded At"
+          },
+          "game_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Size"
+          },
+          "bow_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bow Type"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "rounds": {
+            "items": {
+              "$ref": "#/components/schemas/RoundSheetRead"
+            },
+            "type": "array",
+            "title": "Rounds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "client_key",
+          "user_id",
+          "recorded_at",
+          "game_size",
+          "bow_type",
+          "comment",
+          "rounds"
+        ],
+        "title": "GameSheetRead"
+      },
+      "GameSheetWrite": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "client_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Key"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Recorded At"
+          },
+          "game_size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Size"
+          },
+          "bow_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bow Type"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "rounds": {
+            "items": {
+              "$ref": "#/components/schemas/RoundSheetWrite"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "title": "Rounds",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "recorded_at"
+        ],
+        "title": "GameSheetWrite"
+      },
       "GameUpdate": {
         "properties": {
           "user_id": {
@@ -4921,6 +5277,12 @@
             "type": "boolean",
             "title": "Is Admin"
           },
+          "profile_visibility": {
+            "$ref": "#/components/schemas/Visibility"
+          },
+          "ranking_visibility": {
+            "$ref": "#/components/schemas/Visibility"
+          },
           "age": {
             "anyOf": [
               {
@@ -4944,10 +5306,12 @@
           "id",
           "sub",
           "is_admin",
+          "profile_visibility",
+          "ranking_visibility",
           "age"
         ],
         "title": "MeRead",
-        "description": "本人の行。管理者かどうかは本人にだけ返し、他人の行(UserRead)には載せない。"
+        "description": "本人の行。管理者かどうか・公開範囲は本人にだけ返し、他人の行(UserRead)には載せない。"
       },
       "OrganizationCreate": {
         "properties": {
@@ -5153,6 +5517,18 @@
             "type": "string",
             "format": "date",
             "title": "Recorded At"
+          },
+          "shot_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot At"
           }
         },
         "type": "object",
@@ -5187,6 +5563,18 @@
             "type": "string",
             "format": "date",
             "title": "Recorded At"
+          },
+          "shot_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot At"
           },
           "id": {
             "type": "integer",
@@ -5230,6 +5618,7 @@
           "x",
           "y",
           "recorded_at",
+          "shot_at",
           "id",
           "end_id",
           "user_id",
@@ -5237,6 +5626,70 @@
           "y_cm"
         ],
         "title": "PointRead"
+      },
+      "PointSheetWrite": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Number"
+          },
+          "score": {
+            "type": "integer",
+            "maximum": 11.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "x": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Y"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Recorded At"
+          },
+          "shot_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "score",
+          "x",
+          "y",
+          "recorded_at"
+        ],
+        "title": "PointSheetWrite"
       },
       "PointUpdate": {
         "properties": {
@@ -5302,6 +5755,18 @@
               }
             ],
             "title": "Recorded At"
+          },
+          "shot_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot At"
           }
         },
         "type": "object",
@@ -5523,6 +5988,163 @@
           "average_score"
         ],
         "title": "RoundScoreSummary"
+      },
+      "RoundSheetRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Recorded At"
+          },
+          "end_size": {
+            "type": "integer",
+            "title": "End Size"
+          },
+          "round_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Size"
+          },
+          "distance_m": {
+            "type": "integer",
+            "title": "Distance M"
+          },
+          "target_type": {
+            "type": "string",
+            "title": "Target Type"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "ends": {
+            "items": {
+              "$ref": "#/components/schemas/EndSheetRead"
+            },
+            "type": "array",
+            "title": "Ends"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "recorded_at",
+          "end_size",
+          "round_size",
+          "distance_m",
+          "target_type",
+          "comment",
+          "ends"
+        ],
+        "title": "RoundSheetRead"
+      },
+      "RoundSheetWrite": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Number"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Recorded At"
+          },
+          "end_size": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "End Size"
+          },
+          "round_size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Size"
+          },
+          "distance_m": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Distance M"
+          },
+          "target_type": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Target Type"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "ends": {
+            "items": {
+              "$ref": "#/components/schemas/EndSheetWrite"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "title": "Ends",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "recorded_at",
+          "end_size",
+          "distance_m",
+          "target_type"
+        ],
+        "title": "RoundSheetWrite"
       },
       "RoundUpdate": {
         "properties": {
@@ -6011,6 +6633,26 @@
               }
             ],
             "title": "Region Id"
+          },
+          "profile_visibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Visibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ranking_visibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Visibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6048,6 +6690,16 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "Visibility": {
+        "type": "string",
+        "enum": [
+          "private",
+          "organization",
+          "public"
+        ],
+        "title": "Visibility",
+        "description": "プロフィール・ランキングを、本人のほかにだれへ見せるか。既定は private。"
       }
     },
     "securitySchemes": {

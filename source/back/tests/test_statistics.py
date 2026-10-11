@@ -132,7 +132,8 @@ def test_round_score_summary_filters_by_user(client: TestClient) -> None:
     game_a = _create_game(client, user_id=None)
     _build_round(client, game_a["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10])
 
-    res = client.get("/api/v1/statistics/rounds/summary", params={"user_id": 42})
+    other = factory_db.UserFactory(profile_visibility="public")
+    res = client.get("/api/v1/statistics/rounds/summary", params={"user_id": other.id})
     assert res.status_code == 200
     assert res.json()["count"] == 0
 
@@ -187,7 +188,13 @@ def _create_user(
     organization_id: int | None = None,
     region_id: int | None = None,
 ) -> dict:
-    user = factory_db.UserFactory(name=name, organization_id=organization_id, region_id=region_id)
+    # ランキングの絞り込み・並びを確かめるので、公開範囲で落ちないよう全体公開にする
+    user = factory_db.UserFactory(
+        name=name,
+        organization_id=organization_id,
+        region_id=region_id,
+        ranking_visibility="public",
+    )
     return {"id": user.id}
 
 
@@ -572,3 +579,66 @@ def test_game_kind_options_list_own_values_only(client: TestClient, factories) -
         "round_sizes": [6, 10],
         "game_sizes": [2],
     }
+
+
+def _ranked_names(client: TestClient) -> list[str]:
+    return [row["user"]["name"] for row in _ranking(client)]
+
+
+def _user_with_a_round(
+    client: TestClient,
+    name: str,
+    *,
+    ranking_visibility: str,
+    organization_id: int | None = None,
+) -> None:
+    user = factory_db.UserFactory(
+        name=name, organization_id=organization_id, ranking_visibility=ranking_visibility
+    )
+    game = _create_game(client, user_id=user.id)
+    _build_round(client, game["id"], recorded_at=GAME_RECORDED_AT, scores=[5])
+
+
+def test_ranking_lists_public_users_and_same_organization_users_only(
+    client: TestClient, current_user, factories
+) -> None:
+    organization = factories.OrganizationFactory()
+    current_user.organization_id = organization.id
+    _user_with_a_round(client, "public", ranking_visibility="public")
+    _user_with_a_round(
+        client,
+        "same_organization", ranking_visibility="organization", organization_id=organization.id
+    )
+    _user_with_a_round(
+        client,
+        "other_organization",
+        ranking_visibility="organization",
+        organization_id=factories.OrganizationFactory().id,
+    )
+    _user_with_a_round(client, "no_organization", ranking_visibility="organization")
+    _user_with_a_round(
+        client,
+        "private_same_organization", ranking_visibility="private", organization_id=organization.id
+    )
+
+    assert sorted(_ranked_names(client)) == ["public", "same_organization"]
+
+
+def test_ranking_hides_organization_rankings_from_a_viewer_without_an_organization(
+    client: TestClient,
+) -> None:
+    _user_with_a_round(client, "no_organization", ranking_visibility="organization")
+
+    assert _ranked_names(client) == []
+
+
+def test_ranking_follows_the_viewers_own_visibility_too(
+    client: TestClient, current_user, s: Session
+) -> None:
+    # 非公開なら、本人のランキングにも本人を載せない(載っていると他人にも見えると読めてしまう)
+    _build_round(client, _create_game(client)["id"], recorded_at=GAME_RECORDED_AT, scores=[10])
+    assert _ranked_names(client) == []
+
+    current_user.ranking_visibility = "public"
+    s.commit()
+    assert _ranked_names(client) == [current_user.name]

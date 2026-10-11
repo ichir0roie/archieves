@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -121,6 +121,8 @@ class PointBase(BaseModel):
     x: float
     y: float
     recorded_at: date
+    # 矢を記録した時刻(入力の画面で付ける)。無い記録は null
+    shot_at: datetime | None = None
 
 
 class PointCreate(PointBase):
@@ -138,6 +140,7 @@ class PointUpdate(BaseModel):
     x: float | None = Field(default=None, ge=0, le=1)
     y: float | None = Field(default=None, ge=0, le=1)
     recorded_at: date | None = None
+    shot_at: datetime | None = None
 
 
 class PointRead(PointBase, ResponseModel):

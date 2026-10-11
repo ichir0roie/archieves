@@ -24,10 +24,9 @@ import {
   integerRange,
   type RoundSetup,
 } from "@/lib/score/scoreConfig";
+import { ScoreManager } from "@/lib/score/scoreManager";
 import {
-  clearGameId,
   loadRoundSetup,
-  markNewGameStart,
   saveRoundSetup,
 } from "@/lib/storage";
 import { useT } from "@/lib/text";
@@ -154,6 +153,8 @@ export default function Page() {
   }
 
   function start() {
+    // 入力の途中のゲームの、保存していない記録はキャッシュにしか無い。始めると捨てるので確かめる
+    if (ScoreManager.hasUnsavedCache() && !window.confirm(T.game.setup.discardUnsaved)) return;
     const setup: RoundSetup = {
       bowType,
       distanceM: distance,
@@ -163,9 +164,8 @@ export default function Page() {
       gameSize,
     };
     saveRoundSetup(setup);
-    // この画面からは必ず新しいゲームを始める。「続きから」はこの画面を通らない
-    clearGameId();
-    markNewGameStart();
+    // この画面からは必ず新しいゲームを始める(手元のキャッシュを作り直す)。続きはこの画面を通らない
+    ScoreManager.startNewGame(setup);
     router.push("/game/score-card");
   }
 

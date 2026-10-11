@@ -59,6 +59,24 @@ def get_game_any(s: Session, game_id: int) -> Game | None:
     return s.get(Game, game_id)
 
 
+def get_game_by_client_key(s: Session, user_id: int, client_key: str) -> Game | None:
+    """入力の画面が付けたキーのゲーム。消したゲームも返す(同じキーで作り直すと一意の制約に当たるため)。"""
+    return s.scalar(select(Game).where(Game.user_id == user_id, Game.client_key == client_key))
+
+
+def list_all_rounds_for_game(s: Session, game_id: int) -> list[Round]:
+    """ゲームの見えるラウンドを全部(list_rounds_for_game と違い、件数で切らない)。"""
+    return list(s.scalars(_visible_rounds().where(Round.game_id == game_id).order_by(Round.id)))
+
+
+def list_all_ends_for_round(s: Session, round_id: int) -> list[End]:
+    return list(s.scalars(_visible_ends().where(End.round_id == round_id).order_by(End.id)))
+
+
+def list_all_points_for_end(s: Session, end_id: int) -> list[Point]:
+    return list(s.scalars(_visible_points().where(Point.end_id == end_id).order_by(Point.id)))
+
+
 def list_games(
     s: Session,
     skip: int = 0,

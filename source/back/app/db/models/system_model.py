@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import BigInteger, Boolean, Date, ForeignKey, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.visibility import VISIBILITY_MAX_LENGTH, Visibility
 from app.db.base_class import Base, TimestampMixin
 
 if TYPE_CHECKING:
@@ -66,6 +67,18 @@ class User(TimestampMixin, Base):
     # 管理者は画面から付け外しせず、db の行を直に書き換えて決める。
     # 直に INSERT しても埋まるよう、既定は db の側にも置く
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+
+    # 本人のほかにだれへ見せるか(app/core/visibility.py)。既定は非公開
+    profile_visibility: Mapped[str] = mapped_column(
+        String(VISIBILITY_MAX_LENGTH),
+        default=Visibility.PRIVATE,
+        server_default=Visibility.PRIVATE.value,
+    )
+    ranking_visibility: Mapped[str] = mapped_column(
+        String(VISIBILITY_MAX_LENGTH),
+        default=Visibility.PRIVATE,
+        server_default=Visibility.PRIVATE.value,
+    )
 
     organization: Mapped[Organization | None] = relationship(
         back_populates="users", lazy="noload"

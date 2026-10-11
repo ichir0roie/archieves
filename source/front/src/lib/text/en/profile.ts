@@ -9,11 +9,20 @@ export const profile: typeof ja = {
     birthDate: "Date of birth",
     age: (age: number) => `Age ${age}`,
     organization: t.affiliation,
+    profileVisibility: "Who can see your profile",
+    rankingVisibility: "Who can see you in the ranking",
+    visibility: {
+      private: "Only me",
+      organization: "My group",
+      public: "Everyone",
+    } as Record<string, string>,
+    visibilityHint: `"My group" shows it only to people with the same ${t.affiliation.toLowerCase()} (same as "Only me" if you have none). With "Only me" you are not listed in the ranking, even for yourself.`,
   },
   view: {
     title: t.profile,
     nickname: (nickname: string) => `(${nickname})`,
     period: (start: string, end: string) => `Statistics for the past year (${start} – ${end})`,
+    private: "This profile is not public",
   },
   organization: {
     title: "Organization info",
@@ -52,6 +61,7 @@ export const profile: typeof ja = {
     roundTitle: t.roundN,
     endTitle: t.endN,
     edit: "Edit (back to entry screen)",
+    discardUnsaved: "You have unsaved scores. Discard them and edit this game?",
     gameTotal: t.totalPoints,
     countX: "X",
     countTen: "10",

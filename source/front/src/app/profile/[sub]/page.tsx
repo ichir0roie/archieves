@@ -8,6 +8,7 @@ import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import StatSummaryCard from "@/components/StatSummaryCard";
 import {
+  ApiError,
   OrganizationRead,
   UserProfile,
   getOrganization,
@@ -32,6 +33,8 @@ export default function Page() {
   const [organization, setOrganization] = useState<OrganizationRead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ErrorDetails | null>(null);
+  // 本人に公開されていないプロフィールは API が 403 を返す。壊れたのではないので、エラーにせず知らせる
+  const [isPrivate, setIsPrivate] = useState(false);
 
   useEffect(() => {
     if (!sub) return;
@@ -40,6 +43,7 @@ export default function Page() {
     async function load() {
       setLoading(true);
       setError(null);
+      setIsPrivate(false);
       try {
         const data = await getUserProfile(sub);
         if (cancelled) return;
@@ -51,7 +55,9 @@ export default function Page() {
           setOrganization(null);
         }
       } catch (e) {
-        if (!cancelled) setError(toErrorDetails(e));
+        if (cancelled) return;
+        if (e instanceof ApiError && e.status === 403) setIsPrivate(true);
+        else setError(toErrorDetails(e));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -69,6 +75,8 @@ export default function Page() {
       {error && <ApiErrorAlert error={error} />}
 
       {loading && <p className="status empty">{T.loading}</p>}
+
+      {!loading && isPrivate && <p className="ProfilePrivate status empty">{T.profile.view.private}</p>}
 
       {!loading && profile && (
         <>

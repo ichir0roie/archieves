@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -72,7 +73,7 @@ def test_get_missing_user_profile_returns_404(unregistered_client: TestClient) -
 
 def test_get_other_users_profile_is_viewable(client: TestClient, s: Session) -> None:
     _create_user(client)
-    other = User(sub="someone-elses-sub", name="Kenta")
+    other = User(sub="someone-elses-sub", name="Kenta", profile_visibility="public")
     s.add(other)
     s.commit()
 
@@ -104,3 +105,47 @@ def test_user_profile_only_counts_last_year_activity(client: TestClient) -> None
 
 def test_profile_of_a_user_id_that_does_not_exist_is_none(s: Session) -> None:
     assert profile_crud.get_user_profile(s, 999) is None
+
+
+@pytest.mark.parametrize(
+    ("visibility", "same_organization", "status"),
+    [
+        ("private", True, 403),
+        ("organization", True, 200),
+        ("organization", False, 403),
+        ("public", False, 200),
+    ],
+)
+def test_other_users_profile_follows_its_visibility(
+    client: TestClient,
+    current_user,
+    factories,
+    visibility: str,
+    same_organization: bool,
+    status: int,
+) -> None:
+    organization = factories.OrganizationFactory()
+    current_user.organization_id = organization.id
+    other_organization = organization if same_organization else factories.OrganizationFactory()
+    factories.UserFactory(
+        sub="other-sub",
+        profile_visibility=visibility,
+        organization_id=other_organization.id,
+    )
+
+    assert client.get("/api/v1/users/other-sub/profile").status_code == status
+
+
+def test_organization_visibility_needs_an_organization_on_both_sides(
+    client: TestClient, factories
+) -> None:
+    # 組織に入っていない利用者どうしは、組織公開でも見えない
+    factories.UserFactory(sub="other-sub", profile_visibility="organization")
+
+    assert client.get("/api/v1/users/other-sub/profile").status_code == 403
+
+
+def test_own_private_profile_is_viewable(client: TestClient, current_user) -> None:
+    assert current_user.profile_visibility == "private"
+
+    assert client.get(f"/api/v1/users/{current_user.sub}/profile").status_code == 200

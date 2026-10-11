@@ -2,22 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ScoreManager,
-  type ScoreProgress,
-} from "@/lib/score/scoreManager";
-import { toErrorDetails, type ErrorDetails, type PointRead } from "@/lib/api";
-import { type RoundSetup } from "@/lib/score/scoreConfig";
+import { ScoreManager, type ScoreProgress } from "@/lib/score/scoreManager";
+import { type SheetPoint } from "@/lib/score/scoreSheetCache";
+import { toErrorDetails, type ErrorDetails } from "@/lib/api";
 import { type CommentTarget } from "@/lib/comment";
-import {
-  clearGameId,
-  clearNewGameStart,
-  hasNewGameStart,
-  loadGameId,
-  loadRoundSetup,
-} from "@/lib/storage";
-import { getCurrentAppUser } from "@/lib/auth/currentUser";
-import { useRunOnce } from "@/lib/useRunOnce";
 
 /** The notes shown on the entry screen: the game's, and the round/end in progress. */
 export interface ScoreComments {
@@ -26,42 +14,25 @@ export interface ScoreComments {
   end: string | null;
 }
 
-let setupInFlight: Promise<ScoreManager> | null = null;
-
-function setupOrResumeGame(
-  userId: number,
-  setup: RoundSetup | null
-): Promise<ScoreManager> {
-  if (setupInFlight === null) {
-    setupInFlight = (async () => {
-      const scoreManager = new ScoreManager(loadGameId(), userId, setup);
-      await scoreManager.setupGame();
-      return scoreManager;
-    })().finally(() => {
-      setupInFlight = null;
-    });
-  }
-  return setupInFlight;
-}
-
 /**
- * 点数の入力の画面の、ゲーム・ラウンド・エンド・矢の流れ。新しいゲームは設定の画面で選んだ
- * 距離・的・矢数・エンド数・ラウンド数(loadRoundSetup)を使い、続きのゲームはラウンドが持つ値を使う。
+ * 点数の入力の画面の、ゲーム・ラウンド・エンド・矢の流れ。記録は手元のキャッシュにだけ書き
+ * (ScoreManager)、API には保存・終了のときに一度に送る。キャッシュが無ければ(ゲームを始めずに
+ * 開いた)ホームへ戻す。
  */
 export function useScoreGame() {
   const router = useRouter();
   const [manager, setManager] = useState<ScoreManager | null>(null);
-  const [mirrorPoints, setMirrorPoints] = useState<Array<PointRead>>([]);
+  const [mirrorPoints, setMirrorPoints] = useState<Array<SheetPoint>>([]);
   const [progress, setProgress] = useState<ScoreProgress | null>(null);
   const [comments, setComments] = useState<ScoreComments>({
     game: null,
     round: null,
     end: null,
   });
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [error, setError] = useState<ErrorDetails | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isSettingUp, setIsSettingUp] = useState(false);
-  // isSaving は画面用。閉じ込められた古い値を見て二つ目の操作が通ることがあるので、
+  // isSaving は画面用。閉じ込められた古い値を見て二つ目の保存が通ることがあるので、
   // 重なりの防止はこちらで判定する
   const inFlight = useRef(false);
 
@@ -74,56 +45,30 @@ export function useScoreGame() {
       round: scoreManager.roundComment,
       end: scoreManager.endComment,
     });
+    setHasUnsavedChanges(scoreManager.hasUnsavedChanges);
   }
 
-  async function setupGame() {
-    // Only /game/setup is allowed to start a brand-new game. Landing here
-    // any other way (browser back, a stale tab, a direct link) with no
-    // game already in progress must not silently create one.
-    if (!loadGameId() && !hasNewGameStart()) {
+  useEffect(() => {
+    const scoreManager = ScoreManager.resume();
+    if (!scoreManager) {
       router.replace("/");
       return;
     }
+    setManager(scoreManager);
+    syncFrom(scoreManager);
+    // 開いたときに一度だけキャッシュから読む
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    setError(null);
-    setIsSettingUp(true);
-    try {
-      const { id: userId } = await getCurrentAppUser();
-      const scoreManager = await setupOrResumeGame(userId, loadRoundSetup());
-      // エンドを動かしたあとの書き込みは裏で流れるので、失敗はここで画面に出す
-      scoreManager.onBackgroundError = (e) => setError(toErrorDetails(e));
-      setManager(scoreManager);
-      syncFrom(scoreManager);
-    } catch (e) {
-      setError(toErrorDetails(e));
-    } finally {
-      setIsSettingUp(false);
-    }
+  /** 手元だけで済む操作。保存の途中は記録を変えない(応答の id を同じ位置に当てるため) */
+  function act(action: (scoreManager: ScoreManager) => void) {
+    if (!manager || inFlight.current) return;
+    action(manager);
+    syncFrom(manager);
   }
 
-  // 書き込みが済む前にタブを閉じる・読み込み直すと、まだ API に届いていない矢が失われる
-  useEffect(() => {
-    if (!manager) return;
-    function confirmLeave(event: BeforeUnloadEvent) {
-      if (!manager?.hasUnsavedWrites) return;
-      event.preventDefault();
-    }
-    window.addEventListener("beforeunload", confirmLeave);
-    return () => window.removeEventListener("beforeunload", confirmLeave);
-  }, [manager]);
-
-  const { runOnMount, run: retrySetupGame } = useRunOnce(setupGame);
-
-  useEffect(() => {
-    runOnMount();
-  }, [runOnMount]);
-
-  // ボタンの onClick はこの async 関数を待たないので、失敗はここで受けてエラーの表示にする。
-  // ScoreManager は API が成功した所までしか状態を変えないので、失敗しても今の中身を写せば
-  // 画面と db は食い違わない
-  async function run(action: (scoreManager: ScoreManager) => Promise<void>): Promise<boolean> {
+  async function sendToApi(action: (scoreManager: ScoreManager) => Promise<void>): Promise<boolean> {
     if (!manager || inFlight.current) return false;
-
     inFlight.current = true;
     setIsSaving(true);
     try {
@@ -140,58 +85,45 @@ export function useScoreGame() {
     }
   }
 
-  async function next(point: number, x: number = 0, y: number = 0) {
-    await run(async (scoreManager) => {
-      await scoreManager.addPoint(point, x, y);
-    });
+  function next(point: number, x: number = 0, y: number = 0) {
+    act((scoreManager) => scoreManager.addPoint(point, x, y));
   }
 
-  async function backPoint() {
-    await run(async (scoreManager) => {
-      await scoreManager.removePoint();
-    });
+  function backPoint() {
+    act((scoreManager) => scoreManager.removePoint());
   }
 
-  async function forwardPoint() {
-    await run(async (scoreManager) => {
-      await scoreManager.restorePoint();
-    });
+  function forwardPoint() {
+    act((scoreManager) => scoreManager.restorePoint());
   }
 
-  async function backEnd() {
-    await run(async (scoreManager) => {
-      await scoreManager.goBackEnd();
-    });
+  function backEnd() {
+    act((scoreManager) => scoreManager.goBackEnd());
   }
 
-  async function forwardEnd() {
-    await run(async (scoreManager) => {
-      await scoreManager.goForwardEnd();
-    });
+  function forwardEnd() {
+    act((scoreManager) => scoreManager.goForwardEnd());
   }
 
-  // 矢と違ってモーダルから呼ばれ、書けたかどうかを知る必要がある。失敗したら入力した文字を
-  // 画面に残すため、例外にして返す
+  // CommentBar のモーダルは書けたかを待つので、Promise で返す。手元に書くだけなので失敗しない
   async function saveComment(target: CommentTarget, body: string) {
-    const saved = await run(async (scoreManager) => {
-      await scoreManager.saveComment(target, body);
-    });
-    if (!saved) throw new Error("コメントを保存できませんでした。");
+    act((scoreManager) => scoreManager.saveComment(target, body));
   }
 
-  // run() を通すことで、前の書き込みが途中・失敗のまま /score-view へ移って、入れたはずの矢が
-  // 無いスコア表を見せることを防ぐ
+  async function save() {
+    await sendToApi((scoreManager) => scoreManager.save());
+  }
+
+  // 保存が失敗したら画面に残る(キャッシュも残るので、もう一度押せる)
   async function finish() {
-    await run(async (scoreManager) => {
-      const hasScores = await scoreManager.discardEmptyTail();
-      clearGameId();
-      clearNewGameStart();
-      if (!hasScores || !scoreManager.gameId) {
+    await sendToApi(async (scoreManager) => {
+      const gameId = await scoreManager.finish();
+      if (gameId === null) {
         router.replace("/");
         return;
       }
       const params = new URLSearchParams();
-      params.set("gameId", scoreManager.gameId);
+      params.set("gameId", String(gameId));
       router.push(`/score-view/?${params.toString()}`);
     });
   }
@@ -201,16 +133,16 @@ export function useScoreGame() {
     mirrorPoints,
     progress,
     comments,
+    hasUnsavedChanges,
     saveComment,
     next,
     backPoint,
     forwardPoint,
     backEnd,
     forwardEnd,
+    save,
     finish,
     error,
     isSaving,
-    isSettingUp,
-    retry: retrySetupGame,
   };
 }

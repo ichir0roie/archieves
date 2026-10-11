@@ -1,6 +1,6 @@
 import { terms as t } from "./terms";
 
-/** 意見箱(app/feedback/page.tsx)、意見箱の確認(app/admin/feedbacks/page.tsx)とお知らせ(components/Announcements.tsx)。 */
+/** 意見箱(app/feedback/page.tsx)、意見箱の確認(app/admin/feedbacks/page.tsx)とお知らせ(app/announcements/page.tsx)。 */
 export const support = {
   feedback: {
     title: t.feedback,

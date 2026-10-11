@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
-import { reloadAfterWrites, shoot, startGame as startCommentGame } from "./scoreEntry";
+import { nextEnd, reloadPage, shoot, startGame as startCommentGame } from "./scoreEntry";
 
 // Needs archieves-api running (see .claude/docs/testing.md's "E2E"), since every
 // comment is persisted through it.
@@ -33,6 +33,7 @@ test("comments written while recording are kept on the end and round", async ({
 
   // 入力の画面にあるのはエンドのコメントだけ。ラウンドは埋まったとき、ゲームはスコア表示で書く
   await shoot(page, "10", 3);
+  await nextEnd(page);
   await expect(page.locator(".ScoreProgress")).toContainText("エンド 2/2");
   await expect(page.getByRole("button", { name: "ラウンド 1のコメントを入力" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "ゲームのコメントを入力" })).toHaveCount(0);
@@ -55,20 +56,17 @@ test("comments written while recording are kept on the end and round", async ({
   await expect(commentBar).toContainText("押し手を修正");
   await expect(commentBar).not.toContainText("押し手が流れた");
 
-  // 矢はエンドを動かすときに書くので、最後のエンドの矢も書かせてから読み直す
-  // (矢が無いとラウンドが埋まらず、ラウンドのコメントが出ない)
-  const back = page.getByRole("button", { name: "1エンド戻る", exact: true });
-  await back.click();
-  await expect(page.locator(".ScoreProgress")).toContainText("エンド 1/2");
-  await page.getByRole("button", { name: "1エンド進む", exact: true }).click();
-  await expect(page.locator(".ScoreProgress")).toContainText("エンド 2/2");
-  await expect(back).toBeEnabled();
-
-  // A reload reads the stored comments back onto the screen.
-  await reloadAfterWrites(page);
+  // コメントも手元のキャッシュにあり、保存しないまま読み込み直しても戻る
+  await reloadPage(page);
   await expect(page.locator(".ScoreProgress")).toBeVisible({ timeout: ROUTE_TIMEOUT });
   await expect(page.locator(".CommentBar")).toContainText("向かい風");
   await expect(page.locator(".CommentBar")).toContainText("押し手を修正");
+
+  // 終了すると矢と一緒に保存され、スコアの画面に出る
+  await page.getByRole("button", { name: "終了" }).click();
+  await expect(page).toHaveURL(/\/score-view\?gameId=/, { timeout: ROUTE_TIMEOUT });
+  await expect(page.locator(".RoundComment")).toContainText("向かい風");
+  await expect(page.locator("table .comment-row .CommentText")).toHaveText(["押し手を修正"]);
 });
 
 test("the score view shows each end's comment and can edit it", async ({ page }) => {
@@ -88,7 +86,7 @@ test("the score view shows each end's comment and can edit it", async ({ page })
   await writeComment(page, "ラウンド 1", "距離は70m");
   await expect(page.locator(".RoundComment")).toContainText("距離は70m");
 
-  await reloadAfterWrites(page);
+  await reloadPage(page);
   await expect(page.locator(".GameComment")).toContainText("全体の振り返り", {
     timeout: ROUTE_TIMEOUT,
   });
@@ -108,7 +106,7 @@ test("clearing a comment removes it", async ({ page }) => {
   await writeComment(page, "エンド 1", "");
   await expect(page.locator(".CommentBar")).not.toContainText("消す予定");
 
-  await reloadAfterWrites(page);
+  await reloadPage(page);
   await expect(page.locator(".ScoreProgress")).toBeVisible({ timeout: ROUTE_TIMEOUT });
   await expect(page.locator(".CommentBar")).not.toContainText("消す予定");
 });

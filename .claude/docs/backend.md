@@ -66,8 +66,8 @@ cd source/front && npm run types
 
 | 区分 | 対象 | 見るもの |
 | --- | --- | --- |
-| 本人のみ | `games`・`rounds`・`ends`・`points`・コメントの読み書き全部、`trash/*`、`PATCH /users/{user_id}`、`/users/me`・`/users/me/ensure`・`/import`・`/export/records.db`、`/feedbacks` | トークンの `sub` の利用者の行(`deps.get_me`)と、行の `user_id` が同じこと |
-| 本人以外も | `/statistics/*`(ランキング含む)、`GET /users/{user_id}`、`GET /users/{sub}/profile`、`/organizations/*`、`/announcements` | トークンが通っていること |
+| 本人のみ | `games`(`PUT /games/sheet`・`GET /games/{game_id}/sheet` を含む)・`rounds`・`ends`・`points`・コメントの読み書き全部、`trash/*`、`PATCH /users/{user_id}`、`/users/me`・`/users/me/ensure`・`/import`・`/export/records.db`、`/feedbacks` | トークンの `sub` の利用者の行(`deps.get_me`)と、行の `user_id` が同じこと |
+| 本人以外も | `/statistics/*`(ランキング含む)、`GET /users`・`GET /users/{user_id}`、`GET /users/{sub}/profile`、`/organizations/*`、`/announcements` | トークンが通っていること。利用者の行・プロフィール・他人の統計は、下の「公開範囲」も当てる |
 | 管理者のみ | `/admin/*`(全員の意見 `GET /admin/feedbacks`、返信 `PUT /admin/feedbacks/{feedback_id}/reply`) | 本人の行の `users.is_admin` が true であること(`deps.get_admin`。違えば 403) |
 
 - 「本人のみ」の書き方: 引数に `me: User = Depends(deps.get_me)` を足す。行を引くところは `deps.get_or_404` ではなく `deps.get_own_or_404(me, ...)`(持ち主が違えば 403)。`user_id` を要求で受けるところは `deps.require_self(me, user_id)`、絞り込みの `user_id`(省略可)は `deps.resolve_user_id(me, user_id)`(省略したら本人、他人なら 403)
@@ -75,6 +75,10 @@ cd source/front && npm run types
 - 「本人以外も」に game 配下(`games`〜`points`・コメント)の読み取りは入れない。他人に見せる範囲を広げるときは、この表も直す
 - `GET/POST /users` は持ち主のいない操作なので、どちらにも分けず、トークンが通れば使える(フロントは使っていない)
 - 新しいエンドポイントを足したら、どの区分かを決めて `tests/test_ownership.py` に足す
+- 公開範囲: `users.profile_visibility`・`users.ranking_visibility`(`private` / `organization` / `public`、既定は `private`。`app/core/visibility.py`)。`organization` は同じ `organization_id` の利用者にだけ見せる(所属の無い人どうしは見えない)
+  - プロフィール: `GET /users`・`GET /users/{user_id}`・`GET /users/{sub}/profile`・`/statistics/*` の他人の `user_id` は、本人か、`profile_visibility` が見せる相手だけ(`deps.require_profile_visible`。違えば 403)
+  - ランキング: `ranking_visibility` が見せる相手の分だけを数える(`crud/user.py` の `visible_condition`)。本人も例外にしない(非公開なら本人のランキングにも載らない)
+  - 公開範囲は本人の行(`MeRead`)にだけ載せる
 - 管理者は画面からは決めない。db の行を直に書き換える(`UPDATE users SET is_admin = true WHERE sub = '<Cognito の sub>';`)。`is_admin` は本人の行(`GET /users/me`・`/users/me/ensure` の `MeRead`)にだけ載せ、他人の行(`UserRead`)には出さない
 - テストの `client` は `current_user`(`TEST_CLAIMS` の `sub` の利用者)がいる状態。他人の行は `factories` で作る。利用者の行が無い状態は `unregistered_client`
 
