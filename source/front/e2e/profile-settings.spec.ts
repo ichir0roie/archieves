@@ -118,3 +118,39 @@ test("a game recorded with a bow type shows up under that bow", async ({ page })
 
   await saveVisibility(page, "ランキング", "非公開");
 });
+
+test("the visibility chosen on my profile page is saved at once", async ({ page }) => {
+  await ensureRegistered(page);
+
+  await page.goto("/profile/me");
+  await expect(page).toHaveURL("/profile/local-dev-user");
+  const settings = page.locator(".VisibilitySettings");
+  const group = settings.getByRole("group", { name: "プロフィールの公開範囲" });
+  await group.getByRole("button", { name: "全体公開", exact: true }).click();
+  await expect(settings.getByRole("status")).toHaveText("保存しました");
+
+  await page.goto("/profile/settings");
+  await expect(
+    page
+      .getByRole("group", { name: "プロフィールの公開範囲" })
+      .getByRole("button", { name: "全体公開", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+
+  await saveVisibility(page, "プロフィール", "非公開");
+});
+
+test("another user's profile page has no visibility settings", async ({ page }) => {
+  await ensureRegistered(page);
+  // モックのログインでは他人としてログインできないので、他人の行は API で作る(既定は非公開)
+  const sub = `e2e-other-${Date.now()}`;
+  const created = await page.request.post("/api/v1/users/find-or-create", {
+    data: {
+      sub,
+      name: "他人",
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  await page.goto(`/profile/${sub}`);
+  await expect(page.getByText("このプロフィールは公開されていません")).toBeVisible();
+  await expect(page.locator(".VisibilitySettings")).toHaveCount(0);
+});

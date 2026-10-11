@@ -4,14 +4,13 @@ import { auth } from "./auth/resource";
 const backend = defineBackend({
   auth,
 });
-// extract L1 CfnUserPool resources
 const { cfnUserPool } = backend.auth.resources.cfnResources;
-// modify cfnUserPool policies directly
+// 6 文字は Cognito が許す最短。文字の種類は求めない
 cfnUserPool.policies = {
   passwordPolicy: {
-    minimumLength: 8,
-    requireLowercase: true,
-    requireNumbers: true,
+    minimumLength: 6,
+    requireLowercase: false,
+    requireNumbers: false,
     requireSymbols: false,
     requireUppercase: false,
     temporaryPasswordValidityDays: 20,
