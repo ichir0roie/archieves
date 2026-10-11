@@ -13,14 +13,12 @@ test("saving profile settings persists the entered fields", async ({ page }) => 
   await ensureRegistered(page);
 
   await page.getByLabel("ニックネーム").fill("テスト太郎");
-  await page.getByLabel("生年月日").fill("1998-04-01");
 
   await page.getByRole("button", { name: "保存" }).click();
   await expect(page).toHaveURL("/");
 
   await page.goto("/profile/settings");
   await expect(page.getByLabel("ニックネーム")).toHaveValue("テスト太郎");
-  await expect(page.getByLabel("生年月日")).toHaveValue("1998-04-01");
 });
 
 test("organization field offers existing matches and creates a new one when none matches", async ({

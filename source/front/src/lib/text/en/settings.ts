@@ -23,6 +23,14 @@ export const settings: typeof ja = {
     title: "Account",
     profileSettings: `${t.profile} settings`,
   },
+  deleteAccount: {
+    title: "Delete account",
+    description: `Deletes your account along with all of your ${t.record.toLowerCase()}s, ${t.diary.toLowerCase()} entries, ${t.comment.toLowerCase()}s and what you sent through ${t.feedback}. This cannot be undone. ${t.export} anything you want to keep first.`,
+    submit: "Delete my account",
+    confirmTitle: "Delete account",
+    confirm: `Your account and all of your ${t.record.toLowerCase()}s will be deleted. This cannot be undone.`,
+    deleting: "Deleting...",
+  },
   export: {
     title: t.export,
     description: `Download your ${t.record.toLowerCase()}s as an SQLite file (.db). It describes its own tables and columns, so other apps and AI tools can read it. You can import it again above.`,

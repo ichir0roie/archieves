@@ -23,6 +23,14 @@ export const settings = {
     title: "アカウント",
     profileSettings: `${t.profile}${t.settings}`,
   },
+  deleteAccount: {
+    title: "アカウントの削除",
+    description: `アカウントと、これまでの${t.record}・${t.diary}・${t.comment}・${t.feedback}に送ったものをすべて削除します。削除したものは戻せません。残したい${t.record}は、先に${t.export}してください。`,
+    submit: "アカウントを削除する",
+    confirmTitle: "アカウントの削除",
+    confirm: `アカウントとすべての${t.record}を削除します。この操作は取り消せません。`,
+    deleting: "削除中...",
+  },
   export: {
     title: t.export,
     description: `自分の${t.record}を SQLite のファイル (.db) でダウンロードします。表と列の説明もファイルの中に入っているので、他のアプリや AI でも読めます。この画面の${t.import}で取り込み直せます。`,

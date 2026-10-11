@@ -1,4 +1,4 @@
-from sqlalchemy import ColumnElement, and_, false, or_, select
+from sqlalchemy import ColumnElement, and_, delete, false, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -72,3 +72,9 @@ def update_user(s: Session, user: User, user_in: UserUpdate) -> User:
         setattr(user, field, value)
     s.flush()
     return user
+
+
+def delete_user(s: Session, user: User) -> None:
+    """利用者の行を消す。試合・日記・コメント・意見・エラーの集積は、外部キーの ON DELETE CASCADE で
+    db が一緒に消す(relationship は noload なので、ORM の cascade には任せない)。"""
+    s.execute(delete(User).where(User.id == user.id))

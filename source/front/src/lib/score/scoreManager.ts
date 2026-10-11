@@ -282,7 +282,11 @@ export class ScoreManager {
     return this.sheet.arrow_diameter_mm ?? DEFAULT_ARROW_DIAMETER_MM;
   }
 
-  /** オールイン: 矢の円が帯に完全に入らなければ、その帯の点にしない */
+  /** インサイドアウト: 矢の円が帯に完全に入らなければ、その帯の点にしない */
+  get bowType(): string | null {
+    return this.sheet.bow_type;
+  }
+
   get allIn(): boolean {
     return this.sheet.all_in;
   }

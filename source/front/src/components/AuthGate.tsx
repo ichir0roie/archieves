@@ -12,6 +12,8 @@ import {
   clearCachedAppUser,
   subscribeCachedAppUser,
 } from "@/lib/storage";
+import LegalLinks from "@/components/LegalLinks";
+import { useT } from "@/lib/text";
 import {
   DEFAULT_LOCALE,
   readLocale,
@@ -67,13 +69,27 @@ function RegistrationGate({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** サインインの画面の下に出す、規約・ポリシーへのリンクと同意の文 */
+function AgreementFooter() {
+  const T = useT();
+  return (
+    <p className="auth-agreement muted small">
+      {T.legal.agreement}
+      <br />
+      <LegalLinks />
+    </p>
+  );
+}
+
+const AUTHENTICATOR_COMPONENTS = { Footer: AgreementFooter };
+
 /** 画面全体を一度だけ包む(app/layout.tsx)。ログインしていなければ Amplify のログインの画面を出す。 */
 export default function AuthGate({ children }: { children: ReactNode }) {
   if (isMockAuth()) {
     return <RegistrationGate>{children}</RegistrationGate>;
   }
   return (
-    <Authenticator>
+    <Authenticator components={AUTHENTICATOR_COMPONENTS}>
       {({ signOut }) => (
         <SignOutContext.Provider
           value={() => {

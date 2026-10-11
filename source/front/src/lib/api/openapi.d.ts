@@ -84,7 +84,11 @@ export interface paths {
         get: operations["get_my_user_api_v1_users_me_get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete My User
+         * @description 本人のアカウントと記録をすべて消す。Cognito の利用者はフロントが消す。
+         */
+        delete: operations["delete_my_user_api_v1_users_me_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1451,8 +1455,6 @@ export interface components {
             name: string;
             /** Nickname */
             nickname: string | null;
-            /** Birth Date */
-            birth_date: string | null;
             /** Organization Id */
             organization_id: number | null;
             /** Region Id */
@@ -1465,8 +1467,6 @@ export interface components {
             is_admin: boolean;
             profile_visibility: components["schemas"]["Visibility"];
             ranking_visibility: components["schemas"]["Visibility"];
-            /** Age */
-            readonly age: number | null;
         };
         /** OrganizationCreate */
         OrganizationCreate: {
@@ -1773,8 +1773,6 @@ export interface components {
             name: string;
             /** Nickname */
             nickname?: string | null;
-            /** Birth Date */
-            birth_date?: string | null;
             /** Organization Id */
             organization_id?: number | null;
             /** Region Id */
@@ -1786,8 +1784,6 @@ export interface components {
             name: string;
             /** Nickname */
             nickname?: string | null;
-            /** Birth Date */
-            birth_date?: string | null;
             /** Organization Id */
             organization_id?: number | null;
             /** Region Id */
@@ -1836,8 +1832,6 @@ export interface components {
             name: string;
             /** Nickname */
             nickname: string | null;
-            /** Birth Date */
-            birth_date: string | null;
             /** Organization Id */
             organization_id: number | null;
             /** Region Id */
@@ -1846,8 +1840,6 @@ export interface components {
             id: number;
             /** Sub */
             sub: string | null;
-            /** Age */
-            readonly age: number | null;
         };
         /** UserUpdate */
         UserUpdate: {
@@ -1855,8 +1847,6 @@ export interface components {
             name?: string | null;
             /** Nickname */
             nickname?: string | null;
-            /** Birth Date */
-            birth_date?: string | null;
             /** Organization Id */
             organization_id?: number | null;
             /** Region Id */
@@ -2058,6 +2048,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MeRead"];
                 };
+            };
+        };
+    };
+    delete_my_user_api_v1_users_me_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -33,7 +33,7 @@ export const terms: typeof ja = {
   announcement: "News",
   link: "Link",
   allPeriod: "All time",
-  allIn: "All-in",
+  allIn: "Inside-out",
   roundN: (n: number) => `Round ${n}`,
   endN: (n: number) => `End ${n}`,
   unit: {

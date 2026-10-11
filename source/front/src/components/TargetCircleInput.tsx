@@ -16,7 +16,7 @@ import { saveTargetDiameterPx } from "@/lib/storage";
 import { useT } from "@/lib/text";
 
 /**
- * 的の周りの余白(px)。的は枠の中央に置く。外れは、余白を押すか、押したまま的の外へ狙う点を動かして入れる。
+ * 的の周りの余白(px)。的は枠の下に寄せる(横は中央)。外れは、余白を押すか、押したまま的の外へ狙う点を動かして入れる。
  * 設定画面も、記入画面を開く前の的の大きさの見積もりに使う
  */
 export const TARGET_FACE_PADDING = 24;
@@ -34,8 +34,16 @@ const MIN_ARROW_MARK_PX = 8;
  */
 const LENS_GAP = 32;
 
+/** ズームを上へ出すときに、画面の上端から空ける間隔(px) */
+const LENS_SCREEN_MARGIN = 4;
+
 type Press = {
   pointerId: number;
+  /**
+   * ズームの上端に許すいちばん上の位置(枠の左上からの px)。画面の上端。
+   * 押したときに測る(枠の上のコメントの行などの高さで変わるため)
+   */
+  lensMinTop: number;
   /** 押した所(枠の左上からの px)。狙う点はここから動き始める */
   startX: number;
   startY: number;
@@ -92,8 +100,9 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     return () => observer.disconnect();
   }, []);
 
+  // 的は枠の下に寄せる。上に空いた所へズームを出し、上の帯を狙ってもズームが画面の外へ出にくくする
   const centerX = width / 2;
-  const centerY = height / 2;
+  const centerY = height - TARGET_FACE_PADDING - maxDiameter / 2;
 
   const isLocked = props.isEndFull || props.disabled;
   const { sizeCm } = resolveTargetType(props.targetType);
@@ -136,15 +145,17 @@ export default function TargetCircleInput(props: ScoreInputProps) {
    * 矢の中心が (x, y) のときの点数。矢をゲームで決めた直径(arrowPx)の円として、縁がいちばん
    * 中心に寄った所で決める。円が少しでも帯の線にかかれば、高い方の帯の点数(線にかかった矢は高い方の得点、
    * というアーチェリーの決まり)。
-   * オールインでは逆に、縁がいちばん外に出た所で決める。円が帯に完全に入らなければその帯の点にならず、
+   * インサイドアウトでは逆に、縁がいちばん外に出た所で決める。円が帯に完全に入らなければその帯の点にならず、
    * 線にかかれば低い方、的の縁にかかれば外れ。
+   * インナー10(コンパウンド)では、X の外の 10 点の帯を 9 点にする。X の輪は X のまま
    */
   function scoreAt(x: number, y: number): number {
     if (maxDiameter === 0) return MISS_SCORE;
     const distance = Math.hypot(x - centerX, y - centerY);
     const radius = arrowPx / 2;
     const edge = props.allIn ? distance + radius : Math.max(distance - radius, 0);
-    return scoreAtDistance(edge / (maxDiameter / 2));
+    const score = scoreAtDistance(edge / (maxDiameter / 2));
+    return props.innerTen && score === MAX_RING_SCORE ? MAX_RING_SCORE - 1 : score;
   }
 
   /*
@@ -156,8 +167,10 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     if (isLocked || press) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     const finger = fingerPoint(event);
+    const rect = event.currentTarget.getBoundingClientRect();
     setPress({
       pointerId: event.pointerId,
+      lensMinTop: LENS_SCREEN_MARGIN - rect.top,
       startX: finger.x,
       startY: finger.y,
       ...finger,
@@ -266,13 +279,14 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   }
 
   /**
-   * ズームは狙う点の上に出し、中央に狙う点を拡大して描く。狙う点と一緒に動くので、枠の中に寄せない。
+   * ズームは狙う点の上に出し、中央に狙う点を拡大して描く。狙う点と一緒に動き、枠の上の行にも重ねて出す。
+   * 上へは画面の上端で止め、それより上を狙うとズームが狙う点に重なる(隠れて見えなくなるよりよい)。
    * 直径は記入画面の横幅の lensSizePercent %
    */
   function lens(current: Press) {
     const lensSize = (width * lensSizePercent) / 100;
     const left = current.x - lensSize / 2;
-    const top = current.y - LENS_GAP - lensSize;
+    const top = Math.max(current.y - LENS_GAP - lensSize, current.lensMinTop);
     const score = scoreAt(current.x, current.y);
 
     return (
@@ -293,7 +307,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
           {props.points.map((point, index) => createArrow(point.x, point.y, index, lensZoom))}
         </div>
         {/* 中央の帯と同じ色だと埋もれるので、帯のクラスを付けて反転色で描く(globals.css) */}
-        {/* 十字の円は、ここに置く矢の太さ。円が帯の線にかかれば高い方の点数(オールインなら低い方)になる */}
+        {/* 十字の円は、ここに置く矢の太さ。円が帯の線にかかれば高い方の点数(インサイドアウトなら低い方)になる */}
         <ArrowSight
           arrowDiameterPx={arrowPx}
           zoom={lensZoom}

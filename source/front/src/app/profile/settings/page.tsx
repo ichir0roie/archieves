@@ -32,8 +32,6 @@ export default function Page() {
   const [userId, setUserId] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [nickname, setNickname] = useState("");
-  const [birthDate, setBirthDate] = useState("");
-  const [age, setAge] = useState<number | null>(null);
   const [organizationInputValue, setOrganizationInputValue] = useState("");
   const [organizationId, setOrganizationId] = useState<number | null>(null);
   const [organizationOptions, setOrganizationOptions] = useState<OrganizationSummary[]>([]);
@@ -47,8 +45,6 @@ export default function Page() {
   function applyUser(user: MeRead) {
     setName(user.name);
     setNickname(user.nickname ?? "");
-    setBirthDate(user.birth_date ?? "");
-    setAge(user.age);
     setProfileVisibility(user.profile_visibility);
     setRankingVisibility(user.ranking_visibility);
   }
@@ -123,7 +119,6 @@ export default function Page() {
       const updated = await updateUser(id, {
         name,
         nickname: nickname || null,
-        birth_date: birthDate || null,
         organization_id: resolvedOrganizationId,
         profile_visibility: profileVisibility,
         ranking_visibility: rankingVisibility,
@@ -173,18 +168,6 @@ export default function Page() {
               />
             )}
           </Field>
-          <Field label={T.profile.settings.birthDate}>
-            {(id) => (
-              <input
-                id={id}
-                type="date"
-                value={birthDate}
-                max={todayLocal()}
-                onChange={(e) => setBirthDate(e.target.value)}
-              />
-            )}
-          </Field>
-          {age !== null && <p className="muted">{T.profile.settings.age(age)}</p>}
           <Field label={T.profile.settings.organization}>
             {(id) => (
               <Combobox
@@ -226,12 +209,4 @@ export default function Page() {
       <BackButton />
     </div>
   );
-}
-
-// toISOString は UTC なので、日本の朝 9 時前だと前日になる。手元の日付で組む
-function todayLocal(): string {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
 }

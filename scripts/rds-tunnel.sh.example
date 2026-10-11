@@ -3,8 +3,6 @@
 # SSHのローカルフォワーディングで localhost:54000 から非公開RDS(PostgreSQL)へ転送する。
 # 踏み台EC2・EICエンドポイント・SGルールは作成済みの前提。
 #
-# 参照: docs/インフラ/データベース/ローカル開発からのRDSアクセス.md
-#
 # 使い方:
 #   cp scripts/rds-tunnel.sh.example scripts/rds-tunnel.sh
 #   # scripts/rds-tunnel.sh 内のデフォルト値を自分のAWS環境の値に書き換える(gitignore対象)

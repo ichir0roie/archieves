@@ -182,7 +182,7 @@ export interface RoundSetup {
   gameSize: number;
   /** 矢の直径(mm) */
   arrowDiameterMm: number;
-  /** オールイン: 矢の円が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方) */
+  /** インサイドアウト: 矢の円が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方) */
   allIn: boolean;
 }
 
@@ -237,10 +237,16 @@ export const MAX_AIM_DIVISOR = 10;
 export const MIN_LENS_SIZE_PERCENT = 10;
 export const MAX_LENS_SIZE_PERCENT = 90;
 
+/**
+ * 幅 390px ほどのスマホを目安に決めた既定値。的の直径はおよそ 340px で、帯 1 つの幅はおよそ 17px。
+ * - 大きさ 50%(約 195px): ズームは指の上に出るので、大きいほど的の上半分を覆い、画面の上にもはみ出す
+ * - 倍率 4: ズームの中に帯がおよそ 3 つ入る(195 / 4 ≒ 49px)。狙う点の周りの線が見えて、5mm の矢も 122cm の的でおよそ 6px に描ける
+ * - 感度 1/3: 押した所のずれ(帯の半分ほど)を指の短い動きで直せて、離すときの指のぶれも 1/3 にできる
+ */
 export const DEFAULT_AIM_SETTINGS: AimSettings = {
-  lensZoom: 5,
-  aimDivisor: 4,
-  lensSizePercent: 70,
+  lensZoom: 4,
+  aimDivisor: 3,
+  lensSizePercent: 50,
 };
 
 export function isValidAimSettings(settings: AimSettings): boolean {

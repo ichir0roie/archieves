@@ -7,8 +7,6 @@ export const profile = {
     title: `${t.profile}${t.settings}`,
     name: "名前",
     nickname: "ニックネーム",
-    birthDate: "生年月日",
-    age: (age: number) => `${age}歳`,
     organization: t.affiliation,
     profileVisibility: `${t.profile}の公開範囲`,
     rankingVisibility: `${t.ranking}の公開範囲`,

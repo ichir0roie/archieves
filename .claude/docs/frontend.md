@@ -37,7 +37,7 @@ Next.js(App Router)・React 19。スマホで使う前提の画面が多い。
 
 - GET の読み込みは `src/hooks/useLoad.ts`(`{ data, loading, error }`。deps が変わると読み直し、古い応答は捨てる)。ページに `useState` + `useEffect` + `cancelled` を書き写さない。SWR などは使っていない
 - 非冪等な POST を StrictMode で二度送らないよう、`useRunOnce`(`src/lib/useRunOnce.ts`)を使う
-- 点数の入力は `ScoreManager`(可変のクラス)が持ち、`useScoreGame` が React の状態に写す。記録は手元のキャッシュ(形は `src/lib/score/scoreSheetCache.ts`、読み書きは `src/lib/storage.ts`。ログインの sub ごとに分ける)にだけ書き、保存・終了のときに `PUT /games/sheet` で丸ごと送る(`docs/アーキテクチャ/得点データ構造とスコアリング.md` の「入力中のデータの作られ方」)。考え方は `source/front/docs/state-management-best-practices.md`
+- 点数の入力は `ScoreManager`(可変のクラス)が持ち、`useScoreGame` が React の状態に写す。記録は手元のキャッシュ(形は `src/lib/score/scoreSheetCache.ts`、読み書きは `src/lib/storage.ts`。ログインの sub ごとに分ける)にだけ書き、保存・終了のときに `PUT /games/sheet` で丸ごと送る。考え方は `source/front/docs/state-management-best-practices.md`
 - 画面をまたいで残す値は `localStorage`。読み書きは `src/lib/storage.ts` にまとめ、ページ・コンポーネントから直に触らない(言語は `src/lib/text/locale.ts`、メニューの位置は `src/lib/menuPosition.ts` が持つ)
 
 ## 見た目

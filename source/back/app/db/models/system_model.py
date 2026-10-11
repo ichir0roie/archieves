@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, Boolean, Date, ForeignKey, String, false
+from sqlalchemy import BigInteger, Boolean, ForeignKey, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.visibility import VISIBILITY_MAX_LENGTH, Visibility
@@ -57,8 +56,6 @@ class User(TimestampMixin, Base):
     organization_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("organizations.id", ondelete="SET NULL"), index=True, default=None
     )
-
-    birth_date: Mapped[date | None] = mapped_column(Date, default=None)
 
     region_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("regions.id", ondelete="SET NULL"), index=True, default=None

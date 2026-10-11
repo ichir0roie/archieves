@@ -48,7 +48,7 @@ export interface Sheet {
   bow_type: string | null;
   /** 矢の直径(mm)。null は既定の太さ */
   arrow_diameter_mm: number | null;
-  /** オールイン */
+  /** インサイドアウト */
   all_in: boolean;
   /**
    * あとから入力: スコアの一覧で日付を決めて入れたゲーム。

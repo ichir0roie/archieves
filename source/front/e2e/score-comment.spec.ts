@@ -1,6 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
-import { nextEnd, reloadPage, shoot, startGame as startCommentGame } from "./scoreEntry";
+import {
+  currentEndNumber,
+  nextEnd,
+  reloadPage,
+  shoot,
+  startGame as startCommentGame,
+} from "./scoreEntry";
 
 // Needs archieves-api running (see .claude/docs/testing.md's "E2E"), since every
 // comment is persisted through it.
@@ -34,7 +40,7 @@ test("comments written while recording are kept on the end and round", async ({
   // 入力の画面にあるのはエンドのコメントだけ。ラウンドは埋まったとき、ゲームはスコア表示で書く
   await shoot(page, "10", 3);
   await nextEnd(page);
-  await expect(page.locator(".ScoreProgress")).toContainText("エンド 2/2");
+  await expect(currentEndNumber(page)).toHaveText("2");
   await expect(page.getByRole("button", { name: "ラウンド 1のコメントを入力" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "ゲームのコメントを入力" })).toHaveCount(0);
 

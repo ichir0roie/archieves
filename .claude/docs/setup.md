@@ -79,5 +79,5 @@ uvx --from 'uv>=0.9' uv pip install --python .venv/bin/python -r requirements-de
 
 - `.vscode/tasks.json` には、デバッグで起こすもの(PostgreSQL `postgres: start`・API `api: start`・画面 `front: start`・両方 `dev: API + web …`)だけがある。裏で動き続けるタスクは `isBackground` で、`problemMatcher` の `endsPattern` が出たら「起きた」とみなす(起動のログの文言を変えたら合わせる)
 - F5 の既定(`.vscode/launch.json` の一番上)は「Brave: attach to running web (:3100)」で、起きている画面(:3100)を Brave で開く(`runtimeExecutable` が `/usr/bin/brave-browser`)。画面と API は先に起こす。テスト用の db(`archieves_test_dev`)とモックのログインなら、タスクの「dev: API + web (test db, mock login)」(`tools.dev --test --seed`)。Brave のプロファイルは `.vscode/chrome-user-data/`(gitignore 済み)
-- `.env` の db と Cognito で見るときは、タスクの「dev: API + web (.env db, Cognito)」で起こしてから開く。先に `source/front` で `npx ampx sandbox --once` を回して `amplify_outputs.json` を作り、`source/back/.env` の `USERPOOL_ID`・`APP_CLIENT_ID` を合わせる(`docs/インフラ/認証/Amplifyサンドボックス.md`)
+- `.env` の db と Cognito で見るときは、タスクの「dev: API + web (.env db, Cognito)」で起こしてから開く。先に `source/front` で `npx ampx sandbox --once` を回して `amplify_outputs.json` を作り、`source/back/.env` の `USERPOOL_ID`・`APP_CLIENT_ID` を合わせる
 - API にブレークポイントを置くときは「Python: API (debugpy, :8000)」か、compound の「API (debugpy) + Brave」

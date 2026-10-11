@@ -38,7 +38,7 @@ export const terms = {
   diary: "日記",
   announcement: "お知らせ",
   allPeriod: "全期間",
-  allIn: "オールイン",
+  allIn: "インサイドアウト",
   roundN: (n: number) => `ラウンド ${n}`,
   endN: (n: number) => `エンド ${n}`,
   unit: {

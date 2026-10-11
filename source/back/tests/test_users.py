@@ -1,20 +1,18 @@
-from datetime import date, timedelta
-
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.crud import user as user_crud
-from app.db import User
-from app.schemas.user import UserCreate, calc_age
+from app.db import Diary, ErrorReport, Feedback, Game, GameComment, Point, User
+from app.schemas.user import UserCreate
 
 
 def test_create_and_get_user(client: TestClient, s: Session) -> None:
     payload = {
         "name": "Yumi",
         "nickname": "Yu",
-        "birth_date": "2000-04-01",
     }
 
     create_res = client.post("/api/v1/users", json=payload)
@@ -22,8 +20,6 @@ def test_create_and_get_user(client: TestClient, s: Session) -> None:
     user = create_res.json()
     assert user["name"] == "Yumi"
     assert user["nickname"] == "Yu"
-    assert user["birth_date"] == "2000-04-01"
-    assert user["age"] == calc_age(date(2000, 4, 1), date.today())
 
     # 作った行は本人ではないので、プロフィールを公開してから読む
     created = s.get(User, user["id"])
@@ -70,10 +66,17 @@ def test_create_user_with_missing_organization_returns_404(client: TestClient) -
     assert response.status_code == 404
 
 
-def test_create_user_with_future_birth_date_is_rejected(client: TestClient) -> None:
-    payload = {"name": "Kenta", "birth_date": (date.today() + timedelta(days=1)).isoformat()}
-    response = client.post("/api/v1/users", json=payload)
-    assert response.status_code == 422
+def test_birth_date_from_an_old_client_is_ignored(client: TestClient, current_user) -> None:
+    # 生年月日は持たない。古い画面が送ってきても弾かず、捨てる
+    response = client.patch(
+        f"/api/v1/users/{current_user.id}",
+        json={"nickname": "Yu-chan", "birth_date": "1995-12-31"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["nickname"] == "Yu-chan"
+    assert "birth_date" not in body
+    assert "age" not in body
 
 
 def test_get_missing_user_returns_404(client: TestClient) -> None:
@@ -86,13 +89,12 @@ def test_update_user_basic_info(client: TestClient, current_user) -> None:
 
     patch_res = client.patch(
         f"/api/v1/users/{user_id}",
-        json={"nickname": "Yu-chan", "birth_date": "1995-12-31"},
+        json={"nickname": "Yu-chan"},
     )
     assert patch_res.status_code == 200
     body = patch_res.json()
     assert body["name"] == "Yumi"
     assert body["nickname"] == "Yu-chan"
-    assert body["birth_date"] == "1995-12-31"
 
 
 def test_update_user_with_missing_organization_returns_404(
@@ -216,21 +218,38 @@ def test_ensuring_a_user_reraises_an_integrity_error_that_is_not_a_race(
         user_crud.get_or_create_user(s, UserCreate(name="Yumi"), sub="taken-sub")
 
 
-@pytest.mark.parametrize(
-    ("today", "expected"),
-    [
-        (date(2026, 3, 31), 25),
-        (date(2026, 4, 1), 26),
-        (date(2026, 12, 31), 26),
-    ],
-)
-def test_calc_age_counts_up_on_birthday(today: date, expected: int) -> None:
-    assert calc_age(date(2000, 4, 1), today) == expected
+def _count_owned_by(s: Session, model: type, user_id: int) -> int:
+    return s.scalar(select(func.count()).select_from(model).where(model.user_id == user_id))
 
 
-def test_calc_age_for_leap_day_birth() -> None:
-    assert calc_age(date(2004, 2, 29), date(2026, 2, 28)) == 21
-    assert calc_age(date(2004, 2, 29), date(2026, 3, 1)) == 22
+def test_delete_me_removes_my_row_and_everything_i_recorded(
+    client: TestClient, s: Session, current_user, factories
+) -> None:
+    my_id = current_user.id
+    point = factories.PointFactory(end__round__game__user=current_user)
+    factories.GameCommentFactory(game=point.end.round.game)
+    factories.DiaryFactory(user=current_user)
+    factories.FeedbackFactory(user=current_user)
+    factories.ErrorReportFactory(user=current_user)
+    others_point = factories.PointFactory()
+
+    response = client.delete("/api/v1/users/me")
+
+    assert response.status_code == 204
+    s.expire_all()
+    assert s.get(User, my_id) is None
+    for model in (Game, Point, GameComment, Diary, Feedback, ErrorReport):
+        assert _count_owned_by(s, model, my_id) == 0, model.__name__
+    # 他人の記録は残す
+    assert s.get(Point, others_point.id) is not None
+    # 消したあとは登録の前と同じに扱う
+    assert client.get("/api/v1/users/me").status_code == 404
+
+
+def test_delete_me_returns_404_when_not_registered(unregistered_client: TestClient) -> None:
+    response = unregistered_client.delete("/api/v1/users/me")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Current user not registered"
 
 
 def test_is_admin_is_returned_only_for_myself(

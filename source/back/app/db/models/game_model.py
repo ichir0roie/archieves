@@ -49,7 +49,7 @@ class Game(TimestampMixin, Base):
     # 矢の直径(mm)。記入画面が的の大きさとの比で px に直し、点数の決め方に使う。
     # 設定する前の記録は null(画面は既定の太さで扱う)
     arrow_diameter_mm: Mapped[int | None] = mapped_column(Integer, default=None)
-    # オールイン: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
+    # インサイドアウト: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
     all_in: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # あとから入力: スコアの一覧で日付を決めて入れたゲーム。ラウンド・エンド・矢の日付と矢の時刻は、
     # 編集で足した分も、入れた時でなくゲームの recorded_at にそろえる(フロントの ScoreManager)

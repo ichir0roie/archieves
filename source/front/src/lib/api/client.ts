@@ -246,7 +246,12 @@ export function getMyUser(): Promise<MeRead> {
   return request('/users/me');
 }
 
-/** Updates a user's basic profile info (name, nickname, birth date, organization, region). */
+/** 本人のアカウントと記録をすべて消す。Cognito の利用者は消さない(lib/auth/currentUser.ts の deleteCurrentAccount) */
+export function deleteMyUser(): Promise<void> {
+  return request('/users/me', { method: 'DELETE' });
+}
+
+/** Updates a user's basic profile info (name, nickname, organization, region). */
 export function updateUser(userId: number, user: UserUpdate): Promise<MeRead> {
   return request(`/users/${userId}`, {
     method: 'PATCH',
