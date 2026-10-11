@@ -1,6 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
-import { recordedArrows, reloadAfterWrites, ringButton, shoot, startGame } from "./scoreEntry";
+import {
+  nextEnd,
+  recordedArrows,
+  reloadAfterWrites,
+  ringButton,
+  shoot,
+  startGame,
+} from "./scoreEntry";
 
 // Needs archieves-api running (see .claude/docs/testing.md's "E2E"), since
 // recording a score persists every point through it.
@@ -75,8 +82,8 @@ test("1エンド戻る・進む moves between ends and keeps every arrow", async
   const back = page.getByRole("button", { name: "1エンド戻る", exact: true });
   const forward = page.getByRole("button", { name: "1エンド進む", exact: true });
 
-  // 矢が満ちると同じラウンドの次のエンドへ自動で進む
   await shoot(page, "9", 3);
+  await forward.click();
   await expect(progress).toContainText("エンド 2/2");
   await shoot(page, "10", 2);
 
@@ -103,6 +110,7 @@ test("1矢戻る is the only thing that erases an arrow", async ({ page }) => {
   const back = page.getByRole("button", { name: "1エンド戻る", exact: true });
 
   await shoot(page, "9", 3);
+  await forward.click();
   await expect(progress).toContainText("エンド 2/2");
   await shoot(page, "7", 2);
   await page.getByRole("button", { name: "1矢戻る", exact: true }).click();
@@ -124,7 +132,29 @@ test("1矢戻る is the only thing that erases an arrow", async ({ page }) => {
   await expect(rows.nth(1).getByText("7", { exact: true })).toHaveCount(2);
 });
 
-test("arrows are written when the end changes, not one by one", async ({ page }) => {
+test("a full end stays on screen until 1エンド進む is pressed", async ({ page }) => {
+  await startGame(page, { endSize: 3, roundSize: 2, gameSize: 2 });
+  const progress = page.locator(".ScoreProgress");
+
+  await shoot(page, "9", 3);
+  // 満ちても自動で進まず、満ちたことと次の操作を知らせ、的は押せなくなる
+  await expect(progress).toContainText("エンド 1/2");
+  await expect(progress).toContainText("3/3本");
+  await expect(recordedArrows(page)).toHaveText(["9", "9", "9"]);
+  await expect(page.locator(".EndCompleteNotice")).toContainText("「1エンド進む」で次のエンドに進みます");
+  await expect(ringButton(page, "9")).toBeDisabled();
+
+  // 満ちたあとでも、最後の矢を外して打ち直せる
+  await page.getByRole("button", { name: "1矢戻る", exact: true }).click();
+  await shoot(page, "10", 1);
+  await expect(recordedArrows(page)).toHaveText(["9", "9", "10"]);
+
+  await nextEnd(page);
+  await expect(progress).toContainText("エンド 2/2");
+  await expect(recordedArrows(page)).toHaveCount(0);
+});
+
+test("arrows are written when the end fills or changes, not one by one", async ({ page }) => {
   await startGame(page, { endSize: 3, roundSize: 2, gameSize: 2 });
   const arrowPosts: string[] = [];
   page.on("request", (request) => {
@@ -137,9 +167,10 @@ test("arrows are written when the end changes, not one by one", async ({ page })
   expect(arrowPosts).toHaveLength(0);
   expect(await page.evaluate(() => localStorage.getItem("gameId"))).toBeNull();
 
-  // 三本目でエンドが満ち、次のエンドへ自動で進むときにまとめて書く
+  // 三本目でエンドが満ちたら、進むのを待たずにまとめて書く
   await shoot(page, "9", 1);
   await expect.poll(() => arrowPosts.length).toBe(3);
+  await expect(page.locator(".ScoreProgress")).toContainText("エンド 1/2");
   expect(await page.evaluate(() => localStorage.getItem("gameId"))).not.toBeNull();
 });
 
@@ -154,15 +185,18 @@ test("progress follows the arrow, end and round through a whole game", async ({ 
   // below never shifts as arrows come in.
   await expect(page.locator(".EndView .ArrowSlot")).toHaveCount(3);
 
-  // 満ちたエンドから同じラウンドの次のエンドへは自動で進む
   await shoot(page, "9", 3);
+  await nextEnd(page);
   await expect(progress).toContainText("エンド 2/2");
   await expect(progress).toContainText("0/3本");
-  // ラウンドの最後のエンドが満ちたら、次のラウンドへも自動で進む
+  // ラウンドの最後のエンドが満ちたら、次へ進むとラウンドが変わることを知らせる
   await shoot(page, "9", 3);
+  await expect(page.locator(".EndCompleteNotice")).toContainText("次のラウンドに進みます");
+  await nextEnd(page);
   await expect(progress).toContainText("ラウンド 2/2");
   await expect(progress).toContainText("エンド 1/2");
   await shoot(page, "9", 3);
+  await nextEnd(page);
   await expect(progress).toContainText("エンド 2/2");
   await shoot(page, "9", 3);
 
@@ -260,7 +294,7 @@ test("a game shape always has at least one arrow, end and round", async ({ page 
 test("resuming a game whose end is already full opens the next end", async ({ page }) => {
   await startGame(page, { endSize: 3, roundSize: 6, gameSize: 2 });
 
-  // 満ちると次のエンドへ自動で進み、そのときに矢を書く
+  // 満ちたところで矢を書く(次のエンドへは進まない)
   const arrowPosts: string[] = [];
   page.on("request", (request) => {
     if (request.method() === "POST" && /\/ends\/\d+\/points$/.test(request.url())) {
@@ -268,8 +302,6 @@ test("resuming a game whose end is already full opens the next end", async ({ pa
     }
   });
   await shoot(page, "10", 3);
-  await expect(page.locator(".ScoreProgress")).toContainText("エンド 2/6");
-  await page.getByRole("button", { name: "1エンド戻る", exact: true }).click();
   await expect(page.locator(".ScoreProgress")).toContainText("エンド 1/6");
   // 書き込みが終わる前に読み直すと、書きかけの矢が読めない
   await expect.poll(() => arrowPosts.length).toBe(3);
@@ -288,9 +320,10 @@ test("the game resumes in the right round and end across a reload", async ({ pag
   await startGame(page, { endSize: 2, roundSize: 2, gameSize: 2 });
 
   await shoot(page, "10", 2);
+  await nextEnd(page);
   await expect(page.locator(".ScoreProgress")).toContainText("エンド 2/2");
-  // ラウンドの最後のエンドが満ちると、次のラウンドへ自動で進む
   await shoot(page, "8", 2);
+  await nextEnd(page);
   await expect(page.locator(".ScoreProgress")).toContainText("ラウンド 2/2");
   await shoot(page, "9", 1);
   // 矢はエンドを動かすときに書くので、動かして今のエンドを書かせる
@@ -345,6 +378,7 @@ test("矢が空のままでも 1エンド進む でエンドを飛ばせる", as
   await forward.click();
   await expect(progress).toContainText("エンド 2/3");
   await shoot(page, "8", 3);
+  await nextEnd(page);
   await expect(progress).toContainText("エンド 3/3");
 
   await page.getByRole("button", { name: "終了" }).click();

@@ -108,20 +108,18 @@ export async function shoot(page: Page, label: string, times: number) {
 
   for (let i = 0; i < times; i++) {
     const before = await recordedArrows(page).count();
-    const progressBefore = await page.locator(".ScoreProgress").innerText();
     await page.mouse.click(aim.x, aim.y + AIM_OFFSET_Y);
-    // エンドが満ちる最後の矢は、次のエンドへ自動で進んで表示の矢が 0 に戻る
-    await expect
-      .poll(
-        async () => {
-          const count = await recordedArrows(page).count();
-          if (count === before + 1) return true;
-          return count === 0 && (await page.locator(".ScoreProgress").innerText()) !== progressBefore;
-        },
-        { timeout: 10_000 },
-      )
-      .toBe(true);
+    // エンドが満ちても次のエンドへは進まない(nextEnd で進む)
+    await expect(recordedArrows(page)).toHaveCount(before + 1, { timeout: 10_000 });
   }
+}
+
+/** 「1エンド進む」を押し、帯の位置が変わるのを待つ。 */
+export async function nextEnd(page: Page) {
+  const progress = page.locator(".ScoreProgress");
+  const before = await progress.innerText();
+  await page.getByRole("button", { name: "1エンド進む", exact: true }).click();
+  await expect(progress).not.toHaveText(before);
 }
 
 /**
