@@ -131,7 +131,9 @@ export default function ScoreEntryShell({ renderInput }: Props) {
             <p className="GameCompleteNotice notice done">{T.game.entry.gameComplete}</p>
           ) : (
             progress?.isEndFull && (
-              <p className="EndCompleteNotice notice full">{T.game.entry.endComplete}</p>
+              <p className="EndCompleteNotice notice full">
+                {progress.isRoundFull ? T.game.entry.roundComplete : T.game.entry.endComplete}
+              </p>
             )
           )}
           <EndView
