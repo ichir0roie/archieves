@@ -11,11 +11,11 @@ import {
   DEFAULT_END_SIZE,
   DEFAULT_TARGET_TYPE_ID,
 } from "@/lib/score/scoreConfig";
-import type { PointRead } from "@/lib/api";
+import type { SheetPoint } from "@/lib/score/scoreSheetCache";
 import { useT } from "@/lib/text";
 
 export type ScoreInputProps = {
-  points: Array<PointRead>;
+  points: Array<SheetPoint>;
   /** エンド・ラウンド・ゲームのコメントの行。点数のすぐ下に来るよう、置く場所は入力の側が決める */
   commentBar: ReactNode;
   next: (point: number, x?: number, y?: number) => void;
@@ -25,7 +25,11 @@ export type ScoreInputProps = {
   /** 今のエンドを消して前のエンドに戻る / 消したエンドを入れ直す(無ければ次のエンドを開く) */
   backEnd: () => void;
   forwardEnd: () => void;
+  /** 手元の記録を API に保存する / 保存して閉じる */
+  save: () => void;
   finish: () => void;
+  /** 保存していない変更がある */
+  hasUnsavedChanges: boolean;
   canBackPoint: boolean;
   canForwardPoint: boolean;
   canBackEnd: boolean;
@@ -46,7 +50,7 @@ type Props = {
 
 /**
  * 点数の入力(/game/score-card)の枠。
- * 進み具合の帯、useScoreGame の読み込み・エラー・再試行、EndView を受け持ち、入力の部品だけを入れ替える。
+ * 進み具合の帯、保存のエラー、EndView を受け持ち、入力の部品だけを入れ替える。
  */
 export default function ScoreEntryShell({ renderInput }: Props) {
   const T = useT();
@@ -63,11 +67,11 @@ export default function ScoreEntryShell({ renderInput }: Props) {
     forwardPoint,
     backEnd,
     forwardEnd,
+    save,
     finish,
+    hasUnsavedChanges,
     error,
     isSaving,
-    isSettingUp,
-    retry,
   } = useScoreGame();
 
   const endSize = progress?.endSize ?? DEFAULT_END_SIZE;
@@ -103,21 +107,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
       </div>
       {!manager ? (
         <div className="score-loading">
-          {error ? (
-            <>
-              <ApiErrorAlert error={error} />
-              <button
-                type="button"
-                className="primary"
-                disabled={isSettingUp}
-                onClick={() => retry()}
-              >
-                {T.retry}
-              </button>
-            </>
-          ) : (
-            <div className="spinner" />
-          )}
+          <div className="spinner" />
         </div>
       ) : (
         <>
@@ -131,7 +121,9 @@ export default function ScoreEntryShell({ renderInput }: Props) {
             <p className="GameCompleteNotice notice done">{T.game.entry.gameComplete}</p>
           ) : (
             progress?.isEndFull && (
-              <p className="EndCompleteNotice notice full">{T.game.entry.endComplete}</p>
+              <p className="EndCompleteNotice notice full">
+                {progress.isRoundFull ? T.game.entry.roundComplete : T.game.entry.endComplete}
+              </p>
             )
           )}
           <EndView
@@ -156,7 +148,9 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               forwardPoint,
               backEnd,
               forwardEnd,
+              save,
               finish,
+              hasUnsavedChanges,
               canBackPoint: progress?.canBackPoint ?? false,
               canForwardPoint: progress?.canForwardPoint ?? false,
               canBackEnd: progress?.canBackEnd ?? false,

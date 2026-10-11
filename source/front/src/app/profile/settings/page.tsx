@@ -7,22 +7,37 @@ import Combobox from "@/components/Combobox";
 import Field from "@/components/Field";
 import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
+import Segment from "@/components/Segment";
 import {
+  MeRead,
   OrganizationSummary,
-  UserRead,
+  Visibility,
   findOrCreateOrganization,
   getOrganization,
-  getUser,
   searchOrganizations,
   toErrorDetails,
   updateUser,
   type ErrorDetails,
 } from "@/lib/api";
-import { getCurrentAppUser } from "@/lib/auth/currentUser";
+import {
+  getCurrentAppUser,
+  refreshCurrentAppUser,
+  updateCachedAppUser,
+} from "@/lib/auth/currentUser";
 import { useT } from "@/lib/text";
+
+const VISIBILITIES: Array<Visibility> = [
+  "private",
+  "organization",
+  "public",
+];
 
 export default function Page() {
   const T = useT();
+  const VISIBILITY_OPTIONS = VISIBILITIES.map((visibility) => ({
+    value: visibility,
+    label: T.profile.settings.visibility[visibility],
+  }));
   const router = useRouter();
   const [userId, setUserId] = useState<number | null>(null);
   const [name, setName] = useState("");
@@ -32,16 +47,20 @@ export default function Page() {
   const [organizationInputValue, setOrganizationInputValue] = useState("");
   const [organizationId, setOrganizationId] = useState<number | null>(null);
   const [organizationOptions, setOrganizationOptions] = useState<OrganizationSummary[]>([]);
+  const [profileVisibility, setProfileVisibility] = useState<Visibility>("private");
+  const [rankingVisibility, setRankingVisibility] = useState<Visibility>("private");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<ErrorDetails | null>(null);
 
-  function applyUser(user: UserRead) {
+  function applyUser(user: MeRead) {
     setName(user.name);
     setNickname(user.nickname ?? "");
     setBirthDate(user.birth_date ?? "");
     setAge(user.age);
+    setProfileVisibility(user.profile_visibility);
+    setRankingVisibility(user.ranking_visibility);
   }
 
   useEffect(() => {
@@ -51,10 +70,10 @@ export default function Page() {
       setLoading(true);
       setError(null);
       try {
-        const { id } = await getCurrentAppUser();
-        const user = await getUser(id);
+        // 登録(行が無ければ作る)を兼ねる。キャッシュの名前・管理者のフラグもここで新しくする
+        const { user } = await refreshCurrentAppUser();
         if (cancelled) return;
-        setUserId(id);
+        setUserId(user.id);
         applyUser(user);
         if (user.organization_id !== null) {
           const organization = await getOrganization(user.organization_id);
@@ -116,9 +135,12 @@ export default function Page() {
         nickname: nickname || null,
         birth_date: birthDate || null,
         organization_id: resolvedOrganizationId,
+        profile_visibility: profileVisibility,
+        ranking_visibility: rankingVisibility,
       });
       setUserId(id);
       applyUser(updated);
+      await updateCachedAppUser(updated);
       setOrganizationId(resolvedOrganizationId);
       router.push("/");
     } catch (e) {
@@ -194,6 +216,25 @@ export default function Page() {
               />
             )}
           </Field>
+          <div className="field">
+            <span className="field-label">{T.profile.settings.profileVisibility}</span>
+            <Segment
+              options={VISIBILITY_OPTIONS}
+              value={profileVisibility}
+              onChange={setProfileVisibility}
+              label={T.profile.settings.profileVisibility}
+            />
+          </div>
+          <div className="field">
+            <span className="field-label">{T.profile.settings.rankingVisibility}</span>
+            <Segment
+              options={VISIBILITY_OPTIONS}
+              value={rankingVisibility}
+              onChange={setRankingVisibility}
+              label={T.profile.settings.rankingVisibility}
+            />
+          </div>
+          <p className="muted small">{T.profile.settings.visibilityHint}</p>
 
           <button
             type="button"

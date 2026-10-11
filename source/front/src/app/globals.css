@@ -73,7 +73,7 @@ button.success { background: var(--ok); color: #fff; border-color: var(--ok); }
 button.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
 button.ghost { background: transparent; border-color: transparent; }
 button.ghost:hover:not(:disabled) { background: var(--chip); border-color: transparent; }
-/* 画面の主な操作(ホームの「スコア記録を開始」など)。指で押しやすい高さにする */
+/* 画面の主な操作(設定の「ゲーム開始」など)。指で押しやすい高さにする */
 button.large { padding: 0.85rem 1rem; font-size: 1.05rem; font-weight: 600; border-radius: 12px; }
 button.block { width: 100%; }
 button.icon { padding: 0.3rem; line-height: 0; border-radius: 999px; }
@@ -138,7 +138,7 @@ button.icon { padding: 0.3rem; line-height: 0; border-radius: 999px; }
 .muted { color: var(--muted); }
 .small { font-size: 0.8rem; }
 
-/* 行を押すと別の画面へ飛ぶ一覧(今月の記録・ランキング・スコア) */
+/* 行を押すと別の画面へ飛ぶ一覧(ランキング・スコア) */
 .row-list { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .row-list > * { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.9rem; color: var(--ink); }
 .row-list > * + * { border-top: 1px solid var(--line); }
@@ -196,6 +196,13 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior
 .hero { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 1.5rem 0 0.5rem; text-align: center; }
 .hero .logo { width: 3.5rem; height: 3.5rem; border-radius: 16px; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; }
 .hero h1 { font-size: 1.6rem; }
+
+/* ホームの行き先のボタン。ゲーム開始を一番大きく、ほかは 2 列に並べる */
+.HomeMenu { display: flex; flex-direction: column; gap: 0.75rem; }
+.HomeMenu a { display: flex; align-items: center; justify-content: center; min-height: 3.5rem; padding: 0.7rem 0.8rem; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); font-weight: 600; text-align: center; }
+.HomeMenu a:hover { border-color: var(--accent); text-decoration: none; }
+.HomeMenu a.start { min-height: 4.5rem; font-size: 1.15rem; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.HomeMenu .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
 
 /* 統計の一枚(平均を大きく、最小・最大・中央値・件数を小さく) */
 .stat-card { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -257,15 +264,17 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .comment-field .icon:not(.has-body) { color: var(--muted); }
 
 .score-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; padding: 0.6rem; border-top: 1px solid var(--line); flex-shrink: 0; }
-.score-actions > .finish { grid-column: 1 / -1; }
 
 /* 的をタッチする入力。帯は内側ほど上に重ね、押した所を覆ういちばん小さい帯に当たるようにする */
 .target-input { height: 100%; display: flex; flex-direction: column; }
 .target-face { position: relative; flex: 1; min-height: 0; }
-.target-face.locked { opacity: 0.6; }
+/* エンドが満ちて押せない間も、的は見やすいよう薄くしない(button:disabled の opacity を打ち消す) */
+.target-face .target-ring:disabled,
+.target-face .miss-area:disabled { opacity: 1; }
 .target-face .miss-area { position: absolute; inset: 0; z-index: 0; border: 0; border-radius: 0; background: none; padding: 0; }
 .target-face .target-ring { position: absolute; border-radius: 999px; background: var(--ring); border: 1px solid #6a7080; padding: 0; }
-.target-face .arrow-mark { position: absolute; width: 10px; height: 10px; border-radius: 999px; background: #fff; border: 2px solid #000; z-index: 100; pointer-events: none; }
+/* 大きさは矢の太さとして TargetCircleInput の ARROW_MARK_SIZE で決める */
+.target-face .arrow-mark { position: absolute; border-radius: 999px; background: #fff; border: 2px solid #000; z-index: 100; pointer-events: none; }
 .target-face .target-ring:disabled { cursor: default; }
 /* 押しているあいだ指の上に出すズーム。指の下の帯と、離すと付く点数を見せる */
 .score-entry { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
@@ -273,11 +282,12 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .target-face .target-lens { position: absolute; z-index: 200; border-radius: 999px; overflow: hidden; border: 2px solid var(--line); background: var(--panel); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); pointer-events: none; }
 .target-face .target-lens .lens-content { position: absolute; }
 /* 十字は中央の帯(ringClass)の色を反転した色。帯と同じ色で埋もれないようにする */
-.target-face .target-lens .lens-crosshair { --crosshair: rgb(from var(--ring) calc(255 - r) calc(255 - g) calc(255 - b)); position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 999px; border: 2px solid var(--crosshair); z-index: 150; }
+/* 円の大きさ(--arrow-size)は、ズームした矢の太さ */
+.target-face .target-lens .lens-crosshair { --crosshair: rgb(from var(--ring) calc(255 - r) calc(255 - g) calc(255 - b)); position: absolute; left: 50%; top: 50%; width: var(--arrow-size); height: var(--arrow-size); transform: translate(-50%, -50%); border-radius: 999px; border: 2px solid var(--crosshair); z-index: 150; }
 .target-face .target-lens .lens-crosshair::before,
 .target-face .target-lens .lens-crosshair::after { content: ""; position: absolute; background: var(--crosshair); }
-.target-face .target-lens .lens-crosshair::before { left: 50%; top: -8px; width: 2px; height: 26px; margin-left: -1px; }
-.target-face .target-lens .lens-crosshair::after { top: 50%; left: -8px; height: 2px; width: 26px; margin-top: -1px; }
+.target-face .target-lens .lens-crosshair::before { left: 50%; top: -8px; bottom: -8px; width: 2px; margin-left: -1px; }
+.target-face .target-lens .lens-crosshair::after { top: 50%; left: -8px; right: -8px; height: 2px; margin-top: -1px; }
 .target-face .target-lens .lens-score { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 160; min-width: 2.2rem; padding: 0.1rem 0.5rem; border-radius: 999px; text-align: center; font-weight: 700; font-size: 1.1rem; background: var(--ring); color: var(--ring-ink); border: 1px solid #6a7080; }
 
 /* ---- 点数の入力の追加分 ---- */

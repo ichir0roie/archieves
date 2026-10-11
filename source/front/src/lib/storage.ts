@@ -5,8 +5,6 @@ import {
 } from "@/lib/score/scoreConfig";
 
 const ROUND_SETUP_KEY = "roundSetup";
-const GAME_ID_KEY = "gameId";
-const NEW_GAME_START_KEY = "newGameStart";
 
 /** The distance/target size/arrows per end/end count/round count chosen on the setup screen. */
 export function saveRoundSetup(setup: RoundSetup) {
@@ -29,42 +27,6 @@ export function loadRoundSetup(): RoundSetup | null {
   }
 }
 
-export function saveGameId(gameId: string) {
-  localStorage.setItem(GAME_ID_KEY, gameId);
-}
-
-export function clearGameId() {
-  localStorage.removeItem(GAME_ID_KEY);
-}
-
-export function loadGameId(): string | null {
-  return localStorage.getItem(GAME_ID_KEY);
-}
-
-/**
- * Permission for the score entry screen to start a brand-new game. Only
- * /game/setup sets this, right before navigating to score-card - any other
- * way of landing there (browser back, the score-view Home button, a stale
- * tab) must not silently start a new game.
- * It stays armed across reloads of that still-empty screen (nothing has
- * been saved yet, so there's nothing to distinguish it from a first visit)
- * and is only cleared once the game becomes real - see
- * ScoreManager.ensurePersisted(), which clears it right where it calls
- * saveGameId(). Backing all the way out of a game that never got a score
- * re-arms it, so the same still-empty screen keeps working.
- */
-export function markNewGameStart() {
-  sessionStorage.setItem(NEW_GAME_START_KEY, "1");
-}
-
-export function hasNewGameStart(): boolean {
-  return sessionStorage.getItem(NEW_GAME_START_KEY) === "1";
-}
-
-export function clearNewGameStart() {
-  sessionStorage.removeItem(NEW_GAME_START_KEY);
-}
-
 const SCORE_LOG_COLLAPSED_KEY = "scoreLogCollapsed";
 
 /** スコアで閉じている見出しのキー(年・月・日)。localStorage が使えなければ全部開いた扱い */
@@ -83,4 +45,69 @@ export function saveScoreLogCollapsed(keys: Array<string>) {
   } catch {
     // 保存できなくても、開閉そのものは画面の中で動く
   }
+}
+
+const APP_USER_KEY = "appUser";
+const APP_USER_EVENT = "archieves:app-user";
+
+/** API の利用者(`/users/me`)のうち、画面を開くたびに読み直さずに済ませたいもの */
+export interface CachedAppUser {
+  sub: string;
+  id: number;
+  name: string;
+  isAdmin: boolean;
+}
+
+/** 別の人がログインし直したときに前の人の値を使わないよう、今のログインの sub と合うときだけ返す */
+export function loadCachedAppUser(sub: string): CachedAppUser | null {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(APP_USER_KEY) ?? "null");
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const user = parsed as Partial<CachedAppUser>;
+    if (
+      user.sub !== sub ||
+      typeof user.id !== "number" ||
+      typeof user.name !== "string" ||
+      typeof user.isAdmin !== "boolean"
+    ) {
+      return null;
+    }
+    return {
+      sub: user.sub,
+      id: user.id,
+      name: user.name,
+      isAdmin: user.isAdmin,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** 書いたら、開いたままのメニュー(Nav)などが読み直せるよう知らせる */
+export function saveCachedAppUser(user: CachedAppUser) {
+  try {
+    localStorage.setItem(APP_USER_KEY, JSON.stringify(user));
+  } catch {
+    // 保存できなければ、次に要るときに API から読む
+  }
+  window.dispatchEvent(new Event(APP_USER_EVENT));
+}
+
+export function clearCachedAppUser() {
+  try {
+    localStorage.removeItem(APP_USER_KEY);
+  } catch {
+    // 消せなくても、sub が違えば使われない
+  }
+  window.dispatchEvent(new Event(APP_USER_EVENT));
+}
+
+export function subscribeCachedAppUser(onChange: () => void): () => void {
+  window.addEventListener(APP_USER_EVENT, onChange);
+  // 別のタブでの書き換え
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(APP_USER_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
 }

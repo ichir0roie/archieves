@@ -30,7 +30,7 @@ import {
 } from "@/lib/api";
 import { countRings, scoreToStr, totalScore } from "@/lib/score/scoreFunctions";
 import { DEFAULT_END_SIZE } from "@/lib/score/scoreConfig";
-import { loadGameId, saveGameId } from "@/lib/storage";
+import { ScoreManager } from "@/lib/score/scoreManager";
 import { useT } from "@/lib/text";
 import { useRunOnce } from "@/lib/useRunOnce";
 
@@ -87,7 +87,7 @@ function ScoreViewContent() {
   async function loadGame() {
     setError(null);
     try {
-      const requestedId = searchParams.get("gameId") ?? loadGameId();
+      const requestedId = searchParams.get("gameId");
       if (!requestedId) {
         throw new Error(T.profile.scoreView.noGame);
       }
@@ -178,11 +178,18 @@ function ScoreViewContent() {
     });
   }
 
-  // 入力の画面は、保存してあるゲームの id から続きを開く。いちばん最後のエンドに戻る
-  function editGame() {
+  // 入力の画面は手元のキャッシュから開く。ここで API から丸ごと読んでキャッシュを作り直し、
+  // いちばん最後のエンドに戻る
+  async function editGame() {
     if (gameId === null) return;
-    saveGameId(String(gameId));
-    router.push("/game/score-card");
+    if (ScoreManager.hasUnsavedCache() && !window.confirm(T.profile.scoreView.discardUnsaved)) return;
+    setError(null);
+    try {
+      await ScoreManager.startEditing(gameId);
+      router.push("/game/score-card");
+    } catch (e) {
+      setError(toErrorDetails(e));
+    }
   }
 
   async function onDeleteGame() {

@@ -5,6 +5,9 @@ const ROUTE_TIMEOUT = 15_000;
 // 的は指の上を狙う(TargetCircleInput の AIM_OFFSET_Y)ので、狙う点よりこのぶん下を押す
 export const AIM_OFFSET_Y = 107;
 
+// 矢の印の半径(TargetCircleInput の ARROW_MARK_SIZE の半分)。点数は矢の縁で決まる(線にかかれば高い方)
+const ARROW_MARK_RADIUS = 5;
+
 export interface GameSetup {
   bowType?: string;
   endSize?: number;
@@ -77,8 +80,8 @@ async function settledBoundingBox(button: Locator) {
 }
 
 /**
- * 的の帯を押して矢を記録する。帯は同心円なので、ボタンの中心でなく帯の幅の真ん中
- * (内側の帯の外に当たる所)を狙う。X は中心、外れは的の枠の隅。
+ * 的の帯を押して矢を記録する。帯は同心円なので、ボタンの中心でなく、矢の縁が帯の幅の真ん中
+ * (内側の帯の外に当たる所)に来る所を狙う。X は中心、外れは的の枠の隅。
  */
 export async function shoot(page: Page, label: string, times: number) {
   const button = ringButton(page, label);
@@ -100,35 +103,45 @@ export async function shoot(page: Page, label: string, times: number) {
     const outer = box.width / 2;
     // 外側の半径に対する内側の帯の半径の割合。10 の内側は X で、10 の帯の半分
     const innerRatio = point === 10 ? 0.5 : (10 - point) / (11 - point);
+    // 矢の縁(中心から矢の半径だけ内側)が帯の真ん中に来るよう、中心は半径のぶん外に置く
     aim = {
-      x: box.x + outer + (outer + outer * innerRatio) / 2,
+      x: box.x + outer + (outer + outer * innerRatio) / 2 + ARROW_MARK_RADIUS,
       y: box.y + outer,
     };
   }
 
   for (let i = 0; i < times; i++) {
     const before = await recordedArrows(page).count();
-    const progressBefore = await page.locator(".ScoreProgress").innerText();
     await page.mouse.click(aim.x, aim.y + AIM_OFFSET_Y);
-    // エンドが満ちる最後の矢は、次のエンドへ自動で進んで表示の矢が 0 に戻る
-    await expect
-      .poll(
-        async () => {
-          const count = await recordedArrows(page).count();
-          if (count === before + 1) return true;
-          return count === 0 && (await page.locator(".ScoreProgress").innerText()) !== progressBefore;
-        },
-        { timeout: 10_000 },
-      )
-      .toBe(true);
+    // エンドが満ちても次のエンドへは進まない(nextEnd で進む)
+    await expect(recordedArrows(page)).toHaveCount(before + 1, { timeout: 10_000 });
   }
 }
 
+/** 「1エンド進む」を押し、帯の位置が変わるのを待つ。 */
+export async function nextEnd(page: Page) {
+  const progress = page.locator(".ScoreProgress");
+  const before = await progress.innerText();
+  await page.getByRole("button", { name: "1エンド進む", exact: true }).click();
+  await expect(progress).not.toHaveText(before);
+}
+
 /**
- * 裏で書いている矢・コメントが API に届いてから再読み込みする。画面は書き終えていないと
- * beforeunload で引き止めるが、Playwright の reload はそれを通らないので、通信が止むのを待つ。
+ * 読み込み直す。入力の画面の記録は手元のキャッシュにあり、保存しなくても読み込み直しで戻る。
+ * 画面は beforeunload で引き止めるが、Playwright の reload はそれを通らない。
  */
-export async function reloadAfterWrites(page: Page) {
+export async function reloadPage(page: Page) {
   await page.waitForLoadState("networkidle");
   await page.reload();
+}
+
+/** 入力の画面の「保存」を押し、送った PUT /games/sheet の応答(保存したゲーム)を返す。 */
+export async function saveSheet(page: Page) {
+  const response = page.waitForResponse(
+    (r) => r.request().method() === "PUT" && r.url().endsWith("/api/v1/games/sheet"),
+  );
+  await page.locator(".ScoreSave").click();
+  const saved = await (await response).json();
+  await expect(page.locator(".ScoreSave")).toHaveText("保存済み");
+  return saved as { id: number };
 }

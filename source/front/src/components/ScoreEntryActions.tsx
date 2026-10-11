@@ -3,7 +3,7 @@
 import type { ScoreInputProps } from "@/components/ScoreEntryShell";
 import { useT } from "@/lib/text";
 
-/** 1ポイント戻る・進む / 1エンド戻る・進む / 終了 */
+/** 1矢戻る・進む / 1エンド戻る・進む / 保存・終了 */
 export default function ScoreEntryActions(props: ScoreInputProps) {
   const T = useT();
   return (
@@ -36,6 +36,14 @@ export default function ScoreEntryActions(props: ScoreInputProps) {
         disabled={props.disabled || !props.canForwardEnd}
       >
         {T.game.entry.forwardEnd}
+      </button>
+      <button
+        type="button"
+        className="ScoreSave"
+        onClick={props.save}
+        disabled={props.disabled || !props.hasUnsavedChanges}
+      >
+        {props.hasUnsavedChanges ? T.save : T.game.entry.saved}
       </button>
       <button
         type="button"

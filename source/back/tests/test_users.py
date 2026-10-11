@@ -6,10 +6,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.crud import user as user_crud
+from app.db import User
 from app.schemas.user import UserCreate, calc_age
 
 
-def test_create_and_get_user(client: TestClient) -> None:
+def test_create_and_get_user(client: TestClient, s: Session) -> None:
     payload = {
         "name": "Yumi",
         "nickname": "Yu",
@@ -24,19 +25,33 @@ def test_create_and_get_user(client: TestClient) -> None:
     assert user["birth_date"] == "2000-04-01"
     assert user["age"] == calc_age(date(2000, 4, 1), date.today())
 
+    # 作った行は本人ではないので、プロフィールを公開してから読む
+    created = s.get(User, user["id"])
+    assert created is not None
+    created.profile_visibility = "public"
     get_res = client.get(f"/api/v1/users/{user['id']}")
     assert get_res.status_code == 200
     assert get_res.json() == user
 
 
-def test_list_users(client: TestClient) -> None:
-    client.post("/api/v1/users", json={"name": "Yumi"})
-    client.post("/api/v1/users", json={"name": "Kenta"})
+def test_list_users_shows_only_self_and_visible_profiles(
+    client: TestClient, current_user, factories
+) -> None:
+    organization = factories.OrganizationFactory()
+    current_user.organization_id = organization.id
+    public = factories.UserFactory(profile_visibility="public")
+    same_organization = factories.UserFactory(
+        profile_visibility="organization", organization_id=organization.id
+    )
+    other_organization = factories.UserFactory(profile_visibility="organization")
+    private = factories.UserFactory()
 
-    response = client.get("/api/v1/users")
+    response = client.get("/api/v1/users", params={"limit": 1000})
     assert response.status_code == 200
-    names = {user["name"] for user in response.json()}
-    assert {"Yumi", "Kenta"} <= names
+    ids = {user["id"] for user in response.json()}
+    assert {current_user.id, public.id, same_organization.id} <= ids
+    assert other_organization.id not in ids
+    assert private.id not in ids
 
 
 def test_create_user_with_organization(client: TestClient) -> None:
@@ -96,12 +111,52 @@ def test_update_another_user_is_forbidden(client: TestClient, factories) -> None
     assert response.status_code == 403
 
 
-def test_get_another_user_is_allowed(client: TestClient, factories) -> None:
-    other = factories.UserFactory(name="Kenta")
+def test_get_another_user_with_a_public_profile_is_allowed(client: TestClient, factories) -> None:
+    other = factories.UserFactory(name="Kenta", profile_visibility="public")
 
     response = client.get(f"/api/v1/users/{other.id}")
     assert response.status_code == 200
     assert response.json()["name"] == "Kenta"
+
+
+def test_get_another_user_with_a_private_profile_is_forbidden(
+    client: TestClient, factories
+) -> None:
+    other = factories.UserFactory()
+
+    assert client.get(f"/api/v1/users/{other.id}").status_code == 403
+
+
+def test_visibility_defaults_to_private(client: TestClient) -> None:
+    me = client.get("/api/v1/users/me").json()
+    assert me["profile_visibility"] == "private"
+    assert me["ranking_visibility"] == "private"
+
+
+def test_update_visibility(client: TestClient) -> None:
+    me = client.get("/api/v1/users/me").json()
+
+    response = client.patch(
+        f"/api/v1/users/{me['id']}",
+        json={"profile_visibility": "organization", "ranking_visibility": "public"},
+    )
+    assert response.status_code == 200
+    assert response.json()["profile_visibility"] == "organization"
+    assert response.json()["ranking_visibility"] == "public"
+    assert client.get("/api/v1/users/me").json()["ranking_visibility"] == "public"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"profile_visibility": "friends"},
+        {"ranking_visibility": None},
+    ],
+)
+def test_update_rejects_an_unknown_or_null_visibility(client: TestClient, payload: dict) -> None:
+    me = client.get("/api/v1/users/me").json()
+
+    assert client.patch(f"/api/v1/users/{me['id']}", json=payload).status_code == 422
 
 
 def test_update_missing_user_returns_404(client: TestClient) -> None:

@@ -28,6 +28,8 @@ import type {
   RoundScoreSummary,
   ScoreStatistics,
   GameKindOptions,
+  GameSheetRead,
+  GameSheetWrite,
   MeRead,
   UserCreate,
   UserProfile,
@@ -161,7 +163,7 @@ export function getMyUser(): Promise<MeRead> {
 }
 
 /** Updates a user's basic profile info (name, nickname, birth date, organization, region). */
-export function updateUser(userId: number, user: UserUpdate): Promise<UserRead> {
+export function updateUser(userId: number, user: UserUpdate): Promise<MeRead> {
   return request(`/users/${userId}`, {
     method: 'PATCH',
     body: JSON.stringify(user),
@@ -235,6 +237,19 @@ export function getGame(gameId: number): Promise<GameRead> {
 }
 
 /** Soft-deletes a game and, with it, its rounds/ends/points. */
+/** 入力の画面が手元に溜めたゲームの記録を一度に保存する。id が無ければ作り、あれば丸ごと上書きする。 */
+export function saveGameSheet(sheet: GameSheetWrite): Promise<GameSheetRead> {
+  return request('/games/sheet', {
+    method: 'PUT',
+    body: JSON.stringify(sheet),
+  });
+}
+
+/** ゲームの記録(ラウンド・エンド・矢・コメント)を丸ごと読む。 */
+export function getGameSheet(gameId: number): Promise<GameSheetRead> {
+  return request(`/games/${gameId}/sheet`);
+}
+
 export function deleteGame(gameId: number): Promise<void> {
   return request(`/games/${gameId}`, { method: 'DELETE' });
 }
