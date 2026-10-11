@@ -2,9 +2,6 @@ import { expect, type Locator, type Page } from "@playwright/test";
 
 const ROUTE_TIMEOUT = 15_000;
 
-// 的は指の上を狙う(TargetCircleInput の AIM_OFFSET_Y)ので、狙う点よりこのぶん下を押す
-export const AIM_OFFSET_Y = 107;
-
 // 既定の矢の半径(scoreConfig の DEFAULT_ARROW_DIAMETER_PX の半分)。点数は矢の縁で決まる(線にかかれば高い方)
 const ARROW_MARK_RADIUS = 5;
 
@@ -117,7 +114,7 @@ export async function shoot(page: Page, label: string, times: number) {
 
   for (let i = 0; i < times; i++) {
     const before = await recordedArrows(page).count();
-    await page.mouse.click(aim.x, aim.y + AIM_OFFSET_Y);
+    await page.mouse.click(aim.x, aim.y);
     // エンドが満ちても次のエンドへは進まない(nextEnd で進む)
     await expect(recordedArrows(page)).toHaveCount(before + 1, { timeout: 10_000 });
   }
