@@ -23,6 +23,7 @@ export const profile: typeof ja = {
     nickname: (nickname: string) => `(${nickname})`,
     period: (start: string, end: string) => `Statistics for the past year (${start} – ${end})`,
     private: "This profile is not public",
+    visibilityTitle: "Privacy",
   },
   organization: {
     title: "Organization info",
