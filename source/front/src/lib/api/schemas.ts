@@ -53,5 +53,7 @@ export type UserRanking = Schemas['UserRanking'];
 export type UserRead = Schemas['UserRead'];
 export type Visibility = Schemas['Visibility'];
 export type GameSheetRead = Schemas['GameSheetRead'];
+export type RoundSheetRead = Schemas['RoundSheetRead'];
+export type EndSheetRead = Schemas['EndSheetRead'];
 export type GameSheetWrite = Schemas['GameSheetWrite'];
 export type UserUpdate = Schemas['UserUpdate'];

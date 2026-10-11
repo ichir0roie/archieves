@@ -13,20 +13,18 @@ import {
   deleteGame,
   deleteGameComment,
   deleteRoundComment,
-  getGame,
-  listEnds,
+  getGameSheet,
   listGameComments,
-  listPoints,
-  listRounds,
   saveEndComment,
   saveGameComment,
   saveRoundComment,
   toErrorDetails,
-  type EndRead,
+  type EndSheetRead,
   type ErrorDetails,
   type GameComments,
+  type GameSheetRead,
   type PointRead,
-  type RoundRead,
+  type RoundSheetRead,
 } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { SCORE_CARD_PATH } from "@/lib/destinations";
@@ -54,6 +52,18 @@ function toCommentTexts(comments: GameComments): CommentTexts {
   };
 }
 
+function sheetCommentTexts(sheet: GameSheetRead): CommentTexts {
+  const rounds: Record<number, string> = {};
+  const ends: Record<number, string> = {};
+  for (const round of sheet.rounds) {
+    if (round.comment !== null) rounds[round.id] = round.comment;
+    for (const end of round.ends) {
+      if (end.comment !== null) ends[end.id] = end.comment;
+    }
+  }
+  return { game: sheet.comment, rounds, ends };
+}
+
 function withBody(bodies: Record<number, string>, id: number, body: string | null) {
   const next = { ...bodies };
   if (body === null) delete next[id];
@@ -63,13 +73,13 @@ function withBody(bodies: Record<number, string>, id: number, body: string | nul
 
 /** ラウンドの一エンドと、そこに記録した矢。 */
 type ViewEnd = {
-  end: EndRead;
+  end: EndSheetRead;
   points: Array<PointRead>;
 };
 
 /** 点数表に描くゲームの一ラウンド。 */
 type ViewRound = {
-  round: RoundRead;
+  round: RoundSheetRead;
   ends: Array<ViewEnd>;
 };
 
@@ -86,16 +96,6 @@ export default function Page() {
       <ScoreViewContent />
     </Suspense>
   );
-}
-
-async function loadRound(round: RoundRead): Promise<ViewRound> {
-  const ends = await listEnds(round.id);
-  return {
-    round,
-    ends: await Promise.all(
-      ends.map(async (end) => ({ end, points: await listPoints(end.id) })),
-    ),
-  };
 }
 
 function ScoreViewContent() {
@@ -119,15 +119,18 @@ function ScoreViewContent() {
     }
     // 裏で書いているコメントが API に届いてから読む。でないと押したばかりのコメントが古い文に戻る
     await Promise.all(commentWrites.current.values());
-    const game = await getGame(Number(requestedId));
-    const [loadedRounds, loadedComments] = await Promise.all([
-      listRounds(game.id).then((list) => Promise.all(list.map(loadRound))),
-      listGameComments(game.id),
-    ]);
+    // ラウンド・エンド・矢・コメントを一度の要求で読む(ラウンドやエンドごとに呼ぶと、矢の多いゲームで要求が並ぶ)
+    const sheet = await getGameSheet(Number(requestedId));
     return {
-      gameId: game.id,
-      rounds: loadedRounds,
-      comments: toCommentTexts(loadedComments),
+      gameId: sheet.id,
+      rounds: sheet.rounds.map((round) => ({
+        round,
+        ends: round.ends.map((end) => ({
+          end,
+          points: end.points,
+        })),
+      })),
+      comments: sheetCommentTexts(sheet),
     };
   }, [requestedId, reloadKey]);
   const gameId = loaded.data?.gameId ?? null;
