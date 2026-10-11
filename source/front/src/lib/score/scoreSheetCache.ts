@@ -47,6 +47,8 @@ export interface Sheet {
   bow_type: string | null;
   /** 記入画面で矢として扱う円の直径(画面の px)。null は既定の大きさ */
   arrow_diameter_px: number | null;
+  /** オールイン。これを足す前のキャッシュには無い(無ければ false) */
+  all_in?: boolean;
   comment: string | null;
   rounds: Array<SheetRound>;
 }

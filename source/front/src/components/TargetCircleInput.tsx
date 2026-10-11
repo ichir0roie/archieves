@@ -131,15 +131,16 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   /**
    * 矢の中心が (x, y) のときの点数。矢をゲームで決めた直径(arrowDiameterPx)の円として、縁がいちばん
    * 中心に寄った所で決める。円が少しでも帯の線にかかれば、高い方の帯の点数(線にかかった矢は高い方の得点、
-   * というアーチェリーの決まり)
+   * というアーチェリーの決まり)。
+   * オールインでは逆に、縁がいちばん外に出た所で決める。円が帯に完全に入らなければその帯の点にならず、
+   * 線にかかれば低い方、的の縁にかかれば外れ。
    */
   function scoreAt(x: number, y: number): number {
     if (maxDiameter === 0) return MISS_SCORE;
-    const nearestEdge = Math.max(
-      Math.hypot(x - centerX, y - centerY) - props.arrowDiameterPx / 2,
-      0
-    );
-    return scoreAtDistance(nearestEdge / (maxDiameter / 2), ringCount);
+    const distance = Math.hypot(x - centerX, y - centerY);
+    const radius = props.arrowDiameterPx / 2;
+    const edge = props.allIn ? distance + radius : Math.max(distance - radius, 0);
+    return scoreAtDistance(edge / (maxDiameter / 2), ringCount);
   }
 
   /*
@@ -283,7 +284,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
           {props.points.map((point, index) => createArrow(point.x, point.y, index, LENS_ZOOM))}
         </div>
         {/* 中央の帯と同じ色だと埋もれるので、帯のクラスを付けて反転色で描く(globals.css) */}
-        {/* 十字の円は、ここに置く矢の太さ。円が帯の線にかかれば高い方の点数になる */}
+        {/* 十字の円は、ここに置く矢の太さ。円が帯の線にかかれば高い方の点数(オールインなら低い方)になる */}
         <ArrowSight
           arrowDiameterPx={props.arrowDiameterPx}
           ringClassName={ringClass(score)}
