@@ -4779,6 +4779,11 @@
               }
             ],
             "title": "Arrow Diameter Px"
+          },
+          "all_in": {
+            "type": "boolean",
+            "title": "All In",
+            "default": false
           }
         },
         "type": "object",
@@ -4893,6 +4898,11 @@
             ],
             "title": "Arrow Diameter Px"
           },
+          "all_in": {
+            "type": "boolean",
+            "title": "All In",
+            "default": false
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -4917,6 +4927,7 @@
           "game_size",
           "bow_type",
           "arrow_diameter_px",
+          "all_in",
           "id",
           "deleted_at"
         ],
@@ -5024,6 +5035,10 @@
             ],
             "title": "Arrow Diameter Px"
           },
+          "all_in": {
+            "type": "boolean",
+            "title": "All In"
+          },
           "comment": {
             "anyOf": [
               {
@@ -5052,6 +5067,7 @@
           "game_size",
           "bow_type",
           "arrow_diameter_px",
+          "all_in",
           "comment",
           "rounds"
         ],
@@ -5126,6 +5142,11 @@
               }
             ],
             "title": "Arrow Diameter Px"
+          },
+          "all_in": {
+            "type": "boolean",
+            "title": "All In",
+            "default": false
           },
           "comment": {
             "anyOf": [
@@ -5218,6 +5239,11 @@
               }
             ],
             "title": "Arrow Diameter Px"
+          },
+          "all_in": {
+            "type": "boolean",
+            "title": "All In",
+            "default": false
           }
         },
         "type": "object",
