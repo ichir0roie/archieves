@@ -31,6 +31,7 @@ export const game = {
     home: `${t.home}へ戻る`,
     round: t.round,
     end: t.end,
+    roundTotal: `${t.round}${t.total}`,
     gameComplete: `全${t.round}の${t.record}が終わりました。「終了」で${t.score}を確認できます。`,
     endComplete: `この${t.end}の${t.arrow}がすべて入りました。「1${t.end}進む」で次の${t.end}に進みます。`,
     roundComplete: `この${t.round}の最後の${t.end}が${t.record}済みです。「1${t.end}進む」で次の${t.round}に進みます。`,

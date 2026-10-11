@@ -31,6 +31,7 @@ export const game: typeof ja = {
     home: "Back to Home",
     round: t.round,
     end: t.end,
+    roundTotal: `${t.round} ${t.total.toLowerCase()}`,
     gameComplete: "All rounds are recorded. Press \"Finish\" to check your scores.",
     endComplete: "All arrows of this end are in. Press \"Next end\" to move on to the next end.",
     roundComplete: "The last end of this round is recorded. Press \"Next end\" to move on to the next round.",
