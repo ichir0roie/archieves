@@ -22,6 +22,7 @@ export const game: typeof ja = {
     summary: (total: number, endSize: string, roundSize: string, gameSize: string) =>
       `Total ${total} arrows (${endSize} arrows × ${roundSize} ends × ${gameSize} rounds)`,
     start: "Start game",
+    discardUnsaved: "You have unsaved scores. Discard them and start a new game?",
   },
   entry: {
     home: "Back to Home",
@@ -35,9 +36,9 @@ export const game: typeof ja = {
     backEnd: "Previous end",
     forwardEnd: "Next end",
     finish: "Finish",
+    saved: "Saved",
     ringLabel: (point: number) => `${point}${t.unit.point}`,
     miss: "Miss",
-    unsent: "The connection dropped, so some arrows are not saved yet. They will be sent again once you are back online.",
   },
   comment: {
     endTitle: t.endN,

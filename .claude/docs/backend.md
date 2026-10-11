@@ -66,7 +66,7 @@ cd source/front && npm run types
 
 | 区分 | 対象 | 見るもの |
 | --- | --- | --- |
-| 本人のみ | `games`・`rounds`・`ends`・`points`・コメントの読み書き全部、`trash/*`、`PATCH /users/{user_id}`、`/users/me`・`/users/me/ensure`・`/import`・`/export/records.db`、`/feedbacks` | トークンの `sub` の利用者の行(`deps.get_me`)と、行の `user_id` が同じこと |
+| 本人のみ | `games`(`PUT /games/sheet`・`GET /games/{game_id}/sheet` を含む)・`rounds`・`ends`・`points`・コメントの読み書き全部、`trash/*`、`PATCH /users/{user_id}`、`/users/me`・`/users/me/ensure`・`/import`・`/export/records.db`、`/feedbacks` | トークンの `sub` の利用者の行(`deps.get_me`)と、行の `user_id` が同じこと |
 | 本人以外も | `/statistics/*`(ランキング含む)、`GET /users`・`GET /users/{user_id}`、`GET /users/{sub}/profile`、`/organizations/*`、`/announcements` | トークンが通っていること。利用者の行・プロフィール・他人の統計は、下の「公開範囲」も当てる |
 | 管理者のみ | `/admin/*`(全員の意見 `GET /admin/feedbacks`、返信 `PUT /admin/feedbacks/{feedback_id}/reply`) | 本人の行の `users.is_admin` が true であること(`deps.get_admin`。違えば 403) |
 

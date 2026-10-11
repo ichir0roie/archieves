@@ -5,7 +5,8 @@ import { totalScore } from "@/lib/score/scoreFunctions";
 import { PointRead } from "@/lib/api";
 
 type Props = {
-  points?: Array<PointRead>;
+  /** 入力の画面は手元の矢(id の無いもの)も渡すので、点数だけを求める */
+  points?: Array<Pick<PointRead, "score">>;
   /** 1エンドが満ちたときの矢の数。矢が入るあいだも帯の高さを変えないため */
   endSize?: number;
 };

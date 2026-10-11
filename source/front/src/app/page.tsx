@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useCachedAppUser } from "@/hooks/useCachedAppUser";
 import { DESTINATIONS } from "@/lib/destinations";
+import { readScoreSheetCache } from "@/lib/score/scoreSheetCache";
 import { useT } from "@/lib/text";
 
 const [START_GAME, ...OTHER_DESTINATIONS] = DESTINATIONS;
@@ -11,6 +13,12 @@ const [START_GAME, ...OTHER_DESTINATIONS] = DESTINATIONS;
 export default function Page() {
   const T = useT();
   const currentUser = useCachedAppUser();
+  // 入力の画面を ✕ で抜けたゲームは、手元のキャッシュに残っている(終了するまで消さない)
+  const [canResume, setCanResume] = useState(false);
+
+  useEffect(() => {
+    setCanResume(readScoreSheetCache() !== null);
+  }, []);
 
   return (
     <div className="page">
@@ -53,6 +61,14 @@ export default function Page() {
       </div>
 
       <div className="HomeMenu">
+        {canResume && (
+          <Link
+            href="/game/score-card"
+            className="start"
+          >
+            {T.nav.resumeGame}
+          </Link>
+        )}
         <Link
           href={START_GAME.href}
           className="start"

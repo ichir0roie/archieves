@@ -34,6 +34,7 @@ export const common: typeof ja = {
     menu: "Menu",
     home: t.home,
     startGame: "Start game",
+    resumeGame: "Continue the game in progress",
     scoreLog: t.scoreLog,
     analysis: t.statistics,
     profile: t.profile,

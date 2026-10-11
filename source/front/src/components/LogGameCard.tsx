@@ -1,6 +1,6 @@
 import { useRouter } from "next/navigation";
 import { GameScoreSummary } from "@/lib/api";
-import { GameRead } from "@/lib/score/scoreManager";
+import { GameRead } from "@/lib/api";
 import { useT } from "@/lib/text";
 
 type Props = {

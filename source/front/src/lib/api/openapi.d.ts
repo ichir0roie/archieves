@@ -252,6 +252,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/games/sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Game Sheet
+         * @description 入力の画面が手元に溜めたゲームの記録を、一度に保存する。
+         *
+         *     id の無いゲームは作り(同じ client_key のゲームがあればそれを上書きする)、
+         *     あるゲームは送られた中身で丸ごと上書きする。
+         */
+        put: operations["save_game_sheet_api_v1_games_sheet_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/games/{game_id}/sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Game Sheet
+         * @description ゲームの記録(ラウンド・エンド・矢・コメント)を丸ごと。入力の画面で編集を始めるときに読む。
+         */
+        get: operations["get_game_sheet_api_v1_games__game_id__sheet_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/games/{game_id}": {
         parameters: {
             query?: never;
@@ -920,6 +963,41 @@ export interface components {
             /** Average Score */
             average_score: number | null;
         };
+        /** EndSheetRead */
+        EndSheetRead: {
+            /** Id */
+            id: number;
+            /** Number */
+            number: number;
+            /**
+             * Recorded At
+             * Format: date
+             */
+            recorded_at: string;
+            /** Comment */
+            comment: string | null;
+            /** Points */
+            points: components["schemas"]["PointRead"][];
+        };
+        /** EndSheetWrite */
+        EndSheetWrite: {
+            /** Id */
+            id?: number | null;
+            /** Number */
+            number: number;
+            /**
+             * Recorded At
+             * Format: date
+             */
+            recorded_at: string;
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Points
+             * @default []
+             */
+            points: components["schemas"]["PointSheetWrite"][];
+        };
         /** EndUpdate */
         EndUpdate: {
             /** Number */
@@ -1051,6 +1129,51 @@ export interface components {
             /** Point Average */
             point_average: number | null;
         };
+        /** GameSheetRead */
+        GameSheetRead: {
+            /** Id */
+            id: number;
+            /** Client Key */
+            client_key: string | null;
+            /** User Id */
+            user_id: number;
+            /**
+             * Recorded At
+             * Format: date
+             */
+            recorded_at: string;
+            /** Game Size */
+            game_size: number | null;
+            /** Bow Type */
+            bow_type: string | null;
+            /** Comment */
+            comment: string | null;
+            /** Rounds */
+            rounds: components["schemas"]["RoundSheetRead"][];
+        };
+        /** GameSheetWrite */
+        GameSheetWrite: {
+            /** Id */
+            id?: number | null;
+            /** Client Key */
+            client_key?: string | null;
+            /**
+             * Recorded At
+             * Format: date
+             */
+            recorded_at: string;
+            /** Game Size */
+            game_size?: number | null;
+            /** Bow Type */
+            bow_type?: string | null;
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Rounds
+             * @default []
+             */
+            rounds: components["schemas"]["RoundSheetWrite"][];
+        };
         /** GameUpdate */
         GameUpdate: {
             /** User Id */
@@ -1164,6 +1287,8 @@ export interface components {
              * Format: date
              */
             recorded_at: string;
+            /** Shot At */
+            shot_at?: string | null;
         };
         /** PointRead */
         PointRead: {
@@ -1180,6 +1305,8 @@ export interface components {
              * Format: date
              */
             recorded_at: string;
+            /** Shot At */
+            shot_at: string | null;
             /** Id */
             id: number;
             /** End Id */
@@ -1190,6 +1317,26 @@ export interface components {
             x_cm: number | null;
             /** Y Cm */
             y_cm: number | null;
+        };
+        /** PointSheetWrite */
+        PointSheetWrite: {
+            /** Id */
+            id?: number | null;
+            /** Number */
+            number: number;
+            /** Score */
+            score: number;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /**
+             * Recorded At
+             * Format: date
+             */
+            recorded_at: string;
+            /** Shot At */
+            shot_at?: string | null;
         };
         /** PointUpdate */
         PointUpdate: {
@@ -1203,6 +1350,8 @@ export interface components {
             y?: number | null;
             /** Recorded At */
             recorded_at?: string | null;
+            /** Shot At */
+            shot_at?: string | null;
         };
         /**
          * RankingMetric
@@ -1284,6 +1433,57 @@ export interface components {
             total_score: number;
             /** Average Score */
             average_score: number | null;
+        };
+        /** RoundSheetRead */
+        RoundSheetRead: {
+            /** Id */
+            id: number;
+            /** Number */
+            number: number;
+            /**
+             * Recorded At
+             * Format: date
+             */
+            recorded_at: string;
+            /** End Size */
+            end_size: number;
+            /** Round Size */
+            round_size: number | null;
+            /** Distance M */
+            distance_m: number;
+            /** Target Type */
+            target_type: string;
+            /** Comment */
+            comment: string | null;
+            /** Ends */
+            ends: components["schemas"]["EndSheetRead"][];
+        };
+        /** RoundSheetWrite */
+        RoundSheetWrite: {
+            /** Id */
+            id?: number | null;
+            /** Number */
+            number: number;
+            /**
+             * Recorded At
+             * Format: date
+             */
+            recorded_at: string;
+            /** End Size */
+            end_size: number;
+            /** Round Size */
+            round_size?: number | null;
+            /** Distance M */
+            distance_m: number;
+            /** Target Type */
+            target_type: string;
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Ends
+             * @default []
+             */
+            ends: components["schemas"]["EndSheetWrite"][];
         };
         /** RoundUpdate */
         RoundUpdate: {
@@ -1987,6 +2187,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GameScoreSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_game_sheet_api_v1_games_sheet_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GameSheetWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameSheetRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_game_sheet_api_v1_games__game_id__sheet_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameSheetRead"];
                 };
             };
             /** @description Validation Error */

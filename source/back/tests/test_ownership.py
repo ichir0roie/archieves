@@ -28,6 +28,7 @@ def others(factories):
         ("post", "/games/{game}/restore"),
         ("get", "/games/{game}/rounds"),
         ("post", "/games/{game}/rounds"),
+        ("get", "/games/{game}/sheet"),
         ("get", "/games/{game}/comments"),
         ("get", "/games/{game}/comment"),
         ("put", "/games/{game}/comment"),

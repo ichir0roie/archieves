@@ -61,6 +61,7 @@ export const profile = {
     roundTitle: t.roundN,
     endTitle: t.endN,
     edit: "編集(入力画面に戻る)",
+    discardUnsaved: `保存していない${t.record}があります。捨ててこの${t.game}を編集しますか?`,
     gameTotal: t.totalPoints,
     countX: "X",
     countTen: "10",

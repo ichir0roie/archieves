@@ -22,6 +22,7 @@ export const game = {
     summary: (total: number, endSize: string, roundSize: string, gameSize: string) =>
       `合計 ${total}本 (${endSize}本 × ${roundSize}${t.end} × ${gameSize}${t.round})`,
     start: `${t.game}開始`,
+    discardUnsaved: `保存していない${t.record}があります。捨てて新しい${t.game}を始めますか?`,
   },
   entry: {
     home: `${t.home}へ戻る`,
@@ -35,9 +36,9 @@ export const game = {
     backEnd: `1${t.end}戻る`,
     forwardEnd: `1${t.end}進む`,
     finish: "終了",
+    saved: "保存済み",
     ringLabel: (point: number) => `${point}${t.unit.point}`,
     miss: "外れ",
-    unsent: `通信が切れたため、まだ送れていない${t.arrow}があります。つながると自動で送り直します。`,
   },
   comment: {
     endTitle: t.endN,
