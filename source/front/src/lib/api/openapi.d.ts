@@ -1085,6 +1085,11 @@ export interface components {
              * @default false
              */
             all_in: boolean;
+            /**
+             * Backfilled
+             * @default false
+             */
+            backfilled: boolean;
         };
         /**
          * GameKindOptions
@@ -1124,6 +1129,11 @@ export interface components {
              * @default false
              */
             all_in: boolean;
+            /**
+             * Backfilled
+             * @default false
+             */
+            backfilled: boolean;
             /** Id */
             id: number;
             /** Deleted At */
@@ -1164,6 +1174,8 @@ export interface components {
             arrow_diameter_mm: number | null;
             /** All In */
             all_in: boolean;
+            /** Backfilled */
+            backfilled: boolean;
             /** Comment */
             comment: string | null;
             /** Rounds */
@@ -1191,6 +1203,11 @@ export interface components {
              * @default false
              */
             all_in: boolean;
+            /**
+             * Backfilled
+             * @default false
+             */
+            backfilled: boolean;
             /** Comment */
             comment?: string | null;
             /**
@@ -1216,6 +1233,11 @@ export interface components {
              * @default false
              */
             all_in: boolean;
+            /**
+             * Backfilled
+             * @default false
+             */
+            backfilled: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
