@@ -6158,14 +6158,10 @@
           },
           "x": {
             "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.0,
             "title": "X"
           },
           "y": {
             "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.0,
             "title": "Y"
           },
           "recorded_at": {
@@ -6308,14 +6304,10 @@
           },
           "x": {
             "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.0,
             "title": "X"
           },
           "y": {
             "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.0,
             "title": "Y"
           },
           "recorded_at": {
@@ -6376,9 +6368,7 @@
           "x": {
             "anyOf": [
               {
-                "type": "number",
-                "maximum": 1.0,
-                "minimum": 0.0
+                "type": "number"
               },
               {
                 "type": "null"
@@ -6389,9 +6379,7 @@
           "y": {
             "anyOf": [
               {
-                "type": "number",
-                "maximum": 1.0,
-                "minimum": 0.0
+                "type": "number"
               },
               {
                 "type": "null"

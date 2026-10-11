@@ -38,6 +38,9 @@ export const game: typeof ja = {
     aimDivisor: "Sensitivity (1/n)",
     aimDivisorHint: (n: number | null) =>
       `While you drag, the aim point moves 1/${n ?? "n"} of your finger's movement. Larger values let you aim more finely.`,
+    alwaysShowSight: "Always show the sight at the top",
+    alwaysShowSightHint:
+      "Shows the sight where the zoom appears even while you are not pressing. Once you are used to it, keeping your eyes on the sight at the top and pressing by feel makes scoring easier.",
     innerTenHint: "Compound uses the inner 10: only the X ring scores 10, and the rest of the 10 ring scores 9.",
     sightPreview: "Scoring sight (actual size)",
     backfill: (date: string) => `Entering later: scores of ${date}`,

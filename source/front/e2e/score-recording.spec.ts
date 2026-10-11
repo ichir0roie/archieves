@@ -11,6 +11,7 @@ import {
   shoot,
   startGame,
 } from "./scoreEntry";
+import { DEFAULT_AIM_SETTINGS } from "../src/lib/score/scoreConfig";
 
 // Needs archieves-api running (see .claude/docs/testing.md's "E2E"), since
 // recording a score persists every point through it.
@@ -489,10 +490,10 @@ test("the arrow diameter set for the game sizes the sight and decides line touch
   const game = await (await page.request.get(`/api/v1/games/${saved.id}`)).json();
   expect(game.arrow_diameter_mm).toBe(30);
 
-  // 設定画面の見本は、記入画面のサイトと同じ大きさ(px × ズームの倍率 5)。ヒントの px は小数 1 桁に丸めて出す
+  // 設定画面の見本は、記入画面のサイトと同じ大きさ(px × 既定のズームの倍率)。ヒントの px は小数 1 桁に丸めて出す
   await page.goto("/game/setup");
   await page.getByLabel("矢の直径").fill("30");
   await expect(page.getByText(`この端末では ${Math.round(px * 10) / 10}px`)).toBeVisible();
   const preview = await page.locator(".SightPreview .ArrowSight").boundingBox();
-  expect(preview?.width).toBeCloseTo(px * 5, 0);
+  expect(preview?.width).toBeCloseTo(px * DEFAULT_AIM_SETTINGS.lensZoom, 0);
 });

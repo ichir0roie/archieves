@@ -185,17 +185,17 @@ class PointBase(BaseModel):
 class PointCreate(PointBase):
     number: int = Field(ge=1)
     score: int = Field(ge=MISS_SCORE, le=X_SCORE)
-    # Fraction (0-1, top-left origin) of the touch-target input area the
-    # arrow was tapped in; (0, 0) means "no position recorded".
-    x: float = Field(ge=0, le=1)
-    y: float = Field(ge=0, le=1)
+    # 的に対する割合(左上が原点、0〜1 が的の外接する正方形)。的の外の外れは 0〜1 の外になる。
+    # (0, 0) は位置なし
+    x: float = Field(allow_inf_nan=False)
+    y: float = Field(allow_inf_nan=False)
 
 
 class PointUpdate(BaseModel):
     number: int | None = Field(default=None, ge=1)
     score: int | None = Field(default=None, ge=MISS_SCORE, le=X_SCORE)
-    x: float | None = Field(default=None, ge=0, le=1)
-    y: float | None = Field(default=None, ge=0, le=1)
+    x: float | None = Field(default=None, allow_inf_nan=False)
+    y: float | None = Field(default=None, allow_inf_nan=False)
     recorded_at: date | None = None
     shot_at: datetime | None = None
 

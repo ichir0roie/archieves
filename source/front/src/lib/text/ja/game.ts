@@ -41,6 +41,9 @@ export const game = {
     aimDivisor: "感度 (1/n)",
     aimDivisorHint: (n: number | null) =>
       `押したまま指を動かすと、狙う点は指の動きの 1/${n ?? "n"} だけ動きます。大きいほど細かく狙えます`,
+    alwaysShowSight: "上部にサイトを常に出す",
+    alwaysShowSightHint:
+      "押していないあいだも、ズームが出る所にサイトを出しておきます。慣れてきたら、常に上のサイトを見ながら感覚でボタンを押すと楽になります",
     backfill: (date: string) => `あとから入力: ${date} の${t.record}`,
   },
   entry: {

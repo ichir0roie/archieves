@@ -28,22 +28,8 @@ export const TARGET_FACE_PADDING = 24;
  */
 const MIN_ARROW_MARK_PX = 8;
 
-/**
- * 押しているあいだ指の上に出すズームと、指の間隔(px)。ズームの直径と倍率は props の aimSettings で決める。
- * ズームは狙う点の上に出し、押した直後は狙う点が指の下にあるので、ズームの下端と指の間がこの間隔になる
- */
-const LENS_GAP = 32;
-
-/** ズームを上へ出すときに、画面の上端から空ける間隔(px) */
-const LENS_SCREEN_MARGIN = 4;
-
 type Press = {
   pointerId: number;
-  /**
-   * ズームの上端に許すいちばん上の位置(枠の左上からの px)。画面の上端。
-   * 押したときに測る(枠の上のコメントの行などの高さで変わるため)
-   */
-  lensMinTop: number;
   /** 押した所(枠の左上からの px)。狙う点はここから動き始める */
   startX: number;
   startY: number;
@@ -51,11 +37,6 @@ type Press = {
   x: number;
   y: number;
 };
-
-function clampFraction(value: number): number {
-  if (!Number.isFinite(value)) return 0.5;
-  return Math.min(Math.max(value, 0), 1);
-}
 
 /** 中心からの距離(的の半径に対する割合)が入る帯の点数。線の上は内側(高い方)。的の外は外れ */
 function scoreAtDistance(distanceRatio: number): number {
@@ -72,7 +53,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   const [height, setHeight] = useState<number>(0);
   const [maxDiameter, setMaxDiameter] = useState<number>(0);
   const [press, setPress] = useState<Press | null>(null);
-  const { lensZoom, aimDivisor, lensSizePercent } = props.aimSettings;
+  const { lensZoom, aimDivisor, lensSizePercent, alwaysShowSight } = props.aimSettings;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -100,9 +81,10 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     return () => observer.disconnect();
   }, []);
 
-  // 的は枠の下に寄せる。上に空いた所へズームを出し、上の帯を狙ってもズームが画面の外へ出にくくする
+  // 的は枠の下に寄せる。上に空いた所へズームを出す
   const centerX = width / 2;
   const centerY = height - TARGET_FACE_PADDING - maxDiameter / 2;
+  const targetTop = centerY - maxDiameter / 2;
 
   const isLocked = props.isEndFull || props.disabled;
   const { sizeCm } = resolveTargetType(props.targetType);
@@ -131,13 +113,13 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   /**
    * 枠の中の位置を、的そのものに対する割合で返す(0.5/0.5 が中心、0 と 1 が縁)。
    * API は中心からのずれに的の実寸を掛けて x_cm/y_cm にするので、縦横比の違う入力の枠でなく
-   * 的に対する割合でなければならない。的の外を押したときは縁に寄せる。
+   * 的に対する割合でなければならない。的の外を狙ったときは縁に寄せず、0〜1 の外の値のまま返す。
    */
   function toTargetCoordinates(x: number, y: number) {
     if (maxDiameter === 0) return { relativeX: 0.5, relativeY: 0.5 };
     return {
-      relativeX: clampFraction(0.5 + (x - centerX) / maxDiameter),
-      relativeY: clampFraction(0.5 + (y - centerY) / maxDiameter),
+      relativeX: 0.5 + (x - centerX) / maxDiameter,
+      relativeY: 0.5 + (y - centerY) / maxDiameter,
     };
   }
 
@@ -159,18 +141,16 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   }
 
   /*
-   * 指で押すと指の下が見えないので、押した所を狙う点の起点にして、その上にズームを出す。
-   * 指を動かすと、狙う点とズームは指の動きの 1/aimDivisor だけ動く。離したときの狙う点を記録する。
+   * 指で押すと指の下が見えないので、押した所を狙う点の起点にして、的の上の余白にズームを出す。
+   * 指を動かすと、狙う点は指の動きの 1/aimDivisor だけ動く。離したときの狙う点を記録する。
    * 帯のボタンは点数の読み上げ・テストで指すために残し、記録そのものは枠が pointer events で受ける。
    */
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (isLocked || press) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     const finger = fingerPoint(event);
-    const rect = event.currentTarget.getBoundingClientRect();
     setPress({
       pointerId: event.pointerId,
-      lensMinTop: LENS_SCREEN_MARGIN - rect.top,
       startX: finger.x,
       startY: finger.y,
       ...finger,
@@ -279,20 +259,39 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   }
 
   /**
-   * ズームは狙う点の上に出し、中央に狙う点を拡大して描く。狙う点と一緒に動き、枠の上の行にも重ねて出す。
-   * 上へは画面の上端で止め、それより上を狙うとズームが狙う点に重なる(隠れて見えなくなるよりよい)。
-   * 直径は記入画面の横幅の lensSizePercent %
+   * ズームは的の上の余白の中央に置いたまま動かさず、中央に狙う点を拡大して描く。
+   * 見る所をいつも同じにして、慣れれば目を動かさずに狙えるようにするため、指には付いていかない。
+   * 余白がズームより狭いときは、枠の上の行と的に上下ともはみ出す。直径は記入画面の横幅の lensSizePercent %。
+   * 設定(alwaysShowSight)で、押していないあいだも見る所が分かるよう、ズームの中央の位置にサイトだけを出しておける
    */
-  function lens(current: Press) {
+  function lens(current: Press | null) {
     const lensSize = (width * lensSizePercent) / 100;
-    const left = current.x - lensSize / 2;
-    const top = Math.max(current.y - LENS_GAP - lensSize, current.lensMinTop);
-    const score = scoreAt(current.x, current.y);
+    const left = centerX - lensSize / 2;
+    const top = targetTop / 2 - lensSize / 2;
+    const style = { width: `${lensSize}px`, height: `${lensSize}px`, left: `${left}px`, top: `${top}px` };
 
+    if (!current) {
+      if (!alwaysShowSight) return null;
+      return (
+        <div
+          className="TargetLensIdle target-lens-idle"
+          style={style}
+        >
+          {/* 帯のクラスを付けず、画面の地の色の反転色で描く(globals.css の .target-lens-idle) */}
+          <ArrowSight
+            arrowDiameterPx={arrowPx}
+            zoom={lensZoom}
+            ringClassName=""
+          />
+        </div>
+      );
+    }
+
+    const score = scoreAt(current.x, current.y);
     return (
       <div
         className="TargetLens target-lens"
-        style={{ width: `${lensSize}px`, height: `${lensSize}px`, left: `${left}px`, top: `${top}px` }}
+        style={style}
       >
         <div
           className="lens-content"
@@ -338,7 +337,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
           disabled={isLocked}
           className="miss-area"
         />
-        {press && lens(press)}
+        {maxDiameter > 0 && lens(press)}
       </div>
       <ScoreEntryActions {...props} />
     </div>

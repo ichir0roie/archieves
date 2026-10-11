@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCachedAppUser } from "@/hooks/useCachedAppUser";
@@ -54,58 +55,20 @@ export default function Page() {
   return (
     <div className="page">
       <div className="hero">
-        <div
+        {/* アプリのアイコン(src/app/icon.svg)をそのまま出す */}
+        <Image
           className="logo"
-          aria-hidden="true"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="30"
-            height="30"
-          >
-            <circle
-              cx="12"
-              cy="12"
-              r="9"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            />
-            <circle
-              cx="12"
-              cy="12"
-              r="5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            />
-            <circle
-              cx="12"
-              cy="12"
-              r="1.5"
-              fill="currentColor"
-            />
-          </svg>
-        </div>
+          src="/icon.svg"
+          alt=""
+          width={56}
+          height={56}
+          priority
+        />
         <h1>{T.appName}</h1>
         <p className="muted small">{currentUser ? T.home.welcome(currentUser.name) : T.home.tagline}</p>
       </div>
 
       <div className="HomeMenu">
-        {canResume && (
-          <Link
-            href={SCORE_CARD_PATH}
-            className="start"
-          >
-            {T.nav.resumeGame}
-          </Link>
-        )}
-        <Link
-          href={START_GAME.href}
-          className="start"
-        >
-          {T.nav[START_GAME.label]}
-        </Link>
         <div className="grid">
           {otherDestinations.map((item) => {
             const pending = pendingCountFor(item.href, pendingCounts.data);
@@ -127,6 +90,24 @@ export default function Page() {
             );
           })}
         </div>
+      </div>
+
+      {/* 親指の届く画面の下中央に置く。左右はメニューのボタン(下の隅に置ける)と重ならない幅にする */}
+      <div className="HomeStart">
+        {canResume && (
+          <Link
+            href={SCORE_CARD_PATH}
+            className="resume"
+          >
+            {T.nav.resumeGame}
+          </Link>
+        )}
+        <Link
+          href={START_GAME.href}
+          className="start"
+        >
+          {T.nav[START_GAME.label]}
+        </Link>
       </div>
     </div>
   );

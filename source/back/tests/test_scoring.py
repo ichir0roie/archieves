@@ -2,12 +2,15 @@ from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.scoring import MAX_RING_SCORE, MISS_SCORE, X_SCORE, scored_value
 from app.core.target_types import TARGET_TYPE_IDS
 from app.crud import user as user_crud
 from app.db import Point
+from app.schemas.game import PointCreate, PointUpdate
+from app.schemas.game_sheet import PointSheetWrite
 from app.schemas.user import UserCreate
 
 RECORDED_AT = "2026-01-01T00:00:00Z"
@@ -145,16 +148,30 @@ def test_every_target_type_takes_an_x(client: TestClient, target_type: str) -> N
     assert res.status_code == 200
 
 
-def test_a_point_outside_the_target_area_is_rejected(client: TestClient) -> None:
+def test_a_miss_outside_the_target_keeps_its_position(client: TestClient) -> None:
     game = _create_game(client)
     round_ = _create_round(client, game["id"])
     end = _create_end(client, round_["id"])
 
     res = client.post(
         f"/api/v1/ends/{end['id']}/points",
-        json={"number": 1, "score": 9, "x": 1.5, "y": -2.5, "recorded_at": RECORDED_AT},
+        json={"number": 1, "score": MISS_SCORE, "x": 1.5, "y": -2.5, "recorded_at": RECORDED_AT},
     )
-    assert res.status_code == 422
+    assert res.status_code == 201
+    body = res.json()
+    assert (body["x"], body["y"]) == (1.5, -2.5)
+    assert body["x_cm"] == pytest.approx(122.0)
+    assert body["y_cm"] == pytest.approx(-366.0)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_a_non_finite_position_is_rejected(value: float) -> None:
+    with pytest.raises(ValidationError):
+        PointCreate(number=1, score=MISS_SCORE, x=value, y=0.5, recorded_at=RECORDED_AT)
+    with pytest.raises(ValidationError):
+        PointUpdate(y=value)
+    with pytest.raises(ValidationError):
+        PointSheetWrite(number=1, score=MISS_SCORE, x=0.5, y=value, recorded_at=RECORDED_AT)
 
 
 def test_a_game_of_zero_rounds_is_rejected(client: TestClient) -> None:
