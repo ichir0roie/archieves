@@ -8,20 +8,14 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
-from app.core.bow_types import BOW_TYPE_MAX_LENGTH
 from app.core.comments import MAX_COMMENT_LENGTH
 from app.core.scoring import (
-    MAX_ARROW_DIAMETER_PX,
-    MAX_DISTANCE_M,
-    MAX_END_SIZE,
-    MAX_GAME_SIZE,
-    MAX_ROUND_SIZE,
-    MIN_ARROW_DIAMETER_PX,
     MISS_SCORE,
     X_SCORE,
 )
+from app.core.target_types import TARGET_TYPE_MAX_LENGTH
 from app.schemas.base import ResponseModel
-from app.schemas.game import PointRead
+from app.schemas.game import GameWriteFields, PointRead, RoundWriteFields
 
 # 取り込んだ古い記録は、画面で作れる数(MAX_*)より多いラウンド・エンド・矢を持つことがある。
 # 読み込んだものをそのまま送り返せるよう、上限は少し広く取る
@@ -48,31 +42,19 @@ class EndSheetWrite(BaseModel):
     points: list[PointSheetWrite] = Field(default=[], max_length=_MAX_ITEMS)
 
 
-class RoundSheetWrite(BaseModel):
+class RoundSheetWrite(RoundWriteFields):
     id: int | None = None
-    number: int = Field(ge=1)
-    recorded_at: date
-    end_size: int = Field(ge=1, le=MAX_END_SIZE)
-    round_size: int | None = Field(default=None, ge=1, le=MAX_ROUND_SIZE)
-    distance_m: int = Field(ge=1, le=MAX_DISTANCE_M)
     # 決まった的の種類かは、新しいラウンドと値を変えたときだけ確かめる(services/game_sheet.py)。
     # 取り込んだ古いラウンドは外の値を持つので、読んだまま送り返せるようにする
-    target_type: str = Field(min_length=1, max_length=50)
+    target_type: str = Field(min_length=1, max_length=TARGET_TYPE_MAX_LENGTH)
     comment: str | None = Field(default=None, max_length=MAX_COMMENT_LENGTH)
     ends: list[EndSheetWrite] = Field(default=[], max_length=_MAX_ITEMS)
 
 
-class GameSheetWrite(BaseModel):
+class GameSheetWrite(GameWriteFields):
     # 無ければ新しいゲーム。client_key が同じゲームがあれば、それを上書きする
     id: int | None = None
     client_key: str | None = Field(default=None, min_length=1, max_length=64)
-    recorded_at: date
-    game_size: int | None = Field(default=None, ge=1, le=MAX_GAME_SIZE)
-    bow_type: str | None = Field(default=None, min_length=1, max_length=BOW_TYPE_MAX_LENGTH)
-    # 記入画面で矢として扱う円の直径(画面の px)。null は既定の大きさ
-    arrow_diameter_px: int | None = Field(
-        default=None, ge=MIN_ARROW_DIAMETER_PX, le=MAX_ARROW_DIAMETER_PX
-    )
     comment: str | None = Field(default=None, max_length=MAX_COMMENT_LENGTH)
     rounds: list[RoundSheetWrite] = Field(default=[], max_length=_MAX_ITEMS)
 
@@ -105,6 +87,8 @@ class GameSheetRead(ResponseModel):
     recorded_at: date
     game_size: int | None
     bow_type: str | None
-    arrow_diameter_px: int | None
+    arrow_diameter_mm: int | None
+    all_in: bool
+    backfilled: bool
     comment: str | None
     rounds: list[RoundSheetRead]

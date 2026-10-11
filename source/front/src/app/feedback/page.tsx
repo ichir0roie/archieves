@@ -13,9 +13,8 @@ import {
   type ErrorDetails,
 } from "@/lib/api";
 import { formatDateTime } from "@/lib/formatDateTime";
+import { MAX_FEEDBACK_LENGTH } from "@/lib/support";
 import { useT } from "@/lib/text";
-
-const MAX_FEEDBACK_LENGTH = 2000;
 
 export default function Page() {
   const T = useT();

@@ -3,6 +3,7 @@
 - Claude はユーザへの返答を常に日本語で書く。返答の末尾に作業内容のまとめを書かない
 - モノレポ。`source/front` がフロントエンド(Next.js)、`source/back` がバックエンド(FastAPI)。別リポジトリではない
 - 要件・設計の検討は [docs](docs) に置き、適宜読む(一覧は [docs/README.md](docs/README.md))
+- ユーザにファイル(スクショなど)を示すときは、見える文字はファイル名だけにし、リンク先を絶対パスにしたハイパーリンクで貼る(`[file.png](/abs/path/file.png)`)
 
 # 作業する場所
 

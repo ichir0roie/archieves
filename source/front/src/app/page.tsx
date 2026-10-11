@@ -3,22 +3,53 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCachedAppUser } from "@/hooks/useCachedAppUser";
-import { DESTINATIONS } from "@/lib/destinations";
-import { readScoreSheetCache } from "@/lib/score/scoreSheetCache";
+import { useLoad } from "@/hooks/useLoad";
+import { getPendingCounts, type AdminPendingCounts } from "@/lib/api";
+import { getCurrentUser } from "@/lib/auth/currentUser";
+import { SCORE_CARD_PATH, START_GAME, destinationsFor } from "@/lib/destinations";
+import { loadScoreSheetCache } from "@/lib/storage";
 import { useT } from "@/lib/text";
 
-const [START_GAME, ...OTHER_DESTINATIONS] = DESTINATIONS;
+/** 管理者の行き先のボタンに出す、未対応の件数 */
+function pendingCountFor(href: string, counts: AdminPendingCounts | null): number {
+  if (counts === null) return 0;
+  if (href === "/admin/feedbacks") return counts.unanswered_feedbacks;
+  if (href === "/admin/error-reports") return counts.unresolved_error_reports;
+  return 0;
+}
 
-/** ホーム。開いただけで API を叩かないよう、行き先のボタンだけを並べ、名前はキャッシュから出す */
+/**
+ * ホーム。開いただけで API を叩かないよう、行き先のボタンだけを並べ、名前はキャッシュから出す。
+ * 管理者だけは例外で、未回答の意見・未対応のエラーの件数を読んで、管理者の行き先のボタンに出す
+ */
 export default function Page() {
   const T = useT();
   const currentUser = useCachedAppUser();
+  const isAdmin = currentUser?.isAdmin ?? false;
+  const pendingCounts = useLoad(
+    () => (isAdmin ? getPendingCounts() : Promise.resolve(null)),
+    [isAdmin],
+  );
   // 入力の画面を ✕ で抜けたゲームは、手元のキャッシュに残っている(終了するまで消さない)
   const [canResume, setCanResume] = useState(false);
 
   useEffect(() => {
-    setCanResume(readScoreSheetCache() !== null);
+    let cancelled = false;
+    getCurrentUser().then(
+      ({ userId }) => {
+        if (!cancelled) setCanResume(loadScoreSheetCache(userId) !== null);
+      },
+      () => {
+        // ログインが分からなければ、続きは出さない
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
   }, []);
+  const otherDestinations = destinationsFor(isAdmin).filter(
+    (item) => item !== START_GAME,
+  );
 
   return (
     <div className="page">
@@ -63,7 +94,7 @@ export default function Page() {
       <div className="HomeMenu">
         {canResume && (
           <Link
-            href="/game/score-card"
+            href={SCORE_CARD_PATH}
             className="start"
           >
             {T.nav.resumeGame}
@@ -76,15 +107,25 @@ export default function Page() {
           {T.nav[START_GAME.label]}
         </Link>
         <div className="grid">
-          {OTHER_DESTINATIONS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-            >
-              {T.nav[item.label]}
-            </Link>
-          ))}
-          {currentUser?.isAdmin && <Link href="/admin/feedbacks">{T.nav.adminFeedback}</Link>}
+          {otherDestinations.map((item) => {
+            const pending = pendingCountFor(item.href, pendingCounts.data);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+              >
+                {T.nav[item.label]}
+                {pending > 0 && (
+                  <span
+                    className="PendingBadge pending-badge"
+                    aria-label={T.support.pending.badge(pending)}
+                  >
+                    {pending}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
@@ -10,13 +9,8 @@ import StatSummaryCard from "@/components/StatSummaryCard";
 import VisibilitySettings from "@/components/VisibilitySettings";
 import { useLoad } from "@/hooks/useLoad";
 import {
-  ApiError,
-  OrganizationRead,
-  UserProfile,
   getOrganization,
   getUserProfile,
-  toErrorDetails,
-  type ErrorDetails,
 } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { useT, type Texts } from "@/lib/text";
@@ -34,56 +28,31 @@ export default function Page() {
   const currentUser = useLoad(() => getCurrentUser(), []);
   const isMe = currentUser.data?.userId === sub;
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [organization, setOrganization] = useState<OrganizationRead | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<ErrorDetails | null>(null);
-  // 本人に公開されていないプロフィールは API が 403 を返す。壊れたのではないので、エラーにせず知らせる
-  const [isPrivate, setIsPrivate] = useState(false);
-
-  useEffect(() => {
-    if (!sub) return;
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      setIsPrivate(false);
-      try {
-        const data = await getUserProfile(sub);
-        if (cancelled) return;
-        setProfile(data);
-        if (data.user.organization_id !== null) {
-          const org = await getOrganization(data.user.organization_id);
-          if (!cancelled) setOrganization(org);
-        } else {
-          setOrganization(null);
-        }
-      } catch (e) {
-        if (cancelled) return;
-        if (e instanceof ApiError && e.status === 403) setIsPrivate(true);
-        else setError(toErrorDetails(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
+  const loaded = useLoad(async () => {
+    const profile = await getUserProfile(sub);
+    const organization =
+      profile.user.organization_id === null
+        ? null
+        : await getOrganization(profile.user.organization_id);
+    return { profile, organization };
   }, [sub]);
+  // 本人に公開されていないプロフィールは API が 403 を返す。壊れたのではないので、エラーにせず知らせる
+  const isPrivate = loaded.error?.status === 403;
+  const error = isPrivate ? null : loaded.error;
+  // 別の人のプロフィールへ移って読み直している間・読めなかったときは、前の人のものを出さない
+  const profile = loaded.loading || loaded.error ? null : loaded.data?.profile ?? null;
+  const organization = loaded.data?.organization ?? null;
 
   return (
     <div className="page wide">
       <PageHeader title={T.profile.view.title} />
       {error && <ApiErrorAlert error={error} />}
 
-      {loading && <p className="status empty">{T.loading}</p>}
+      {loaded.loading && <p className="status empty">{T.loading}</p>}
 
-      {!loading && isPrivate && <p className="ProfilePrivate status empty">{T.profile.view.private}</p>}
+      {!loaded.loading && isPrivate && <p className="ProfilePrivate status empty">{T.profile.view.private}</p>}
 
-      {!loading && profile && (
+      {profile && (
         <>
           <section className="panel profile-card">
             <div className="row">

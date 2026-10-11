@@ -37,10 +37,12 @@
 | 例外 | 応答 |
 | --- | --- |
 | `NotFoundError`(`get_or_404` が投げる) | 404 `{"detail": ...}` |
+| `ForbiddenError`(`get_own_or_404`・`require_self` が投げる) | 403 `{"detail": ...}` |
+| `UnprocessableError`(値がドメインの決まりに合わない。的が出せない点数・決まっていない的の種類。`core/target_types.py` の `check_*`) | 422 `{"detail": ...}`。`ValueError` の子なので、pydantic の validator の中で投げれば要求の形の検証の 422 になる |
 | `ValueError`(`LegacyImportError` など、ドメインの検証) | 400 `{"detail": ...}` |
 | pydantic の `ValidationError`(ハンドラの中で起きたもの) | 500。要求の値ではなくコードの不具合なので 400 にしない |
 
-- 409・422 のように別の状態を返すときだけ `HTTPException` を使う
+- 上の表に無い状態(409 など)を返すときだけ `HTTPException` を使う。crud・services からは `HTTPException` を投げない
 - 要求の形の検証(型・必須)は FastAPI が 422 で返す。モデルの `Field`・`field_validator` に書く
 
 ## スキーマ
@@ -66,14 +68,15 @@ cd source/front && npm run types
 
 | 区分 | 対象 | 見るもの |
 | --- | --- | --- |
-| 本人のみ | `games`(`PUT /games/sheet`・`GET /games/{game_id}/sheet` を含む)・`rounds`・`ends`・`points`・コメントの読み書き全部、`trash/*`、`PATCH /users/{user_id}`、`/users/me`・`/users/me/ensure`・`/import`・`/export/records.db`、`/feedbacks` | トークンの `sub` の利用者の行(`deps.get_me`)と、行の `user_id` が同じこと |
+| 本人のみ | `games`(`PUT /games/sheet`・`GET /games/{game_id}/sheet` を含む)・`rounds`・`ends`・`points`・コメントの読み書き全部、`trash/*`、`PATCH /users/{user_id}`、`/users/me`・`/users/me/ensure`・`/import`・`/export/records.db`、`/feedbacks`、`/diaries` | トークンの `sub` の利用者の行(`deps.get_me`)と、行の `user_id` が同じこと |
 | 本人以外も | `/statistics/*`(ランキング含む)、`GET /users`・`GET /users/{user_id}`、`GET /users/{sub}/profile`、`/organizations/*`、`/announcements` | トークンが通っていること。利用者の行・プロフィール・他人の統計は、下の「公開範囲」も当てる |
-| 管理者のみ | `/admin/*`(全員の意見 `GET /admin/feedbacks`、返信 `PUT /admin/feedbacks/{feedback_id}/reply`) | 本人の行の `users.is_admin` が true であること(`deps.get_admin`。違えば 403) |
+| 管理者のみ | `/admin/*`(全員の意見 `GET /admin/feedbacks`、返信 `PUT /admin/feedbacks/{feedback_id}/reply`、エラーの一覧 `GET /admin/error-reports`、対応済み `PUT /admin/error-reports/{error_report_id}/resolve`、未回答・未対応の件数 `GET /admin/pending-counts`) | 本人の行の `users.is_admin` が true であること(`deps.get_admin`。違えば 403) |
 
 - 「本人のみ」の書き方: 引数に `me: User = Depends(deps.get_me)` を足す。行を引くところは `deps.get_or_404` ではなく `deps.get_own_or_404(me, ...)`(持ち主が違えば 403)。`user_id` を要求で受けるところは `deps.require_self(me, user_id)`、絞り込みの `user_id`(省略可)は `deps.resolve_user_id(me, user_id)`(省略したら本人、他人なら 403)
-- 利用者の行がまだ無いトークンは、「本人のみ」で 404(`User not found`)になる。先に `/users/me/ensure` で作る
+- 利用者の行がまだ無いトークンは、「本人のみ」と `GET /users/me` で 404(`Current user not registered`。`app/core/errors.py` の `CURRENT_USER_NOT_REGISTERED`)になる。他人の行が無いときの `User not found` と分け、フロントはこれを受けると登録の画面へ送る。先に `/users/me/ensure` で作る
 - 「本人以外も」に game 配下(`games`〜`points`・コメント)の読み取りは入れない。他人に見せる範囲を広げるときは、この表も直す
 - `GET/POST /users` は持ち主のいない操作なので、どちらにも分けず、トークンが通れば使える(フロントは使っていない)
+- `POST /error-reports`(フロントで起きたエラーの集積)も、登録の前のエラーも受けるので、どちらにも分けずトークンが通れば使える。利用者の行があれば `user_id` を付ける
 - 新しいエンドポイントを足したら、どの区分かを決めて `tests/test_ownership.py` に足す
 - 公開範囲: `users.profile_visibility`・`users.ranking_visibility`(`private` / `organization` / `public`、既定は `private`。`app/core/visibility.py`)。`organization` は同じ `organization_id` の利用者にだけ見せる(所属の無い人どうしは見えない)
   - プロフィール: `GET /users`・`GET /users/{user_id}`・`GET /users/{sub}/profile`・`/statistics/*` の他人の `user_id` は、本人か、`profile_visibility` が見せる相手だけ(`deps.require_profile_visible`。違えば 403)

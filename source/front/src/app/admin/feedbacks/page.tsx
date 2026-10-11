@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
@@ -7,6 +8,7 @@ import Field from "@/components/Field";
 import PageHeader from "@/components/PageHeader";
 import { useLoad } from "@/hooks/useLoad";
 import {
+  getPendingCounts,
   listAllFeedbacks,
   replyToFeedback,
   toErrorDetails,
@@ -14,14 +16,14 @@ import {
   type ErrorDetails,
 } from "@/lib/api";
 import { formatDateTime } from "@/lib/formatDateTime";
+import { MAX_FEEDBACK_LENGTH } from "@/lib/support";
 import { useT } from "@/lib/text";
-
-const MAX_REPLY_LENGTH = 2000;
 
 /** 管理者が、全員から届いた意見を見て返信する。管理者でなければ API の 403 をそのまま出す。 */
 export default function Page() {
   const T = useT();
   const { data: feedbacks, loading, error } = useLoad(listAllFeedbacks, []);
+  const pendingCounts = useLoad(getPendingCounts, []);
 
   return (
     <div className="page">
@@ -29,6 +31,17 @@ export default function Page() {
 
       <section className="stack tight">
         <p className="muted small">{T.support.adminFeedback.description}</p>
+        {pendingCounts.data && (
+          <div className="AdminPendingCounts status info row">
+            <span className="grow">
+              {T.support.pending.summary(
+                pendingCounts.data.unanswered_feedbacks,
+                pendingCounts.data.unresolved_error_reports,
+              )}
+            </span>
+            <Link href="/admin/error-reports">{T.support.pending.errorReportsLink}</Link>
+          </div>
+        )}
         {error && <ApiErrorAlert error={error} />}
         {loading && !feedbacks ? (
           <p className="status empty">{T.loading}</p>
@@ -90,7 +103,7 @@ function FeedbackItem({ initial }: { initial: AdminFeedbackRead }) {
         {formatDateTime(feedback.created_at)}
         {" · "}
         {feedback.user_nickname ?? feedback.user_name}
-        {` (id ${feedback.user_id})`}
+        {T.support.adminFeedback.userId(feedback.user_id)}
       </p>
       <p className="muted small">
         {feedback.email
@@ -127,7 +140,7 @@ function FeedbackItem({ initial }: { initial: AdminFeedbackRead }) {
               <textarea
                 id={id}
                 value={draft}
-                maxLength={MAX_REPLY_LENGTH}
+                maxLength={MAX_FEEDBACK_LENGTH}
                 rows={3}
                 onChange={(e) => setDraft(e.target.value)}
               />

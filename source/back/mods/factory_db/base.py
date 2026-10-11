@@ -3,8 +3,10 @@
 from mods.factory_db.base_class import *  # noqa: F401
 from mods.factory_db.models import (  # noqa: F401
     AnnouncementFactory,
+    DiaryFactory,
     EndCommentFactory,
     EndFactory,
+    ErrorReportFactory,
     FeedbackFactory,
     GameCommentFactory,
     GameFactory,

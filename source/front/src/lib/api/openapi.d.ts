@@ -826,6 +826,115 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/error-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Error Report */
+        post: operations["create_error_report_api_v1_error_reports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/error-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Error Reports */
+        get: operations["list_error_reports_api_v1_admin_error_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/error-reports/{error_report_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Resolve Error Report */
+        put: operations["resolve_error_report_api_v1_admin_error_reports__error_report_id__resolve_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pending-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Pending Counts */
+        get: operations["get_pending_counts_api_v1_admin_pending_counts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/diaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Diaries
+         * @description 新しい順。year は日本時間の年。limit を省くと全部を返す
+         */
+        get: operations["list_diaries_api_v1_diaries_get"];
+        put?: never;
+        /** Create Diary */
+        post: operations["create_diary_api_v1_diaries_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/diaries/years": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Diary Years
+         * @description 日記のある年(日本時間)。新しい年が先
+         */
+        get: operations["list_diary_years_api_v1_diaries_years_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -847,6 +956,36 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AdminErrorReportRead
+         * @description 管理者が見るエラー。登録の前の利用者からのものは利用者の欄が空。
+         */
+        AdminErrorReportRead: {
+            /** Id */
+            id: number;
+            /** User Id */
+            user_id: number | null;
+            /** User Name */
+            user_name: string | null;
+            kind: components["schemas"]["ErrorReportKind"];
+            /** Status Code */
+            status_code: number;
+            /** Page Path */
+            page_path: string;
+            /** Method */
+            method: string | null;
+            /** Api Path */
+            api_path: string | null;
+            /** Message */
+            message: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Resolved At */
+            resolved_at: string | null;
+        };
         /**
          * AdminFeedbackRead
          * @description 管理者が見る意見。誰が送ったかを添える。
@@ -873,6 +1012,16 @@ export interface components {
             user_name: string;
             /** User Nickname */
             user_nickname: string | null;
+        };
+        /**
+         * AdminPendingCounts
+         * @description 管理者が片付けるものの件数。ホームと意見の確認ページに出す。
+         */
+        AdminPendingCounts: {
+            /** Unanswered Feedbacks */
+            unanswered_feedbacks: number;
+            /** Unresolved Error Reports */
+            unresolved_error_reports: number;
         };
         /** AnnouncementRead */
         AnnouncementRead: {
@@ -905,6 +1054,25 @@ export interface components {
         CommentWrite: {
             /** Body */
             body: string;
+        };
+        /** DiaryCreate */
+        DiaryCreate: {
+            /** Body */
+            body: string;
+        };
+        /** DiaryRead */
+        DiaryRead: {
+            /** Id */
+            id: number;
+            /** User Id */
+            user_id: number;
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** EndCommentRead */
         EndCommentRead: {
@@ -1005,6 +1173,26 @@ export interface components {
             /** Recorded At */
             recorded_at?: string | null;
         };
+        /** ErrorReportCreate */
+        ErrorReportCreate: {
+            kind: components["schemas"]["ErrorReportKind"];
+            /** Status Code */
+            status_code: number;
+            /** Page Path */
+            page_path: string;
+            /** Method */
+            method?: string | null;
+            /** Api Path */
+            api_path?: string | null;
+            /** Message */
+            message?: string | null;
+        };
+        /**
+         * ErrorReportKind
+         * @description フロントが送るエラーの種類。
+         * @enum {string}
+         */
+        ErrorReportKind: "page" | "api";
         /** FeedbackCreate */
         FeedbackCreate: {
             /** Body */
@@ -1067,8 +1255,6 @@ export interface components {
         };
         /** GameCreate */
         GameCreate: {
-            /** User Id */
-            user_id: number;
             /**
              * Recorded At
              * Format: date
@@ -1078,8 +1264,20 @@ export interface components {
             game_size?: number | null;
             /** Bow Type */
             bow_type?: string | null;
-            /** Arrow Diameter Px */
-            arrow_diameter_px?: number | null;
+            /** Arrow Diameter Mm */
+            arrow_diameter_mm?: number | null;
+            /**
+             * All In
+             * @default false
+             */
+            all_in: boolean;
+            /**
+             * Backfilled
+             * @default false
+             */
+            backfilled: boolean;
+            /** User Id */
+            user_id: number;
         };
         /**
          * GameKindOptions
@@ -1101,8 +1299,6 @@ export interface components {
         };
         /** GameRead */
         GameRead: {
-            /** User Id */
-            user_id: number;
             /**
              * Recorded At
              * Format: date
@@ -1112,8 +1308,20 @@ export interface components {
             game_size: number | null;
             /** Bow Type */
             bow_type: string | null;
-            /** Arrow Diameter Px */
-            arrow_diameter_px: number | null;
+            /** Arrow Diameter Mm */
+            arrow_diameter_mm: number | null;
+            /**
+             * All In
+             * @default false
+             */
+            all_in: boolean;
+            /**
+             * Backfilled
+             * @default false
+             */
+            backfilled: boolean;
+            /** User Id */
+            user_id: number;
             /** Id */
             id: number;
             /** Deleted At */
@@ -1150,8 +1358,12 @@ export interface components {
             game_size: number | null;
             /** Bow Type */
             bow_type: string | null;
-            /** Arrow Diameter Px */
-            arrow_diameter_px: number | null;
+            /** Arrow Diameter Mm */
+            arrow_diameter_mm: number | null;
+            /** All In */
+            all_in: boolean;
+            /** Backfilled */
+            backfilled: boolean;
             /** Comment */
             comment: string | null;
             /** Rounds */
@@ -1159,10 +1371,6 @@ export interface components {
         };
         /** GameSheetWrite */
         GameSheetWrite: {
-            /** Id */
-            id?: number | null;
-            /** Client Key */
-            client_key?: string | null;
             /**
              * Recorded At
              * Format: date
@@ -1172,8 +1380,22 @@ export interface components {
             game_size?: number | null;
             /** Bow Type */
             bow_type?: string | null;
-            /** Arrow Diameter Px */
-            arrow_diameter_px?: number | null;
+            /** Arrow Diameter Mm */
+            arrow_diameter_mm?: number | null;
+            /**
+             * All In
+             * @default false
+             */
+            all_in: boolean;
+            /**
+             * Backfilled
+             * @default false
+             */
+            backfilled: boolean;
+            /** Id */
+            id?: number | null;
+            /** Client Key */
+            client_key?: string | null;
             /** Comment */
             comment?: string | null;
             /**
@@ -1192,8 +1414,12 @@ export interface components {
             game_size?: number | null;
             /** Bow Type */
             bow_type?: string | null;
-            /** Arrow Diameter Px */
-            arrow_diameter_px?: number | null;
+            /** Arrow Diameter Mm */
+            arrow_diameter_mm?: number | null;
+            /** All In */
+            all_in?: boolean | null;
+            /** Backfilled */
+            backfilled?: boolean | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1483,8 +1709,6 @@ export interface components {
         };
         /** RoundSheetWrite */
         RoundSheetWrite: {
-            /** Id */
-            id?: number | null;
             /** Number */
             number: number;
             /**
@@ -1500,6 +1724,8 @@ export interface components {
             distance_m: number;
             /** Target Type */
             target_type: string;
+            /** Id */
+            id?: number | null;
             /** Comment */
             comment?: string | null;
             /**
@@ -3761,6 +3987,193 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AnnouncementRead"][];
+                };
+            };
+        };
+    };
+    create_error_report_api_v1_error_reports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ErrorReportCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_error_reports_api_v1_admin_error_reports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminErrorReportRead"][];
+                };
+            };
+        };
+    };
+    resolve_error_report_api_v1_admin_error_reports__error_report_id__resolve_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                error_report_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminErrorReportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pending_counts_api_v1_admin_pending_counts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPendingCounts"];
+                };
+            };
+        };
+    };
+    list_diaries_api_v1_diaries_get: {
+        parameters: {
+            query?: {
+                year?: number | null;
+                limit?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiaryRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_diary_api_v1_diaries_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiaryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiaryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_diary_years_api_v1_diaries_years_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number[];
                 };
             };
         };

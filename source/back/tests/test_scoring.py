@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.core.scoring import MAX_RING_SCORE, MISS_SCORE, X_SCORE, scored_value
+from app.core.target_types import TARGET_TYPE_IDS
 from app.crud import user as user_crud
 from app.db import Point
 from app.schemas.user import UserCreate
@@ -132,25 +133,16 @@ def test_a_score_above_x_is_rejected(client: TestClient) -> None:
     assert _post_point(client, end["id"], score=-1).status_code == 422
 
 
-def test_an_x_on_a_ten_ring_compound_face_is_rejected(client: TestClient) -> None:
+@pytest.mark.parametrize("target_type", TARGET_TYPE_IDS)
+def test_every_target_type_takes_an_x(client: TestClient, target_type: str) -> None:
     game = _create_game(client)
-    round_ = _create_round(client, game["id"], target_type="compound")
-    end = _create_end(client, round_["id"])
-
-    assert _post_point(client, end["id"], score=X_SCORE).status_code == 422
-    assert _post_point(client, end["id"], score=MAX_RING_SCORE).status_code == 201
-
-
-def test_patching_a_point_to_a_score_the_face_cannot_produce_is_rejected(
-    client: TestClient,
-) -> None:
-    game = _create_game(client)
-    round_ = _create_round(client, game["id"], target_type="compound")
+    round_ = _create_round(client, game["id"], target_type=target_type)
     end = _create_end(client, round_["id"])
     point = _post_point(client, end["id"], score=9).json()
 
+    assert _post_point(client, end["id"], score=X_SCORE).status_code == 201
     res = client.patch(f"/api/v1/points/{point['id']}", json={"score": X_SCORE})
-    assert res.status_code == 422
+    assert res.status_code == 200
 
 
 def test_a_point_outside_the_target_area_is_rejected(client: TestClient) -> None:

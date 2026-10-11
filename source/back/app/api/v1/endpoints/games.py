@@ -1,12 +1,9 @@
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api import deps
-from app.core.scoring import max_score_for_ring_count
-from app.core.target_types import get_target_type
 from app.crud import game as game_crud
-from app.db import End, User
+from app.db import User
 from app.schemas.game import (
     EndCreate,
     EndRead,
@@ -26,24 +23,6 @@ from app.schemas.game_sheet import GameSheetRead, GameSheetWrite
 from app.services import game_sheet as game_sheet_service
 
 router = APIRouter()
-
-
-def _check_score_fits_target(s: Session, end: End, score: int) -> None:
-    """Reject a score the round's target face can't produce - an X (11) on a
-    10-ring compound face, say. Rounds whose target_type predates the fixed
-    list (legacy imports) have no known ring count, so nothing to check."""
-    round_ = game_crud.get_round(s, end.round_id)
-    if round_ is None:
-        return
-    target_type = get_target_type(round_.target_type)
-    if target_type is None:
-        return
-    max_score = max_score_for_ring_count(target_type.ring_count)
-    if score > max_score:
-        raise HTTPException(
-            status_code=422,
-            detail=f"score must be at most {max_score} on a {round_.target_type} target",
-        )
 
 
 @router.get("/games", response_model=list[GameRead])
@@ -87,7 +66,9 @@ def list_game_scores(
 
 @router.post("/games", response_model=GameRead, status_code=201)
 def create_game(
-    game_in: GameCreate, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    game_in: GameCreate,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> GameRead:
     deps.require_self(me, game_in.user_id)
     result = game_crud.create_game(s, game_in)
@@ -106,24 +87,39 @@ def save_game_sheet(
     id の無いゲームは作り(同じ client_key のゲームがあればそれを上書きする)、
     あるゲームは送られた中身で丸ごと上書きする。
     """
-    game = game_sheet_service.save_game_sheet(s, me, sheet_in)
-    result = game_sheet_service.read_game_sheet(s, game)
+    game = (
+        deps.get_own_or_404(
+            me,
+            game_crud.get_game_sheet,
+            s,
+            sheet_in.id,
+            detail="Game not found",
+        )
+        if sheet_in.id is not None
+        else None
+    )
+    game = game_sheet_service.save_game_sheet(s, me, game, sheet_in)
+    result = game_sheet_service.read_game_sheet(game)
     s.commit()
     return result
 
 
 @router.get("/games/{game_id}/sheet", response_model=GameSheetRead)
 def get_game_sheet(
-    game_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    game_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> GameSheetRead:
     """ゲームの記録(ラウンド・エンド・矢・コメント)を丸ごと。入力の画面で編集を始めるときに読む。"""
-    game = deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
-    return game_sheet_service.read_game_sheet(s, game)
+    game = deps.get_own_or_404(me, game_crud.get_game_sheet, s, game_id, detail="Game not found")
+    return game_sheet_service.read_game_sheet(game)
 
 
 @router.get("/games/{game_id}", response_model=GameRead)
 def get_game(
-    game_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    game_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> GameRead:
     return deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
 
@@ -145,7 +141,9 @@ def update_game(
 
 @router.delete("/games/{game_id}", status_code=204)
 def delete_game(
-    game_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    game_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> None:
     game = deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
     game_crud.delete_game(s, game)
@@ -161,13 +159,18 @@ def list_deleted_games(
     s: Session = Depends(deps.get_session),
 ) -> list[GameRead]:
     return game_crud.list_deleted_games(
-        s, skip=skip, limit=limit, user_id=deps.resolve_user_id(me, user_id)
+        s,
+        skip=skip,
+        limit=limit,
+        user_id=deps.resolve_user_id(me, user_id),
     )
 
 
 @router.post("/games/{game_id}/restore", response_model=GameRead)
 def restore_game(
-    game_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    game_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> GameRead:
     game = deps.get_own_or_404(me, game_crud.get_game_any, s, game_id, detail="Game not found")
     if game.deleted_at is None:
@@ -204,7 +207,9 @@ def create_round(
 
 @router.get("/rounds/{round_id}", response_model=RoundRead)
 def get_round(
-    round_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    round_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> RoundRead:
     return deps.get_own_or_404(me, game_crud.get_round, s, round_id, detail="Round not found")
 
@@ -224,7 +229,9 @@ def update_round(
 
 @router.delete("/rounds/{round_id}", status_code=204)
 def delete_round(
-    round_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    round_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> None:
     round_ = deps.get_own_or_404(me, game_crud.get_round, s, round_id, detail="Round not found")
     game_crud.delete_round(s, round_)
@@ -241,13 +248,19 @@ def list_deleted_rounds(
     s: Session = Depends(deps.get_session),
 ) -> list[RoundRead]:
     return game_crud.list_deleted_rounds(
-        s, skip=skip, limit=limit, game_id=game_id, user_id=deps.resolve_user_id(me, user_id)
+        s,
+        skip=skip,
+        limit=limit,
+        game_id=game_id,
+        user_id=deps.resolve_user_id(me, user_id),
     )
 
 
 @router.post("/rounds/{round_id}/restore", response_model=RoundRead)
 def restore_round(
-    round_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    round_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> RoundRead:
     round_ = deps.get_own_or_404(me, game_crud.get_round_any, s, round_id, detail="Round not found")
     if round_.deleted_at is None:
@@ -284,7 +297,9 @@ def create_end(
 
 @router.get("/ends/{end_id}", response_model=EndRead)
 def get_end(
-    end_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    end_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> EndRead:
     return deps.get_own_or_404(me, game_crud.get_end, s, end_id, detail="End not found")
 
@@ -304,7 +319,9 @@ def update_end(
 
 @router.delete("/ends/{end_id}", status_code=204)
 def delete_end(
-    end_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    end_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> None:
     end = deps.get_own_or_404(me, game_crud.get_end, s, end_id, detail="End not found")
     game_crud.delete_end(s, end)
@@ -331,7 +348,6 @@ def create_point(
     s: Session = Depends(deps.get_session),
 ) -> PointRead:
     end = deps.get_own_or_404(me, game_crud.get_end, s, end_id, detail="End not found")
-    _check_score_fits_target(s, end, point_in.score)
     result = game_crud.create_point(s, end, point_in)
     s.commit()
     return result
@@ -339,7 +355,9 @@ def create_point(
 
 @router.get("/points/{point_id}", response_model=PointRead)
 def get_point(
-    point_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    point_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> PointRead:
     return deps.get_own_or_404(me, game_crud.get_point, s, point_id, detail="Point not found")
 
@@ -352,9 +370,6 @@ def update_point(
     s: Session = Depends(deps.get_session),
 ) -> PointRead:
     point = deps.get_own_or_404(me, game_crud.get_point, s, point_id, detail="Point not found")
-    if point_in.score is not None:
-        end = deps.get_own_or_404(me, game_crud.get_end, s, point.end_id, detail="End not found")
-        _check_score_fits_target(s, end, point_in.score)
     result = game_crud.update_point(s, point, point_in)
     s.commit()
     return result
@@ -362,7 +377,9 @@ def update_point(
 
 @router.delete("/points/{point_id}", status_code=204)
 def delete_point(
-    point_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    point_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> None:
     point = deps.get_own_or_404(me, game_crud.get_point, s, point_id, detail="Point not found")
     game_crud.delete_point(s, point)

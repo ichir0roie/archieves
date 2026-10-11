@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
-import { recordedArrows, saveSheet, shoot, startGame } from "./scoreEntry";
+import { finishSheet, recordedArrows, shoot, startGame } from "./scoreEntry";
 
-// 記録は手元に溜め、保存・終了のときに PUT /games/sheet で一度に送る。スマホで画面を消す・
+// 記録は手元に溜め、終了のときに PUT /games/sheet で一度に送る。スマホで画面を消す・
 // アプリを切り替えると、その要求が途中で切られる(Failed to fetch)
 
 const ROUTE_TIMEOUT = 15_000;
@@ -30,28 +30,22 @@ async function dropNextSave(page: Page, lost: boolean): Promise<{ savedId: numbe
 }
 
 for (const lost of [false, true]) {
-  test(`a failed save keeps the scores and saving again writes one game (response lost: ${lost})`, async ({
+  test(`a failed finish keeps the scores and finishing again writes one game (response lost: ${lost})`, async ({
     page,
   }) => {
     await startGame(page, { endSize: 6, roundSize: 6, gameSize: 1 });
     await shoot(page, "10", 6);
 
     const dropped = await dropNextSave(page, lost);
-    await page.locator(".ScoreSave").click();
+    await page.getByRole("button", { name: "終了" }).click();
     await expect(page.locator(".score-entry [role=alert]")).toBeVisible({ timeout: ROUTE_TIMEOUT });
-    // 送れなかった記録は手元に残り、保存していない印のまま
+    // 送れなかった記録は手元に残り、入力の画面に留まる
+    await expect(page).toHaveURL(/\/game\/score-card$/);
     await expect(recordedArrows(page)).toHaveCount(6);
-    await expect(page.locator(".ScoreSave")).toHaveText("保存");
 
-    const saved = await saveSheet(page);
-    await expect(page.locator(".score-entry [role=alert]")).toHaveCount(0);
+    const saved = await finishSheet(page);
     // 応答を失った保存が API に届いていても、同じゲームを上書きして二つ作らない
     if (dropped.savedId !== null) expect(saved.id).toBe(dropped.savedId);
-
-    await page.getByRole("button", { name: "終了" }).click();
-    await expect(page).toHaveURL(new RegExp(`/score-view/?\\?gameId=${saved.id}$`), {
-      timeout: ROUTE_TIMEOUT,
-    });
     const row = page.locator("table tbody tr");
     await expect(row).toHaveCount(1);
     await expect(row.getByText("10", { exact: true })).toHaveCount(6);

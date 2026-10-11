@@ -6,6 +6,7 @@ import type { RoundSetup } from "@/lib/score/scoreConfig";
  *
  * キャッシュは、新しいゲームを始めたとき(設定の画面)と、保存したゲームの編集を始めたとき
  * (スコアの画面)に作り直し、終了したときに消す。入力の画面は API を読まずに、ここから開く。
+ * 読み書きは lib/storage.ts(loadScoreSheetCache など)。
  */
 export interface SheetPoint {
   id: number | null;
@@ -45,14 +46,23 @@ export interface Sheet {
   recorded_at: string;
   game_size: number | null;
   bow_type: string | null;
-  /** 記入画面で矢として扱う円の直径(画面の px)。null は既定の大きさ */
-  arrow_diameter_px: number | null;
+  /** 矢の直径(mm)。null は既定の太さ */
+  arrow_diameter_mm: number | null;
+  /** オールイン */
+  all_in: boolean;
+  /**
+   * あとから入力: スコアの一覧で日付を決めて入れたゲーム。
+   * ラウンド・エンド・矢の日付は recorded_at に、矢の時刻はその日の 0 時にそろえる
+   */
+  backfilled: boolean;
   comment: string | null;
   rounds: Array<SheetRound>;
 }
 
 export interface ScoreSheetCache {
-  version: typeof CACHE_VERSION;
+  version: typeof SCORE_SHEET_CACHE_VERSION;
+  /** 入力している利用者(ログインの sub)。キャッシュはこの人のキーに置く(lib/storage.ts) */
+  sub: string;
   sheet: Sheet;
   /** 新しいラウンドを開くときの既定(設定の画面で選んだもの)。保存したゲームの編集では null */
   setup: RoundSetup | null;
@@ -63,28 +73,9 @@ export interface ScoreSheetCache {
   dirty: boolean;
 }
 
-const CACHE_KEY = "scoreSheet";
-// 形を変えたら上げる。古い形のキャッシュは読まない(壊れた記録を画面に出さない)
-const CACHE_VERSION = 1;
-
-export function readScoreSheetCache(): ScoreSheetCache | null {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(CACHE_KEY) ?? "null") as ScoreSheetCache | null;
-    if (!parsed || parsed.version !== CACHE_VERSION || !Array.isArray(parsed.sheet?.rounds)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-export function writeScoreSheetCache(cache: Omit<ScoreSheetCache, "version">) {
-  localStorage.setItem(CACHE_KEY, JSON.stringify({ ...cache, version: CACHE_VERSION }));
-}
-
-export function clearScoreSheetCache() {
-  try {
-    localStorage.removeItem(CACHE_KEY);
-  } catch {
-    // 消せなくても、次に始めるときに上書きする
-  }
-}
+/**
+ * キャッシュの形のバージョン。欄を足す・置き換えるだけなら上げず、読むところ(storage.ts の
+ * loadScoreSheetCache)で古い形を今の形に移す(入力の途中のゲームを失わない)。
+ * 移せない変え方をしたときだけ上げる。上げると古いキャッシュは読まず、入力の途中のゲームは失われる。
+ */
+export const SCORE_SHEET_CACHE_VERSION = 1;

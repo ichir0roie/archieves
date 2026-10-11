@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ScoreManager, type ScoreProgress } from "@/lib/score/scoreManager";
 import { type SheetPoint } from "@/lib/score/scoreSheetCache";
 import { toErrorDetails, type ErrorDetails } from "@/lib/api";
+import { getCurrentUser } from "@/lib/auth/currentUser";
 import { type CommentTarget } from "@/lib/comment";
 
 /** The notes shown on the entry screen: the game's, and the round/end in progress. */
@@ -49,13 +50,25 @@ export function useScoreGame() {
   }
 
   useEffect(() => {
-    const scoreManager = ScoreManager.resume();
-    if (!scoreManager) {
-      router.replace("/");
-      return;
-    }
-    setManager(scoreManager);
-    syncFrom(scoreManager);
+    let cancelled = false;
+    getCurrentUser().then(
+      ({ userId }) => {
+        if (cancelled) return;
+        const scoreManager = ScoreManager.resume(userId);
+        if (!scoreManager) {
+          router.replace("/");
+          return;
+        }
+        setManager(scoreManager);
+        syncFrom(scoreManager);
+      },
+      () => {
+        if (!cancelled) router.replace("/");
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
     // 開いたときに一度だけキャッシュから読む
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

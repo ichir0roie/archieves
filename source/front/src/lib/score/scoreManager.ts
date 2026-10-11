@@ -2,7 +2,7 @@ import { deleteGame, getGameSheet, saveGameSheet, type GameSheetRead } from "@/l
 import { type CommentTarget } from "@/lib/comment";
 import { toDateOnly } from "@/lib/toDateOnly";
 import {
-  DEFAULT_ARROW_DIAMETER_PX,
+  DEFAULT_ARROW_DIAMETER_MM,
   DEFAULT_DISTANCE_M,
   DEFAULT_END_SIZE,
   DEFAULT_GAME_SIZE,
@@ -12,14 +12,17 @@ import {
 } from "./scoreConfig";
 import {
   clearScoreSheetCache,
-  readScoreSheetCache,
-  writeScoreSheetCache,
+  loadScoreSheetCache,
+  saveScoreSheetCache,
+} from "@/lib/storage";
+import {
   type ScoreSheetCache,
   type Sheet,
   type SheetEnd,
   type SheetPoint,
   type SheetRound,
 } from "./scoreSheetCache";
+import { totalScore } from "./scoreFunctions";
 
 /** 入力の画面の帯に出す、今の位置とボタンの可否 */
 export interface ScoreProgress {
@@ -37,6 +40,10 @@ export interface ScoreProgress {
   canForwardPoint: boolean;
   canBackEnd: boolean;
   canForwardEnd: boolean;
+  /** 今のラウンドの合計点 */
+  roundTotal: number;
+  /** 今のラウンドのエンドごとの合計。矢の無いエンド(まだ開いていないものも)は null */
+  endTotals: Array<number | null>;
 }
 
 /** 「1矢戻る」で外した矢。「1矢進む」で同じ点数・位置・時刻を入れ直す */
@@ -44,6 +51,12 @@ type UndonePoint = Omit<SheetPoint, "id" | "number">;
 
 function today(): string {
   return toDateOnly(new Date());
+}
+
+/** 手元の時間帯での、その日("yyyy-mm-dd")の 0 時 */
+function startOfDate(date: string): Date {
+  // 時差の無い日付と時刻の文字列は、手元の時間帯として読まれる
+  return new Date(`${date}T00:00:00`);
 }
 
 function hasComment(entity: { comment: string | null }): boolean {
@@ -58,7 +71,9 @@ function fromSheetRead(read: GameSheetRead): Sheet {
     recorded_at: read.recorded_at,
     game_size: read.game_size,
     bow_type: read.bow_type,
-    arrow_diameter_px: read.arrow_diameter_px,
+    arrow_diameter_mm: read.arrow_diameter_mm,
+    all_in: read.all_in,
+    backfilled: read.backfilled,
     comment: read.comment,
     rounds: read.rounds.map((round) => ({
       id: round.id,
@@ -97,6 +112,8 @@ function fromSheetRead(read: GameSheetRead): Sheet {
  * コメントも消さない。エンドが満ちても次のエンドへは自動で進まない(「1エンド進む」で進む)。
  */
 export class ScoreManager {
+  /** 入力している利用者(ログインの sub)。キャッシュはこの人のものとして書く */
+  private readonly sub: string;
   private sheet: Sheet;
   private setup: RoundSetup | null;
   private roundIndex: number;
@@ -110,6 +127,7 @@ export class ScoreManager {
   private undonePoints = new Map<string, Array<UndonePoint>>();
 
   constructor(cache: Omit<ScoreSheetCache, "version">) {
+    this.sub = cache.sub;
     this.sheet = cache.sheet;
     this.setup = cache.setup;
     this.roundIndex = cache.roundIndex;
@@ -121,16 +139,26 @@ export class ScoreManager {
 
   // ---- キャッシュを作る・読む・消す ----
 
-  /** 設定の画面から新しいゲームを始める。前のキャッシュは捨てる */
-  static startNewGame(setup: RoundSetup): ScoreManager {
+  /**
+   * 設定の画面から新しいゲームを始める。前のキャッシュは捨てる。backfillDate("yyyy-mm-dd")を渡すと
+   * あとから入力にし、記録の日付・時刻をその日にそろえる。sub は今のログインの利用者
+   */
+  static startNewGame(
+    sub: string,
+    setup: RoundSetup,
+    backfillDate: string | null = null,
+  ): ScoreManager {
     const manager = new ScoreManager({
+      sub,
       sheet: {
         id: null,
         client_key: crypto.randomUUID(),
-        recorded_at: today(),
+        recorded_at: backfillDate ?? today(),
         game_size: setup.gameSize,
         bow_type: setup.bowType,
-        arrow_diameter_px: setup.arrowDiameterPx,
+        arrow_diameter_mm: setup.arrowDiameterMm,
+        all_in: setup.allIn,
+        backfilled: backfillDate !== null,
         comment: null,
         rounds: [],
       },
@@ -144,10 +172,11 @@ export class ScoreManager {
   }
 
   /** 保存したゲームの編集を始める。API から丸ごと読んでキャッシュを作り直し、いちばん後ろのエンドを開く */
-  static async startEditing(gameId: number): Promise<ScoreManager> {
+  static async startEditing(sub: string, gameId: number): Promise<ScoreManager> {
     const sheet = fromSheetRead(await getGameSheet(gameId));
     const roundIndex = Math.max(sheet.rounds.length - 1, 0);
     const manager = new ScoreManager({
+      sub,
       sheet,
       setup: null,
       roundIndex,
@@ -164,29 +193,26 @@ export class ScoreManager {
     return manager;
   }
 
-  /** キャッシュにある、入力の途中のゲーム。無ければ null */
-  static resume(): ScoreManager | null {
-    const cache = readScoreSheetCache();
+  /** キャッシュにある、sub の人の入力の途中のゲーム。無ければ null */
+  static resume(sub: string): ScoreManager | null {
+    const cache = loadScoreSheetCache(sub);
     return cache ? new ScoreManager(cache) : null;
   }
 
-  /** キャッシュに入力の途中のゲームがあり、保存していない変更がある */
-  static hasUnsavedCache(): boolean {
-    return readScoreSheetCache()?.dirty ?? false;
+  /** キャッシュに sub の人の入力の途中のゲームがあり、保存していない変更がある */
+  static hasUnsavedCache(sub: string): boolean {
+    return loadScoreSheetCache(sub)?.dirty ?? false;
   }
 
   private persist() {
-    try {
-      writeScoreSheetCache({
-        sheet: this.sheet,
-        setup: this.setup,
-        roundIndex: this.roundIndex,
-        endIndex: this.endIndex,
-        dirty: this.dirty,
-      });
-    } catch {
-      // 書けなくても(容量切れなど)画面の中の記録はあり、保存・終了で API に送れる
-    }
+    saveScoreSheetCache({
+      sub: this.sub,
+      sheet: this.sheet,
+      setup: this.setup,
+      roundIndex: this.roundIndex,
+      endIndex: this.endIndex,
+      dirty: this.dirty,
+    });
   }
 
   /** 記録を変えた。キャッシュに写し、保存していない印を付ける */
@@ -251,9 +277,24 @@ export class ScoreManager {
     return this.currentRound?.end_size ?? this.setup?.endSize ?? DEFAULT_END_SIZE;
   }
 
-  /** 矢として扱う円の直径(画面の px)。設定する前のゲーム(と、それより前のキャッシュ)は既定の大きさ */
-  get arrowDiameterPx(): number {
-    return this.sheet.arrow_diameter_px ?? DEFAULT_ARROW_DIAMETER_PX;
+  /** 矢の直径(mm)。設定する前のゲーム(と、px で持っていた頃のキャッシュ)は既定の太さ */
+  get arrowDiameterMm(): number {
+    return this.sheet.arrow_diameter_mm ?? DEFAULT_ARROW_DIAMETER_MM;
+  }
+
+  /** オールイン: 矢の円が帯に完全に入らなければ、その帯の点にしない */
+  get allIn(): boolean {
+    return this.sheet.all_in;
+  }
+
+  /** あとから入力のゲームなら、その日付("yyyy-mm-dd")。入れた時の日付で付けるゲームは null */
+  get backfillDate(): string | null {
+    return this.sheet.backfilled ? this.sheet.recorded_at : null;
+  }
+
+  /** 新しく開くラウンド・エンドと矢に付ける日付 */
+  private get recordDate(): string {
+    return this.backfillDate ?? today();
   }
 
   get targetType(): string {
@@ -341,6 +382,14 @@ export class ScoreManager {
       canForwardPoint: this.canForwardPoint,
       canBackEnd: this.canBackEnd,
       canForwardEnd: this.canForwardEnd,
+      roundTotal: totalScore(this.ends.flatMap((end) => end.points)),
+      endTotals: Array.from(
+        { length: Math.max(this.roundSize, this.ends.length) },
+        (_, index) => {
+          const end = this.ends[index];
+          return end && end.points.length > 0 ? totalScore(end.points) : null;
+        },
+      ),
     };
   }
 
@@ -357,7 +406,7 @@ export class ScoreManager {
     this.sheet.rounds.push({
       id: null,
       number: previous ? previous.number + 1 : 1,
-      recorded_at: today(),
+      recorded_at: this.recordDate,
       end_size: previous?.end_size ?? this.setup?.endSize ?? DEFAULT_END_SIZE,
       round_size: previous?.round_size ?? this.setup?.roundSize ?? DEFAULT_ROUND_SIZE,
       distance_m: previous?.distance_m ?? this.setup?.distanceM ?? DEFAULT_DISTANCE_M,
@@ -387,7 +436,7 @@ export class ScoreManager {
     round.ends.push({
       id: null,
       number: round.ends.length + 1,
-      recorded_at: today(),
+      recorded_at: this.recordDate,
       comment: null,
       points: [],
     });
@@ -406,19 +455,23 @@ export class ScoreManager {
     points.push({ id: null, number: points.length + 1, ...point });
   }
 
-  /** 矢を一本記録する。記録した時刻も持つ。エンドが満ちていれば何もしない */
+  /**
+   * 矢を一本記録する。記録した時刻も持つ(あとから入力なら、その日の 0 時)。エンドが満ちていれば
+   * 何もしない
+   */
   addPoint(score: number, x: number = 0, y: number = 0) {
     if (this.isEndFull || !this.currentEnd) return;
 
     // 新しく撃った矢で、このエンドの履歴が分かれる
     this.undonePoints.delete(this.undoneKey);
-    const now = new Date();
+    const backfillDate = this.backfillDate;
+    const shotAt = backfillDate === null ? new Date() : startOfDate(backfillDate);
     this.pushPoint({
       score,
       x,
       y,
-      recorded_at: toDateOnly(now),
-      shot_at: now.toISOString(),
+      recorded_at: toDateOnly(shotAt),
+      shot_at: shotAt.toISOString(),
     });
     this.changed();
   }
@@ -548,7 +601,7 @@ export class ScoreManager {
       await this.save();
       gameId = this.sheet.id;
     }
-    clearScoreSheetCache();
+    clearScoreSheetCache(this.sub);
     return gameId;
   }
 }

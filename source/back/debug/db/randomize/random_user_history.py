@@ -12,8 +12,9 @@ from datetime import date, timedelta
 from sqlalchemy import insert
 
 from app.core.bow_types import BowType
-from app.core.scoring import MISS_SCORE, X_SCORE
-from app.core.target_types import resolve_target_size_cm
+from app.core.scoring import MAX_RING_SCORE, MISS_SCORE, X_SCORE
+from app.core.target_types import get_target_type
+from app.crud.game import point_cm
 from app.db.models.game_model import End, Game, Point, Round
 from app.db.models.system_model import User
 from mods.factory_db import FactorySession
@@ -28,25 +29,27 @@ ARROWS_PER_END = 6
 ROUND_KINDS = [
     (70, "122cm", 6),
     (50, "122cm", 2),
-    (30, "92cm", 2),
+    (30, "80cm", 2),
 ]
 # 70m での着弾のばらつき(的の上の cm、標準偏差)。始めの年から終わりの年へ、この幅で上達する
 SPREAD_CM_START = 14.0
 SPREAD_CM_END = 6.0
-# 10 の輪(と X)を含む、点の付く輪の数
-SCORING_RINGS = 10
 
 
 def _score(r_cm: float, size_cm: float) -> int:
-    """中心からの距離で輪を決める。X は 10 の輪の内側半分。"""
-    ring_width = size_cm / 2 / SCORING_RINGS
+    """中心からの距離で輪を決める。どの的も 1〜10 の輪を持ち、X は 10 の輪の内側半分。"""
+    ring_width = size_cm / 2 / MAX_RING_SCORE
     if r_cm < ring_width / 2:
         return X_SCORE
-    ring = SCORING_RINGS - math.floor(r_cm / ring_width)
+    ring = MAX_RING_SCORE - math.floor(r_cm / ring_width)
     return ring if ring >= 1 else MISS_SCORE
 
 
-def _arrow(rng: random.Random, spread_cm: float, size_cm: float) -> tuple[int, float, float]:
+def _arrow(
+    rng: random.Random,
+    spread_cm: float,
+    size_cm: float,
+) -> tuple[int, float, float]:
     """一本の矢の点数と、的の上の位置(左上を 0、右下を 1 とした割合)。"""
     dx = rng.gauss(0, spread_cm)
     dy = rng.gauss(0, spread_cm)
@@ -124,10 +127,11 @@ def create_user_history(user: User, years: int = 5, seed: int | None = None) -> 
 
     points = []
     for end, round_, spread_cm in ends:
-        size_cm = resolve_target_size_cm(round_.target_type)
-        assert size_cm is not None
+        target = get_target_type(round_.target_type)
+        assert target is not None
         for number in range(1, ARROWS_PER_END + 1):
-            score, x, y = _arrow(rng, spread_cm, size_cm)
+            score, x, y = _arrow(rng, spread_cm, target.size_cm)
+            x_cm, y_cm = point_cm(round_, x, y)
             points.append(
                 {
                     "end_id": end.id,
@@ -136,8 +140,8 @@ def create_user_history(user: User, years: int = 5, seed: int | None = None) -> 
                     "score": score,
                     "x": x,
                     "y": y,
-                    "x_cm": (x - 0.5) * size_cm,
-                    "y_cm": (y - 0.5) * size_cm,
+                    "x_cm": x_cm,
+                    "y_cm": y_cm,
                     "recorded_at": end.recorded_at,
                 }
             )

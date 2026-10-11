@@ -29,9 +29,11 @@ export const terms: typeof ja = {
   bowType: "Bow type",
   targetType: "Target face",
   feedback: "Feedback",
+  diary: "Diary",
   announcement: "News",
   link: "Link",
   allPeriod: "All time",
+  allIn: "All-in",
   roundN: (n: number) => `Round ${n}`,
   endN: (n: number) => `End ${n}`,
   unit: {

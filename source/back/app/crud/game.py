@@ -1,7 +1,8 @@
 from datetime import date
 
 from sqlalchemy import Select, extract, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.scoring import scored_value_column
 from app.core.target_types import resolve_target_size_cm
@@ -59,22 +60,86 @@ def get_game_any(s: Session, game_id: int) -> Game | None:
     return s.get(Game, game_id)
 
 
-def get_game_by_client_key(s: Session, user_id: int, client_key: str) -> Game | None:
-    """入力の画面が付けたキーのゲーム。消したゲームも返す(同じキーで作り直すと一意の制約に当たるため)。"""
-    return s.scalar(select(Game).where(Game.user_id == user_id, Game.client_key == client_key))
+def _with_sheet(stmt: Select[tuple[Game]]) -> Select[tuple[Game]]:
+    """ゲームに、記録(ラウンド・エンド・矢・コメント)を同じ SELECT で付けて引く。
+
+    子の関係は noload なので、ここでだけ joinedload で読む。ゴミ箱のラウンドとその配下は含めない
+    (_visible_* と同じ)。読み込み済みのゲームも、db の今の中身で読み直す(populate_existing)。
+    """
+    return stmt.options(
+        joinedload(Game.comment),
+        joinedload(Game.rounds.and_(Round.deleted_at.is_(None))).options(
+            joinedload(Round.comment),
+            joinedload(Round.ends).options(
+                joinedload(End.comment),
+                joinedload(End.points),
+            ),
+        ),
+    ).execution_options(populate_existing=True)
 
 
-def list_all_rounds_for_game(s: Session, game_id: int) -> list[Round]:
-    """ゲームの見えるラウンドを全部(list_rounds_for_game と違い、件数で切らない)。"""
-    return list(s.scalars(_visible_rounds().where(Round.game_id == game_id).order_by(Round.id)))
+def get_game_sheet(s: Session, game_id: int) -> Game | None:
+    """見えるゲームを、記録を丸ごと読み込んだ形で。"""
+    return s.scalars(_with_sheet(_visible_games().where(Game.id == game_id))).unique().one_or_none()
 
 
-def list_all_ends_for_round(s: Session, round_id: int) -> list[End]:
-    return list(s.scalars(_visible_ends().where(End.round_id == round_id).order_by(End.id)))
+def _by_client_key(user_id: int, client_key: str) -> Select[tuple[Game]]:
+    # 消したゲームも含める(同じキーで作り直すと一意の制約に当たるため)
+    return _with_sheet(
+        select(Game).where(
+            Game.user_id == user_id,
+            Game.client_key == client_key,
+        )
+    )
 
 
-def list_all_points_for_end(s: Session, end_id: int) -> list[Point]:
-    return list(s.scalars(_visible_points().where(Point.end_id == end_id).order_by(Point.id)))
+def get_game_sheet_by_client_key(s: Session, user_id: int, client_key: str) -> Game | None:
+    """入力の画面が付けたキーのゲームを、記録を丸ごと読み込んだ形で。消したゲームも返す。"""
+    return s.scalars(_by_client_key(user_id, client_key)).unique().one_or_none()
+
+
+def refresh_game_sheet(s: Session, game: Game) -> Game:
+    """書いたあとのゲームの記録を、db の今の中身で読み直す。"""
+    return s.scalars(_with_sheet(select(Game).where(Game.id == game.id))).unique().one()
+
+
+def create_sheet_game(
+    s: Session,
+    user_id: int,
+    recorded_at: date,
+    client_key: str | None = None,
+) -> Game:
+    """記録の一括保存で作る、まだ記録の無いゲーム。"""
+    game = Game(
+        user_id=user_id,
+        recorded_at=recorded_at,
+        client_key=client_key,
+    )
+    s.add(game)
+    s.flush()
+    return game
+
+
+def get_or_create_game_by_client_key(
+    s: Session,
+    user_id: int,
+    client_key: str,
+    recorded_at: date,
+) -> Game:
+    """client_key のゲーム(消したものも)。無ければ作る。
+
+    同じ client_key の初回の保存が並んで届くと、後の方は一意の制約に当たる。そのときは先に入った
+    ゲームを返す(get_or_create_user と同じ形)。
+    """
+    game = get_game_sheet_by_client_key(s, user_id, client_key)
+    if game is not None:
+        return game
+    try:
+        # 入れ損ねたときに、この行の分だけを巻き戻す(呼び出し側の行は残す)
+        with s.begin_nested():
+            return create_sheet_game(s, user_id, recorded_at, client_key)
+    except IntegrityError:
+        return s.scalars(_by_client_key(user_id, client_key)).unique().one()
 
 
 def list_games(

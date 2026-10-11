@@ -3,17 +3,21 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
+import Field from "@/components/Field";
 import LogGameCard from "@/components/LogGameCard";
 import LogGroup from "@/components/LogGroup";
 import BackButton from "@/components/BackButton";
+import Modal from "@/components/Modal";
 import PageHeader from "@/components/PageHeader";
 import YearSwitcher from "@/components/YearSwitcher";
 import { listGameScoresOfYear, listGameYears, listGamesOfYear } from "@/lib/api";
 import { useLoad } from "@/hooks/useLoad";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
+import { BACKFILL_DATE_PARAM, isBackfillDate } from "@/lib/score/backfill";
 import { groupGamesByDate } from "@/lib/scoreLogGroups";
 import { loadScoreLogCollapsed, saveScoreLogCollapsed } from "@/lib/storage";
 import { useT } from "@/lib/text";
+import { toDateOnly } from "@/lib/toDateOnly";
 
 export default function Page() {
   const T = useT();
@@ -46,6 +50,8 @@ export default function Page() {
   );
   const yearIndex = year === null ? -1 : years.indexOf(year);
   const [collapsed, setCollapsed] = useState<Array<string>>([]);
+  // あとから入力のモーダルで選んでいる日付。閉じているあいだは null
+  const [backfillDate, setBackfillDate] = useState<string | null>(null);
 
   // サーバーでの描画中は localStorage を読めないので、前回の開閉は画面に載ってから当てる
   useEffect(() => {
@@ -70,10 +76,10 @@ export default function Page() {
       <PageHeader title={T.profile.scoreLog.title} />
       <button
         type="button"
-        className="primary block"
-        onClick={() => router.push("/game/setup")}
+        className="BackfillButton block"
+        onClick={() => setBackfillDate(toDateOnly(new Date()))}
       >
-        {T.profile.scoreLog.newRecord}
+        {T.profile.scoreLog.backfill}
       </button>
       {error && <ApiErrorAlert error={error} />}
       {loading && !data && <p className="status empty">{T.loading}</p>}
@@ -130,6 +136,48 @@ export default function Page() {
       >
         {T.profile.scoreLog.trash}
       </button>
+      {backfillDate !== null && (
+        <Modal
+          title={T.profile.scoreLog.backfillTitle}
+          onClose={() => setBackfillDate(null)}
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={() => setBackfillDate(null)}
+              >
+                {T.cancel}
+              </button>
+              <button
+                type="button"
+                className="primary"
+                disabled={!isBackfillDate(backfillDate)}
+                onClick={() =>
+                  router.push(`/game/setup?${BACKFILL_DATE_PARAM}=${backfillDate}`)
+                }
+              >
+                {T.profile.scoreLog.backfillNext}
+              </button>
+            </>
+          }
+        >
+          <Field
+            label={T.profile.scoreLog.backfillDate}
+            hint={T.game.backfillHint}
+          >
+            {(id) => (
+              <input
+                id={id}
+                type="date"
+                className="BackfillDate"
+                max={toDateOnly(new Date())}
+                value={backfillDate}
+                onChange={(e) => setBackfillDate(e.target.value)}
+              />
+            )}
+          </Field>
+        </Modal>
+      )}
       <BackButton />
     </div>
   );

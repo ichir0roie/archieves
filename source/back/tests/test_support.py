@@ -4,8 +4,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app.core.support import ANNOUNCEMENT_LIMIT, MAX_FEEDBACK_LENGTH
-from app.db import Game
+from app.core.support import ANNOUNCEMENT_LIMIT, MAX_ERROR_MESSAGE_LENGTH, MAX_FEEDBACK_LENGTH
+from app.db import ErrorReport, Game
 
 
 def test_create_feedback_keeps_the_given_email(client: TestClient, current_user) -> None:
@@ -154,3 +154,134 @@ def test_admin_reply_rejects_empty_and_missing_feedbacks(
             f"/api/v1/admin/feedbacks/{feedback_id}/reply", json={"reply": "x"}
         )
         assert response.status_code == 404
+
+
+API_ERROR = {
+    "kind": "api",
+    "status_code": 500,
+    "page_path": "/score-log",
+    "method": "GET",
+    "api_path": "/api/v1/games",
+    "message": "Internal Server Error",
+}
+
+
+def test_an_error_report_is_stored_with_the_sender(
+    client: TestClient, s: Session, current_user
+) -> None:
+    response = client.post("/api/v1/error-reports", json=API_ERROR)
+
+    assert response.status_code == 204
+    report = s.scalars(select(ErrorReport)).one()
+    assert report.user_id == current_user.id
+    assert report.kind == "api"
+    assert report.status_code == 500
+    assert report.page_path == "/score-log"
+    assert report.api_path == "/api/v1/games"
+    assert report.resolved_at is None
+
+
+def test_a_missing_page_is_reported_without_the_api_fields(client: TestClient, s: Session) -> None:
+    response = client.post(
+        "/api/v1/error-reports",
+        json={"kind": "page", "status_code": 404, "page_path": "/no-such-page"},
+    )
+
+    assert response.status_code == 204
+    report = s.scalars(select(ErrorReport)).one()
+    assert (report.kind, report.method, report.api_path) == ("page", None, None)
+
+
+def test_an_error_report_is_accepted_before_registration(
+    unregistered_client: TestClient, s: Session
+) -> None:
+    response = unregistered_client.post("/api/v1/error-reports", json=API_ERROR)
+
+    assert response.status_code == 204
+    assert s.scalars(select(ErrorReport)).one().user_id is None
+
+
+def test_an_error_report_rejects_unknown_kinds_and_too_long_messages(client: TestClient) -> None:
+    assert client.post("/api/v1/error-reports", json={**API_ERROR, "kind": "x"}).status_code == 422
+    too_long = "x" * (MAX_ERROR_MESSAGE_LENGTH + 1)
+    assert (
+        client.post("/api/v1/error-reports", json={**API_ERROR, "message": too_long}).status_code
+        == 422
+    )
+    assert (
+        client.post("/api/v1/error-reports", json={**API_ERROR, "status_code": 99}).status_code
+        == 422
+    )
+
+
+def test_admin_error_reports_list_unresolved_first_with_the_sender(
+    client: TestClient, s: Session, current_user, factories
+) -> None:
+    current_user.is_admin = True
+    s.flush()
+    other = factories.UserFactory(name="Taro")
+    resolved = factories.ErrorReportFactory(
+        user=other,
+        resolved_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    older = factories.ErrorReportFactory(user=other)
+    newer = factories.ErrorReportFactory(user=None, kind="page", status_code=404)
+    factories.ErrorReportFactory(deleted_at=datetime(2026, 1, 1).date())
+
+    response = client.get("/api/v1/admin/error-reports")
+
+    assert response.status_code == 200
+    rows = response.json()
+    assert [r["id"] for r in rows] == [newer.id, older.id, resolved.id]
+    assert rows[0]["user_id"] is None
+    assert rows[0]["user_name"] is None
+    assert rows[1]["user_name"] == "Taro"
+    assert rows[2]["resolved_at"] is not None
+
+
+def test_admin_can_resolve_an_error_report_once(
+    client: TestClient, s: Session, current_user, factories
+) -> None:
+    current_user.is_admin = True
+    s.flush()
+    report = factories.ErrorReportFactory()
+
+    first = client.put(f"/api/v1/admin/error-reports/{report.id}/resolve")
+    second = client.put(f"/api/v1/admin/error-reports/{report.id}/resolve")
+
+    assert first.status_code == 200
+    assert first.json()["resolved_at"] is not None
+    # 二度押しても、最初に対応した日時のまま
+    assert second.json()["resolved_at"] == first.json()["resolved_at"]
+
+
+def test_admin_resolve_rejects_missing_error_reports(
+    client: TestClient, s: Session, current_user, factories
+) -> None:
+    current_user.is_admin = True
+    s.flush()
+    deleted = factories.ErrorReportFactory(deleted_at=datetime(2026, 1, 1).date())
+
+    for error_report_id in [deleted.id, 0]:
+        assert (
+            client.put(f"/api/v1/admin/error-reports/{error_report_id}/resolve").status_code
+            == 404
+        )
+
+
+def test_admin_pending_counts_count_unanswered_feedbacks_and_unresolved_errors(
+    client: TestClient, s: Session, current_user, factories
+) -> None:
+    current_user.is_admin = True
+    s.flush()
+    factories.FeedbackFactory.create_batch(2)
+    factories.FeedbackFactory(reply="済み")
+    factories.FeedbackFactory(deleted_at=datetime(2026, 1, 1).date())
+    factories.ErrorReportFactory.create_batch(3)
+    factories.ErrorReportFactory(resolved_at=datetime(2026, 1, 1, tzinfo=UTC))
+    factories.ErrorReportFactory(deleted_at=datetime(2026, 1, 1).date())
+
+    response = client.get("/api/v1/admin/pending-counts")
+
+    assert response.status_code == 200
+    assert response.json() == {"unanswered_feedbacks": 2, "unresolved_error_reports": 3}

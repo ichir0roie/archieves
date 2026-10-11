@@ -4,33 +4,58 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.core.bow_types import BOW_TYPE_MAX_LENGTH
 from app.core.scoring import (
-    MAX_ARROW_DIAMETER_PX,
+    MAX_ARROW_DIAMETER_MM,
     MAX_DISTANCE_M,
     MAX_END_SIZE,
     MAX_GAME_SIZE,
     MAX_ROUND_SIZE,
-    MIN_ARROW_DIAMETER_PX,
+    MIN_ARROW_DIAMETER_MM,
     MISS_SCORE,
     X_SCORE,
 )
-from app.core.target_types import TARGET_TYPE_IDS
+from app.core.target_types import check_target_type
 from app.schemas.base import ResponseModel
 
 
-class GameBase(BaseModel):
-    user_id: int
+def _reject_null(value: object) -> object:
+    """XUpdate の、NOT NULL の列に書く欄に付ける。省略はそのまま、null は弾く。
+
+    null を通すと、列に書くときに 500 になる。
+    """
+    if value is None:
+        raise ValueError("must not be null")
+    return value
+
+
+class GameFields(BaseModel):
+    """ゲームの持ち主以外の欄。読み書きで共通。"""
+
     recorded_at: date
     game_size: int | None = None
     # プリセット(BowType)以外の弓は自由入力の名前で持つ。ランキングの絞り込みは BowType だけ
     bow_type: str | None = Field(default=None, min_length=1, max_length=BOW_TYPE_MAX_LENGTH)
-    # 記入画面で矢として扱う円の直径(画面の px)。null は既定の大きさ
-    arrow_diameter_px: int | None = Field(
-        default=None, ge=MIN_ARROW_DIAMETER_PX, le=MAX_ARROW_DIAMETER_PX
+    # 矢の直径(mm)。null は既定の太さ
+    arrow_diameter_mm: int | None = Field(
+        default=None, ge=MIN_ARROW_DIAMETER_MM, le=MAX_ARROW_DIAMETER_MM
     )
+    # オールイン: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
+    all_in: bool = False
+    # あとから入力: 日付を決めて入れたゲーム。中の記録の日付・時刻をゲームの日付にそろえる
+    backfilled: bool = False
 
 
-class GameCreate(GameBase):
+class GameWriteFields(GameFields):
+    """ゲームを書く要求(GameCreate・schemas/game_sheet.py の GameSheetWrite)に共通の欄。"""
+
     game_size: int | None = Field(default=None, ge=1, le=MAX_GAME_SIZE)
+
+
+class GameBase(GameFields):
+    user_id: int
+
+
+class GameCreate(GameWriteFields):
+    user_id: int
 
 
 class GameUpdate(BaseModel):
@@ -38,9 +63,18 @@ class GameUpdate(BaseModel):
     recorded_at: date | None = None
     game_size: int | None = Field(default=None, ge=1, le=MAX_GAME_SIZE)
     bow_type: str | None = Field(default=None, min_length=1, max_length=BOW_TYPE_MAX_LENGTH)
-    arrow_diameter_px: int | None = Field(
-        default=None, ge=MIN_ARROW_DIAMETER_PX, le=MAX_ARROW_DIAMETER_PX
+    arrow_diameter_mm: int | None = Field(
+        default=None, ge=MIN_ARROW_DIAMETER_MM, le=MAX_ARROW_DIAMETER_MM
     )
+    all_in: bool | None = None
+    backfilled: bool | None = None
+
+    _reject_null = field_validator(
+        "user_id",
+        "recorded_at",
+        "all_in",
+        "backfilled",
+    )(_reject_null)
 
 
 class GameRead(GameBase, ResponseModel):
@@ -57,9 +91,9 @@ class GameScoreSummary(ResponseModel):
     point_average: float | None = None
 
 
-def _validate_target_type(target_type: str) -> str:
-    if target_type not in TARGET_TYPE_IDS:
-        raise ValueError(f"target_type must be one of {TARGET_TYPE_IDS}")
+def _validate_target_type(target_type: str | None) -> str | None:
+    if target_type is not None:
+        check_target_type(target_type)
     return target_type
 
 
@@ -75,12 +109,16 @@ class RoundBase(BaseModel):
     target_type: str
 
 
-class RoundCreate(RoundBase):
+class RoundWriteFields(RoundBase):
+    """ラウンドを書く要求(RoundCreate・schemas/game_sheet.py の RoundSheetWrite)に共通の欄。"""
+
     number: int = Field(ge=1)
     end_size: int = Field(ge=1, le=MAX_END_SIZE)
     round_size: int | None = Field(default=None, ge=1, le=MAX_ROUND_SIZE)
     distance_m: int = Field(ge=1, le=MAX_DISTANCE_M)
 
+
+class RoundCreate(RoundWriteFields):
     _validate_target_type = field_validator("target_type")(_validate_target_type)
 
 
@@ -92,9 +130,14 @@ class RoundUpdate(BaseModel):
     distance_m: int | None = Field(default=None, ge=1, le=MAX_DISTANCE_M)
     target_type: str | None = None
 
-    _validate_target_type = field_validator("target_type")(
-        lambda v: _validate_target_type(v) if v is not None else v
-    )
+    _validate_target_type = field_validator("target_type")(_validate_target_type)
+    _reject_null = field_validator(
+        "number",
+        "recorded_at",
+        "end_size",
+        "distance_m",
+        "target_type",
+    )(_reject_null)
 
 
 class RoundRead(RoundBase, ResponseModel):
@@ -116,6 +159,11 @@ class EndCreate(EndBase):
 class EndUpdate(BaseModel):
     number: int | None = Field(default=None, ge=1)
     recorded_at: date | None = None
+
+    _reject_null = field_validator(
+        "number",
+        "recorded_at",
+    )(_reject_null)
 
 
 class EndRead(EndBase, ResponseModel):
@@ -150,6 +198,14 @@ class PointUpdate(BaseModel):
     y: float | None = Field(default=None, ge=0, le=1)
     recorded_at: date | None = None
     shot_at: datetime | None = None
+
+    _reject_null = field_validator(
+        "number",
+        "score",
+        "x",
+        "y",
+        "recorded_at",
+    )(_reject_null)
 
 
 class PointRead(PointBase, ResponseModel):

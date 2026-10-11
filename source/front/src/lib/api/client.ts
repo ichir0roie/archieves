@@ -2,13 +2,20 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { isMockAuth } from '../auth/config';
 import { toDateOnly } from '../toDateOnly';
 import { getT } from '../text';
+import { clearCachedAppUser } from '../storage';
+import { MAX_ERROR_MESSAGE_LENGTH, MAX_ERROR_PATH_LENGTH } from '../support';
 import type {
+  AdminErrorReportRead,
   AdminFeedbackRead,
+  AdminPendingCounts,
   AnnouncementRead,
   BowType,
+  DiaryCreate,
+  DiaryRead,
   EndCommentRead,
   EndRead,
   EndScoreSummary,
+  ErrorReportCreate,
   FeedbackCreate,
   FeedbackRead,
   FeedbackReply,
@@ -92,7 +99,88 @@ async function refreshSession(forceRefresh = false): Promise<void> {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+// API の app/core/errors.py の CURRENT_USER_NOT_REGISTERED。本人の行が無い(登録の前、または db から
+// 消えた)ときの 404 で、他人の行が無いときの "User not found" とは分けてある
+const CURRENT_USER_NOT_REGISTERED = 'Current user not registered';
+
+/** ホームへ戻すときに投げるイベント。ApiErrorRedirect が受けてホームへ移る */
+export const API_ERROR_REDIRECT_EVENT = 'archieves:api-error-redirect';
+
+// 入力の不備(422)・重なり(409)は画面で知らせて直させるので、集積には送るがホームへは戻さない
+const STAY_ON_PAGE_STATUSES = [409, 422];
+
+/**
+ * エラーの集積に送る。送れなくても何もしない(送る処理のエラーをまた送らないよう、request を通さない)。
+ * 画面を離れても届くよう keepalive を付ける
+ */
+export function sendErrorReport(report: ErrorReportCreate): void {
+  const body: ErrorReportCreate = {
+    ...report,
+    page_path: report.page_path.slice(0, MAX_ERROR_PATH_LENGTH),
+    api_path: report.api_path?.slice(0, MAX_ERROR_PATH_LENGTH),
+    message: report.message?.slice(0, MAX_ERROR_MESSAGE_LENGTH),
+  };
+  fetch(`${API_BASE_URL}/error-reports`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    keepalive: true,
+  }).catch(() => {
+    // 送れなかったエラーは捨てる
+  });
+}
+
+interface ErrorHandling {
+  /** 呼ぶ画面が受けて扱うステータス(エラーではない)。集積に送らず、ホームへも戻さない */
+  expectedStatuses?: ReadonlyArray<number>;
+  /** STAY_ON_PAGE_STATUSES のほかに、集積には送るが画面に残すステータス */
+  stayOnPageStatuses?: ReadonlyArray<number>;
+}
+
+/**
+ * API のエラーを集積に送り、画面で扱わないものはホームへ戻させる。ログインの切れ(401)と登録の前の 404 は
+ * AuthGate が扱うので、どちらもしない
+ */
+function handleApiError(error: ApiError, handling: ErrorHandling) {
+  if (error.status === 401 || error.message === CURRENT_USER_NOT_REGISTERED) return;
+  if (handling.expectedStatuses?.includes(error.status)) return;
+  sendErrorReport({
+    kind: 'api',
+    status_code: error.status,
+    page_path: window.location.pathname,
+    method: error.method,
+    api_path: error.url,
+    message: error.message,
+  });
+  const stays =
+    STAY_ON_PAGE_STATUSES.includes(error.status) ||
+    (handling.stayOnPageStatuses?.includes(error.status) ?? false);
+  if (!stays) {
+    window.dispatchEvent(new Event(API_ERROR_REDIRECT_EVENT));
+  }
+}
+
+async function toApiError(
+  response: Response,
+  method: string,
+  url: string,
+  handling: ErrorHandling = {},
+): Promise<ApiError> {
+  const body = await response.json().catch(() => null);
+  const message =
+    (body && typeof body === 'object' && 'detail' in body && String(body.detail)) ||
+    response.statusText;
+  if (response.status === 404 && message === CURRENT_USER_NOT_REGISTERED) {
+    // キャッシュでは登録済みでも、API に本人の行が無い。キャッシュを消すと AuthGate が確かめ直し、
+    // 登録の画面へ送る
+    clearCachedAppUser();
+  }
+  const error = new ApiError(response.status, message, method, url, body);
+  handleApiError(error, handling);
+  return error;
+}
+
+async function request<T>(path: string, init?: RequestInit, handling?: ErrorHandling): Promise<T> {
   const method = init?.method ?? 'GET';
   const url = `${API_BASE_URL}${path}`;
   const send = () =>
@@ -113,11 +201,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const message =
-      (body && typeof body === 'object' && 'detail' in body && String(body.detail)) ||
-      response.statusText;
-    throw new ApiError(response.status, message, method, url, body);
+    throw await toApiError(response, method, url, handling);
   }
 
   if (response.status === 204) {
@@ -171,8 +255,9 @@ export function updateUser(userId: number, user: UserUpdate): Promise<MeRead> {
 }
 
 /** Public profile: basic info plus the user's activity (stats) over the last year. */
+/** 本人に公開されていないプロフィールは 403 になる。画面が受けて「非公開」と出す */
 export function getUserProfile(sub: string): Promise<UserProfile> {
-  return request(`/users/${encodeURIComponent(sub)}/profile`);
+  return request(`/users/${encodeURIComponent(sub)}/profile`, undefined, { expectedStatuses: [403] });
 }
 
 export function listOrganizations(params?: {
@@ -236,7 +321,6 @@ export function getGame(gameId: number): Promise<GameRead> {
   return request(`/games/${gameId}`);
 }
 
-/** Soft-deletes a game and, with it, its rounds/ends/points. */
 /** 入力の画面が手元に溜めたゲームの記録を一度に保存する。id が無ければ作り、あれば丸ごと上書きする。 */
 export function saveGameSheet(sheet: GameSheetWrite): Promise<GameSheetRead> {
   return request('/games/sheet', {
@@ -250,6 +334,7 @@ export function getGameSheet(gameId: number): Promise<GameSheetRead> {
   return request(`/games/${gameId}/sheet`);
 }
 
+/** ゲームを論理削除する。ラウンド・エンド・矢も一緒に消える。 */
 export function deleteGame(gameId: number): Promise<void> {
   return request(`/games/${gameId}`, { method: 'DELETE' });
 }
@@ -493,11 +578,8 @@ export async function importExportFile(source: ImportSource, file: File): Promis
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const message =
-      (body && typeof body === 'object' && 'detail' in body && String(body.detail)) ||
-      response.statusText;
-    throw new ApiError(response.status, message, method, url, body);
+    // 400 は取り込めないファイル。画面で知らせて選び直させる
+    throw await toApiError(response, method, url, { stayOnPageStatuses: [400] });
   }
 
   return (await response.json()) as ImportResult;
@@ -512,11 +594,7 @@ export async function exportRecords(): Promise<{ blob: Blob; filename: string }>
   const response = await fetch(url, { method });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const message =
-      (body && typeof body === 'object' && 'detail' in body && String(body.detail)) ||
-      response.statusText;
-    throw new ApiError(response.status, message, method, url, body);
+    throw await toApiError(response, method, url);
   }
 
   const disposition = response.headers.get('Content-Disposition') ?? '';
@@ -538,6 +616,27 @@ export function listUserRanking(params?: RankingQuery): Promise<UserRanking[]> {
   if (params?.regionId !== undefined) query.set('region_id', String(params.regionId));
   const qs = query.toString();
   return request(`/statistics/ranking${qs ? `?${qs}` : ''}`);
+}
+
+/** 自分の日記。新しい順。year は日本時間の年。limit を省くと全部。 */
+export function listDiaries(params?: { year?: number; limit?: number }): Promise<DiaryRead[]> {
+  const query = new URLSearchParams();
+  if (params?.year !== undefined) query.set('year', String(params.year));
+  if (params?.limit !== undefined) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return request(`/diaries${qs ? `?${qs}` : ''}`);
+}
+
+/** 日記のある年(日本時間)。新しい年が先。 */
+export function listDiaryYears(): Promise<number[]> {
+  return request('/diaries/years');
+}
+
+export function createDiary(diary: DiaryCreate): Promise<DiaryRead> {
+  return request('/diaries', {
+    method: 'POST',
+    body: JSON.stringify(diary),
+  });
 }
 
 /** 自分が意見箱に送った内容と、その返信。新しい順。 */
@@ -568,4 +667,16 @@ export function replyToFeedback(feedbackId: number, reply: FeedbackReply): Promi
 /** 直近のお知らせ(API が件数を絞る)。新しい順。 */
 export function listAnnouncements(): Promise<AnnouncementRead[]> {
   return request('/announcements');
+}
+
+export function listErrorReports(): Promise<AdminErrorReportRead[]> {
+  return request('/admin/error-reports');
+}
+
+export function resolveErrorReport(errorReportId: number): Promise<AdminErrorReportRead> {
+  return request(`/admin/error-reports/${errorReportId}/resolve`, { method: 'PUT' });
+}
+
+export function getPendingCounts(): Promise<AdminPendingCounts> {
+  return request('/admin/pending-counts');
 }

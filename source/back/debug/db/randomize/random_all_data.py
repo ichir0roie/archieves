@@ -3,6 +3,7 @@
 import random
 
 from app.core.bow_types import BowType
+from app.core.target_types import TARGET_TYPE_IDS
 from mods.factory_db import (
     EndFactory,
     FactorySession,
@@ -21,7 +22,6 @@ ENDS_PER_ROUND = 6
 POINTS_PER_END = 6
 
 DISTANCES_M = [18, 30, 50, 70, 90]
-TARGET_TYPES = ["92cm", "122cm", "compound"]
 
 
 def _create_organizations() -> list:
@@ -70,7 +70,7 @@ def _create_rounds(games: list) -> list:
                 end_size=ENDS_PER_ROUND,
                 round_size=game.game_size,
                 distance_m=random.choice(DISTANCES_M),
-                target_type=random.choice(TARGET_TYPES),
+                target_type=random.choice(TARGET_TYPE_IDS),
             )
         )
     FactorySession.commit()

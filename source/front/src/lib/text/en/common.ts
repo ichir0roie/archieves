@@ -41,15 +41,19 @@ export const common: typeof ja = {
     ranking: t.ranking,
     announcements: t.announcement,
     settings: t.settings,
+    diary: t.diary,
     feedback: t.feedback,
     adminFeedback: "Review feedback",
+    adminErrorReports: "Review errors",
     signOut: "Sign out",
   },
   options: {
     targetType: {
-      "92cm": "92cm",
       "122cm": "122cm (standard)",
-      compound: "Compound (80cm)",
+      "80cm": "80cm",
+      "40cm": "40cm",
+      // 選べない古い的。記録の絞り込みなどに出る
+      "92cm": "92cm",
     },
     bowType: {
       recurve: "Recurve",

@@ -23,6 +23,7 @@ export const support = {
     count: (n: number) => `${n} 件`,
     email: "返信先",
     noEmail: "返信先なし",
+    userId: (id: number) => ` (id ${id})`,
     replied: "返信済み",
     reply: "返信",
     replyHint: "送った人の意見箱の画面に表示されます。",
@@ -31,6 +32,28 @@ export const support = {
     editReply: "直す",
     cancel: "やめる",
     submitting: "送信中...",
+  },
+  /** 管理者が片付けるものの件数。ホームのボタンと意見の確認ページに出す */
+  pending: {
+    badge: (n: number) => `未対応 ${n} 件`,
+    summary: (feedbacks: number, errors: number) =>
+      `未回答の意見 ${feedbacks} 件・未対応のエラー ${errors} 件`,
+    errorReportsLink: "エラーの確認へ",
+  },
+  adminErrorReports: {
+    title: "エラーの確認",
+    description: "画面で起きたエラー(無いページ・API のエラー)です。未対応を先に、新しい順に並びます。",
+    empty: "エラーは届いていません",
+    unresolvedCount: (n: number) => `未対応 ${n} 件`,
+    kind: {
+      page: "無いページ",
+      api: "API",
+    },
+    unregistered: "登録の前の利用者",
+    userId: (id: number) => ` (id ${id})`,
+    resolve: "対応済みにする",
+    resolving: "送信中...",
+    resolved: "対応済み",
   },
   announcements: {
     title: t.announcement,

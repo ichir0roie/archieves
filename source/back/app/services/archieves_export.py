@@ -3,7 +3,7 @@
 ファイルは他のアプリや AI がそのまま読めるよう、何がどの単位で入っていて、表どうしがどう繋がるかを
 ファイルの中に持たせる(`_about`・`_columns` の表と、`sqlite_master.sql` に残る CREATE 文の
 コメント)。
-形を変えたら `FORMAT_VERSION` を上げ、取り込み側で古い版をどう読むかを決める。
+形を変えたら `FORMAT_VERSION` を上げ、取り込み側で古いバージョンをどう読むかを決める。
 """
 
 from __future__ import annotations
@@ -17,6 +17,8 @@ from datetime import date, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.scoring import MAX_ARROW_DIAMETER_MM, MIN_ARROW_DIAMETER_MM
+from app.core.target_types import current_target_type_id
 from app.core.timezone import JST
 from app.crud.game import point_cm
 from app.db import End, Game, Point, Round
@@ -24,8 +26,12 @@ from app.db.models.comment_model import EndComment, GameComment, RoundComment
 from app.services.legacy_import import ImportSummary
 
 FORMAT_NAME = "archieves-export"
-# 1: 最初の形。2: points.shot_at・games.arrow_diameter_px を足した(1 のファイルは NULL として読む)
-FORMAT_VERSION = 2
+# 1: 最初の形。2: points.shot_at・games.arrow_diameter_px を足した(1 のファイルは NULL として読む)。
+# 3: games.all_in を足した(2 までのファイルは 0 として読む)。
+# 4: games.backfilled を足した(3 までのファイルは 0 として読む)。
+# 5: games.arrow_diameter_px を arrow_diameter_mm に替えた(4 までのファイルは NULL として読む。px は
+# 端末ごとに mm との比が違うので直せない)
+FORMAT_VERSION = 5
 
 
 @dataclass(frozen=True)
@@ -74,11 +80,25 @@ TABLES: tuple[Table, ...] = (
                 "弓の種類(recurve・compound・barebow など、または自由入力)。不明なら NULL",
             ),
             Column(
-                "arrow_diameter_px",
+                "arrow_diameter_mm",
                 "INTEGER",
-                "px(記入画面の上の大きさ)",
-                "記入画面で矢として扱った円の直径。この円が帯の線にかかれば高い方の点にした。"
-                "設定する前の記録は NULL",
+                "mm",
+                "矢の直径。記入画面は的の大きさとの比で画面の px に直し(四捨五入)、その円が帯の線に"
+                "かかれば高い方(オールインなら低い方)の点にした。設定する前の記録は NULL",
+            ),
+            Column(
+                "all_in",
+                "INTEGER NOT NULL DEFAULT 0",
+                "0 か 1",
+                "1 ならオールイン。矢が帯に完全に入らなければその帯の点にせず、"
+                "線にかかれば低い方の点にした",
+            ),
+            Column(
+                "backfilled",
+                "INTEGER NOT NULL DEFAULT 0",
+                "0 か 1",
+                "1 ならあとから入力。日付を決めて入れたので、ラウンド・エンド・矢の日付は"
+                "ゲームの日付、矢の shot_at はその日の 0 時(入れた端末の時間帯)にそろえてある",
             ),
         ),
     ),
@@ -132,7 +152,7 @@ TABLES: tuple[Table, ...] = (
                 "target_type",
                 "TEXT NOT NULL",
                 "",
-                "的の種類。92cm・122cm・compound(80cm)、または '<直径>cm'",
+                "的の種類。122cm・80cm・40cm、または取り込んだ古い記録の '<直径>cm'(92cm など)",
             ),
         ),
         ("game_id", "games(id)"),
@@ -384,7 +404,13 @@ def export_sqlite(s: Session, user_id: int) -> bytes:
 
     queries = {
         "games": select(
-            Game.id, Game.recorded_at, Game.game_size, Game.bow_type, Game.arrow_diameter_px
+            Game.id,
+            Game.recorded_at,
+            Game.game_size,
+            Game.bow_type,
+            Game.arrow_diameter_mm,
+            Game.all_in,
+            Game.backfilled,
         )
         .where(Game.id.in_(visible_games))
         .order_by(Game.id),
@@ -454,6 +480,20 @@ def _read(conn: sqlite3.Connection, table: str) -> list[sqlite3.Row]:
     return conn.execute(f"SELECT * FROM {table} ORDER BY rowid").fetchall()
 
 
+def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    """表の列の名前。古いバージョンのファイルに無い列を、行ごとでなく表ごとに一度だけ見分ける。"""
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _arrow_diameter_mm(value: int | None) -> int | None:
+    """ファイルの矢の直径。API で書けない値(範囲外)は、画面が扱えないので取り込まない。"""
+    if value is not None and not MIN_ARROW_DIAMETER_MM <= value <= MAX_ARROW_DIAMETER_MM:
+        raise ValueError(
+            f"Malformed archieves export file: arrow_diameter_mm {value} is out of range"
+        )
+    return value
+
+
 def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportSummary:
     """`export_sqlite` のファイルを、本人の新しい記録として足す。
 
@@ -471,6 +511,10 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
     conn.row_factory = sqlite3.Row
     with s.begin_nested():
         try:
+            game_columns = _columns(conn, "games")
+            has_arrow_diameter = "arrow_diameter_mm" in game_columns
+            has_all_in = "all_in" in game_columns
+            has_backfilled = "backfilled" in game_columns
             games: dict[int, Game] = {}
             for r in _read(conn, "games"):
                 games[r["id"]] = Game(
@@ -478,9 +522,11 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
                     recorded_at=date.fromisoformat(r["recorded_at"]),
                     game_size=r["game_size"],
                     bow_type=r["bow_type"],
-                    arrow_diameter_px=(
-                        r["arrow_diameter_px"] if "arrow_diameter_px" in r.keys() else None
+                    arrow_diameter_mm=(
+                        _arrow_diameter_mm(r["arrow_diameter_mm"]) if has_arrow_diameter else None
                     ),
+                    all_in=bool(r["all_in"]) if has_all_in else False,
+                    backfilled=bool(r["backfilled"]) if has_backfilled else False,
                 )
             s.add_all(games.values())
             s.flush()
@@ -496,7 +542,7 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
                     end_size=r["end_size"],
                     round_size=r["round_size"],
                     distance_m=r["distance_m"],
-                    target_type=r["target_type"],
+                    target_type=current_target_type_id(r["target_type"]),
                 )
             s.add_all(rounds.values())
             s.flush()
@@ -514,9 +560,10 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
             s.add_all(ends.values())
             s.flush()
 
+            has_shot_at = "shot_at" in _columns(conn, "points")
             points = []
             for r in _read(conn, "points"):
-                shot_at = r["shot_at"] if "shot_at" in r.keys() else None
+                shot_at = r["shot_at"] if has_shot_at else None
                 # x_cm・y_cm はファイルの値を信じず、的の種類から計算し直す
                 x_cm, y_cm = point_cm(round_of_end[r["end_id"]], r["x"], r["y"])
                 points.append(

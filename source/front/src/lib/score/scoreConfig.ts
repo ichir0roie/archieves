@@ -29,13 +29,24 @@ export const MIN_DISTANCE_M = 1;
 export const MAX_DISTANCE_M = 100;
 
 /**
- * 記入画面で矢として扱う円の直径(画面の px)。点数は、この円が少しでも帯の線にかかれば高い方。
- * 本物の矢の太さ(5mm ほど)を画面に縮めると 1px ほどで見えないので、画面の上の大きさで決める。
- * API の app/core/scoring.py の MIN/MAX_ARROW_DIAMETER_PX と揃える
+ * 矢の直径(mm)。記入画面は arrowDiameterPx で画面の px に直し、その円が少しでも帯の線にかかれば
+ * 高い方の点にする。API の app/core/scoring.py の MIN/MAX_ARROW_DIAMETER_MM と揃える
  */
-export const DEFAULT_ARROW_DIAMETER_PX = 10;
-export const MIN_ARROW_DIAMETER_PX = 2;
-export const MAX_ARROW_DIAMETER_PX = 40;
+export const DEFAULT_ARROW_DIAMETER_MM = 5;
+export const MIN_ARROW_DIAMETER_MM = 1;
+export const MAX_ARROW_DIAMETER_MM = 30;
+
+/**
+ * 矢の直径(mm)を、画面に描いた的の直径(px)と的の実寸との比で px に直す。点数はこの値のまま決めるので
+ * 丸めない(丸めると、小さな的では矢の太さが倍・半分に変わる)。画面に出すときだけ丸める
+ */
+export function arrowDiameterPx(
+  arrowDiameterMm: number,
+  targetSizeCm: number,
+  targetDiameterPx: number,
+): number {
+  return (arrowDiameterMm / (targetSizeCm * 10)) * targetDiameterPx;
+}
 
 /**
  * `Point.score` stores the ring an arrow landed in, not the points it is
@@ -46,65 +57,94 @@ export const X_SCORE = 11;
 export const MISS_SCORE = 0;
 export const MAX_RING_SCORE = 10;
 
-/** A selectable target face: its physical size and how many scoring rings it has. */
+/** 選べる的。どの的も X と 1〜10 点の帯を持ち(帯の数は X_SCORE)、違うのは大きさだけ */
 export interface TargetTypeConfig {
   id: string;
   sizeCm: number;
-  color: string;
-  ringCount: number;
 }
 
 /**
- * Fixed, hand-maintained list (mirrored in the backend's
- * app/core/target_types.py) so the input screens and the API agree on what
- * target faces exist. Extend both lists together when a new face is added.
+ * World Archery のよく使う大きさ(122cm は屋外のリカーブ、80cm は屋外の短い距離とコンパウンド、
+ * 40cm は屋内 18m)。バックエンドの app/core/target_types.py の TARGET_TYPES と揃える(足すときは両方に足す)
  */
 export const TARGET_TYPES: TargetTypeConfig[] = [
   {
-    id: "92cm",
-    sizeCm: 92,
-    color: "#FFD700",
-    ringCount: 11,
-  },
-  {
     id: "122cm",
     sizeCm: 122,
-    color: "#FFD700",
-    ringCount: 11,
   },
   {
-    id: "compound",
+    id: "80cm",
     sizeCm: 80,
-    color: "#0057B8",
-    ringCount: 10,
+  },
+  {
+    id: "40cm",
+    sizeCm: 40,
   },
 ];
 
 export const DEFAULT_TARGET_TYPE_ID = "122cm";
 
+/** 名前を変えた的(バックエンドの target_types.py の _RENAMED_TARGET_TYPES と揃える) */
+const RENAMED_TARGET_TYPES: Readonly<Record<string, string>> = {
+  compound: "80cm",
+};
+
+/** 名前を変えた的を今の名前にする。それ以外(選べない古い的も)はそのまま返す */
+export function currentTargetTypeId(targetTypeId: string): string {
+  return RENAMED_TARGET_TYPES[targetTypeId] ?? targetTypeId;
+}
+
+/** 前に選んだ的を、今選べる的にする。名前を変えた的は今の名前に、選べなくなった的は既定の的にする */
+export function selectableTargetTypeId(targetTypeId: string): string {
+  const id = currentTargetTypeId(targetTypeId);
+  return isSelectableTargetType(id) ? id : DEFAULT_TARGET_TYPE_ID;
+}
+
+/**
+ * その他の的の直径(cm)。"<直径>cm" の名前で持ち、大きさは名前から読む(resolveTargetType)。
+ * バックエンドの app/core/target_types.py の MIN/MAX_TARGET_SIZE_CM と揃える
+ */
+export const MIN_TARGET_SIZE_CM = 10;
+export const MAX_TARGET_SIZE_CM = 200;
+
+const CUSTOM_SIZE_CM = /^([1-9]\d*)cm$/;
+
+/** その他の的の名前 */
+export function customTargetTypeId(sizeCm: number): string {
+  return `${sizeCm}cm`;
+}
+
+/** その他の的("<直径>cm"。直径は MIN〜MAX_TARGET_SIZE_CM の整数)か。バックエンドの is_custom_target_type と同じ */
+export function isCustomTargetType(targetTypeId: string): boolean {
+  const match = CUSTOM_SIZE_CM.exec(targetTypeId);
+  if (!match) return false;
+  const sizeCm = Number(match[1]);
+  return sizeCm >= MIN_TARGET_SIZE_CM && sizeCm <= MAX_TARGET_SIZE_CM;
+}
+
+/** 設定の画面で選べる的(プリセットか、その他の的)か */
+export function isSelectableTargetType(targetTypeId: string): boolean {
+  return getTargetType(targetTypeId) !== undefined || isCustomTargetType(targetTypeId);
+}
+
 export function getTargetType(targetTypeId: string): TargetTypeConfig | undefined {
   return TARGET_TYPES.find((t) => t.id === targetTypeId);
 }
 
-/**
- * The face to score against. Rounds imported from the legacy client carry a
- * target_type outside TARGET_TYPES (e.g. "unknown"), and the input screens
- * still have to draw something, so those fall back to the standard face.
- */
-export function resolveTargetType(targetTypeId: string | null | undefined): TargetTypeConfig {
-  return (
-    getTargetType(targetTypeId ?? DEFAULT_TARGET_TYPE_ID) ??
-    getTargetType(DEFAULT_TARGET_TYPE_ID)!
-  );
-}
+const SIZE_CM_SUFFIX = /^(\d+(?:\.\d+)?)cm$/;
 
 /**
- * Highest score the face can produce: an 11-ring face (1-10 plus X) tops out
- * at X, a 10-ring compound face at 10.
+ * 記録を描く・採点するときの的。選べない古い的(以前の "92cm" など)は、名前の "<直径>cm" から
+ * 大きさを読む(バックエンドの resolve_target_size_cm と同じ)。読めない名前(取り込んだ "unknown" など)は
+ * 既定の的にする
  */
-export function maxScoreForTargetType(targetTypeId: string | null | undefined): number {
-  const { ringCount } = resolveTargetType(targetTypeId);
-  return ringCount > MAX_RING_SCORE ? X_SCORE : ringCount;
+export function resolveTargetType(targetTypeId: string | null | undefined): TargetTypeConfig {
+  const id = targetTypeId ?? DEFAULT_TARGET_TYPE_ID;
+  const known = getTargetType(id);
+  if (known) return known;
+  const match = SIZE_CM_SUFFIX.exec(id);
+  if (match) return { id, sizeCm: Number(match[1]) };
+  return getTargetType(DEFAULT_TARGET_TYPE_ID)!;
 }
 
 /** 弓の種類。バックエンドの app/core/bow_types.py の BowType と揃える。表示名は text の options.bowType */
@@ -122,11 +162,6 @@ export const DEFAULT_BOW_TYPE: BowType = "recurve";
 /** 弓の種類を自由入力の名前で持つときの長さ。バックエンドの BOW_TYPE_MAX_LENGTH と揃える */
 export const BOW_TYPE_MAX_LENGTH = 20;
 
-/** 1〜100 の整数のプルダウンの選択肢(設定画面) */
-export function integerRange(min: number, max: number): number[] {
-  return Array.from({ length: max - min + 1 }, (_, i) => min + i);
-}
-
 export function isBowType(value: unknown): value is BowType {
   return BOW_TYPES.some((bowType) => bowType.id === value);
 }
@@ -140,12 +175,15 @@ export interface RoundSetup {
   /** BOW_TYPES の id、またはその他で入力した名前 */
   bowType: string;
   distanceM: number;
+  /** TARGET_TYPES の id、またはその他の的("<直径>cm") */
   targetType: string;
   endSize: number;
   roundSize: number;
   gameSize: number;
-  /** 記入画面で矢として扱う円の直径(画面の px) */
-  arrowDiameterPx: number;
+  /** 矢の直径(mm) */
+  arrowDiameterMm: number;
+  /** オールイン: 矢の円が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方) */
+  allIn: boolean;
 }
 
 export const DEFAULT_ROUND_SETUP: RoundSetup = {
@@ -155,7 +193,8 @@ export const DEFAULT_ROUND_SETUP: RoundSetup = {
   endSize: DEFAULT_END_SIZE,
   roundSize: DEFAULT_ROUND_SIZE,
   gameSize: DEFAULT_GAME_SIZE,
-  arrowDiameterPx: DEFAULT_ARROW_DIAMETER_PX,
+  arrowDiameterMm: DEFAULT_ARROW_DIAMETER_MM,
+  allIn: false,
 };
 
 function isBowName(value: unknown): value is string {
@@ -174,7 +213,40 @@ export function isValidRoundSetup(setup: RoundSetup): boolean {
     isWithin(setup.endSize, MIN_END_SIZE, MAX_END_SIZE) &&
     isWithin(setup.roundSize, MIN_ROUND_SIZE, MAX_ROUND_SIZE) &&
     isWithin(setup.gameSize, MIN_GAME_SIZE, MAX_GAME_SIZE) &&
-    isWithin(setup.arrowDiameterPx, MIN_ARROW_DIAMETER_PX, MAX_ARROW_DIAMETER_PX) &&
-    getTargetType(setup.targetType) !== undefined
+    isWithin(setup.arrowDiameterMm, MIN_ARROW_DIAMETER_MM, MAX_ARROW_DIAMETER_MM) &&
+    typeof setup.allIn === "boolean" &&
+    isSelectableTargetType(setup.targetType)
+  );
+}
+
+/**
+ * 記入画面で押しているあいだのズームの倍率と、狙う点の動き(指の動きの 1/aimDivisor)。記録でなく
+ * 端末ごとの好みなので RoundSetup とは分けて持つ(storage.ts の loadAimSettings)
+ */
+export interface AimSettings {
+  lensZoom: number;
+  aimDivisor: number;
+  /** ズームの直径。記入画面の横幅に対する % */
+  lensSizePercent: number;
+}
+
+export const MIN_LENS_ZOOM = 1;
+export const MAX_LENS_ZOOM = 10;
+export const MIN_AIM_DIVISOR = 1;
+export const MAX_AIM_DIVISOR = 10;
+export const MIN_LENS_SIZE_PERCENT = 10;
+export const MAX_LENS_SIZE_PERCENT = 90;
+
+export const DEFAULT_AIM_SETTINGS: AimSettings = {
+  lensZoom: 5,
+  aimDivisor: 4,
+  lensSizePercent: 70,
+};
+
+export function isValidAimSettings(settings: AimSettings): boolean {
+  return (
+    isWithin(settings.lensZoom, MIN_LENS_ZOOM, MAX_LENS_ZOOM) &&
+    isWithin(settings.aimDivisor, MIN_AIM_DIVISOR, MAX_AIM_DIVISOR) &&
+    isWithin(settings.lensSizePercent, MIN_LENS_SIZE_PERCENT, MAX_LENS_SIZE_PERCENT)
   );
 }

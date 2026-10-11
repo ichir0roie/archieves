@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, Suspense, useEffect, useRef, useState } from "react";
+import { Fragment, Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import ArrowMap, { hasPosition } from "@/components/ArrowMap";
@@ -28,11 +28,14 @@ import {
   type PointRead,
   type RoundRead,
 } from "@/lib/api";
+import { getCurrentUser } from "@/lib/auth/currentUser";
+import { SCORE_CARD_PATH } from "@/lib/destinations";
 import { countRings, scoreToStr, totalScore } from "@/lib/score/scoreFunctions";
 import { DEFAULT_END_SIZE } from "@/lib/score/scoreConfig";
 import { ScoreManager } from "@/lib/score/scoreManager";
+import { useLoad } from "@/hooks/useLoad";
+import { useOnResume } from "@/hooks/useOnResume";
 import { useT } from "@/lib/text";
-import { useRunOnce } from "@/lib/useRunOnce";
 
 /** 画面に出すコメントの文。ラウンド・エンドは id ごと */
 type CommentTexts = {
@@ -85,54 +88,70 @@ export default function Page() {
   );
 }
 
+async function loadRound(round: RoundRead): Promise<ViewRound> {
+  const ends = await listEnds(round.id);
+  return {
+    round,
+    ends: await Promise.all(
+      ends.map(async (end) => ({ end, points: await listPoints(end.id) })),
+    ),
+  };
+}
+
 function ScoreViewContent() {
   const T = useT();
-  const [gameId, setGameId] = useState<number | null>(null);
-  const [rounds, setRounds] = useState<Array<ViewRound> | null>(null);
-  const [comments, setComments] = useState<CommentTexts>(NO_COMMENTS);
   // コメントの書き込みは置き場所(ゲーム・ラウンド・エンド)ごとに順に流す。続けて書き換えたときに、
   // 古い書き込みが後から着いて新しい文を上書きしないように
   const commentWrites = useRef(new Map<string, Promise<void>>());
-  const [error, setError] = useState<ErrorDetails | null>(null);
+  // 画面での操作(コメント・編集・削除)の失敗。読み込みの失敗は loaded.error
+  const [actionError, setActionError] = useState<ErrorDetails | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // 上げると読み直す(画面に戻ったとき・再試行)
+  const [reloadKey, setReloadKey] = useState(0);
   const searchParams = useSearchParams();
+  const requestedId = searchParams.get("gameId");
   const router = useRouter();
 
-  async function loadRound(round: RoundRead): Promise<ViewRound> {
-    const ends = await listEnds(round.id);
-    return {
-      round,
-      ends: await Promise.all(
-        ends.map(async (end) => ({ end, points: await listPoints(end.id) })),
-      ),
-    };
-  }
-
-  async function loadGame() {
-    setError(null);
-    try {
-      const requestedId = searchParams.get("gameId");
-      if (!requestedId) {
-        throw new Error(T.profile.scoreView.noGame);
-      }
-      const game = await getGame(Number(requestedId));
-      const [loadedRounds, loadedComments] = await Promise.all([
-        listRounds(game.id).then((list) => Promise.all(list.map(loadRound))),
-        listGameComments(game.id),
-      ]);
-      setGameId(game.id);
-      setRounds(loadedRounds);
-      setComments(toCommentTexts(loadedComments));
-    } catch (e) {
-      setError(toErrorDetails(e));
+  const loaded = useLoad(async () => {
+    if (!requestedId) {
+      throw new Error(T.profile.scoreView.noGame);
     }
-  }
-  const { runOnMount, run: retryLoadGame } = useRunOnce(loadGame);
+    // 裏で書いているコメントが API に届いてから読む。でないと押したばかりのコメントが古い文に戻る
+    await Promise.all(commentWrites.current.values());
+    const game = await getGame(Number(requestedId));
+    const [loadedRounds, loadedComments] = await Promise.all([
+      listRounds(game.id).then((list) => Promise.all(list.map(loadRound))),
+      listGameComments(game.id),
+    ]);
+    return {
+      gameId: game.id,
+      rounds: loadedRounds,
+      comments: toCommentTexts(loadedComments),
+    };
+  }, [requestedId, reloadKey]);
+  const gameId = loaded.data?.gameId ?? null;
+  const rounds = loaded.data?.rounds ?? null;
+  const error = actionError ?? loaded.error;
 
-  useEffect(() => {
-    runOnMount();
-  }, [runOnMount]);
+  // コメントは押した時点で画面に出す(API には裏で書く)ので、読んだものとは別に持つ。読み直したら読んだものに戻す
+  const [comments, setComments] = useState<CommentTexts>(NO_COMMENTS);
+  const [commentsLoadedFrom, setCommentsLoadedFrom] = useState(loaded.data);
+  if (commentsLoadedFrom !== loaded.data) {
+    setCommentsLoadedFrom(loaded.data);
+    setComments(loaded.data?.comments ?? NO_COMMENTS);
+  }
+
+  function reload() {
+    setActionError(null);
+    setReloadKey((key) => key + 1);
+  }
+
+  // 終了から来る途中で閉じた・裏に回したときは、読み込みが失敗・途中のまま、あるいは古いまま戻るので読み直す。
+  // 前の読み込みは待たない(裏に回る前の読み込みが止まったまま返らないことがある)。useLoad が古い応答を捨てる
+  useOnResume(() => {
+    if (!deleting) reload();
+  });
 
   /**
    * コメントを、押した時点で画面に出し、API へは裏で書く(書き終わるまで待たせない)。空の文は消す。
@@ -147,14 +166,14 @@ function ScoreViewContent() {
   ) {
     const next = body.length === 0 ? null : body;
     if (next === previous) return;
-    setError(null);
+    setActionError(null);
     show(next);
     const queued = (commentWrites.current.get(key) ?? Promise.resolve())
       .then(() => write(next))
       .then(
         () => undefined,
         async (e) => {
-          setError(toErrorDetails(e));
+          setActionError(toErrorDetails(e));
           if (gameId === null) return;
           try {
             setComments(toCommentTexts(await listGameComments(gameId)));
@@ -202,27 +221,33 @@ function ScoreViewContent() {
   // いちばん最後のエンドに戻る
   async function editGame() {
     if (gameId === null) return;
-    if (ScoreManager.hasUnsavedCache() && !window.confirm(T.profile.scoreView.discardUnsaved)) return;
-    setError(null);
+    setActionError(null);
     try {
+      const { userId } = await getCurrentUser();
+      if (
+        ScoreManager.hasUnsavedCache(userId) &&
+        !window.confirm(T.profile.scoreView.discardUnsaved)
+      ) {
+        return;
+      }
       // 裏で書いているコメントが API に届いてから読む。でないと編集の保存で、そのコメントを消してしまう
       await Promise.all(commentWrites.current.values());
-      await ScoreManager.startEditing(gameId);
-      router.push("/game/score-card");
+      await ScoreManager.startEditing(userId, gameId);
+      router.push(SCORE_CARD_PATH);
     } catch (e) {
-      setError(toErrorDetails(e));
+      setActionError(toErrorDetails(e));
     }
   }
 
   async function onDeleteGame() {
     if (gameId === null) return;
-    setError(null);
+    setActionError(null);
     setDeleting(true);
     try {
       await deleteGame(gameId);
       router.push("/score-log");
     } catch (e) {
-      setError(toErrorDetails(e));
+      setActionError(toErrorDetails(e));
       setConfirmingDelete(false);
       setDeleting(false);
     }
@@ -240,17 +265,17 @@ function ScoreViewContent() {
     <div className="page wide">
       <PageHeader title={T.profile.scoreView.title} />
       {error && <ApiErrorAlert error={error} />}
-      {error && rounds === null && (
+      {loaded.error && rounds === null && (
         <button
           type="button"
           className="primary"
-          onClick={() => retryLoadGame()}
+          onClick={reload}
         >
           {T.retry}
         </button>
       )}
       {rounds === null ? (
-        !error && <p className="status empty">{T.loading}</p>
+        !loaded.error && <p className="status empty">{T.loading}</p>
       ) : (
         <>
           {rounds.length === 0 && (
@@ -331,7 +356,6 @@ function GameSummary({
     viewRound.ends.flatMap((viewEnd) => viewEnd.points),
   );
   const { x, ten, miss } = countRings(points);
-  const targetType = rounds[0].round.target_type;
   const items = [
     { label: T.profile.scoreView.gameTotal, value: totalScore(points) },
     { label: T.profile.scoreView.countX, value: x },
@@ -360,7 +384,7 @@ function GameSummary({
       </div>
       {points.some(hasPosition) && (
         <div className="ArrowMapPanel panel">
-          <ArrowMap points={points} targetType={targetType} />
+          <ArrowMap points={points} />
         </div>
       )}
       <button type="button" className="EditGameButton block" onClick={onEdit}>

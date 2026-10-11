@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Date,
     DateTime,
     Float,
@@ -12,9 +13,11 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.target_types import TARGET_TYPE_MAX_LENGTH
 from app.db.base_class import Base, TimestampMixin
 
 if TYPE_CHECKING:
@@ -43,13 +46,23 @@ class Game(TimestampMixin, Base):
     # 入力の画面が新しいゲームに付けるキー。一括の保存(PUT /games/sheet)の応答を失って送り直しても、
     # 同じゲームを上書きして二つ作らないために使う。画面を通らずに作ったゲームは null
     client_key: Mapped[str | None] = mapped_column(String(64), default=None)
-    # 記入画面で、矢として扱う円の直径(画面の px)。点数の決め方に使う。設定する前の記録は null
-    # (画面は既定の大きさで扱う)
-    arrow_diameter_px: Mapped[int | None] = mapped_column(Integer, default=None)
+    # 矢の直径(mm)。記入画面が的の大きさとの比で px に直し、点数の決め方に使う。
+    # 設定する前の記録は null(画面は既定の太さで扱う)
+    arrow_diameter_mm: Mapped[int | None] = mapped_column(Integer, default=None)
+    # オールイン: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
+    all_in: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # あとから入力: スコアの一覧で日付を決めて入れたゲーム。ラウンド・エンド・矢の日付と矢の時刻は、
+    # 編集で足した分も、入れた時でなくゲームの recorded_at にそろえる(フロントの ScoreManager)
+    backfilled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     user: Mapped[User] = relationship(back_populates="games", lazy="noload")
+    # 子の関係はどれも noload。記録を丸ごと読むところ(crud/game.py の get_game_sheet)だけが
+    # ローダーのオプションで読み、そのときの並びを order_by で決める
     rounds: Mapped[list[Round]] = relationship(
-        back_populates="game", cascade="all, delete-orphan", lazy="noload"
+        back_populates="game",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        order_by=lambda: [Round.number, Round.id],
     )
     comment: Mapped[GameComment | None] = relationship(
         back_populates="game", cascade="all, delete-orphan", uselist=False, lazy="noload"
@@ -73,11 +86,14 @@ class Round(TimestampMixin, Base):
     round_size: Mapped[int | None] = mapped_column(Integer, default=None)
     distance_m: Mapped[int] = mapped_column(Integer)
     # Target face, e.g. "122cm".
-    target_type: Mapped[str] = mapped_column(String(50))
+    target_type: Mapped[str] = mapped_column(String(TARGET_TYPE_MAX_LENGTH))
 
     game: Mapped[Game] = relationship(back_populates="rounds", lazy="noload")
     ends: Mapped[list[End]] = relationship(
-        back_populates="round", cascade="all, delete-orphan", lazy="noload"
+        back_populates="round",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        order_by=lambda: [End.number, End.id],
     )
     comment: Mapped[RoundComment | None] = relationship(
         back_populates="round", cascade="all, delete-orphan", uselist=False, lazy="noload"
@@ -100,7 +116,10 @@ class End(TimestampMixin, Base):
 
     round: Mapped[Round] = relationship(back_populates="ends", lazy="noload")
     points: Mapped[list[Point]] = relationship(
-        back_populates="end", cascade="all, delete-orphan", lazy="noload"
+        back_populates="end",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        order_by=lambda: [Point.number, Point.id],
     )
     comment: Mapped[EndComment | None] = relationship(
         back_populates="end", cascade="all, delete-orphan", uselist=False, lazy="noload"

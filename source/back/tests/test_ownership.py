@@ -1,5 +1,7 @@
 """「本人のみ」のエンドポイントは他人の行を 403 で拒み、「本人以外も」のエンドポイントは通す。"""
 
+from datetime import UTC, datetime
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -87,6 +89,16 @@ def test_cannot_create_a_game_for_another_user(client: TestClient, others: dict)
     assert response.status_code == 403
 
 
+def test_cannot_save_a_sheet_into_another_users_game(client: TestClient, others: dict) -> None:
+    response = client.put(
+        "/api/v1/games/sheet",
+        json={"id": others["game"].id, "recorded_at": RECORDED_AT},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Not allowed to access another user's data"}
+
+
 def test_cannot_hand_my_game_to_another_user(
     client: TestClient, current_user, others: dict, factories
 ) -> None:
@@ -109,7 +121,11 @@ def test_trash_of_another_user_is_forbidden(client: TestClient, others: dict) ->
 def test_a_user_without_a_registered_row_is_not_found(
     unregistered_client: TestClient,
 ) -> None:
-    assert unregistered_client.get("/api/v1/games").status_code == 404
+    response = unregistered_client.get("/api/v1/games")
+
+    assert response.status_code == 404
+    # 他人の行が無いときの "User not found" と分ける(フロントはこれで登録の画面へ送る)
+    assert response.json()["detail"] == "Current user not registered"
 
 
 OTHER_USER_STATISTICS_PATHS = [
@@ -183,10 +199,29 @@ def test_feedbacks_of_another_user_are_not_listed(
     assert [f["id"] for f in response.json()] == [mine.id]
 
 
+def test_diaries_of_another_user_are_not_listed(
+    client: TestClient, current_user, factories
+) -> None:
+    factories.DiaryFactory(created_at=datetime(2020, 6, 1, tzinfo=UTC))
+    mine = factories.DiaryFactory(user=current_user, created_at=datetime(2026, 6, 1, tzinfo=UTC))
+
+    response = client.get("/api/v1/diaries")
+
+    assert response.status_code == 200
+    assert [d["id"] for d in response.json()] == [mine.id]
+    assert client.get("/api/v1/diaries/years").json() == [2026]
+
+
 def test_admin_endpoints_are_forbidden_for_non_admins(client: TestClient, factories) -> None:
     feedback = factories.FeedbackFactory()
+    error_report = factories.ErrorReportFactory()
 
     assert client.get("/api/v1/admin/feedbacks").status_code == 403
+    assert client.get("/api/v1/admin/error-reports").status_code == 403
+    assert (
+        client.put(f"/api/v1/admin/error-reports/{error_report.id}/resolve").status_code == 403
+    )
+    assert client.get("/api/v1/admin/pending-counts").status_code == 403
     assert (
         client.put(
             f"/api/v1/admin/feedbacks/{feedback.id}/reply", json={"reply": "x"}

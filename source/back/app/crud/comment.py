@@ -37,34 +37,41 @@ def list_end_comments_for_game(s: Session, game_id: int) -> list[EndComment]:
     return list(s.scalars(stmt))
 
 
-def _save(s: Session, comment: GameComment | RoundComment | EndComment, body: str):
-    """Writes the note, whether the row is a brand-new comment or the one
-    already attached to the entity."""
+type Comment = GameComment | RoundComment | EndComment
+
+
+def _new_comment(owner: Game | Round | End) -> Comment:
+    # 関係で結ぶので、まだ flush していない(id の無い)ラウンド・エンドにも付けられる
+    match owner:
+        case Game():
+            return GameComment(game=owner, user_id=owner.user_id)
+        case Round():
+            return RoundComment(round=owner, user_id=owner.user_id)
+        case End():
+            return EndComment(end=owner, user_id=owner.user_id)
+
+
+def save_comment(
+    s: Session,
+    owner: Game | Round | End,
+    current: Comment | None,
+    body: str | None,
+) -> Comment | None:
+    """owner のコメント(今あるのは current)を body にする。body が None なら消す。
+
+    current は呼ぶ側が引いて渡す(owner.comment は noload なので、読み込んでいなければ使えない)。
+    """
+    if body is None:
+        if current is not None:
+            delete_comment(s, current)
+        return None
+    comment = current if current is not None else _new_comment(owner)
     comment.body = body
     s.add(comment)
     s.flush()
     return comment
 
 
-def upsert_game_comment(s: Session, game: Game, body: str) -> GameComment:
-    comment = get_game_comment(s, game.id) or GameComment(
-        game_id=game.id, user_id=game.user_id
-    )
-    return _save(s, comment, body)
-
-
-def upsert_round_comment(s: Session, round_: Round, body: str) -> RoundComment:
-    comment = get_round_comment(s, round_.id) or RoundComment(
-        round_id=round_.id, user_id=round_.user_id
-    )
-    return _save(s, comment, body)
-
-
-def upsert_end_comment(s: Session, end: End, body: str) -> EndComment:
-    comment = get_end_comment(s, end.id) or EndComment(end_id=end.id, user_id=end.user_id)
-    return _save(s, comment, body)
-
-
-def delete_comment(s: Session, comment: GameComment | RoundComment | EndComment) -> None:
+def delete_comment(s: Session, comment: Comment) -> None:
     s.delete(comment)
     s.flush()

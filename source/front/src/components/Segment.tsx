@@ -10,10 +10,18 @@ type Props<V extends string> = {
   label?: string;
   /** 右端に足す「その他」のボタン。選択肢にない値のときは on にして、押すと入力のモーダルを開く。 */
   other?: { label: string; on: boolean; onClick: () => void };
+  disabled?: boolean;
 };
 
 /** 選択肢の少ない択一を、横に並べたボタンで選ぶ。 */
-export default function Segment<V extends string>({ options, value, onChange, label, other }: Props<V>) {
+export default function Segment<V extends string>({
+  options,
+  value,
+  onChange,
+  label,
+  other,
+  disabled,
+}: Props<V>) {
   return (
     <div
       className="segment"
@@ -26,6 +34,7 @@ export default function Segment<V extends string>({ options, value, onChange, la
           type="button"
           className={option.value === value ? "on" : ""}
           aria-pressed={option.value === value}
+          disabled={disabled}
           onClick={() => onChange(option.value)}
         >
           {option.label}
@@ -36,6 +45,7 @@ export default function Segment<V extends string>({ options, value, onChange, la
           type="button"
           className={other.on ? "on" : ""}
           aria-pressed={other.on}
+          disabled={disabled}
           onClick={other.onClick}
         >
           {other.label}
