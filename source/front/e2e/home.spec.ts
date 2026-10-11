@@ -11,9 +11,11 @@ test("the home page lists the destinations as buttons", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Archieves" })).toBeVisible({
     timeout: ROUTE_TIMEOUT,
   });
+  // ゲーム開始は、行き先の一覧とは別に画面の下中央に置く
+  const start = page.locator(".HomeStart").getByRole("link", { name: "ゲーム開始", exact: true });
+  await expect(start).toBeVisible();
   const menu = page.locator(".HomeMenu");
   for (const label of [
-    "ゲーム開始",
     "スコア",
     "統計",
     "日記",
@@ -26,7 +28,7 @@ test("the home page lists the destinations as buttons", async ({ page }) => {
     await expect(menu.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
 
-  await menu.getByRole("link", { name: "ゲーム開始", exact: true }).click();
+  await start.click();
   await expect(page).toHaveURL(/\/game\/setup$/, { timeout: ROUTE_TIMEOUT });
 });
 
