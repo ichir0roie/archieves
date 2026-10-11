@@ -123,10 +123,21 @@ export async function nextEnd(page: Page) {
 }
 
 /**
- * 裏で書いている矢・コメントが API に届いてから再読み込みする。画面は書き終えていないと
- * beforeunload で引き止めるが、Playwright の reload はそれを通らないので、通信が止むのを待つ。
+ * 読み込み直す。入力の画面の記録は手元のキャッシュにあり、保存しなくても読み込み直しで戻る。
+ * 画面は beforeunload で引き止めるが、Playwright の reload はそれを通らない。
  */
-export async function reloadAfterWrites(page: Page) {
+export async function reloadPage(page: Page) {
   await page.waitForLoadState("networkidle");
   await page.reload();
+}
+
+/** 入力の画面の「保存」を押し、送った PUT /games/sheet の応答(保存したゲーム)を返す。 */
+export async function saveSheet(page: Page) {
+  const response = page.waitForResponse(
+    (r) => r.request().method() === "PUT" && r.url().endsWith("/api/v1/games/sheet"),
+  );
+  await page.locator(".ScoreSave").click();
+  const saved = await (await response).json();
+  await expect(page.locator(".ScoreSave")).toHaveText("保存済み");
+  return saved as { id: number };
 }

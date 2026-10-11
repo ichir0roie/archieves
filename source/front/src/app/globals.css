@@ -264,12 +264,13 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .comment-field .icon:not(.has-body) { color: var(--muted); }
 
 .score-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; padding: 0.6rem; border-top: 1px solid var(--line); flex-shrink: 0; }
-.score-actions > .finish { grid-column: 1 / -1; }
 
 /* 的をタッチする入力。帯は内側ほど上に重ね、押した所を覆ういちばん小さい帯に当たるようにする */
 .target-input { height: 100%; display: flex; flex-direction: column; }
 .target-face { position: relative; flex: 1; min-height: 0; }
-.target-face.locked { opacity: 0.6; }
+/* エンドが満ちて押せない間も、的は見やすいよう薄くしない(button:disabled の opacity を打ち消す) */
+.target-face .target-ring:disabled,
+.target-face .miss-area:disabled { opacity: 1; }
 .target-face .miss-area { position: absolute; inset: 0; z-index: 0; border: 0; border-radius: 0; background: none; padding: 0; }
 .target-face .target-ring { position: absolute; border-radius: 999px; background: var(--ring); border: 1px solid #6a7080; padding: 0; }
 .target-face .arrow-mark { position: absolute; width: 10px; height: 10px; border-radius: 999px; background: #fff; border: 2px solid #000; z-index: 100; pointer-events: none; }

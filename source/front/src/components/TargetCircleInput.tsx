@@ -257,7 +257,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
       {props.commentBar}
       <div
         ref={containerRef}
-        className={`TargetFace target-face ${isLocked ? "locked" : ""} ${press ? "pressing" : ""}`}
+        className={`TargetFace target-face ${press ? "pressing" : ""}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

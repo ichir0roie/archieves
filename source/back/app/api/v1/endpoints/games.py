@@ -22,6 +22,8 @@ from app.schemas.game import (
     RoundRead,
     RoundUpdate,
 )
+from app.schemas.game_sheet import GameSheetRead, GameSheetWrite
+from app.services import game_sheet as game_sheet_service
 
 router = APIRouter()
 
@@ -91,6 +93,32 @@ def create_game(
     result = game_crud.create_game(s, game_in)
     s.commit()
     return result
+
+
+@router.put("/games/sheet", response_model=GameSheetRead)
+def save_game_sheet(
+    sheet_in: GameSheetWrite,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
+) -> GameSheetRead:
+    """入力の画面が手元に溜めたゲームの記録を、一度に保存する。
+
+    id の無いゲームは作り(同じ client_key のゲームがあればそれを上書きする)、
+    あるゲームは送られた中身で丸ごと上書きする。
+    """
+    game = game_sheet_service.save_game_sheet(s, me, sheet_in)
+    result = game_sheet_service.read_game_sheet(s, game)
+    s.commit()
+    return result
+
+
+@router.get("/games/{game_id}/sheet", response_model=GameSheetRead)
+def get_game_sheet(
+    game_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+) -> GameSheetRead:
+    """ゲームの記録(ラウンド・エンド・矢・コメント)を丸ごと。入力の画面で編集を始めるときに読む。"""
+    game = deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
+    return game_sheet_service.read_game_sheet(s, game)
 
 
 @router.get("/games/{game_id}", response_model=GameRead)

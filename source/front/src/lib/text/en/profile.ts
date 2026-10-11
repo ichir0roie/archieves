@@ -61,6 +61,7 @@ export const profile: typeof ja = {
     roundTitle: t.roundN,
     endTitle: t.endN,
     edit: "Edit (back to entry screen)",
+    discardUnsaved: "You have unsaved scores. Discard them and edit this game?",
     gameTotal: t.totalPoints,
     countX: "X",
     countTen: "10",
