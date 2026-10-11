@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 RECORDED_AT = "2026-01-01"
 
@@ -232,3 +233,14 @@ def test_admin_endpoints_are_forbidden_for_non_admins(client: TestClient, factor
 
 def test_announcements_can_be_read_by_anyone_signed_in(client: TestClient) -> None:
     assert client.get("/api/v1/announcements").status_code == 200
+
+
+def test_deleting_my_account_leaves_another_users_rows(
+    client: TestClient, s: Session, others: dict
+) -> None:
+    response = client.delete("/api/v1/users/me")
+
+    assert response.status_code == 204
+    s.expire_all()
+    for row in others.values():
+        assert s.get(type(row), row.id) is not None

@@ -28,4 +28,3 @@ class UserFactory(BaseFactory):
 
     name = factory.Faker("name")
     nickname = factory.Faker("first_name")
-    birth_date = factory.Faker("date_of_birth", minimum_age=10, maximum_age=90)

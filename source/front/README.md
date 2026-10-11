@@ -78,4 +78,4 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 ## Deploy
 
 Amplify Hosting builds this app from `main` with the repo-root
-`amplify.yml`. See [`docs/インフラ/デプロイ.md`](../../docs/インフラ/デプロイ.md).
+`amplify.yml`.

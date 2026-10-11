@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import AccountDeletion from "@/components/AccountDeletion";
 import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import ExportFileImport from "@/components/ExportFileImport";
+import LegalLinks from "@/components/LegalLinks";
 import RecordsExport from "@/components/RecordsExport";
 import {
   MENU_POSITIONS,
@@ -77,9 +79,16 @@ export default function Page() {
         <Link href="/profile/settings">{T.settings.links.profileSettings}</Link>
       </section>
 
+      <section className="panel stack tight">
+        <h2>{T.legal.title}</h2>
+        <LegalLinks withLicense />
+      </section>
+
       <ExportFileImport />
 
       <RecordsExport />
+
+      <AccountDeletion />
       <BackButton />
     </div>
   );

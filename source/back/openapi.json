@@ -247,6 +247,24 @@
             "HTTPBearer": []
           }
         ]
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete My User",
+        "description": "本人のアカウントと記録をすべて消す。Cognito の利用者はフロントが消す。",
+        "operationId": "delete_my_user_api_v1_users_me_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/users/{user_id}": {
@@ -5887,18 +5905,6 @@
             ],
             "title": "Nickname"
           },
-          "birth_date": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Birth Date"
-          },
           "organization_id": {
             "anyOf": [
               {
@@ -5945,33 +5951,19 @@
           },
           "ranking_visibility": {
             "$ref": "#/components/schemas/Visibility"
-          },
-          "age": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Age",
-            "readOnly": true
           }
         },
         "type": "object",
         "required": [
           "name",
           "nickname",
-          "birth_date",
           "organization_id",
           "region_id",
           "id",
           "sub",
           "is_admin",
           "profile_visibility",
-          "ranking_visibility",
-          "age"
+          "ranking_visibility"
         ],
         "title": "MeRead",
         "description": "本人の行。管理者かどうか・公開範囲は本人にだけ返し、他人の行(UserRead)には載せない。"
@@ -7004,18 +6996,6 @@
             ],
             "title": "Nickname"
           },
-          "birth_date": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Birth Date"
-          },
           "organization_id": {
             "anyOf": [
               {
@@ -7061,18 +7041,6 @@
               }
             ],
             "title": "Nickname"
-          },
-          "birth_date": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Birth Date"
           },
           "organization_id": {
             "anyOf": [
@@ -7195,18 +7163,6 @@
             ],
             "title": "Nickname"
           },
-          "birth_date": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Birth Date"
-          },
           "organization_id": {
             "anyOf": [
               {
@@ -7243,30 +7199,16 @@
               }
             ],
             "title": "Sub"
-          },
-          "age": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Age",
-            "readOnly": true
           }
         },
         "type": "object",
         "required": [
           "name",
           "nickname",
-          "birth_date",
           "organization_id",
           "region_id",
           "id",
-          "sub",
-          "age"
+          "sub"
         ],
         "title": "UserRead"
       },
@@ -7293,18 +7235,6 @@
               }
             ],
             "title": "Nickname"
-          },
-          "birth_date": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Birth Date"
           },
           "organization_id": {
             "anyOf": [

@@ -81,6 +81,16 @@ def get_my_user(
     return user
 
 
+@router.delete("/me", status_code=204)
+def delete_my_user(
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
+) -> None:
+    """本人のアカウントと記録をすべて消す。Cognito の利用者はフロントが消す。"""
+    user_crud.delete_user(s, me)
+    s.commit()
+
+
 @router.get("/{user_id}", response_model=UserRead)
 def get_user(
     user_id: int,

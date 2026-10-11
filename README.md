@@ -12,7 +12,7 @@ then review your groupings, end totals and progress over time.
 ![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-Amplify_%2F_Lambda-FF9900?logo=amazonwebservices&logoColor=white)
-![License: MIT](https://img.shields.io/badge/License-MIT-blue)
+![License: All rights reserved](https://img.shields.io/badge/License-All_rights_reserved-lightgrey)
 
 ## できること
 
@@ -56,7 +56,6 @@ then review your groupings, end totals and progress over time.
 | [source/front](source/front) | フロントエンド。Next.js(App Router)・React 19。認証は Amplify(Cognito) |
 | [source/back](source/back) | バックエンド。FastAPI・SQLAlchemy・PostgreSQL。Lambda Web Adapter で AWS Lambda に載せる |
 | [infra](infra) | AWS の構成(CDK) |
-| [docs](docs) | 要件・設計の検討 |
 
 ### セットアップ
 
@@ -72,10 +71,8 @@ git clone https://github.com/ichir0roie/archieves.git
 
 `develop` を基点に作業用のブランチを切り、`develop` へマージします。
 
-### ドキュメント
-
-要件・設計の検討は [docs](docs) にあります(一覧は [docs/README.md](docs/README.md))。
-
 ## ライセンス
 
-[MIT](LICENSE)
+オープンソースではありません。閲覧のためだけに公開しています。複製・改変・再配布や、業務での利用・運用はできません。詳しくは [LICENSE](LICENSE) を見てください。
+
+アプリの[利用規約](legal/terms.ja.md)と[プライバシーポリシー](legal/privacy.ja.md)は [legal](legal) にあります。

@@ -149,6 +149,10 @@ button.icon { padding: 0.3rem; line-height: 0; border-radius: 999px; }
 .muted { color: var(--muted); }
 .small { font-size: 0.8rem; }
 
+/* サインインの画面の下の、規約への同意の文とリンク */
+.auth-agreement { text-align: center; margin: 1rem 0; }
+.auth-agreement a + a::before { content: " / "; color: var(--muted); }
+
 /* 行を押すと別の画面へ飛ぶ一覧(ランキング・スコア) */
 .row-list { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .row-list > * { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.9rem; color: var(--ink); }

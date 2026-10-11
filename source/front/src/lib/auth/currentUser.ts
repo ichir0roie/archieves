@@ -1,6 +1,16 @@
-import { getCurrentUser as amplifyGetCurrentUser } from "aws-amplify/auth";
-import { ensureCurrentUser, getMyUser, type MeRead } from "@/lib/api";
 import {
+  deleteUser as amplifyDeleteUser,
+  getCurrentUser as amplifyGetCurrentUser,
+} from "aws-amplify/auth";
+import {
+  deleteMyUser,
+  ensureCurrentUser,
+  getMyUser,
+  type MeRead,
+} from "@/lib/api";
+import {
+  clearCachedAppUser,
+  clearScoreSheetCache,
   loadCachedAppUser,
   saveCachedAppUser,
   type CachedAppUser,
@@ -76,4 +86,17 @@ export async function isCurrentAppUserRegistered(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * 本人のアカウントを消す。API の行と記録を消し、Cognito の利用者を消し(サインアウトもされる)、端末のキャッシュを捨てる。
+ * キャッシュは最後に捨てる。先に捨てると RegistrationGate が登録の画面へ送り、Cognito を消す前に行を作り直してしまう
+ */
+export async function deleteCurrentAccount(): Promise<void> {
+  const { userId } = await getCurrentUser();
+  await deleteMyUser();
+  // モックのログインには消す相手がいない
+  if (!isMockAuth()) await amplifyDeleteUser();
+  clearScoreSheetCache(userId);
+  clearCachedAppUser();
 }

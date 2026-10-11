@@ -127,5 +127,4 @@ repo root):
 
 Lambda (image) functions in the RDS VPC, created by the CDK app in
 [`infra/`](../../infra) and updated by GitHub Actions
-(`.github/workflows/deploy-api.yml`). The procedure is in
-[`docs/インフラ/デプロイ.md`](../../docs/インフラ/デプロイ.md).
+(`.github/workflows/deploy-api.yml`).
