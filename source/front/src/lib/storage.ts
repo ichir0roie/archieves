@@ -111,3 +111,24 @@ export function subscribeCachedAppUser(onChange: () => void): () => void {
     window.removeEventListener("storage", onChange);
   };
 }
+
+const TARGET_DIAMETER_KEY = "targetDiameterPx";
+
+/** 記入画面で最後に描いた的の直径(px)。設定画面が矢の太さ(mm)を px に直して見本を描くのに使う */
+export function saveTargetDiameterPx(diameterPx: number) {
+  if (diameterPx <= 0) return;
+  try {
+    localStorage.setItem(TARGET_DIAMETER_KEY, String(diameterPx));
+  } catch {
+    // 保存できなければ、設定画面は画面の幅から見積もる
+  }
+}
+
+export function loadTargetDiameterPx(): number | null {
+  try {
+    const value = Number(localStorage.getItem(TARGET_DIAMETER_KEY));
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}

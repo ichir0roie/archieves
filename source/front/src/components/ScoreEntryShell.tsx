@@ -37,8 +37,8 @@ export type ScoreInputProps = {
   /** 1エンドが満ちたときの矢の数 */
   endSize: number;
   targetType: string;
-  /** 矢として扱う円の直径(画面の px)。この円が帯の線にかかれば高い方の点数 */
-  arrowDiameterPx: number;
+  /** 矢の直径(mm)。入力の側が的の大きさとの比で px に直す */
+  arrowDiameterMm: number;
   /** このエンドの矢がすべて入った。残る操作は 次へ / 終了 だけ */
   isEndFull: boolean;
   /** ゲームの矢がすべて入った。次のエンドは無い */
@@ -159,7 +159,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               canForwardEnd: progress?.canForwardEnd ?? false,
               endSize,
               targetType: progress ? manager.targetType : DEFAULT_TARGET_TYPE_ID,
-              arrowDiameterPx: manager.arrowDiameterPx,
+              arrowDiameterMm: manager.arrowDiameterMm,
               isEndFull: progress?.isEndFull ?? false,
               isGameComplete: progress?.isGameComplete ?? false,
               disabled: isSaving,

@@ -5,8 +5,9 @@ const ROUTE_TIMEOUT = 15_000;
 // 的は指の上を狙う(TargetCircleInput の AIM_OFFSET_Y)ので、狙う点よりこのぶん下を押す
 export const AIM_OFFSET_Y = 107;
 
-// 既定の矢の半径(scoreConfig の DEFAULT_ARROW_DIAMETER_PX の半分)。点数は矢の縁で決まる(線にかかれば高い方)
-const ARROW_MARK_RADIUS = 5;
+// 既定の矢の直径(scoreConfig の DEFAULT_ARROW_DIAMETER_MM)と、既定の的の実寸
+const DEFAULT_ARROW_DIAMETER_MM = 5;
+const DEFAULT_TARGET_SIZE_CM = 122;
 
 export interface GameSetup {
   bowType?: string;
@@ -14,8 +15,8 @@ export interface GameSetup {
   roundSize?: number;
   gameSize?: number;
   targetType?: string;
-  /** 矢の直径(px)。省くと既定の 10px */
-  arrowDiameterPx?: number;
+  /** 矢の直径(mm)。省くと既定の 5mm */
+  arrowDiameterMm?: number;
 }
 
 /** 設定の画面を通って、的をタッチする入力の画面に着く。 */
@@ -28,16 +29,16 @@ export async function startGame(page: Page, setup: GameSetup = {}) {
     await page.getByRole("button", { name: setup.targetType }).click();
   }
   if (setup.endSize !== undefined) {
-    await page.getByLabel("1エンドの矢数").selectOption(String(setup.endSize));
+    await page.getByLabel("1エンドの矢数").fill(String(setup.endSize));
   }
   if (setup.roundSize !== undefined) {
-    await page.getByLabel("エンド数").selectOption(String(setup.roundSize));
+    await page.getByLabel("エンド数").fill(String(setup.roundSize));
   }
   if (setup.gameSize !== undefined) {
-    await page.getByLabel("ラウンド数").selectOption(String(setup.gameSize));
+    await page.getByLabel("ラウンド数").fill(String(setup.gameSize));
   }
-  if (setup.arrowDiameterPx !== undefined) {
-    await page.getByLabel("矢の直径").selectOption(String(setup.arrowDiameterPx));
+  if (setup.arrowDiameterMm !== undefined) {
+    await page.getByLabel("矢の直径").fill(String(setup.arrowDiameterMm));
   }
 
   await page.getByRole("button", { name: "ゲーム開始" }).click();
@@ -53,6 +54,19 @@ export function ringButton(page: Page, label: string) {
   if (label === "M") return page.getByRole("button", { name: "外れ", exact: true });
   const point = label === "X" ? 11 : Number(label);
   return page.getByRole("button", { name: `${point}点`, exact: true });
+}
+
+/**
+ * 記入画面が矢として扱う円の直径(px)。的(1 点の帯の外径)の大きさとの比で mm を直し、四捨五入する
+ * (scoreConfig の arrowDiameterPx)
+ */
+export async function arrowDiameterPx(
+  page: Page,
+  arrowDiameterMm = DEFAULT_ARROW_DIAMETER_MM,
+  targetSizeCm = DEFAULT_TARGET_SIZE_CM,
+) {
+  const face = await settledBoundingBox(ringButton(page, "1"));
+  return Math.max(Math.round((arrowDiameterMm / (targetSizeCm * 10)) * face.width), 1);
 }
 
 /** 画面に並ぶ、今のエンドの矢。 */
@@ -106,11 +120,13 @@ export async function shoot(page: Page, label: string, times: number) {
   } else {
     const point = Number(label);
     const outer = box.width / 2;
+    // コンパウンドの的(80cm)でも既定の 122cm で見積もる。ずれは 1px に満たず、帯の幅に収まる
+    const arrowRadius = (await arrowDiameterPx(page)) / 2;
     // 外側の半径に対する内側の帯の半径の割合。10 の内側は X で、10 の帯の半分
     const innerRatio = point === 10 ? 0.5 : (10 - point) / (11 - point);
     // 矢の縁(中心から矢の半径だけ内側)が帯の真ん中に来るよう、中心は半径のぶん外に置く
     aim = {
-      x: box.x + outer + (outer + outer * innerRatio) / 2 + ARROW_MARK_RADIUS,
+      x: box.x + outer + (outer + outer * innerRatio) / 2 + arrowRadius,
       y: box.y + outer,
     };
   }

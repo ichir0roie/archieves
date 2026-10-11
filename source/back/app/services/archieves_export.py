@@ -24,8 +24,10 @@ from app.db.models.comment_model import EndComment, GameComment, RoundComment
 from app.services.legacy_import import ImportSummary
 
 FORMAT_NAME = "archieves-export"
-# 1: 最初の形。2: points.shot_at・games.arrow_diameter_px を足した(1 のファイルは NULL として読む)
-FORMAT_VERSION = 2
+# 1: 最初の形。2: points.shot_at・games.arrow_diameter_px を足した(1 のファイルは NULL として読む)。
+# 3: games.arrow_diameter_px を arrow_diameter_mm に替えた(2 までのファイルは NULL として読む。px は
+# 端末ごとに mm との比が違うので直せない)
+FORMAT_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -74,11 +76,11 @@ TABLES: tuple[Table, ...] = (
                 "弓の種類(recurve・compound・barebow など、または自由入力)。不明なら NULL",
             ),
             Column(
-                "arrow_diameter_px",
+                "arrow_diameter_mm",
                 "INTEGER",
-                "px(記入画面の上の大きさ)",
-                "記入画面で矢として扱った円の直径。この円が帯の線にかかれば高い方の点にした。"
-                "設定する前の記録は NULL",
+                "mm",
+                "矢の直径。記入画面は的の大きさとの比で画面の px に直し(四捨五入)、その円が帯の線に"
+                "かかれば高い方の点にした。設定する前の記録は NULL",
             ),
         ),
     ),
@@ -384,7 +386,7 @@ def export_sqlite(s: Session, user_id: int) -> bytes:
 
     queries = {
         "games": select(
-            Game.id, Game.recorded_at, Game.game_size, Game.bow_type, Game.arrow_diameter_px
+            Game.id, Game.recorded_at, Game.game_size, Game.bow_type, Game.arrow_diameter_mm
         )
         .where(Game.id.in_(visible_games))
         .order_by(Game.id),
@@ -478,8 +480,8 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
                     recorded_at=date.fromisoformat(r["recorded_at"]),
                     game_size=r["game_size"],
                     bow_type=r["bow_type"],
-                    arrow_diameter_px=(
-                        r["arrow_diameter_px"] if "arrow_diameter_px" in r.keys() else None
+                    arrow_diameter_mm=(
+                        r["arrow_diameter_mm"] if "arrow_diameter_mm" in r.keys() else None
                     ),
                 )
             s.add_all(games.values())
