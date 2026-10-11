@@ -23,6 +23,7 @@ export const profile = {
     nickname: (nickname: string) => `(${nickname})`,
     period: (start: string, end: string) => `直近1年間の${t.statistics} (${start} 〜 ${end})`,
     private: `この${t.profile}は公開されていません`,
+    visibilityTitle: "公開設定",
   },
   organization: {
     title: `${t.organization}情報`,

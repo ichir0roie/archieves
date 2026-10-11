@@ -7,6 +7,8 @@ import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import StatSummaryCard from "@/components/StatSummaryCard";
+import VisibilitySettings from "@/components/VisibilitySettings";
+import { useLoad } from "@/hooks/useLoad";
 import {
   ApiError,
   OrganizationRead,
@@ -16,6 +18,7 @@ import {
   toErrorDetails,
   type ErrorDetails,
 } from "@/lib/api";
+import { getCurrentUser } from "@/lib/auth/currentUser";
 import { useT, type Texts } from "@/lib/text";
 
 function formatDate(T: Texts, value: string): string {
@@ -28,6 +31,8 @@ export default function Page() {
   const T = useT();
   const params = useParams<{ sub: string }>();
   const sub = params.sub;
+  const currentUser = useLoad(() => getCurrentUser(), []);
+  const isMe = currentUser.data?.userId === sub;
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [organization, setOrganization] = useState<OrganizationRead | null>(null);
@@ -110,6 +115,8 @@ export default function Page() {
               stats={profile.points}
             />
           </div>
+
+          {isMe && <VisibilitySettings />}
         </>
       )}
       <BackButton />
