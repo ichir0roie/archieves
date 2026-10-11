@@ -20,6 +20,7 @@ import {
   type SheetPoint,
   type SheetRound,
 } from "./scoreSheetCache";
+import { totalScore } from "./scoreFunctions";
 
 /** 入力の画面の帯に出す、今の位置とボタンの可否 */
 export interface ScoreProgress {
@@ -37,6 +38,10 @@ export interface ScoreProgress {
   canForwardPoint: boolean;
   canBackEnd: boolean;
   canForwardEnd: boolean;
+  /** 今のラウンドの合計点 */
+  roundTotal: number;
+  /** 今のラウンドのエンドごとの合計。矢の無いエンド(まだ開いていないものも)は null */
+  endTotals: Array<number | null>;
 }
 
 /** 「1矢戻る」で外した矢。「1矢進む」で同じ点数・位置・時刻を入れ直す */
@@ -59,6 +64,7 @@ function fromSheetRead(read: GameSheetRead): Sheet {
     game_size: read.game_size,
     bow_type: read.bow_type,
     arrow_diameter_px: read.arrow_diameter_px,
+    all_in: read.all_in,
     comment: read.comment,
     rounds: read.rounds.map((round) => ({
       id: round.id,
@@ -131,6 +137,7 @@ export class ScoreManager {
         game_size: setup.gameSize,
         bow_type: setup.bowType,
         arrow_diameter_px: setup.arrowDiameterPx,
+        all_in: setup.allIn,
         comment: null,
         rounds: [],
       },
@@ -256,6 +263,11 @@ export class ScoreManager {
     return this.sheet.arrow_diameter_px ?? DEFAULT_ARROW_DIAMETER_PX;
   }
 
+  /** オールイン: 矢の円が帯に完全に入らなければ、その帯の点にしない */
+  get allIn(): boolean {
+    return this.sheet.all_in ?? false;
+  }
+
   get targetType(): string {
     return this.currentRound?.target_type ?? this.setup?.targetType ?? DEFAULT_TARGET_TYPE_ID;
   }
@@ -341,6 +353,14 @@ export class ScoreManager {
       canForwardPoint: this.canForwardPoint,
       canBackEnd: this.canBackEnd,
       canForwardEnd: this.canForwardEnd,
+      roundTotal: totalScore(this.ends.flatMap((end) => end.points)),
+      endTotals: Array.from(
+        { length: Math.max(this.roundSize, this.ends.length) },
+        (_, index) => {
+          const end = this.ends[index];
+          return end && end.points.length > 0 ? totalScore(end.points) : null;
+        },
+      ),
     };
   }
 
@@ -483,7 +503,7 @@ export class ScoreManager {
    * API に送る形。末尾の、矢もコメントも無いエンド・ラウンドは送らない(開けただけのエンドを
    * スコア表に空の行として残さない)。手元には残すので、続けて撃てる。
    */
-  private toSheetWrite(): Sheet {
+  private toSheetWrite(): Sheet & { all_in: boolean } {
     const rounds = this.sheet.rounds.map((round) => ({ ...round, ends: [...round.ends] }));
     while (rounds.length > 0) {
       const round = rounds[rounds.length - 1];
@@ -498,7 +518,7 @@ export class ScoreManager {
       }
       break;
     }
-    return { ...this.sheet, rounds };
+    return { ...this.sheet, all_in: this.allIn, rounds };
   }
 
   /** 矢もコメントも無い */
