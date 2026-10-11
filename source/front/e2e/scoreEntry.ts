@@ -5,6 +5,9 @@ const ROUTE_TIMEOUT = 15_000;
 // 的は指の上を狙う(TargetCircleInput の AIM_OFFSET_Y)ので、狙う点よりこのぶん下を押す
 export const AIM_OFFSET_Y = 107;
 
+// 矢の印の半径(TargetCircleInput の ARROW_MARK_SIZE の半分)。点数は矢の縁で決まる(線にかかれば高い方)
+const ARROW_MARK_RADIUS = 5;
+
 export interface GameSetup {
   bowType?: string;
   endSize?: number;
@@ -77,8 +80,8 @@ async function settledBoundingBox(button: Locator) {
 }
 
 /**
- * 的の帯を押して矢を記録する。帯は同心円なので、ボタンの中心でなく帯の幅の真ん中
- * (内側の帯の外に当たる所)を狙う。X は中心、外れは的の枠の隅。
+ * 的の帯を押して矢を記録する。帯は同心円なので、ボタンの中心でなく、矢の縁が帯の幅の真ん中
+ * (内側の帯の外に当たる所)に来る所を狙う。X は中心、外れは的の枠の隅。
  */
 export async function shoot(page: Page, label: string, times: number) {
   const button = ringButton(page, label);
@@ -100,8 +103,9 @@ export async function shoot(page: Page, label: string, times: number) {
     const outer = box.width / 2;
     // 外側の半径に対する内側の帯の半径の割合。10 の内側は X で、10 の帯の半分
     const innerRatio = point === 10 ? 0.5 : (10 - point) / (11 - point);
+    // 矢の縁(中心から矢の半径だけ内側)が帯の真ん中に来るよう、中心は半径のぶん外に置く
     aim = {
-      x: box.x + outer + (outer + outer * innerRatio) / 2,
+      x: box.x + outer + (outer + outer * innerRatio) / 2 + ARROW_MARK_RADIUS,
       y: box.y + outer,
     };
   }

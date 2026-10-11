@@ -30,6 +30,13 @@ const LENS_GAP = 32;
  */
 const AIM_OFFSET_Y = LENS_GAP + LENS_SIZE / 2;
 
+/**
+ * 的に描く矢の印の直径(px)。点数は、矢をこの太さの円として決める。印が少しでも帯の線に
+ * かかっていれば、高い方の帯の点数にする(線にかかった矢は高い方の得点、というアーチェリーの決まり)。
+ * 本物の矢の太さ(5mm ほど)を画面に縮めると 1px ほどで見えないので、目に見える印の大きさに合わせる。
+ */
+const ARROW_MARK_SIZE = 10;
+
 type Press = {
   pointerId: number;
   x: number;
@@ -41,7 +48,7 @@ function clampFraction(value: number): number {
   return Math.min(Math.max(value, 0), 1);
 }
 
-/** 中心からの距離(的の半径に対する割合)が入る帯の点数。的の外は外れ */
+/** 中心からの距離(的の半径に対する割合)が入る帯の点数。線の上は内側(高い方)。的の外は外れ */
 function scoreAtDistance(distanceRatio: number, ringCount: number): number {
   for (let score = ringCount; score >= 1; score--) {
     if (distanceRatio <= zoneRadiusRatio(score)) return score;
@@ -112,10 +119,11 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     };
   }
 
+  /** 矢の中心が (x, y) のときの点数。矢の縁がいちばん中心に寄った所で決める(線にかかれば高い方) */
   function scoreAt(x: number, y: number): number {
     if (maxDiameter === 0) return MISS_SCORE;
-    const distance = Math.hypot(x - centerX, y - centerY);
-    return scoreAtDistance(distance / (maxDiameter / 2), ringCount);
+    const nearestEdge = Math.max(Math.hypot(x - centerX, y - centerY) - ARROW_MARK_SIZE / 2, 0);
+    return scoreAtDistance(nearestEdge / (maxDiameter / 2), ringCount);
   }
 
   /*
@@ -210,13 +218,17 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     if (relativeX == null || relativeY == null) return null;
     if (relativeX === 0 && relativeY === 0) return null;
 
+    // ズームの中でも矢の太さを同じ倍率で描き、帯の線とのかかり具合が見えるようにする
+    const size = ARROW_MARK_SIZE * zoom;
     return (
       <div
         key={key}
         className="arrow-mark"
         style={{
-          left: `${(centerX + (relativeX - 0.5) * maxDiameter) * zoom - 5}px`,
-          top: `${(centerY + (relativeY - 0.5) * maxDiameter) * zoom - 5}px`,
+          width: `${size}px`,
+          height: `${size}px`,
+          left: `${(centerX + (relativeX - 0.5) * maxDiameter) * zoom - size / 2}px`,
+          top: `${(centerY + (relativeY - 0.5) * maxDiameter) * zoom - size / 2}px`,
         }}
       />
     );
@@ -246,7 +258,11 @@ export default function TargetCircleInput(props: ScoreInputProps) {
           {props.points.map((point, index) => createArrow(point.x, point.y, index, LENS_ZOOM))}
         </div>
         {/* 中央の帯と同じ色だと埋もれるので、帯のクラスを付けて反転色で描く(globals.css) */}
-        <div className={`lens-crosshair ${ringClass(score)}`} />
+        {/* 十字の円は、ここに置く矢の太さ。円が帯の線にかかれば高い方の点数になる */}
+        <div
+          className={`lens-crosshair ${ringClass(score)}`}
+          style={{ "--arrow-size": `${ARROW_MARK_SIZE * LENS_ZOOM}px` } as React.CSSProperties}
+        />
         <div className={`lens-score ${ringClass(score)}`}>{scoreToStr(score)}</div>
       </div>
     );

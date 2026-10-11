@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 import {
+  AIM_OFFSET_Y,
   nextEnd,
   recordedArrows,
   reloadPage,
@@ -416,4 +417,25 @@ test("矢が空のままでも 1エンド進む でエンドを飛ばせる", as
 
   await page.getByRole("button", { name: "終了" }).click();
   await expect(page).toHaveURL(/\/score-view\?gameId=/, { timeout: ROUTE_TIMEOUT });
+});
+
+test("an arrow touching a line scores the higher ring", async ({ page }) => {
+  await startGame(page, { endSize: 3 });
+  const nine = await ringButton(page, "9").boundingBox();
+  if (!nine) throw new Error("9 ring not laid out");
+  const centre = { x: nine.x + nine.width / 2, y: nine.y + nine.height / 2 };
+  const nineOuterRadius = nine.width / 2;
+
+  // 矢の印の直径は 10px(TargetCircleInput の ARROW_MARK_SIZE)。中心が 9 と 8 の線の
+  // 3px 外でも、縁が線にかかるので 9。7px 外なら線にかからないので 8
+  await page.mouse.click(centre.x + nineOuterRadius + 3, centre.y + AIM_OFFSET_Y);
+  await expect(recordedArrows(page)).toHaveText(["9"]);
+  await page.mouse.click(centre.x + nineOuterRadius + 7, centre.y + AIM_OFFSET_Y);
+  await expect(recordedArrows(page)).toHaveText(["9", "8"]);
+
+  // 的の外でも、縁が 1 の帯にかかれば 1
+  const one = await ringButton(page, "1").boundingBox();
+  if (!one) throw new Error("1 ring not laid out");
+  await page.mouse.click(centre.x + one.width / 2 + 3, centre.y + AIM_OFFSET_Y);
+  await expect(recordedArrows(page)).toHaveText(["9", "8", "1"]);
 });
