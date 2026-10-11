@@ -25,8 +25,9 @@ from app.services.legacy_import import ImportSummary
 
 FORMAT_NAME = "archieves-export"
 # 1: 最初の形。2: points.shot_at・games.arrow_diameter_px を足した(1 のファイルは NULL として読む)。
-# 3: games.all_in を足した(2 までのファイルは 0 として読む)
-FORMAT_VERSION = 3
+# 3: games.all_in を足した(2 までのファイルは 0 として読む)。
+# 4: games.backfilled を足した(3 までのファイルは 0 として読む)
+FORMAT_VERSION = 4
 
 
 @dataclass(frozen=True)
@@ -87,6 +88,13 @@ TABLES: tuple[Table, ...] = (
                 "0 か 1",
                 "1 ならオールイン。矢が帯に完全に入らなければその帯の点にせず、"
                 "線にかかれば低い方の点にした",
+            ),
+            Column(
+                "backfilled",
+                "INTEGER NOT NULL DEFAULT 0",
+                "0 か 1",
+                "1 ならあとから入力。日付を決めて入れたので、ラウンド・エンド・矢の日付は"
+                "ゲームの日付、矢の shot_at はその日の 0 時(入れた端末の時間帯)にそろえてある",
             ),
         ),
     ),
@@ -398,6 +406,7 @@ def export_sqlite(s: Session, user_id: int) -> bytes:
             Game.bow_type,
             Game.arrow_diameter_px,
             Game.all_in,
+            Game.backfilled,
         )
         .where(Game.id.in_(visible_games))
         .order_by(Game.id),
@@ -495,6 +504,7 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
                         r["arrow_diameter_px"] if "arrow_diameter_px" in r.keys() else None
                     ),
                     all_in=bool(r["all_in"]) if "all_in" in r.keys() else False,
+                    backfilled=bool(r["backfilled"]) if "backfilled" in r.keys() else False,
                 )
             s.add_all(games.values())
             s.flush()

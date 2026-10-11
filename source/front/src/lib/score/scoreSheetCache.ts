@@ -49,6 +49,11 @@ export interface Sheet {
   arrow_diameter_px: number | null;
   /** オールイン。これを足す前のキャッシュには無い(無ければ false) */
   all_in?: boolean;
+  /**
+   * あとから入力: スコアの一覧で日付を決めて入れたゲーム。これを足す前のキャッシュには無い(無ければ false)。
+   * ラウンド・エンド・矢の日付は recorded_at に、矢の時刻はその日の 0 時にそろえる
+   */
+  backfilled?: boolean;
   comment: string | null;
   rounds: Array<SheetRound>;
 }
