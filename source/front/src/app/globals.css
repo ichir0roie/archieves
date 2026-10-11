@@ -242,6 +242,16 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .score-entry .notice { flex-shrink: 0; padding: 0.4rem 1rem; text-align: center; font-size: 0.85rem; font-weight: 600; }
 .score-entry .notice.done { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); color: var(--ok); }
 .score-entry .notice.full { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--accent); }
+/* 今のラウンドの合計とエンドごとの点数の一行。エンドが多ければこの行の中だけ横に流す */
+.round-totals { display: flex; align-items: stretch; gap: 0.5rem; padding: 0.25rem 0.75rem; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.round-totals .round-total { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 3.5rem; flex-shrink: 0; }
+.round-totals .round-total .label { font-size: 0.65rem; color: var(--muted); }
+.round-totals .round-total b { font-size: 1.25rem; line-height: 1.1; }
+.round-totals .ends { flex: 1; min-width: 0; display: flex; gap: 0.25rem; overflow-x: auto; }
+.round-totals .end { flex: 1 0 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 0.375rem; padding: 0.1rem 0; }
+.round-totals .end .number { font-size: 0.6rem; color: var(--muted); }
+.round-totals .end .value { font-size: 0.9rem; font-weight: 700; }
+.round-totals .end.current { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); }
 .score-loading { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 1.5rem; }
 .score-entry > .status.error.floating { position: fixed; top: 3.5rem; left: 0.75rem; right: 0.75rem; z-index: 10; max-height: 60vh; overflow: auto; }
 

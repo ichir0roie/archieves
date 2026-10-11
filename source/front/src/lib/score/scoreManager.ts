@@ -20,6 +20,7 @@ import {
   type SheetPoint,
   type SheetRound,
 } from "./scoreSheetCache";
+import { totalScore } from "./scoreFunctions";
 
 /** 入力の画面の帯に出す、今の位置とボタンの可否 */
 export interface ScoreProgress {
@@ -37,6 +38,10 @@ export interface ScoreProgress {
   canForwardPoint: boolean;
   canBackEnd: boolean;
   canForwardEnd: boolean;
+  /** 今のラウンドの合計点 */
+  roundTotal: number;
+  /** 今のラウンドのエンドごとの合計。矢の無いエンド(まだ開いていないものも)は null */
+  endTotals: Array<number | null>;
 }
 
 /** 「1矢戻る」で外した矢。「1矢進む」で同じ点数・位置・時刻を入れ直す */
@@ -341,6 +346,14 @@ export class ScoreManager {
       canForwardPoint: this.canForwardPoint,
       canBackEnd: this.canBackEnd,
       canForwardEnd: this.canForwardEnd,
+      roundTotal: totalScore(this.ends.flatMap((end) => end.points)),
+      endTotals: Array.from(
+        { length: Math.max(this.roundSize, this.ends.length) },
+        (_, index) => {
+          const end = this.ends[index];
+          return end && end.points.length > 0 ? totalScore(end.points) : null;
+        },
+      ),
     };
   }
 

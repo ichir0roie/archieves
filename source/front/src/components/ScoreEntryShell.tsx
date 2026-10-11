@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import EndView from "@/components/EndView";
+import RoundTotalsBar from "@/components/RoundTotalsBar";
 import CommentBar from "@/components/CommentBar";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import { useGuardScoreEntry } from "@/hooks/useGuardScoreEntry";
@@ -113,6 +114,13 @@ export default function ScoreEntryShell({ renderInput }: Props) {
         </div>
       ) : (
         <>
+          {progress && (
+            <RoundTotalsBar
+              roundTotal={progress.roundTotal}
+              endTotals={progress.endTotals}
+              endNumber={progress.endNumber}
+            />
+          )}
           {error && (
             <ApiErrorAlert
               error={error}
