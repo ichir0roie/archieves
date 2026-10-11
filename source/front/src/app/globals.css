@@ -1,6 +1,8 @@
 /* 画面の見た目はこの 1 枚だけで決める(Tailwind・MUI は使わない)。コンポーネントは意味の分かる class を付ける。
    色は下の変数だけを使い、暗い画面(prefers-color-scheme: dark)では変数を差し替える */
-:root {
+/* ログインの画面(Authenticator)は明るい配色に固める。Amplify の部品は明るい色のままなので、
+   暗い配色の変数を受けると、下の input・button の決まりが効く欄だけが黒くなる */
+:root, [data-amplify-authenticator] {
   --bg: #f4f5f7;
   --panel: #ffffff;
   --ink: #1d2027;
@@ -47,6 +49,9 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font); font-
 [data-amplify-theme] { display: contents; }
 [data-amplify-authenticator] { flex: 1; }
 [data-amplify-authenticator] {
+  background: var(--bg);
+  color: var(--ink);
+  color-scheme: light;
   --amplify-colors-brand-primary-80: var(--accent);
   --amplify-colors-brand-primary-90: var(--accent);
   --amplify-colors-brand-primary-100: var(--accent);
