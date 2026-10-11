@@ -1,6 +1,8 @@
 /* 画面の見た目はこの 1 枚だけで決める(Tailwind・MUI は使わない)。コンポーネントは意味の分かる class を付ける。
    色は下の変数だけを使い、暗い画面(prefers-color-scheme: dark)では変数を差し替える */
-:root {
+/* ログインの画面(Authenticator)は明るい配色に固める。Amplify の部品は明るい色のままなので、
+   暗い配色の変数を受けると、下の input・button の決まりが効く欄だけが黒くなる */
+:root, [data-amplify-authenticator] {
   --bg: #f4f5f7;
   --panel: #ffffff;
   --ink: #1d2027;
@@ -47,6 +49,9 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font); font-
 [data-amplify-theme] { display: contents; }
 [data-amplify-authenticator] { flex: 1; }
 [data-amplify-authenticator] {
+  background: var(--bg);
+  color: var(--ink);
+  color-scheme: light;
   --amplify-colors-brand-primary-80: var(--accent);
   --amplify-colors-brand-primary-90: var(--accent);
   --amplify-colors-brand-primary-100: var(--accent);
@@ -242,7 +247,7 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .score-progress { flex: 1; display: flex; justify-content: center; gap: 1rem; font-size: 0.95rem; }
 .score-progress b { font-size: 1.5rem; line-height: 1; }
 .score-progress .full { color: var(--ok); }
-.score-progress .all-in-badge { align-self: center; padding: 0.05rem 0.4rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
+.score-progress .all-in-badge { align-self: center; padding: 0.05rem 0.4rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
 .score-entry .notice { flex-shrink: 0; padding: 0.4rem 1rem; text-align: center; font-size: 0.85rem; font-weight: 600; }
 .score-entry .notice.done { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); color: var(--ok); }
 .score-entry .notice.full { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--accent); }

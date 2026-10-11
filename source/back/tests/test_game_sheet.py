@@ -265,3 +265,30 @@ def test_all_in_cannot_be_null(client: TestClient, current_user, factories) -> N
     patched = client.patch(f"/api/v1/games/{game.id}", json={"bow_type": "compound"})
     assert patched.status_code == 200
     assert patched.json()["all_in"] is True
+
+
+def test_backfilled_is_kept_per_game(client: TestClient) -> None:
+    saved = _save(client, _sheet([], recorded_at="2026-09-01", backfilled=True))
+
+    assert saved["backfilled"] is True
+    assert saved["recorded_at"] == "2026-09-01"
+    assert client.get(f"/api/v1/games/{saved['id']}").json()["backfilled"] is True
+    assert client.get(f"/api/v1/games/{saved['id']}/sheet").json()["backfilled"] is True
+
+    updated = _save(client, _sheet([], id=saved["id"], backfilled=False))
+    assert updated["backfilled"] is False
+
+
+def test_a_sheet_without_backfilled_is_not_backfilled(client: TestClient) -> None:
+    # backfilled を足す前のフロント(入力の途中のキャッシュ)は送ってこない
+    assert _save(client, _sheet([]))["backfilled"] is False
+
+
+def test_backfilled_cannot_be_null(client: TestClient, current_user, factories) -> None:
+    game = factories.GameFactory(user=current_user, backfilled=True)
+
+    assert client.put(SHEET_URL, json=_sheet([], backfilled=None)).status_code == 422
+    assert client.patch(f"/api/v1/games/{game.id}", json={"backfilled": None}).status_code == 422
+    patched = client.patch(f"/api/v1/games/{game.id}", json={"bow_type": "compound"})
+    assert patched.status_code == 200
+    assert patched.json()["backfilled"] is True

@@ -7,6 +7,7 @@ import RoundTotalsBar from "@/components/RoundTotalsBar";
 import CommentBar from "@/components/CommentBar";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import { useGuardScoreEntry } from "@/hooks/useGuardScoreEntry";
+import { shortDate } from "@/lib/score/backfill";
 import { useScoreGame } from "@/lib/score/useScoreGame";
 import {
   DEFAULT_END_SIZE,
@@ -108,6 +109,11 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               {T.unit.arrow}
             </span>
             {manager?.allIn && <span className="AllInBadge all-in-badge">{T.game.entry.allIn}</span>}
+            {manager?.backfillDate && (
+              <span className="BackfillBadge all-in-badge">
+                {T.game.entry.backfill(shortDate(manager.backfillDate))}
+              </span>
+            )}
           </div>
         )}
       </div>

@@ -29,6 +29,7 @@ import {
   resolveTargetType,
   type RoundSetup,
 } from "@/lib/score/scoreConfig";
+import { BACKFILL_DATE_PARAM, isBackfillDate } from "@/lib/score/backfill";
 import { ScoreManager } from "@/lib/score/scoreManager";
 import {
   loadRoundSetup,
@@ -151,6 +152,8 @@ export default function Page() {
   const [otherOpen, setOtherOpen] = useState<"bowType" | "distance" | null>(null);
   const [draftBowName, setDraftBowName] = useState("");
   const [draftDistance, setDraftDistance] = useState(DEFAULT_ROUND_SETUP.distanceM);
+  // あとから入力の日付。スコアの一覧から ?date=yyyy-mm-dd で来る。無い・読めない日付なら今の日時で付ける
+  const [backfillDate, setBackfillDate] = useState<string | null>(null);
 
   // サーバーでの描画中は localStorage を読めないので、前回の設定は画面に載ってから当てる
   useEffect(() => {
@@ -169,6 +172,12 @@ export default function Page() {
     setGameSizeText(String(saved.gameSize));
     setArrowDiameterMmText(String(saved.arrowDiameterMm));
     setAllIn(saved.allIn);
+  }, []);
+
+  // useSearchParams は Suspense で包まないとビルドの事前描画で落ちるので、画面に載ってから URL を読む
+  useEffect(() => {
+    const date = new URLSearchParams(window.location.search).get(BACKFILL_DATE_PARAM);
+    if (isBackfillDate(date)) setBackfillDate(date);
   }, []);
 
   const bowIsOther = !BOW_TYPES.some((b) => b.id === bowType);
@@ -216,13 +225,19 @@ export default function Page() {
     };
     saveRoundSetup(setup);
     // この画面からは必ず新しいゲームを始める(手元のキャッシュを作り直す)。続きはこの画面を通らない
-    ScoreManager.startNewGame(setup);
+    ScoreManager.startNewGame(setup, backfillDate);
     router.push("/game/score-card");
   }
 
   return (
     <div className="page">
       <PageHeader title={T.game.setup.title} />
+      {backfillDate && (
+        <div className="BackfillNotice panel stack tight">
+          <b>{T.game.setup.backfill(backfillDate)}</b>
+          <span className="muted small">{T.game.setup.backfillHint}</span>
+        </div>
+      )}
       <div className="panel stack">
         <div className="field">
           <span className="field-label">{T.game.setup.bowType}</span>

@@ -4784,6 +4784,11 @@
             "type": "boolean",
             "title": "All In",
             "default": false
+          },
+          "backfilled": {
+            "type": "boolean",
+            "title": "Backfilled",
+            "default": false
           }
         },
         "type": "object",
@@ -4903,6 +4908,11 @@
             "title": "All In",
             "default": false
           },
+          "backfilled": {
+            "type": "boolean",
+            "title": "Backfilled",
+            "default": false
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -4928,6 +4938,7 @@
           "bow_type",
           "arrow_diameter_mm",
           "all_in",
+          "backfilled",
           "id",
           "deleted_at"
         ],
@@ -5039,6 +5050,10 @@
             "type": "boolean",
             "title": "All In"
           },
+          "backfilled": {
+            "type": "boolean",
+            "title": "Backfilled"
+          },
           "comment": {
             "anyOf": [
               {
@@ -5068,6 +5083,7 @@
           "bow_type",
           "arrow_diameter_mm",
           "all_in",
+          "backfilled",
           "comment",
           "rounds"
         ],
@@ -5146,6 +5162,11 @@
           "all_in": {
             "type": "boolean",
             "title": "All In",
+            "default": false
+          },
+          "backfilled": {
+            "type": "boolean",
+            "title": "Backfilled",
             "default": false
           },
           "comment": {
@@ -5243,6 +5264,11 @@
           "all_in": {
             "type": "boolean",
             "title": "All In",
+            "default": false
+          },
+          "backfilled": {
+            "type": "boolean",
+            "title": "Backfilled",
             "default": false
           }
         },
