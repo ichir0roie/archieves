@@ -23,6 +23,9 @@ export const game = {
       `合計 ${total}本 (${endSize}本 × ${roundSize}${t.end} × ${gameSize}${t.round})`,
     start: `${t.game}開始`,
     discardUnsaved: `保存していない${t.record}があります。捨てて新しい${t.game}を始めますか?`,
+    arrowDiameter: `${t.arrow}の直径`,
+    arrowDiameterHint: `記入画面で${t.arrow}として扱う円の大きさ。円が少しでも帯の線にかかれば高い方の点になります。右は記入画面で狙うときのサイト(実寸大)`,
+    sightPreview: "記入画面のサイト(実寸大)",
   },
   entry: {
     home: `${t.home}へ戻る`,

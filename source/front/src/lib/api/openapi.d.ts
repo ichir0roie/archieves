@@ -1078,6 +1078,8 @@ export interface components {
             game_size?: number | null;
             /** Bow Type */
             bow_type?: string | null;
+            /** Arrow Diameter Px */
+            arrow_diameter_px?: number | null;
         };
         /**
          * GameKindOptions
@@ -1110,6 +1112,8 @@ export interface components {
             game_size: number | null;
             /** Bow Type */
             bow_type: string | null;
+            /** Arrow Diameter Px */
+            arrow_diameter_px: number | null;
             /** Id */
             id: number;
             /** Deleted At */
@@ -1146,6 +1150,8 @@ export interface components {
             game_size: number | null;
             /** Bow Type */
             bow_type: string | null;
+            /** Arrow Diameter Px */
+            arrow_diameter_px: number | null;
             /** Comment */
             comment: string | null;
             /** Rounds */
@@ -1166,6 +1172,8 @@ export interface components {
             game_size?: number | null;
             /** Bow Type */
             bow_type?: string | null;
+            /** Arrow Diameter Px */
+            arrow_diameter_px?: number | null;
             /** Comment */
             comment?: string | null;
             /**
@@ -1184,6 +1192,8 @@ export interface components {
             game_size?: number | null;
             /** Bow Type */
             bow_type?: string | null;
+            /** Arrow Diameter Px */
+            arrow_diameter_px?: number | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
