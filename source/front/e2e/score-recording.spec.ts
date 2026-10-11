@@ -429,7 +429,9 @@ test("矢が空のままでも 1エンド進む でエンドを飛ばせる", as
 });
 
 test("an arrow touching a line scores the higher ring", async ({ page }) => {
-  // 既定の 5mm は画面で 2px ほどで、線との間を押し分けられないので太くする
+  // 既定の 5mm は画面で 1〜2px で、線との間を押し分けられないので太くする。既定の画面(1280×720)
+  // では的が 250px ほどで 30mm でも 6px なので、縦に伸ばして的を大きくする
+  await page.setViewportSize({ width: 1280, height: 1100 });
   await startGame(page, { endSize: 3, arrowDiameterMm: 30 });
   const radius = (await arrowDiameterPx(page, 30)) / 2;
   const nine = await ringButton(page, "9").boundingBox();
@@ -453,7 +455,9 @@ test("an arrow touching a line scores the higher ring", async ({ page }) => {
 test("the arrow diameter set for the game sizes the sight and decides line touches", async ({
   page,
 }) => {
-  // 記入画面を一度開くと、設定画面の見本がその的の大きさで px に直す
+  // 記入画面を一度開くと、設定画面の見本がその的の大きさで px に直す。既定の画面(1280×720)では
+  // 的が小さく、線との間を押し分けられるほど太くならないので、縦に伸ばして的を大きくする
+  await page.setViewportSize({ width: 1280, height: 1100 });
   await startGame(page, { endSize: 3, arrowDiameterMm: 30 });
   const px = await arrowDiameterPx(page, 30);
   expect(px).toBeGreaterThan(8);
