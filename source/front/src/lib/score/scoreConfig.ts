@@ -29,13 +29,24 @@ export const MIN_DISTANCE_M = 1;
 export const MAX_DISTANCE_M = 100;
 
 /**
- * 記入画面で矢として扱う円の直径(画面の px)。点数は、この円が少しでも帯の線にかかれば高い方。
- * 本物の矢の太さ(5mm ほど)を画面に縮めると 1px ほどで見えないので、画面の上の大きさで決める。
- * API の app/core/scoring.py の MIN/MAX_ARROW_DIAMETER_PX と揃える
+ * 矢の直径(mm)。記入画面は arrowDiameterPx で画面の px に直し、その円が少しでも帯の線にかかれば
+ * 高い方の点にする。API の app/core/scoring.py の MIN/MAX_ARROW_DIAMETER_MM と揃える
  */
-export const DEFAULT_ARROW_DIAMETER_PX = 10;
-export const MIN_ARROW_DIAMETER_PX = 2;
-export const MAX_ARROW_DIAMETER_PX = 40;
+export const DEFAULT_ARROW_DIAMETER_MM = 5;
+export const MIN_ARROW_DIAMETER_MM = 1;
+export const MAX_ARROW_DIAMETER_MM = 30;
+
+/**
+ * 矢の直径(mm)を、画面に描いた的の直径(px)と的の実寸との比で px に直し、四捨五入する。
+ * 0px だと矢の印もサイトの円も消えるので、1px より小さくはしない
+ */
+export function arrowDiameterPx(
+  arrowDiameterMm: number,
+  targetSizeCm: number,
+  targetDiameterPx: number,
+): number {
+  return Math.max(Math.round((arrowDiameterMm / (targetSizeCm * 10)) * targetDiameterPx), 1);
+}
 
 /**
  * `Point.score` stores the ring an arrow landed in, not the points it is
@@ -122,7 +133,7 @@ export const DEFAULT_BOW_TYPE: BowType = "recurve";
 /** 弓の種類を自由入力の名前で持つときの長さ。バックエンドの BOW_TYPE_MAX_LENGTH と揃える */
 export const BOW_TYPE_MAX_LENGTH = 20;
 
-/** 1〜100 の整数のプルダウンの選択肢(設定画面) */
+/** 1〜100 の整数のプルダウンの選択肢(設定画面の距離) */
 export function integerRange(min: number, max: number): number[] {
   return Array.from({ length: max - min + 1 }, (_, i) => min + i);
 }
@@ -144,8 +155,8 @@ export interface RoundSetup {
   endSize: number;
   roundSize: number;
   gameSize: number;
-  /** 記入画面で矢として扱う円の直径(画面の px) */
-  arrowDiameterPx: number;
+  /** 矢の直径(mm) */
+  arrowDiameterMm: number;
   /** オールイン: 矢の円が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方) */
   allIn: boolean;
 }
@@ -157,7 +168,7 @@ export const DEFAULT_ROUND_SETUP: RoundSetup = {
   endSize: DEFAULT_END_SIZE,
   roundSize: DEFAULT_ROUND_SIZE,
   gameSize: DEFAULT_GAME_SIZE,
-  arrowDiameterPx: DEFAULT_ARROW_DIAMETER_PX,
+  arrowDiameterMm: DEFAULT_ARROW_DIAMETER_MM,
   allIn: false,
 };
 
@@ -177,7 +188,7 @@ export function isValidRoundSetup(setup: RoundSetup): boolean {
     isWithin(setup.endSize, MIN_END_SIZE, MAX_END_SIZE) &&
     isWithin(setup.roundSize, MIN_ROUND_SIZE, MAX_ROUND_SIZE) &&
     isWithin(setup.gameSize, MIN_GAME_SIZE, MAX_GAME_SIZE) &&
-    isWithin(setup.arrowDiameterPx, MIN_ARROW_DIAMETER_PX, MAX_ARROW_DIAMETER_PX) &&
+    isWithin(setup.arrowDiameterMm, MIN_ARROW_DIAMETER_MM, MAX_ARROW_DIAMETER_MM) &&
     typeof setup.allIn === "boolean" &&
     getTargetType(setup.targetType) !== undefined
   );

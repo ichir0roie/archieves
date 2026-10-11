@@ -4767,18 +4767,18 @@
             ],
             "title": "Bow Type"
           },
-          "arrow_diameter_px": {
+          "arrow_diameter_mm": {
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 40.0,
-                "minimum": 2.0
+                "maximum": 30.0,
+                "minimum": 1.0
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Arrow Diameter Px"
+            "title": "Arrow Diameter Mm"
           },
           "all_in": {
             "type": "boolean",
@@ -4890,18 +4890,18 @@
             ],
             "title": "Bow Type"
           },
-          "arrow_diameter_px": {
+          "arrow_diameter_mm": {
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 40.0,
-                "minimum": 2.0
+                "maximum": 30.0,
+                "minimum": 1.0
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Arrow Diameter Px"
+            "title": "Arrow Diameter Mm"
           },
           "all_in": {
             "type": "boolean",
@@ -4936,7 +4936,7 @@
           "recorded_at",
           "game_size",
           "bow_type",
-          "arrow_diameter_px",
+          "arrow_diameter_mm",
           "all_in",
           "backfilled",
           "id",
@@ -5035,7 +5035,7 @@
             ],
             "title": "Bow Type"
           },
-          "arrow_diameter_px": {
+          "arrow_diameter_mm": {
             "anyOf": [
               {
                 "type": "integer"
@@ -5044,7 +5044,7 @@
                 "type": "null"
               }
             ],
-            "title": "Arrow Diameter Px"
+            "title": "Arrow Diameter Mm"
           },
           "all_in": {
             "type": "boolean",
@@ -5081,7 +5081,7 @@
           "recorded_at",
           "game_size",
           "bow_type",
-          "arrow_diameter_px",
+          "arrow_diameter_mm",
           "all_in",
           "backfilled",
           "comment",
@@ -5146,18 +5146,18 @@
             ],
             "title": "Bow Type"
           },
-          "arrow_diameter_px": {
+          "arrow_diameter_mm": {
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 40.0,
-                "minimum": 2.0
+                "maximum": 30.0,
+                "minimum": 1.0
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Arrow Diameter Px"
+            "title": "Arrow Diameter Mm"
           },
           "all_in": {
             "type": "boolean",
@@ -5248,18 +5248,18 @@
             ],
             "title": "Bow Type"
           },
-          "arrow_diameter_px": {
+          "arrow_diameter_mm": {
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 40.0,
-                "minimum": 2.0
+                "maximum": 30.0,
+                "minimum": 1.0
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Arrow Diameter Px"
+            "title": "Arrow Diameter Mm"
           },
           "all_in": {
             "type": "boolean",

@@ -45,10 +45,10 @@ MAX_ROUND_SIZE = 100
 MAX_GAME_SIZE = 100
 MAX_DISTANCE_M = 100
 
-# 記入画面で、矢として扱う円の直径(画面の px)。点数は、この円が少しでも帯の線にかかれば高い方。
-# 設定画面のプルダウンと揃える(フロントの scoreConfig.ts の MIN/MAX_ARROW_DIAMETER_PX)
-MIN_ARROW_DIAMETER_PX = 2
-MAX_ARROW_DIAMETER_PX = 40
+# 矢の直径(mm)。記入画面は、的の実寸と画面の大きさの比で px に直し(四捨五入)、その円が少しでも
+# 帯の線にかかれば高い方の点にする。フロントの scoreConfig.ts の MIN/MAX_ARROW_DIAMETER_MM と揃える
+MIN_ARROW_DIAMETER_MM = 1
+MAX_ARROW_DIAMETER_MM = 30
 
 
 def max_score_for_ring_count(ring_count: int) -> int:

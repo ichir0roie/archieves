@@ -23,8 +23,10 @@ export const game = {
       `合計 ${total}本 (${endSize}本 × ${roundSize}${t.end} × ${gameSize}${t.round})`,
     start: `${t.game}開始`,
     discardUnsaved: `保存していない${t.record}があります。捨てて新しい${t.game}を始めますか?`,
-    arrowDiameter: `${t.arrow}の直径`,
-    arrowDiameterHint: `記入画面で${t.arrow}として扱う円の大きさ。円が少しでも帯の線にかかれば高い方の点になります(オールインでは低い方)。右は記入画面で狙うときのサイト(実寸大)`,
+    arrowDiameter: `${t.arrow}の直径 (mm)`,
+    arrowDiameterHint: (px: number | null) =>
+      `記入画面では的の大きさとの比で画面の px に直します(四捨五入${px === null ? "" : `、この端末では ${px}px`})。円が少しでも帯の線にかかれば高い方の点になります(オールインでは低い方)。右は記入画面で狙うときのサイト(実寸大)`,
+    integerError: (min: number, max: number) => `${min}〜${max}の整数で入力してください`,
     allIn: "オールイン",
     allInHint: `${t.arrow}が帯に完全に入らないと、その帯の点になりません。線にかかれば低い方の点、的の縁にかかれば外れになります`,
     sightPreview: "記入画面のサイト(実寸大)",
