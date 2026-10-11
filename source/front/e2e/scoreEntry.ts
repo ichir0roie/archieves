@@ -5,7 +5,7 @@ const ROUTE_TIMEOUT = 15_000;
 // 的は指の上を狙う(TargetCircleInput の AIM_OFFSET_Y)ので、狙う点よりこのぶん下を押す
 export const AIM_OFFSET_Y = 107;
 
-// 矢の印の半径(TargetCircleInput の ARROW_MARK_SIZE の半分)。点数は矢の縁で決まる(線にかかれば高い方)
+// 既定の矢の半径(scoreConfig の DEFAULT_ARROW_DIAMETER_PX の半分)。点数は矢の縁で決まる(線にかかれば高い方)
 const ARROW_MARK_RADIUS = 5;
 
 export interface GameSetup {
@@ -14,6 +14,8 @@ export interface GameSetup {
   roundSize?: number;
   gameSize?: number;
   targetType?: string;
+  /** 矢の直径(px)。省くと既定の 10px */
+  arrowDiameterPx?: number;
 }
 
 /** 設定の画面を通って、的をタッチする入力の画面に着く。 */
@@ -33,6 +35,9 @@ export async function startGame(page: Page, setup: GameSetup = {}) {
   }
   if (setup.gameSize !== undefined) {
     await page.getByLabel("ラウンド数").selectOption(String(setup.gameSize));
+  }
+  if (setup.arrowDiameterPx !== undefined) {
+    await page.getByLabel("矢の直径").selectOption(String(setup.arrowDiameterPx));
   }
 
   await page.getByRole("button", { name: "ゲーム開始" }).click();

@@ -642,3 +642,30 @@ def test_ranking_follows_the_viewers_own_visibility_too(
     current_user.ranking_visibility = "public"
     s.commit()
     assert _ranked_names(client) == [current_user.name]
+
+
+def test_ranking_shows_only_the_name_and_links_only_visible_profiles(
+    client: TestClient, factories
+) -> None:
+    organization = factories.OrganizationFactory()
+    hidden = factory_db.UserFactory(
+        name="hidden_profile",
+        sub="hidden-sub",
+        organization_id=organization.id,
+        ranking_visibility="public",
+    )
+    shown = factory_db.UserFactory(
+        name="shown_profile",
+        sub="shown-sub",
+        ranking_visibility="public",
+        profile_visibility="public",
+    )
+    for user in (hidden, shown):
+        game = _create_game(client, user_id=user.id)
+        _build_round(client, game["id"], recorded_at=GAME_RECORDED_AT, scores=[5])
+
+    users = {row["user"]["name"]: row["user"] for row in _ranking(client)}
+
+    # 生年月日・所属などのプロフィールは、ランキングには載せない
+    assert users["hidden_profile"] == {"id": hidden.id, "name": "hidden_profile", "sub": None}
+    assert users["shown_profile"] == {"id": shown.id, "name": "shown_profile", "sub": "shown-sub"}
