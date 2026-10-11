@@ -50,6 +50,9 @@ class Game(TimestampMixin, Base):
     arrow_diameter_px: Mapped[int | None] = mapped_column(Integer, default=None)
     # オールイン: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
     all_in: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # あとから入力: スコアの一覧で日付を決めて入れたゲーム。ラウンド・エンド・矢の日付と矢の時刻は、
+    # 編集で足した分も、入れた時でなくゲームの recorded_at にそろえる(フロントの ScoreManager)
+    backfilled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     user: Mapped[User] = relationship(back_populates="games", lazy="noload")
     rounds: Mapped[list[Round]] = relationship(

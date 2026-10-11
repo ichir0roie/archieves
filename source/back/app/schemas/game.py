@@ -29,6 +29,8 @@ class GameBase(BaseModel):
     )
     # オールイン: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
     all_in: bool = False
+    # あとから入力: 日付を決めて入れたゲーム。中の記録の日付・時刻をゲームの日付にそろえる
+    backfilled: bool = False
 
 
 class GameCreate(GameBase):
@@ -45,6 +47,7 @@ class GameUpdate(BaseModel):
     )
     # 列は null を持てないので、None を受けない。送らなければ exclude_unset で書かない
     all_in: bool = False
+    backfilled: bool = False
 
 
 class GameRead(GameBase, ResponseModel):
