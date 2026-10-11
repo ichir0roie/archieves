@@ -111,6 +111,17 @@ export default function AimSettingsModal(props: Props) {
           max={MAX_AIM_DIVISOR}
           hint={T.game.setup.aimDivisorHint(settings.aimDivisor)}
         />
+        <div className="field">
+          <label className="AlwaysShowSightField check-field">
+            <input
+              type="checkbox"
+              checked={settings.alwaysShowSight}
+              onChange={(e) => setSettings({ ...settings, alwaysShowSight: e.target.checked })}
+            />
+            {T.game.setup.alwaysShowSight}
+          </label>
+          <span className="hint">{T.game.setup.alwaysShowSightHint}</span>
+        </div>
       </div>
     </Modal>
   );

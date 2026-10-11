@@ -228,6 +228,8 @@ export interface AimSettings {
   aimDivisor: number;
   /** ズームの直径。記入画面の横幅に対する % */
   lensSizePercent: number;
+  /** 押していないあいだも、ズームの中央の位置にサイトを出しておく */
+  alwaysShowSight: boolean;
 }
 
 export const MIN_LENS_ZOOM = 1;
@@ -247,12 +249,14 @@ export const DEFAULT_AIM_SETTINGS: AimSettings = {
   lensZoom: 4,
   aimDivisor: 3,
   lensSizePercent: 50,
+  alwaysShowSight: false,
 };
 
 export function isValidAimSettings(settings: AimSettings): boolean {
   return (
     isWithin(settings.lensZoom, MIN_LENS_ZOOM, MAX_LENS_ZOOM) &&
     isWithin(settings.aimDivisor, MIN_AIM_DIVISOR, MAX_AIM_DIVISOR) &&
-    isWithin(settings.lensSizePercent, MIN_LENS_SIZE_PERCENT, MAX_LENS_SIZE_PERCENT)
+    isWithin(settings.lensSizePercent, MIN_LENS_SIZE_PERCENT, MAX_LENS_SIZE_PERCENT) &&
+    typeof settings.alwaysShowSight === "boolean"
   );
 }

@@ -202,6 +202,9 @@ table.list th { color: var(--muted); font-weight: 600; background: var(--chip); 
 main { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 10px; }
 /* 画面の中身の幅。スマホで片手で使う画面が多いので、広い画面でも読みやすい幅に止める */
 .page { width: 100%; max-width: 36rem; margin: 0 auto; display: flex; flex-direction: column; gap: 0.9rem; padding-bottom: 5rem; }
+/* ホームは下中央のゲーム開始のボタンの下に行き先が隠れないよう、余白を足す */
+.page:has(> .HomeStart) { padding-bottom: 7rem; }
+.page:has(> .HomeStart .resume) { padding-bottom: 11rem; }
 /* ゲーム設定の開始のボタン。欄をどこまで送っても画面の下に見えている。
    main の余白(10px)のぶん下に浮いて、その隙間に欄が透けるので、bottom と下の余白で埋める */
 .setup-start { position: sticky; bottom: -10px; z-index: 5; padding: 0.6rem 0 calc(0.6rem + 10px); background: var(--bg); }
@@ -212,14 +215,18 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior
 
 /* ホームの見出し */
 .hero { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 1.5rem 0 0.5rem; text-align: center; }
-.hero .logo { width: 3.5rem; height: 3.5rem; border-radius: 16px; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; }
+.hero .logo { display: block; width: 3.5rem; height: 3.5rem; }
 .hero h1 { font-size: 1.6rem; }
 
-/* ホームの行き先のボタン。ゲーム開始を一番大きく、ほかは 2 列に並べる */
+/* ホームの行き先のボタン。2 列に並べる */
 .HomeMenu { display: flex; flex-direction: column; gap: 0.75rem; }
 .HomeMenu a { display: flex; align-items: center; justify-content: center; min-height: 3.5rem; padding: 0.7rem 0.8rem; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); font-weight: 600; text-align: center; }
 .HomeMenu a:hover { border-color: var(--accent); text-decoration: none; }
-.HomeMenu a.start { min-height: 4.5rem; font-size: 1.15rem; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.HomeStart { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 5; width: min(20rem, calc(100% - 160px)); display: flex; flex-direction: column; gap: 0.6rem; }
+.HomeStart a { display: flex; align-items: center; justify-content: center; padding: 0.7rem 0.8rem; border-radius: 999px; font-weight: 700; text-align: center; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); }
+.HomeStart a:hover { text-decoration: none; filter: brightness(1.05); }
+.HomeStart a.start { min-height: 4.5rem; font-size: 1.15rem; background: var(--accent); color: var(--accent-ink); }
+.HomeStart a.resume { min-height: 3.5rem; background: var(--panel); color: var(--ink); border: 2px solid var(--accent); }
 .HomeMenu .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
 /* 管理者の行き先の未対応の件数 */
 .pending-badge { margin-left: 0.4rem; padding: 0.05rem 0.45rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; background: var(--danger); color: #ffffff; }
@@ -316,6 +323,8 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .target-face { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .target-face .target-lens { position: absolute; z-index: 200; border-radius: 999px; overflow: hidden; border: 2px solid var(--line); background: var(--panel); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); pointer-events: none; }
 .target-face .target-lens .lens-content { position: absolute; }
+/* 押していないときはズームを出さず、設定(alwaysShowSight)があればズームの中央の位置にサイトだけを出す。下に帯が無いので、地の色の反転色で描く */
+.target-face .target-lens-idle { position: absolute; z-index: 200; pointer-events: none; --ring: var(--bg); }
 /* 十字は中央の帯(ringClass)の色を反転した色。帯と同じ色で埋もれないようにする */
 /* 円の大きさ(--arrow-size)は、ズームした矢の太さ(ArrowSight)。設定画面のプレビューでも使う */
 .lens-crosshair { --crosshair: rgb(from var(--ring) calc(255 - r) calc(255 - g) calc(255 - b)); position: absolute; left: 50%; top: 50%; width: var(--arrow-size); height: var(--arrow-size); transform: translate(-50%, -50%); border-radius: 999px; border: 2px solid var(--crosshair); z-index: 150; }
