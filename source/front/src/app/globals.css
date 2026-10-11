@@ -242,7 +242,7 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .score-progress { flex: 1; display: flex; justify-content: center; gap: 1rem; font-size: 0.95rem; }
 .score-progress b { font-size: 1.5rem; line-height: 1; }
 .score-progress .full { color: var(--ok); }
-.score-progress .all-in-badge { align-self: center; padding: 0.05rem 0.4rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
+.score-progress .all-in-badge { align-self: center; padding: 0.05rem 0.4rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
 .score-entry .notice { flex-shrink: 0; padding: 0.4rem 1rem; text-align: center; font-size: 0.85rem; font-weight: 600; }
 .score-entry .notice.done { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); color: var(--ok); }
 .score-entry .notice.full { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--accent); }
