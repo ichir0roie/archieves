@@ -147,6 +147,7 @@ export default function Page() {
     String(DEFAULT_ROUND_SETUP.arrowDiameterMm),
   );
   const [targetDiameterPx, setTargetDiameterPx] = useState<number | null>(null);
+  const [allIn, setAllIn] = useState(DEFAULT_ROUND_SETUP.allIn);
   const [otherOpen, setOtherOpen] = useState<"bowType" | "distance" | null>(null);
   const [draftBowName, setDraftBowName] = useState("");
   const [draftDistance, setDraftDistance] = useState(DEFAULT_ROUND_SETUP.distanceM);
@@ -167,6 +168,7 @@ export default function Page() {
     setRoundSizeText(String(saved.roundSize));
     setGameSizeText(String(saved.gameSize));
     setArrowDiameterMmText(String(saved.arrowDiameterMm));
+    setAllIn(saved.allIn);
   }, []);
 
   const bowIsOther = !BOW_TYPES.some((b) => b.id === bowType);
@@ -210,6 +212,7 @@ export default function Page() {
       roundSize,
       gameSize,
       arrowDiameterMm,
+      allIn,
     };
     saveRoundSetup(setup);
     // この画面からは必ず新しいゲームを始める(手元のキャッシュを作り直す)。続きはこの画面を通らない
@@ -305,6 +308,18 @@ export default function Page() {
             </div>
           }
         />
+
+        <div className="field">
+          <label className="AllInField check-field">
+            <input
+              type="checkbox"
+              checked={allIn}
+              onChange={(e) => setAllIn(e.target.checked)}
+            />
+            {T.game.setup.allIn}
+          </label>
+          <span className="hint">{T.game.setup.allInHint}</span>
+        </div>
 
         {endSize !== null && roundSize !== null && gameSize !== null && (
           <p className="SetupSummary game-note muted">

@@ -27,6 +27,8 @@ class GameBase(BaseModel):
     arrow_diameter_mm: int | None = Field(
         default=None, ge=MIN_ARROW_DIAMETER_MM, le=MAX_ARROW_DIAMETER_MM
     )
+    # オールイン: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
+    all_in: bool = False
 
 
 class GameCreate(GameBase):
@@ -41,6 +43,8 @@ class GameUpdate(BaseModel):
     arrow_diameter_mm: int | None = Field(
         default=None, ge=MIN_ARROW_DIAMETER_MM, le=MAX_ARROW_DIAMETER_MM
     )
+    # 列は null を持てないので、None を受けない。送らなければ exclude_unset で書かない
+    all_in: bool = False
 
 
 class GameRead(GameBase, ResponseModel):
