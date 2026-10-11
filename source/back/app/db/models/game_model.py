@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Date,
     DateTime,
     Float,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,6 +48,8 @@ class Game(TimestampMixin, Base):
     # 記入画面で、矢として扱う円の直径(画面の px)。点数の決め方に使う。設定する前の記録は null
     # (画面は既定の大きさで扱う)
     arrow_diameter_px: Mapped[int | None] = mapped_column(Integer, default=None)
+    # オールイン: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
+    all_in: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     user: Mapped[User] = relationship(back_populates="games", lazy="noload")
     rounds: Mapped[list[Round]] = relationship(

@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import EndView from "@/components/EndView";
+import RoundTotalsBar from "@/components/RoundTotalsBar";
 import CommentBar from "@/components/CommentBar";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import { useGuardScoreEntry } from "@/hooks/useGuardScoreEntry";
@@ -37,8 +38,10 @@ export type ScoreInputProps = {
   /** 1エンドが満ちたときの矢の数 */
   endSize: number;
   targetType: string;
-  /** 矢として扱う円の直径(画面の px)。この円が帯の線にかかれば高い方の点数 */
+  /** 矢として扱う円の直径(画面の px)。この円が帯の線にかかれば高い方の点数(allIn なら低い方) */
   arrowDiameterPx: number;
+  /** オールイン: 矢の円が帯に完全に入らなければ、その帯の点にしない */
+  allIn: boolean;
   /** このエンドの矢がすべて入った。残る操作は 次へ / 終了 だけ */
   isEndFull: boolean;
   /** ゲームの矢がすべて入った。次のエンドは無い */
@@ -104,6 +107,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               <b>{progress.arrowCount}</b>/{progress.endSize}
               {T.unit.arrow}
             </span>
+            {manager?.allIn && <span className="AllInBadge all-in-badge">{T.game.entry.allIn}</span>}
           </div>
         )}
       </div>
@@ -113,6 +117,13 @@ export default function ScoreEntryShell({ renderInput }: Props) {
         </div>
       ) : (
         <>
+          {progress && (
+            <RoundTotalsBar
+              roundTotal={progress.roundTotal}
+              endTotals={progress.endTotals}
+              endNumber={progress.endNumber}
+            />
+          )}
           {error && (
             <ApiErrorAlert
               error={error}
@@ -160,6 +171,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               endSize,
               targetType: progress ? manager.targetType : DEFAULT_TARGET_TYPE_ID,
               arrowDiameterPx: manager.arrowDiameterPx,
+              allIn: manager.allIn,
               isEndFull: progress?.isEndFull ?? false,
               isGameComplete: progress?.isGameComplete ?? false,
               disabled: isSaving,
