@@ -13,57 +13,76 @@ import {
   BOW_TYPE_MAX_LENGTH,
   DEFAULT_ROUND_SETUP,
   DISTANCE_PRESETS_M,
-  MAX_ARROW_DIAMETER_PX,
+  MAX_ARROW_DIAMETER_MM,
   MAX_DISTANCE_M,
   MAX_END_SIZE,
   MAX_GAME_SIZE,
   MAX_ROUND_SIZE,
-  MIN_ARROW_DIAMETER_PX,
+  MIN_ARROW_DIAMETER_MM,
   MIN_DISTANCE_M,
   MIN_END_SIZE,
   MIN_GAME_SIZE,
   MIN_ROUND_SIZE,
   TARGET_TYPES,
+  arrowDiameterPx,
   integerRange,
+  resolveTargetType,
   type RoundSetup,
 } from "@/lib/score/scoreConfig";
 import { ScoreManager } from "@/lib/score/scoreManager";
 import {
   loadRoundSetup,
+  loadTargetDiameterPx,
   saveRoundSetup,
 } from "@/lib/storage";
 import { useT } from "@/lib/text";
 
-type CountFieldProps = {
+/** 的の周りの余白(TargetCircleInput の PADDING の 2 倍)。記入画面を開く前の的の大きさの見積もりに使う */
+const TARGET_FACE_PADDING_PX = 48;
+
+/** 入力の文字を、min〜max の整数に読む。読めなければ null。全角の数字も受ける(日本語入力のまま打つため) */
+function parseInteger(text: string, min: number, max: number): number | null {
+  const normalized = text
+    .trim()
+    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+  if (!/^\d+$/.test(normalized)) return null;
+  const value = Number(normalized);
+  return value >= min && value <= max ? value : null;
+}
+
+type IntegerFieldProps = {
   label: string;
-  value: number;
-  onChange: (value: number) => void;
+  value: string;
+  onChange: (value: string) => void;
   min: number;
   max: number;
   hint: string;
+  /** 欄の右に並べるもの(矢の直径のサイトの見本) */
+  aside?: ReactNode;
 };
 
-function CountField(props: CountFieldProps) {
+function IntegerField(props: IntegerFieldProps) {
+  const T = useT();
+  const invalid = parseInteger(props.value, props.min, props.max) === null;
   return (
     <Field
       label={props.label}
       hint={props.hint}
+      error={invalid ? T.game.setup.integerError(props.min, props.max) : null}
     >
       {(id) => (
-        <select
-          id={id}
-          value={props.value}
-          onChange={(e) => props.onChange(Number(e.target.value))}
-        >
-          {integerRange(props.min, props.max).map((n) => (
-            <option
-              key={n}
-              value={n}
-            >
-              {n}
-            </option>
-          ))}
-        </select>
+        <div className="row">
+          <input
+            id={id}
+            type="text"
+            inputMode="numeric"
+            className="grow"
+            value={props.value}
+            onChange={(e) => props.onChange(e.target.value)}
+            aria-invalid={invalid}
+          />
+          {props.aside}
+        </div>
       )}
     </Field>
   );
@@ -120,32 +139,52 @@ export default function Page() {
   const [bowType, setBowType] = useState<string>(DEFAULT_ROUND_SETUP.bowType);
   const [distance, setDistance] = useState(DEFAULT_ROUND_SETUP.distanceM);
   const [targetTypeId, setTargetTypeId] = useState(DEFAULT_ROUND_SETUP.targetType);
-  const [endSize, setEndSize] = useState(DEFAULT_ROUND_SETUP.endSize);
-  const [roundSize, setRoundSize] = useState(DEFAULT_ROUND_SETUP.roundSize);
-  const [gameSize, setGameSize] = useState(DEFAULT_ROUND_SETUP.gameSize);
-  const [arrowDiameterPx, setArrowDiameterPx] = useState(DEFAULT_ROUND_SETUP.arrowDiameterPx);
+  // 数は文字のまま持ち、読めない間は開始させない(打ちかけの空や範囲外も、そのまま見せて直させる)
+  const [endSizeText, setEndSizeText] = useState(String(DEFAULT_ROUND_SETUP.endSize));
+  const [roundSizeText, setRoundSizeText] = useState(String(DEFAULT_ROUND_SETUP.roundSize));
+  const [gameSizeText, setGameSizeText] = useState(String(DEFAULT_ROUND_SETUP.gameSize));
+  const [arrowDiameterMmText, setArrowDiameterMmText] = useState(
+    String(DEFAULT_ROUND_SETUP.arrowDiameterMm),
+  );
+  const [targetDiameterPx, setTargetDiameterPx] = useState<number | null>(null);
   const [otherOpen, setOtherOpen] = useState<"bowType" | "distance" | null>(null);
   const [draftBowName, setDraftBowName] = useState("");
   const [draftDistance, setDraftDistance] = useState(DEFAULT_ROUND_SETUP.distanceM);
 
   // サーバーでの描画中は localStorage を読めないので、前回の設定は画面に載ってから当てる
   useEffect(() => {
+    // 記入画面を一度も開いていなければ、的は画面の幅か高さいっぱいに描かれるものとして見積もる
+    setTargetDiameterPx(
+      loadTargetDiameterPx() ??
+        Math.min(window.innerWidth, window.innerHeight) - TARGET_FACE_PADDING_PX,
+    );
     const saved = loadRoundSetup();
     if (!saved) return;
     setBowType(saved.bowType);
     setDistance(saved.distanceM);
     setTargetTypeId(saved.targetType);
-    setEndSize(saved.endSize);
-    setRoundSize(saved.roundSize);
-    setGameSize(saved.gameSize);
-    setArrowDiameterPx(saved.arrowDiameterPx);
+    setEndSizeText(String(saved.endSize));
+    setRoundSizeText(String(saved.roundSize));
+    setGameSizeText(String(saved.gameSize));
+    setArrowDiameterMmText(String(saved.arrowDiameterMm));
   }, []);
 
   const bowIsOther = !BOW_TYPES.some((b) => b.id === bowType);
   const distanceIsOther = !DISTANCE_PRESETS_M.includes(distance);
   const trimmedDraftBowName = draftBowName.trim();
 
-  const totalArrows = endSize * roundSize * gameSize;
+  const endSize = parseInteger(endSizeText, MIN_END_SIZE, MAX_END_SIZE);
+  const roundSize = parseInteger(roundSizeText, MIN_ROUND_SIZE, MAX_ROUND_SIZE);
+  const gameSize = parseInteger(gameSizeText, MIN_GAME_SIZE, MAX_GAME_SIZE);
+  const arrowDiameterMm = parseInteger(
+    arrowDiameterMmText,
+    MIN_ARROW_DIAMETER_MM,
+    MAX_ARROW_DIAMETER_MM,
+  );
+  const previewArrowPx =
+    arrowDiameterMm !== null && targetDiameterPx !== null
+      ? arrowDiameterPx(arrowDiameterMm, resolveTargetType(targetTypeId).sizeCm, targetDiameterPx)
+      : null;
 
   function openBowOther() {
     setDraftBowName(bowIsOther ? bowType : "");
@@ -158,6 +197,9 @@ export default function Page() {
   }
 
   function start() {
+    if (endSize === null || roundSize === null || gameSize === null || arrowDiameterMm === null) {
+      return;
+    }
     // 入力の途中のゲームの、保存していない記録はキャッシュにしか無い。始めると捨てるので確かめる
     if (ScoreManager.hasUnsavedCache() && !window.confirm(T.game.setup.discardUnsaved)) return;
     const setup: RoundSetup = {
@@ -167,7 +209,7 @@ export default function Page() {
       endSize,
       roundSize,
       gameSize,
-      arrowDiameterPx,
+      arrowDiameterMm,
     };
     saveRoundSetup(setup);
     // この画面からは必ず新しいゲームを始める(手元のキャッシュを作り直す)。続きはこの画面を通らない
@@ -216,79 +258,71 @@ export default function Page() {
             label={T.game.setup.targetType}
           />
         </div>
-        <CountField
+        <IntegerField
           label={T.game.setup.endSize}
-          value={endSize}
-          onChange={setEndSize}
+          value={endSizeText}
+          onChange={setEndSizeText}
           min={MIN_END_SIZE}
           max={MAX_END_SIZE}
           hint={T.game.setup.endSizeHint}
         />
-        <CountField
+        <IntegerField
           label={T.game.setup.roundSize}
-          value={roundSize}
-          onChange={setRoundSize}
+          value={roundSizeText}
+          onChange={setRoundSizeText}
           min={MIN_ROUND_SIZE}
           max={MAX_ROUND_SIZE}
           hint={T.game.setup.roundSizeHint}
         />
-        <CountField
+        <IntegerField
           label={T.game.setup.gameSize}
-          value={gameSize}
-          onChange={setGameSize}
+          value={gameSizeText}
+          onChange={setGameSizeText}
           min={MIN_GAME_SIZE}
           max={MAX_GAME_SIZE}
           hint={T.game.setup.gameSizeHint}
         />
-
-        <Field
+        <IntegerField
           label={T.game.setup.arrowDiameter}
-          hint={T.game.setup.arrowDiameterHint}
-        >
-          {(id) => (
-            <div className="row">
-              <select
-                id={id}
-                className="grow"
-                value={arrowDiameterPx}
-                onChange={(e) => setArrowDiameterPx(Number(e.target.value))}
-              >
-                {integerRange(MIN_ARROW_DIAMETER_PX, MAX_ARROW_DIAMETER_PX).map((n) => (
-                  <option
-                    key={n}
-                    value={n}
-                  >
-                    {n}px
-                  </option>
-                ))}
-              </select>
-              {/* 記入画面のズームに出すのと同じ部品・同じ大きさ。帯の線への届き方を設定する前に見られる */}
-              <div
-                className="SightPreview sight-preview ring-gold"
-                role="img"
-                aria-label={T.game.setup.sightPreview}
-              >
+          value={arrowDiameterMmText}
+          onChange={setArrowDiameterMmText}
+          min={MIN_ARROW_DIAMETER_MM}
+          max={MAX_ARROW_DIAMETER_MM}
+          hint={T.game.setup.arrowDiameterHint(previewArrowPx)}
+          aside={
+            // 記入画面のズームに出すのと同じ部品・同じ大きさ。帯の線への届き方を設定する前に見られる
+            <div
+              className="SightPreview sight-preview ring-gold"
+              role="img"
+              aria-label={T.game.setup.sightPreview}
+            >
+              {previewArrowPx !== null && (
                 <ArrowSight
-                  arrowDiameterPx={arrowDiameterPx}
+                  arrowDiameterPx={previewArrowPx}
                   ringClassName="ring-gold"
                 />
-              </div>
+              )}
             </div>
-          )}
-        </Field>
+          }
+        />
 
-        <p className="SetupSummary game-note muted">
-          {T.game.setup.summary(
-            totalArrows,
-            String(endSize),
-            String(roundSize),
-            String(gameSize),
-          )}
-        </p>
+        {endSize !== null && roundSize !== null && gameSize !== null && (
+          <p className="SetupSummary game-note muted">
+            {T.game.setup.summary(
+              endSize * roundSize * gameSize,
+              String(endSize),
+              String(roundSize),
+              String(gameSize),
+            )}
+          </p>
+        )}
 
         <button
           type="button"
           className="primary large block"
+          disabled={
+            endSize === null || roundSize === null || gameSize === null || arrowDiameterMm === null
+          }
           onClick={start}
         >
           {T.game.setup.start}

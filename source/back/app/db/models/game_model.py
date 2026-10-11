@@ -43,9 +43,9 @@ class Game(TimestampMixin, Base):
     # 入力の画面が新しいゲームに付けるキー。一括の保存(PUT /games/sheet)の応答を失って送り直しても、
     # 同じゲームを上書きして二つ作らないために使う。画面を通らずに作ったゲームは null
     client_key: Mapped[str | None] = mapped_column(String(64), default=None)
-    # 記入画面で、矢として扱う円の直径(画面の px)。点数の決め方に使う。設定する前の記録は null
-    # (画面は既定の大きさで扱う)
-    arrow_diameter_px: Mapped[int | None] = mapped_column(Integer, default=None)
+    # 矢の直径(mm)。記入画面が的の大きさとの比で px に直し、点数の決め方に使う。設定する前の記録は null
+    # (画面は既定の太さで扱う)
+    arrow_diameter_mm: Mapped[int | None] = mapped_column(Integer, default=None)
 
     user: Mapped[User] = relationship(back_populates="games", lazy="noload")
     rounds: Mapped[list[Round]] = relationship(

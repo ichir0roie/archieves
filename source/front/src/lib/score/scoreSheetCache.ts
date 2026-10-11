@@ -45,8 +45,8 @@ export interface Sheet {
   recorded_at: string;
   game_size: number | null;
   bow_type: string | null;
-  /** 記入画面で矢として扱う円の直径(画面の px)。null は既定の大きさ */
-  arrow_diameter_px: number | null;
+  /** 矢の直径(mm)。null は既定の太さ */
+  arrow_diameter_mm: number | null;
   comment: string | null;
   rounds: Array<SheetRound>;
 }
