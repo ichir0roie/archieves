@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, Suspense, useEffect, useState } from "react";
+import { Fragment, Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import ArrowMap, { hasPosition } from "@/components/ArrowMap";
@@ -34,7 +34,29 @@ import { ScoreManager } from "@/lib/score/scoreManager";
 import { useT } from "@/lib/text";
 import { useRunOnce } from "@/lib/useRunOnce";
 
-const NO_COMMENTS: GameComments = { game: null, rounds: [], ends: [] };
+/** 画面に出すコメントの文。ラウンド・エンドは id ごと */
+type CommentTexts = {
+  game: string | null;
+  rounds: Record<number, string>;
+  ends: Record<number, string>;
+};
+
+const NO_COMMENTS: CommentTexts = { game: null, rounds: {}, ends: {} };
+
+function toCommentTexts(comments: GameComments): CommentTexts {
+  return {
+    game: comments.game?.body ?? null,
+    rounds: Object.fromEntries(comments.rounds.map((c) => [c.round_id, c.body])),
+    ends: Object.fromEntries(comments.ends.map((c) => [c.end_id, c.body])),
+  };
+}
+
+function withBody(bodies: Record<number, string>, id: number, body: string | null) {
+  const next = { ...bodies };
+  if (body === null) delete next[id];
+  else next[id] = body;
+  return next;
+}
 
 /** ラウンドの一エンドと、そこに記録した矢。 */
 type ViewEnd = {
@@ -67,7 +89,10 @@ function ScoreViewContent() {
   const T = useT();
   const [gameId, setGameId] = useState<number | null>(null);
   const [rounds, setRounds] = useState<Array<ViewRound> | null>(null);
-  const [comments, setComments] = useState<GameComments>(NO_COMMENTS);
+  const [comments, setComments] = useState<CommentTexts>(NO_COMMENTS);
+  // コメントの書き込みは置き場所(ゲーム・ラウンド・エンド)ごとに順に流す。続けて書き換えたときに、
+  // 古い書き込みが後から着いて新しい文を上書きしないように
+  const commentWrites = useRef(new Map<string, Promise<void>>());
   const [error, setError] = useState<ErrorDetails | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -98,7 +123,7 @@ function ScoreViewContent() {
       ]);
       setGameId(game.id);
       setRounds(loadedRounds);
-      setComments(loadedComments);
+      setComments(toCommentTexts(loadedComments));
     } catch (e) {
       setError(toErrorDetails(e));
     }
@@ -109,73 +134,68 @@ function ScoreViewContent() {
     runOnMount();
   }, [runOnMount]);
 
-  // 空の文字はコメントを消し、それ以外はゲーム・ラウンド・エンドに保存済みのものを置き換える。
-  // 失敗は投げ直し、書けなかったのに編集のモーダルが閉じて文字が消えないようにする
-  async function saveComment(save: () => Promise<void>) {
+  /**
+   * コメントを、押した時点で画面に出し、API へは裏で書く(書き終わるまで待たせない)。空の文は消す。
+   * 書けなかったときはエラーを出し、画面のコメントを API から読み直して、書けた所に戻す。
+   */
+  function saveCommentInBackground(
+    key: string,
+    previous: string | null,
+    body: string,
+    write: (body: string | null) => Promise<unknown>,
+    show: (body: string | null) => void,
+  ) {
+    const next = body.length === 0 ? null : body;
+    if (next === previous) return;
     setError(null);
-    try {
-      await save();
-    } catch (e) {
-      setError(toErrorDetails(e));
-      throw e;
-    }
+    show(next);
+    const queued = (commentWrites.current.get(key) ?? Promise.resolve())
+      .then(() => write(next))
+      .then(
+        () => undefined,
+        async (e) => {
+          setError(toErrorDetails(e));
+          if (gameId === null) return;
+          try {
+            setComments(toCommentTexts(await listGameComments(gameId)));
+          } catch {
+            // 読み直せなくても、エラーは出ている
+          }
+        },
+      );
+    commentWrites.current.set(key, queued);
   }
 
   async function onSaveGameComment(body: string) {
     if (gameId === null) return;
-    await saveComment(async () => {
-      if (body.length === 0) {
-        if (comments.game === null) return;
-        await deleteGameComment(gameId);
-        setComments((current) => ({ ...current, game: null }));
-        return;
-      }
-      const saved = await saveGameComment(gameId, body);
-      setComments((current) => ({ ...current, game: saved }));
-    });
+    saveCommentInBackground(
+      "game",
+      comments.game,
+      body,
+      (next) => (next === null ? deleteGameComment(gameId) : saveGameComment(gameId, next)),
+      (next) => setComments((current) => ({ ...current, game: next })),
+    );
   }
 
   async function onSaveRoundComment(roundId: number, body: string) {
-    await saveComment(async () => {
-      const without = comments.rounds.filter((c) => c.round_id !== roundId);
-      if (body.length === 0) {
-        if (without.length === comments.rounds.length) return;
-        await deleteRoundComment(roundId);
-        setComments((current) => ({
-          ...current,
-          rounds: current.rounds.filter((c) => c.round_id !== roundId),
-        }));
-        return;
-      }
-      const saved = await saveRoundComment(roundId, body);
-      setComments((current) => ({
-        ...current,
-        rounds: [
-          ...current.rounds.filter((c) => c.round_id !== roundId),
-          saved,
-        ],
-      }));
-    });
+    saveCommentInBackground(
+      `round:${roundId}`,
+      comments.rounds[roundId] ?? null,
+      body,
+      (next) => (next === null ? deleteRoundComment(roundId) : saveRoundComment(roundId, next)),
+      (next) =>
+        setComments((current) => ({ ...current, rounds: withBody(current.rounds, roundId, next) })),
+    );
   }
 
   async function onSaveEndComment(endId: number, body: string) {
-    await saveComment(async () => {
-      const without = comments.ends.filter((c) => c.end_id !== endId);
-      if (body.length === 0) {
-        if (without.length === comments.ends.length) return;
-        await deleteEndComment(endId);
-        setComments((current) => ({
-          ...current,
-          ends: current.ends.filter((c) => c.end_id !== endId),
-        }));
-        return;
-      }
-      const saved = await saveEndComment(endId, body);
-      setComments((current) => ({
-        ...current,
-        ends: [...current.ends.filter((c) => c.end_id !== endId), saved],
-      }));
-    });
+    saveCommentInBackground(
+      `end:${endId}`,
+      comments.ends[endId] ?? null,
+      body,
+      (next) => (next === null ? deleteEndComment(endId) : saveEndComment(endId, next)),
+      (next) => setComments((current) => ({ ...current, ends: withBody(current.ends, endId, next) })),
+    );
   }
 
   // 入力の画面は手元のキャッシュから開く。ここで API から丸ごと読んでキャッシュを作り直し、
@@ -185,6 +205,8 @@ function ScoreViewContent() {
     if (ScoreManager.hasUnsavedCache() && !window.confirm(T.profile.scoreView.discardUnsaved)) return;
     setError(null);
     try {
+      // 裏で書いているコメントが API に届いてから読む。でないと編集の保存で、そのコメントを消してしまう
+      await Promise.all(commentWrites.current.values());
       await ScoreManager.startEditing(gameId);
       router.push("/game/score-card");
     } catch (e) {
@@ -207,11 +229,11 @@ function ScoreViewContent() {
   }
 
   function endComment(endId: number): string | null {
-    return comments.ends.find((c) => c.end_id === endId)?.body ?? null;
+    return comments.ends[endId] ?? null;
   }
 
   function roundComment(roundId: number): string | null {
-    return comments.rounds.find((c) => c.round_id === roundId)?.body ?? null;
+    return comments.rounds[roundId] ?? null;
   }
 
   return (
@@ -247,7 +269,7 @@ function ScoreViewContent() {
           {rounds.length > 0 && (
             <GameSummary
               rounds={rounds}
-              comment={comments.game?.body ?? null}
+              comment={comments.game}
               onSaveComment={onSaveGameComment}
               onEdit={editGame}
             />

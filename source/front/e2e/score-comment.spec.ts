@@ -130,3 +130,48 @@ test("コメント枠のどこを押しても入力できる", async ({ page }) 
   await page.locator(".CommentBar .CommentText").first().click();
   await expect(page.getByRole("dialog")).toBeVisible();
 });
+
+test("a comment on the score view shows at once and is written in the background", async ({
+  page,
+}) => {
+  await startGame(page);
+  await shoot(page, "9", 1);
+  await page.getByRole("button", { name: "終了" }).click();
+  await expect(page).toHaveURL(/\/score-view\?gameId=/, { timeout: ROUTE_TIMEOUT });
+
+  // API の応答を遅らせても、保存を押した時点で画面に出る(モーダルも待たずに閉じる)
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/v1/games/*/comment", async (route) => {
+    await held;
+    await route.continue();
+  });
+  const written = page.waitForResponse(
+    (r) => r.request().method() === "PUT" && /\/games\/\d+\/comment$/.test(r.url()),
+  );
+  await writeComment(page, "ゲーム", "すぐ出る");
+  await expect(page.locator(".GameComment")).toContainText("すぐ出る");
+  release();
+  expect((await written).status()).toBe(200);
+
+  await page.unroute("**/api/v1/games/*/comment");
+  await reloadPage(page);
+  await expect(page.locator(".GameComment")).toContainText("すぐ出る", { timeout: ROUTE_TIMEOUT });
+});
+
+test("a score view comment that could not be written goes back and says so", async ({ page }) => {
+  await startGame(page);
+  await shoot(page, "9", 1);
+  await page.getByRole("button", { name: "終了" }).click();
+  await expect(page).toHaveURL(/\/score-view\?gameId=/, { timeout: ROUTE_TIMEOUT });
+  await expect(page.locator("table")).toBeVisible({ timeout: ROUTE_TIMEOUT });
+
+  await page.route("**/api/v1/rounds/*/comment", (route) => route.abort("internetdisconnected"));
+  await writeComment(page, "ラウンド 1", "届かない");
+
+  // 書けなかったので API から読み直し、書けた所(コメントなし)に戻る
+  await expect(page.locator(".api-error")).toBeVisible({ timeout: ROUTE_TIMEOUT });
+  await expect(page.locator(".RoundComment")).toHaveCount(0);
+});

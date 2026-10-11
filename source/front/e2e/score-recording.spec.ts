@@ -426,7 +426,7 @@ test("an arrow touching a line scores the higher ring", async ({ page }) => {
   const centre = { x: nine.x + nine.width / 2, y: nine.y + nine.height / 2 };
   const nineOuterRadius = nine.width / 2;
 
-  // 矢の印の直径は 10px(TargetCircleInput の ARROW_MARK_SIZE)。中心が 9 と 8 の線の
+  // 矢の直径は既定で 10px(scoreConfig の DEFAULT_ARROW_DIAMETER_PX)。中心が 9 と 8 の線の
   // 3px 外でも、縁が線にかかるので 9。7px 外なら線にかからないので 8
   await page.mouse.click(centre.x + nineOuterRadius + 3, centre.y + AIM_OFFSET_Y);
   await expect(recordedArrows(page)).toHaveText(["9"]);
@@ -438,4 +438,28 @@ test("an arrow touching a line scores the higher ring", async ({ page }) => {
   if (!one) throw new Error("1 ring not laid out");
   await page.mouse.click(centre.x + one.width / 2 + 3, centre.y + AIM_OFFSET_Y);
   await expect(recordedArrows(page)).toHaveText(["9", "8", "1"]);
+});
+
+test("the arrow diameter set for the game sizes the sight and decides line touches", async ({
+  page,
+}) => {
+  await page.goto("/game/setup");
+  await page.getByLabel("矢の直径").selectOption("20");
+  // 設定画面の見本は、記入画面のサイトと同じ大きさ(直径 × ズームの倍率 2.5)
+  const preview = await page.locator(".SightPreview .ArrowSight").boundingBox();
+  expect(preview?.width).toBeCloseTo(50, 0);
+
+  await startGame(page, { endSize: 3, arrowDiameterPx: 20 });
+  const nine = await ringButton(page, "9").boundingBox();
+  if (!nine) throw new Error("9 ring not laid out");
+  const centre = { x: nine.x + nine.width / 2, y: nine.y + nine.height / 2 };
+
+  // 直径 20px なら、中心が 9 と 8 の線の 8px 外でも縁がかかるので 9(既定の 10px なら 8)
+  await page.mouse.click(centre.x + nine.width / 2 + 8, centre.y + AIM_OFFSET_Y);
+  await expect(recordedArrows(page)).toHaveText(["9"]);
+
+  // 直径はゲームに保存され、編集で開き直しても同じ大きさで採点する
+  const saved = await saveSheet(page);
+  const game = await (await page.request.get(`/api/v1/games/${saved.id}`)).json();
+  expect(game.arrow_diameter_px).toBe(20);
 });

@@ -4,10 +4,12 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.core.bow_types import BOW_TYPE_MAX_LENGTH
 from app.core.scoring import (
+    MAX_ARROW_DIAMETER_PX,
     MAX_DISTANCE_M,
     MAX_END_SIZE,
     MAX_GAME_SIZE,
     MAX_ROUND_SIZE,
+    MIN_ARROW_DIAMETER_PX,
     MISS_SCORE,
     X_SCORE,
 )
@@ -21,6 +23,10 @@ class GameBase(BaseModel):
     game_size: int | None = None
     # プリセット(BowType)以外の弓は自由入力の名前で持つ。ランキングの絞り込みは BowType だけ
     bow_type: str | None = Field(default=None, min_length=1, max_length=BOW_TYPE_MAX_LENGTH)
+    # 記入画面で矢として扱う円の直径(画面の px)。null は既定の大きさ
+    arrow_diameter_px: int | None = Field(
+        default=None, ge=MIN_ARROW_DIAMETER_PX, le=MAX_ARROW_DIAMETER_PX
+    )
 
 
 class GameCreate(GameBase):
@@ -32,6 +38,9 @@ class GameUpdate(BaseModel):
     recorded_at: date | None = None
     game_size: int | None = Field(default=None, ge=1, le=MAX_GAME_SIZE)
     bow_type: str | None = Field(default=None, min_length=1, max_length=BOW_TYPE_MAX_LENGTH)
+    arrow_diameter_px: int | None = Field(
+        default=None, ge=MIN_ARROW_DIAMETER_PX, le=MAX_ARROW_DIAMETER_PX
+    )
 
 
 class GameRead(GameBase, ResponseModel):

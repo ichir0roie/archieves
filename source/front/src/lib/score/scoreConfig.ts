@@ -29,6 +29,15 @@ export const MIN_DISTANCE_M = 1;
 export const MAX_DISTANCE_M = 100;
 
 /**
+ * 記入画面で矢として扱う円の直径(画面の px)。点数は、この円が少しでも帯の線にかかれば高い方。
+ * 本物の矢の太さ(5mm ほど)を画面に縮めると 1px ほどで見えないので、画面の上の大きさで決める。
+ * API の app/core/scoring.py の MIN/MAX_ARROW_DIAMETER_PX と揃える
+ */
+export const DEFAULT_ARROW_DIAMETER_PX = 10;
+export const MIN_ARROW_DIAMETER_PX = 2;
+export const MAX_ARROW_DIAMETER_PX = 40;
+
+/**
  * `Point.score` stores the ring an arrow landed in, not the points it is
  * worth: 11 is X (the inner ten, worth 10 - the X count only breaks ties)
  * and 0 is M (a miss). Use scoreToInt() to turn a stored ring into points.
@@ -135,6 +144,8 @@ export interface RoundSetup {
   endSize: number;
   roundSize: number;
   gameSize: number;
+  /** 記入画面で矢として扱う円の直径(画面の px) */
+  arrowDiameterPx: number;
 }
 
 export const DEFAULT_ROUND_SETUP: RoundSetup = {
@@ -144,6 +155,7 @@ export const DEFAULT_ROUND_SETUP: RoundSetup = {
   endSize: DEFAULT_END_SIZE,
   roundSize: DEFAULT_ROUND_SIZE,
   gameSize: DEFAULT_GAME_SIZE,
+  arrowDiameterPx: DEFAULT_ARROW_DIAMETER_PX,
 };
 
 function isBowName(value: unknown): value is string {
@@ -162,6 +174,7 @@ export function isValidRoundSetup(setup: RoundSetup): boolean {
     isWithin(setup.endSize, MIN_END_SIZE, MAX_END_SIZE) &&
     isWithin(setup.roundSize, MIN_ROUND_SIZE, MAX_ROUND_SIZE) &&
     isWithin(setup.gameSize, MIN_GAME_SIZE, MAX_GAME_SIZE) &&
+    isWithin(setup.arrowDiameterPx, MIN_ARROW_DIAMETER_PX, MAX_ARROW_DIAMETER_PX) &&
     getTargetType(setup.targetType) !== undefined
   );
 }
