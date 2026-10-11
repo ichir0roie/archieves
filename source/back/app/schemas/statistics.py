@@ -2,7 +2,6 @@ from datetime import date
 from enum import StrEnum
 
 from app.schemas.base import ResponseModel
-from app.schemas.user import UserRead
 
 
 class ScoreStatistics(ResponseModel):
@@ -55,11 +54,21 @@ class RankingMetric(StrEnum):
     AVERAGE_POINT_SCORE = "average_point_score"
 
 
+class RankedUser(ResponseModel):
+    """ランキングに載せる利用者。名前だけを見せ、生年月日・所属などのプロフィールは載せない
+    (ランキングは公開していても、プロフィールは非公開の人がいる)。"""
+
+    id: int
+    name: str
+    # プロフィールへのリンク先。プロフィールを見る人に見せていない利用者は null
+    sub: str | None
+
+
 class UserRanking(ResponseModel):
     """metric の値が高い順の、利用者の順位。"""
 
     rank: int
-    user: UserRead
+    user: RankedUser
     # metric の値。total_score なら合計点、平均なら平均点。
     value: float
     round_count: int

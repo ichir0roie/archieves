@@ -5772,6 +5772,37 @@
         "type": "object",
         "title": "PointUpdate"
       },
+      "RankedUser": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sub": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sub"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "sub"
+        ],
+        "title": "RankedUser",
+        "description": "ランキングに載せる利用者。名前だけを見せ、生年月日・所属などのプロフィールは載せない\n(ランキングは公開していても、プロフィールは非公開の人がいる)。"
+      },
       "RankingMetric": {
         "type": "string",
         "enum": [
@@ -6458,7 +6489,7 @@
             "title": "Rank"
           },
           "user": {
-            "$ref": "#/components/schemas/UserRead"
+            "$ref": "#/components/schemas/RankedUser"
           },
           "value": {
             "type": "number",
