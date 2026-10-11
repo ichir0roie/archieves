@@ -362,8 +362,8 @@ def delete_end(s: Session, end: End) -> None:
 
 
 def point_cm(round_: Round | None, x: float, y: float) -> tuple[float | None, float | None]:
-    """x/y are the fraction (0-1, top-left origin) of the target face the
-    arrow was tapped in, so (0.5, 0.5) is its center and the offset from
+    """x/y are the fraction (top-left origin; 0-1 spans the target face,
+    misses outside it go beyond) of the target face, so (0.5, 0.5) is its center and the offset from
     there scales directly by the face's real size. (0, 0) is what the
     score-only input mode sends when no tap ever happened, so it carries no
     position at all."""
