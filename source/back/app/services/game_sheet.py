@@ -189,6 +189,7 @@ def save_game_sheet(s: Session, me: User, sheet_in: GameSheetWrite) -> Game:
     game.recorded_at = sheet_in.recorded_at
     game.game_size = sheet_in.game_size
     game.bow_type = sheet_in.bow_type
+    game.arrow_diameter_px = sheet_in.arrow_diameter_px
     s.flush()
     _save_game_comment(s, game, sheet_in.comment)
     _save_rounds(s, game, sheet_in.rounds)
@@ -243,6 +244,7 @@ def read_game_sheet(s: Session, game: Game) -> GameSheetRead:
         recorded_at=game.recorded_at,
         game_size=game.game_size,
         bow_type=game.bow_type,
+        arrow_diameter_px=game.arrow_diameter_px,
         comment=game_comment.body if game_comment else None,
         rounds=rounds,
     )
