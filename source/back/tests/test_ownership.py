@@ -87,6 +87,16 @@ def test_cannot_create_a_game_for_another_user(client: TestClient, others: dict)
     assert response.status_code == 403
 
 
+def test_cannot_save_a_sheet_into_another_users_game(client: TestClient, others: dict) -> None:
+    response = client.put(
+        "/api/v1/games/sheet",
+        json={"id": others["game"].id, "recorded_at": RECORDED_AT},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Not allowed to access another user's data"}
+
+
 def test_cannot_hand_my_game_to_another_user(
     client: TestClient, current_user, others: dict, factories
 ) -> None:
@@ -109,7 +119,11 @@ def test_trash_of_another_user_is_forbidden(client: TestClient, others: dict) ->
 def test_a_user_without_a_registered_row_is_not_found(
     unregistered_client: TestClient,
 ) -> None:
-    assert unregistered_client.get("/api/v1/games").status_code == 404
+    response = unregistered_client.get("/api/v1/games")
+
+    assert response.status_code == 404
+    # 他人の行が無いときの "User not found" と分ける(フロントはこれで登録の画面へ送る)
+    assert response.json()["detail"] == "Current user not registered"
 
 
 OTHER_USER_STATISTICS_PATHS = [

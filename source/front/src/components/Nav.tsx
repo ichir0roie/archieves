@@ -6,12 +6,12 @@ import { useEffect, useRef, useState } from "react";
 import { useSignOut } from "@/components/AuthGate";
 import { useCachedAppUser } from "@/hooks/useCachedAppUser";
 import { isMockAuth } from "@/lib/auth/config";
-import { DESTINATIONS } from "@/lib/destinations";
+import { DESTINATIONS, SCORE_CARD_PATH, type Destination } from "@/lib/destinations";
 import { useMenuPosition } from "@/lib/menuPosition";
 import { useT } from "@/lib/text";
 
 // 点数の入力の画面は画面全体をキーと的に使い、右下のボタンがキーに重なるので出さない(戻るは画面の ✕)
-const FULL_SCREEN_PATHS = ["/game/score-card"];
+const FULL_SCREEN_PATHS = [SCORE_CARD_PATH];
 
 /** 画面の隅に小さな丸いメニューボタンを浮かべ(位置は設定画面で選ぶ。未設定ならデスクトップは左上、スマホは右下)、押したときだけメニューを開く。
  * 開いたメニューは、外を押す、Esc、リンクを押す、のいずれかで閉じる。 */
@@ -46,6 +46,18 @@ export default function Nav() {
   }, [open]);
 
   if (FULL_SCREEN_PATHS.includes(pathname)) return null;
+
+  function link(item: Destination) {
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={pathname.startsWith(item.href) ? "active" : ""}
+      >
+        {T.nav[item.label]}
+      </Link>
+    );
+  }
 
   return (
     <nav
@@ -87,24 +99,11 @@ export default function Nav() {
           >
             {T.appName}
           </Link>
-          {DESTINATIONS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={pathname.startsWith(item.href) ? "active" : ""}
-            >
-              {T.nav[item.label]}
-            </Link>
-          ))}
+          {DESTINATIONS.filter((item) => !item.adminOnly).map(link)}
           {me?.isAdmin && (
             <>
               <hr />
-              <Link
-                href="/admin/feedbacks"
-                className={pathname.startsWith("/admin/feedbacks") ? "active" : ""}
-              >
-                {T.nav.adminFeedback}
-              </Link>
+              {DESTINATIONS.filter((item) => item.adminOnly).map(link)}
             </>
           )}
           {!isMockAuth() && (

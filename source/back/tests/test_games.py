@@ -483,3 +483,49 @@ def test_trash_games_filters_by_user(client: TestClient, factories) -> None:
 
     assert client.get("/api/v1/trash/games").json() == res.json()
     assert client.get(f"/api/v1/trash/games?user_id={other_game.user_id}").status_code == 403
+
+
+@pytest.mark.parametrize(
+    ("kind", "field"),
+    [
+        ("rounds", "number"),
+        ("rounds", "recorded_at"),
+        ("rounds", "end_size"),
+        ("rounds", "distance_m"),
+        ("rounds", "target_type"),
+        ("ends", "number"),
+        ("ends", "recorded_at"),
+        ("points", "number"),
+        ("points", "score"),
+        ("points", "x"),
+        ("points", "y"),
+        ("points", "recorded_at"),
+    ],
+)
+def test_update_rejects_null_for_a_required_column(
+    client: TestClient,
+    current_user,
+    factories,
+    kind: str,
+    field: str,
+) -> None:
+    # 列は NOT NULL なので、null を通すと書くときに 500 になる
+    game = factories.GameFactory(user=current_user)
+    point = factories.PointFactory(end__round__game=game)
+    row_id = {
+        "rounds": point.end.round.id,
+        "ends": point.end.id,
+        "points": point.id,
+    }[kind]
+
+    assert client.patch(f"/api/v1/{kind}/{row_id}", json={field: None}).status_code == 422
+
+
+def test_update_point_can_clear_the_shot_time(client: TestClient, current_user, factories) -> None:
+    game = factories.GameFactory(user=current_user)
+    point = factories.PointFactory(end__round__game=game)
+
+    response = client.patch(f"/api/v1/points/{point.id}", json={"shot_at": None})
+
+    assert response.status_code == 200
+    assert response.json()["shot_at"] is None

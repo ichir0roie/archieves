@@ -1,10 +1,14 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import {
+  DEFAULT_ARROW_DIAMETER_MM,
+  DEFAULT_TARGET_TYPE_ID,
+  arrowDiameterPx as toArrowDiameterPx,
+  resolveTargetType,
+} from "../src/lib/score/scoreConfig";
 
 const ROUTE_TIMEOUT = 15_000;
 
-// 既定の矢の直径(scoreConfig の DEFAULT_ARROW_DIAMETER_MM)と、既定の的の実寸
-const DEFAULT_ARROW_DIAMETER_MM = 5;
-const DEFAULT_TARGET_SIZE_CM = 122;
+const DEFAULT_TARGET_SIZE_CM = resolveTargetType(DEFAULT_TARGET_TYPE_ID).sizeCm;
 
 export interface GameSetup {
   bowType?: string;
@@ -53,17 +57,14 @@ export function ringButton(page: Page, label: string) {
   return page.getByRole("button", { name: `${point}点`, exact: true });
 }
 
-/**
- * 記入画面が矢として扱う円の直径(px)。的(1 点の帯の外径)の大きさとの比で mm を直し、四捨五入する
- * (scoreConfig の arrowDiameterPx)
- */
+/** 記入画面が矢として扱う円の直径(px)。的(1 点の帯の外径)の大きさとの比で mm を直す */
 export async function arrowDiameterPx(
   page: Page,
   arrowDiameterMm = DEFAULT_ARROW_DIAMETER_MM,
   targetSizeCm = DEFAULT_TARGET_SIZE_CM,
 ) {
   const face = await settledBoundingBox(ringButton(page, "1"));
-  return Math.max(Math.round((arrowDiameterMm / (targetSizeCm * 10)) * face.width), 1);
+  return toArrowDiameterPx(arrowDiameterMm, targetSizeCm, face.width);
 }
 
 /** 画面に並ぶ、今のエンドの矢。 */

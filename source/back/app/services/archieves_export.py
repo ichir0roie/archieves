@@ -3,7 +3,7 @@
 ファイルは他のアプリや AI がそのまま読めるよう、何がどの単位で入っていて、表どうしがどう繋がるかを
 ファイルの中に持たせる(`_about`・`_columns` の表と、`sqlite_master.sql` に残る CREATE 文の
 コメント)。
-形を変えたら `FORMAT_VERSION` を上げ、取り込み側で古い版をどう読むかを決める。
+形を変えたら `FORMAT_VERSION` を上げ、取り込み側で古いバージョンをどう読むかを決める。
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from datetime import date, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.scoring import MAX_ARROW_DIAMETER_MM, MIN_ARROW_DIAMETER_MM
 from app.core.timezone import JST
 from app.crud.game import point_cm
 from app.db import End, Game, Point, Round
@@ -478,6 +479,20 @@ def _read(conn: sqlite3.Connection, table: str) -> list[sqlite3.Row]:
     return conn.execute(f"SELECT * FROM {table} ORDER BY rowid").fetchall()
 
 
+def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    """表の列の名前。古いバージョンのファイルに無い列を、行ごとでなく表ごとに一度だけ見分ける。"""
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _arrow_diameter_mm(value: int | None) -> int | None:
+    """ファイルの矢の直径。API で書けない値(範囲外)は、画面が扱えないので取り込まない。"""
+    if value is not None and not MIN_ARROW_DIAMETER_MM <= value <= MAX_ARROW_DIAMETER_MM:
+        raise ValueError(
+            f"Malformed archieves export file: arrow_diameter_mm {value} is out of range"
+        )
+    return value
+
+
 def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportSummary:
     """`export_sqlite` のファイルを、本人の新しい記録として足す。
 
@@ -495,6 +510,10 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
     conn.row_factory = sqlite3.Row
     with s.begin_nested():
         try:
+            game_columns = _columns(conn, "games")
+            has_arrow_diameter = "arrow_diameter_mm" in game_columns
+            has_all_in = "all_in" in game_columns
+            has_backfilled = "backfilled" in game_columns
             games: dict[int, Game] = {}
             for r in _read(conn, "games"):
                 games[r["id"]] = Game(
@@ -503,10 +522,10 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
                     game_size=r["game_size"],
                     bow_type=r["bow_type"],
                     arrow_diameter_mm=(
-                        r["arrow_diameter_mm"] if "arrow_diameter_mm" in r.keys() else None
+                        _arrow_diameter_mm(r["arrow_diameter_mm"]) if has_arrow_diameter else None
                     ),
-                    all_in=bool(r["all_in"]) if "all_in" in r.keys() else False,
-                    backfilled=bool(r["backfilled"]) if "backfilled" in r.keys() else False,
+                    all_in=bool(r["all_in"]) if has_all_in else False,
+                    backfilled=bool(r["backfilled"]) if has_backfilled else False,
                 )
             s.add_all(games.values())
             s.flush()
@@ -540,9 +559,10 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
             s.add_all(ends.values())
             s.flush()
 
+            has_shot_at = "shot_at" in _columns(conn, "points")
             points = []
             for r in _read(conn, "points"):
-                shot_at = r["shot_at"] if "shot_at" in r.keys() else None
+                shot_at = r["shot_at"] if has_shot_at else None
                 # x_cm・y_cm はファイルの値を信じず、的の種類から計算し直す
                 x_cm, y_cm = point_cm(round_of_end[r["end_id"]], r["x"], r["y"])
                 points.append(

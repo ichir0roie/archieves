@@ -2,6 +2,8 @@ import { terms as t } from "./terms";
 
 /** game の画面(app/game/*・点数の入力・コメント)の文言。 */
 export const game = {
+  /** あとから入力の説明。スコアの一覧で日付を選ぶときと、設定の画面で出す */
+  backfillHint: `${t.round}・${t.end}・${t.arrow}の日付と時刻は、すべてこの日(0 時)になります`,
   setup: {
     title: `${t.game}設定`,
     bowType: t.bowType,
@@ -25,20 +27,17 @@ export const game = {
     discardUnsaved: `保存していない${t.record}があります。捨てて新しい${t.game}を始めますか?`,
     arrowDiameter: `${t.arrow}の直径 (mm)`,
     arrowDiameterHint: (px: number | null) =>
-      `記入画面では的の大きさとの比で画面の px に直します(四捨五入${px === null ? "" : `、この端末では ${px}px`})。円が少しでも帯の線にかかれば高い方の点になります(オールインでは低い方)。右は記入画面で狙うときのサイト(実寸大)`,
+      `記入画面では的の大きさとの比で画面の px に直します${px === null ? "" : `(この端末では ${Math.round(px * 10) / 10}px)`}。円が少しでも帯の線にかかれば高い方の点になります(オールインでは低い方)。右は記入画面で狙うときのサイト(実寸大)`,
     integerError: (min: number, max: number) => `${min}〜${max}の整数で入力してください`,
-    allIn: "オールイン",
     allInHint: `${t.arrow}が帯に完全に入らないと、その帯の点になりません。線にかかれば低い方の点、的の縁にかかれば外れになります`,
     sightPreview: "記入画面のサイト(実寸大)",
     backfill: (date: string) => `あとから入力: ${date} の${t.record}`,
-    backfillHint: `${t.round}・${t.end}・${t.arrow}の日付と時刻は、すべてこの日(0 時)になります`,
   },
   entry: {
     home: `${t.home}へ戻る`,
     round: t.round,
     end: t.end,
     roundTotal: `${t.round}${t.total}`,
-    allIn: "オールイン",
     backfill: (date: string) => `${date} の${t.record}`,
     gameComplete: `全${t.round}の${t.record}が終わりました。「終了」で${t.score}を確認できます。`,
     endComplete: `この${t.end}の${t.arrow}がすべて入りました。「1${t.end}進む」で次の${t.end}に進みます。`,

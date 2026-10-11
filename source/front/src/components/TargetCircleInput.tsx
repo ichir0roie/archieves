@@ -17,10 +17,16 @@ import { useT } from "@/lib/text";
 
 /**
  * 的の周りの余白(px)。下だけ広く取るのは、的の下に外した矢を押しやすくするため。
- * 的の下端から枠の下端までが外れの押せる領域になる。
+ * 的の下端から枠の下端までが外れの押せる領域になる。設定画面も、記入画面を開く前の的の大きさの見積もりに使う
  */
-const PADDING = 24;
+export const TARGET_FACE_PADDING = 24;
 const PADDING_BOTTOM = 72;
+
+/**
+ * 記録した矢の印の、描くときの最小の直径(px)。既定の矢(5mm)は実寸で 1〜2px で見えないので、
+ * 印だけこれより小さくしない。点数は実寸の円で決める(scoreAt)
+ */
+const MIN_ARROW_MARK_PX = 8;
 
 /** 押しているあいだ指の上に出すズームの直径・指からの間隔(px)。倍率は ArrowSight の LENS_ZOOM */
 const LENS_SIZE = 150;
@@ -74,8 +80,8 @@ export default function TargetCircleInput(props: ScoreInputProps) {
       if (!container) return;
       const diameter = Math.max(
         Math.min(
-          container.clientWidth - PADDING * 2,
-          container.clientHeight - PADDING - PADDING_BOTTOM
+          container.clientWidth - TARGET_FACE_PADDING * 2,
+          container.clientHeight - TARGET_FACE_PADDING - PADDING_BOTTOM
         ),
         0
       );
@@ -94,7 +100,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
 
   /** 的の中心。下の余白が広いぶん、枠の中央より上に寄る */
   const centerX = width / 2;
-  const centerY = (height - PADDING_BOTTOM + PADDING) / 2;
+  const centerY = (height - PADDING_BOTTOM + TARGET_FACE_PADDING) / 2;
 
   const isLocked = props.isEndFull || props.disabled;
   const { ringCount, sizeCm } = resolveTargetType(props.targetType);
@@ -246,7 +252,9 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     if (relativeX === 0 && relativeY === 0) return null;
 
     // ズームの中でも矢の太さを同じ倍率で描き、帯の線とのかかり具合が見えるようにする
-    const size = arrowPx * zoom;
+    const size = Math.max(arrowPx * zoom, MIN_ARROW_MARK_PX);
+    // 中心は translate(-50%, -50%)(globals.css の .arrow-mark)で合わせる。size / 2 を引くと、
+    // 枠線より小さい印は枠線のぶん大きく描かれて中心がずれる
     return (
       <div
         key={key}
@@ -254,8 +262,8 @@ export default function TargetCircleInput(props: ScoreInputProps) {
         style={{
           width: `${size}px`,
           height: `${size}px`,
-          left: `${(centerX + (relativeX - 0.5) * maxDiameter) * zoom - size / 2}px`,
-          top: `${(centerY + (relativeY - 0.5) * maxDiameter) * zoom - size / 2}px`,
+          left: `${(centerX + (relativeX - 0.5) * maxDiameter) * zoom}px`,
+          top: `${(centerY + (relativeY - 0.5) * maxDiameter) * zoom}px`,
         }}
       />
     );

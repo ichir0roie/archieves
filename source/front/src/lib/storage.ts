@@ -3,6 +3,11 @@ import {
   isValidRoundSetup,
   type RoundSetup,
 } from "@/lib/score/scoreConfig";
+import {
+  SCORE_SHEET_CACHE_VERSION,
+  type ScoreSheetCache,
+  type Sheet,
+} from "@/lib/score/scoreSheetCache";
 
 const ROUND_SETUP_KEY = "roundSetup";
 
@@ -93,11 +98,15 @@ export function saveCachedAppUser(user: CachedAppUser) {
   window.dispatchEvent(new Event(APP_USER_EVENT));
 }
 
+/** 消したときだけ知らせる。無いのに知らせると、知らせを受けて登録を確かめ直す AuthGate が、登録の前の人で
+ * 「確かめる → 404 で消す → 知らせる」を繰り返す */
 export function clearCachedAppUser() {
   try {
+    if (localStorage.getItem(APP_USER_KEY) === null) return;
     localStorage.removeItem(APP_USER_KEY);
   } catch {
     // 消せなくても、sub が違えば使われない
+    return;
   }
   window.dispatchEvent(new Event(APP_USER_EVENT));
 }
@@ -130,5 +139,86 @@ export function loadTargetDiameterPx(): number | null {
     return Number.isFinite(value) && value > 0 ? value : null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * 入力の途中のゲームは利用者ごとのキーに置く。同じ端末で別の人がログインして始めても、前の人の
+ * 保存していない記録を上書きしない
+ */
+function scoreSheetKey(sub: string) {
+  return `scoreSheet:${sub}`;
+}
+
+/** 利用者ごとのキーに分ける前のキー。残っていれば、続きを失わないよう今の利用者のものとして読む */
+const LEGACY_SCORE_SHEET_KEY = "scoreSheet";
+
+/** localStorage に残っているかもしれない、古い形も含めたキャッシュ */
+type StoredScoreSheetCache = Omit<ScoreSheetCache, "sub" | "sheet"> & {
+  sheet: Omit<Sheet, "arrow_diameter_mm" | "all_in" | "backfilled"> & {
+    /** 矢の直径を px で持っていたころのキャッシュには無い */
+    arrow_diameter_mm?: number | null;
+    /** 矢の直径を px で持っていたころの欄。的の大きさが分からず mm に直せないので捨て、既定の太さにする */
+    arrow_diameter_px?: number | null;
+    /** オールインを足す前のキャッシュには無い */
+    all_in?: boolean;
+    /** あとから入力を足す前のキャッシュには無い */
+    backfilled?: boolean;
+  };
+};
+
+function readStoredScoreSheetCache(key: string): StoredScoreSheetCache | null {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) ?? "null") as StoredScoreSheetCache | null;
+    if (
+      !parsed ||
+      parsed.version !== SCORE_SHEET_CACHE_VERSION ||
+      !Array.isArray(parsed.sheet?.rounds)
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** sub の人の入力の途中のゲーム(lib/score/scoreSheetCache.ts)。古い形は今の形に移して返す */
+export function loadScoreSheetCache(sub: string): ScoreSheetCache | null {
+  const stored =
+    readStoredScoreSheetCache(scoreSheetKey(sub)) ??
+    readStoredScoreSheetCache(LEGACY_SCORE_SHEET_KEY);
+  if (!stored) return null;
+  const { arrow_diameter_px: _, ...sheet } = stored.sheet;
+  return {
+    ...stored,
+    sub,
+    sheet: {
+      ...sheet,
+      arrow_diameter_mm: sheet.arrow_diameter_mm ?? null,
+      all_in: sheet.all_in ?? false,
+      backfilled: sheet.backfilled ?? false,
+    },
+  };
+}
+
+export function saveScoreSheetCache({ sub, ...cache }: Omit<ScoreSheetCache, "version">) {
+  try {
+    localStorage.setItem(
+      scoreSheetKey(sub),
+      JSON.stringify({ ...cache, version: SCORE_SHEET_CACHE_VERSION }),
+    );
+    localStorage.removeItem(LEGACY_SCORE_SHEET_KEY);
+  } catch {
+    // 書けなくても(容量切れなど)画面の中の記録はあり、保存・終了で API に送れる
+  }
+}
+
+export function clearScoreSheetCache(sub: string) {
+  try {
+    localStorage.removeItem(scoreSheetKey(sub));
+    localStorage.removeItem(LEGACY_SCORE_SHEET_KEY);
+  } catch {
+    // 消せなくても、次に始めるときに上書きする
   }
 }

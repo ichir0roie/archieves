@@ -170,7 +170,7 @@ export default function Page() {
         >
           <Field
             label={T.profile.scoreLog.backfillDate}
-            hint={T.profile.scoreLog.backfillHint}
+            hint={T.game.backfillHint}
           >
             {(id) => (
               <input

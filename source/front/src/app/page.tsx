@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCachedAppUser } from "@/hooks/useCachedAppUser";
-import { DESTINATIONS } from "@/lib/destinations";
-import { readScoreSheetCache } from "@/lib/score/scoreSheetCache";
+import { getCurrentUser } from "@/lib/auth/currentUser";
+import { SCORE_CARD_PATH, START_GAME, destinationsFor } from "@/lib/destinations";
+import { loadScoreSheetCache } from "@/lib/storage";
 import { useT } from "@/lib/text";
-
-const [START_GAME, ...OTHER_DESTINATIONS] = DESTINATIONS;
 
 /** ホーム。開いただけで API を叩かないよう、行き先のボタンだけを並べ、名前はキャッシュから出す */
 export default function Page() {
@@ -17,8 +16,22 @@ export default function Page() {
   const [canResume, setCanResume] = useState(false);
 
   useEffect(() => {
-    setCanResume(readScoreSheetCache() !== null);
+    let cancelled = false;
+    getCurrentUser().then(
+      ({ userId }) => {
+        if (!cancelled) setCanResume(loadScoreSheetCache(userId) !== null);
+      },
+      () => {
+        // ログインが分からなければ、続きは出さない
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
   }, []);
+  const otherDestinations = destinationsFor(currentUser?.isAdmin ?? false).filter(
+    (item) => item !== START_GAME,
+  );
 
   return (
     <div className="page">
@@ -63,7 +76,7 @@ export default function Page() {
       <div className="HomeMenu">
         {canResume && (
           <Link
-            href="/game/score-card"
+            href={SCORE_CARD_PATH}
             className="start"
           >
             {T.nav.resumeGame}
@@ -76,7 +89,7 @@ export default function Page() {
           {T.nav[START_GAME.label]}
         </Link>
         <div className="grid">
-          {OTHER_DESTINATIONS.map((item) => (
+          {otherDestinations.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -84,7 +97,6 @@ export default function Page() {
               {T.nav[item.label]}
             </Link>
           ))}
-          {currentUser?.isAdmin && <Link href="/admin/feedbacks">{T.nav.adminFeedback}</Link>}
         </div>
       </div>
     </div>

@@ -37,15 +37,15 @@ export const MIN_ARROW_DIAMETER_MM = 1;
 export const MAX_ARROW_DIAMETER_MM = 30;
 
 /**
- * 矢の直径(mm)を、画面に描いた的の直径(px)と的の実寸との比で px に直し、四捨五入する。
- * 0px だと矢の印もサイトの円も消えるので、1px より小さくはしない
+ * 矢の直径(mm)を、画面に描いた的の直径(px)と的の実寸との比で px に直す。点数はこの値のまま決めるので
+ * 丸めない(丸めると、小さな的では矢の太さが倍・半分に変わる)。画面に出すときだけ丸める
  */
 export function arrowDiameterPx(
   arrowDiameterMm: number,
   targetSizeCm: number,
   targetDiameterPx: number,
 ): number {
-  return Math.max(Math.round((arrowDiameterMm / (targetSizeCm * 10)) * targetDiameterPx), 1);
+  return (arrowDiameterMm / (targetSizeCm * 10)) * targetDiameterPx;
 }
 
 /**

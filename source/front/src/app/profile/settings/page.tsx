@@ -7,7 +7,7 @@ import Combobox from "@/components/Combobox";
 import Field from "@/components/Field";
 import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
-import Segment from "@/components/Segment";
+import VisibilityFields from "@/components/VisibilityFields";
 import {
   MeRead,
   OrganizationSummary,
@@ -26,18 +26,8 @@ import {
 } from "@/lib/auth/currentUser";
 import { useT } from "@/lib/text";
 
-const VISIBILITIES: Array<Visibility> = [
-  "private",
-  "organization",
-  "public",
-];
-
 export default function Page() {
   const T = useT();
-  const VISIBILITY_OPTIONS = VISIBILITIES.map((visibility) => ({
-    value: visibility,
-    label: T.profile.settings.visibility[visibility],
-  }));
   const router = useRouter();
   const [userId, setUserId] = useState<number | null>(null);
   const [name, setName] = useState("");
@@ -216,25 +206,12 @@ export default function Page() {
               />
             )}
           </Field>
-          <div className="field">
-            <span className="field-label">{T.profile.settings.profileVisibility}</span>
-            <Segment
-              options={VISIBILITY_OPTIONS}
-              value={profileVisibility}
-              onChange={setProfileVisibility}
-              label={T.profile.settings.profileVisibility}
-            />
-          </div>
-          <div className="field">
-            <span className="field-label">{T.profile.settings.rankingVisibility}</span>
-            <Segment
-              options={VISIBILITY_OPTIONS}
-              value={rankingVisibility}
-              onChange={setRankingVisibility}
-              label={T.profile.settings.rankingVisibility}
-            />
-          </div>
-          <p className="muted small">{T.profile.settings.visibilityHint}</p>
+          <VisibilityFields
+            profileVisibility={profileVisibility}
+            rankingVisibility={rankingVisibility}
+            onChangeProfileVisibility={setProfileVisibility}
+            onChangeRankingVisibility={setRankingVisibility}
+          />
 
           <button
             type="button"

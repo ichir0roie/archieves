@@ -92,7 +92,7 @@ def upgrade_head(url: str) -> None:
 
 
 def _is_at_head(url: str) -> bool:
-    """url の db があり、マイグレーションの版が今のコードの head と同じなら True。"""
+    """url の db があり、マイグレーションのバージョンが今のコードの head と同じなら True。"""
     from alembic.runtime.migration import MigrationContext
     from alembic.script import ScriptDirectory
     from sqlalchemy.exc import OperationalError
@@ -113,9 +113,10 @@ def _is_at_head(url: str) -> bool:
 def prepare_database(url: str, reset: bool = False) -> bool:
     """url の db を、今のマイグレーションの表で使える状態にする。作り直したら True。
 
-    版が head と同じなら、行ごと残して使い回す(作り直すと、手で足した行や乱数の行が消える)。
-    無い・版が違う(マイグレーションを足した・ブランチを替えた)・reset のときだけ、消して作り直す。
-    同じ版のまま中身を書き換えたマイグレーションは見分けられないので、そのときは reset する
+    バージョンが head と同じなら、行ごと残して使い回す(作り直すと、手で足した行や乱数の行が消える)。
+    無い・バージョンが違う(マイグレーションを足した・ブランチを替えた)・reset のときだけ、
+    消して作り直す。
+    同じバージョンのまま中身を書き換えたマイグレーションは見分けられないので、そのときは reset する
     """
     name = make_url(url).database
     if not reset and _is_at_head(url):

@@ -293,7 +293,8 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .target-face .miss-area { position: absolute; inset: 0; z-index: 0; border: 0; border-radius: 0; background: none; padding: 0; }
 .target-face .target-ring { position: absolute; border-radius: 999px; background: var(--ring); border: 1px solid #6a7080; padding: 0; }
 /* 大きさは矢の太さとして TargetCircleInput の ARROW_MARK_SIZE で決める */
-.target-face .arrow-mark { position: absolute; border-radius: 999px; background: #fff; border: 2px solid #000; z-index: 100; pointer-events: none; }
+/* 置く位置(left/top)は矢の中心。描く大きさに依らず中心が合うよう translate で寄せる */
+.target-face .arrow-mark { position: absolute; transform: translate(-50%, -50%); border-radius: 999px; background: #fff; border: 2px solid #000; z-index: 100; pointer-events: none; }
 .target-face .target-ring:disabled { cursor: default; }
 /* 押しているあいだ指の上に出すズーム。指の下の帯と、離すと付く点数を見せる */
 .score-entry { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }

@@ -14,9 +14,8 @@ import {
   type ErrorDetails,
 } from "@/lib/api";
 import { formatDateTime } from "@/lib/formatDateTime";
+import { MAX_FEEDBACK_LENGTH } from "@/lib/support";
 import { useT } from "@/lib/text";
-
-const MAX_REPLY_LENGTH = 2000;
 
 /** 管理者が、全員から届いた意見を見て返信する。管理者でなければ API の 403 をそのまま出す。 */
 export default function Page() {
@@ -90,7 +89,7 @@ function FeedbackItem({ initial }: { initial: AdminFeedbackRead }) {
         {formatDateTime(feedback.created_at)}
         {" · "}
         {feedback.user_nickname ?? feedback.user_name}
-        {` (id ${feedback.user_id})`}
+        {T.support.adminFeedback.userId(feedback.user_id)}
       </p>
       <p className="muted small">
         {feedback.email
@@ -127,7 +126,7 @@ function FeedbackItem({ initial }: { initial: AdminFeedbackRead }) {
               <textarea
                 id={id}
                 value={draft}
-                maxLength={MAX_REPLY_LENGTH}
+                maxLength={MAX_FEEDBACK_LENGTH}
                 rows={3}
                 onChange={(e) => setDraft(e.target.value)}
               />

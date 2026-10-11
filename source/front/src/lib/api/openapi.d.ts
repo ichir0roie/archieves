@@ -1067,8 +1067,6 @@ export interface components {
         };
         /** GameCreate */
         GameCreate: {
-            /** User Id */
-            user_id: number;
             /**
              * Recorded At
              * Format: date
@@ -1090,6 +1088,8 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
+            /** User Id */
+            user_id: number;
         };
         /**
          * GameKindOptions
@@ -1111,8 +1111,6 @@ export interface components {
         };
         /** GameRead */
         GameRead: {
-            /** User Id */
-            user_id: number;
             /**
              * Recorded At
              * Format: date
@@ -1134,6 +1132,8 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
+            /** User Id */
+            user_id: number;
             /** Id */
             id: number;
             /** Deleted At */
@@ -1183,10 +1183,6 @@ export interface components {
         };
         /** GameSheetWrite */
         GameSheetWrite: {
-            /** Id */
-            id?: number | null;
-            /** Client Key */
-            client_key?: string | null;
             /**
              * Recorded At
              * Format: date
@@ -1208,6 +1204,10 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
+            /** Id */
+            id?: number | null;
+            /** Client Key */
+            client_key?: string | null;
             /** Comment */
             comment?: string | null;
             /**
@@ -1228,16 +1228,10 @@ export interface components {
             bow_type?: string | null;
             /** Arrow Diameter Mm */
             arrow_diameter_mm?: number | null;
-            /**
-             * All In
-             * @default false
-             */
-            all_in: boolean;
-            /**
-             * Backfilled
-             * @default false
-             */
-            backfilled: boolean;
+            /** All In */
+            all_in?: boolean | null;
+            /** Backfilled */
+            backfilled?: boolean | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1527,8 +1521,6 @@ export interface components {
         };
         /** RoundSheetWrite */
         RoundSheetWrite: {
-            /** Id */
-            id?: number | null;
             /** Number */
             number: number;
             /**
@@ -1544,6 +1536,8 @@ export interface components {
             distance_m: number;
             /** Target Type */
             target_type: string;
+            /** Id */
+            id?: number | null;
             /** Comment */
             comment?: string | null;
             /**

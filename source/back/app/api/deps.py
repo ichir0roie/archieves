@@ -3,9 +3,13 @@ from collections.abc import Callable
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from app.core.errors import ForbiddenError, NotFoundError
+from app.core.errors import (
+    CURRENT_USER_NOT_REGISTERED,
+    ForbiddenError,
+    NotFoundError,
+)
 from app.core.security import Claims, get_current_user
-from app.core.visibility import is_visible
+from app.core.visibility import can_view_profile
 from app.crud import user as user_crud
 from app.db import User
 from app.db.session import get_session
@@ -44,7 +48,7 @@ def get_me(
     """Amplify(Cognito)の sub に結びついた利用者の行。「本人のみ」のエンドポイントが使う。"""
     user = user_crud.get_user_by_sub(s, claims.sub)
     if user is None:
-        raise NotFoundError("User not found")
+        raise NotFoundError(CURRENT_USER_NOT_REGISTERED)
     return user
 
 
@@ -63,7 +67,7 @@ def require_self(me: User, user_id: int) -> None:
 
 def require_profile_visible(me: User, user: User) -> None:
     """本人でなく、プロフィールを本人に公開していない利用者なら 403 にする。"""
-    if user.id != me.id and not is_visible(me, user, user.profile_visibility):
+    if not can_view_profile(me, user):
         raise ForbiddenError("This profile is private")
 
 

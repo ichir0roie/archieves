@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api import deps
-from app.core.errors import NotFoundError
+from app.core.errors import CURRENT_USER_NOT_REGISTERED, NotFoundError
 from app.crud import organization as organization_crud
 from app.crud import profile as profile_crud
 from app.crud import user as user_crud
@@ -14,10 +14,14 @@ router = APIRouter()
 public_router = APIRouter()
 
 
-def _check_organization_exists(s: Session, organization_id: int | None) -> None:
-    if organization_id is not None and organization_crud.get_organization(
-        s, organization_id
-    ) is None:
+def _check_organization_exists(
+    s: Session,
+    organization_id: int | None,
+) -> None:
+    if (
+        organization_id is not None
+        and organization_crud.get_organization(s, organization_id) is None
+    ):
         raise NotFoundError("Organization not found")
 
 
@@ -32,7 +36,10 @@ def list_users(
 
 
 @router.post("", response_model=UserRead, status_code=201)
-def create_user(user_in: UserCreate, s: Session = Depends(deps.get_session)) -> UserRead:
+def create_user(
+    user_in: UserCreate,
+    s: Session = Depends(deps.get_session),
+) -> UserRead:
     _check_organization_exists(s, user_in.organization_id)
     result = user_crud.create_user(s, user_in)
     s.commit()
@@ -70,7 +77,7 @@ def get_my_user(
 ) -> MeRead:
     user = user_crud.get_user_by_sub(s, current_user.sub)
     if user is None:
-        raise NotFoundError("User not found")
+        raise NotFoundError(CURRENT_USER_NOT_REGISTERED)
     return user
 
 

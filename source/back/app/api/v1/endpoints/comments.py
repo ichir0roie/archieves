@@ -18,7 +18,9 @@ router = APIRouter()
 
 @router.get("/games/{game_id}/comments", response_model=GameComments)
 def list_comments_for_game(
-    game_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    game_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> GameComments:
     """Every comment under one game - its own, its rounds' and its ends' -
     so a score sheet can be drawn in a single request."""
@@ -32,7 +34,9 @@ def list_comments_for_game(
 
 @router.get("/games/{game_id}/comment", response_model=GameCommentRead)
 def get_game_comment(
-    game_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    game_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> GameCommentRead:
     deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
     return deps.get_own_or_404(
@@ -48,14 +52,21 @@ def save_game_comment(
     s: Session = Depends(deps.get_session),
 ) -> GameCommentRead:
     game = deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
-    result = comment_crud.upsert_game_comment(s, game, comment_in.body)
+    result = comment_crud.save_comment(
+        s,
+        game,
+        comment_crud.get_game_comment(s, game_id),
+        comment_in.body,
+    )
     s.commit()
     return result
 
 
 @router.delete("/games/{game_id}/comment", status_code=204)
 def delete_game_comment(
-    game_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    game_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> None:
     comment = deps.get_own_or_404(
         me, comment_crud.get_game_comment, s, game_id, detail="Comment not found"
@@ -66,7 +77,9 @@ def delete_game_comment(
 
 @router.get("/rounds/{round_id}/comment", response_model=RoundCommentRead)
 def get_round_comment(
-    round_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    round_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> RoundCommentRead:
     deps.get_own_or_404(me, game_crud.get_round, s, round_id, detail="Round not found")
     return deps.get_own_or_404(
@@ -82,14 +95,21 @@ def save_round_comment(
     s: Session = Depends(deps.get_session),
 ) -> RoundCommentRead:
     round_ = deps.get_own_or_404(me, game_crud.get_round, s, round_id, detail="Round not found")
-    result = comment_crud.upsert_round_comment(s, round_, comment_in.body)
+    result = comment_crud.save_comment(
+        s,
+        round_,
+        comment_crud.get_round_comment(s, round_id),
+        comment_in.body,
+    )
     s.commit()
     return result
 
 
 @router.delete("/rounds/{round_id}/comment", status_code=204)
 def delete_round_comment(
-    round_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    round_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> None:
     comment = deps.get_own_or_404(
         me, comment_crud.get_round_comment, s, round_id, detail="Comment not found"
@@ -100,7 +120,9 @@ def delete_round_comment(
 
 @router.get("/ends/{end_id}/comment", response_model=EndCommentRead)
 def get_end_comment(
-    end_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    end_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> EndCommentRead:
     deps.get_own_or_404(me, game_crud.get_end, s, end_id, detail="End not found")
     return deps.get_own_or_404(
@@ -116,14 +138,21 @@ def save_end_comment(
     s: Session = Depends(deps.get_session),
 ) -> EndCommentRead:
     end = deps.get_own_or_404(me, game_crud.get_end, s, end_id, detail="End not found")
-    result = comment_crud.upsert_end_comment(s, end, comment_in.body)
+    result = comment_crud.save_comment(
+        s,
+        end,
+        comment_crud.get_end_comment(s, end_id),
+        comment_in.body,
+    )
     s.commit()
     return result
 
 
 @router.delete("/ends/{end_id}/comment", status_code=204)
 def delete_end_comment(
-    end_id: int, me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    end_id: int,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> None:
     comment = deps.get_own_or_404(
         me, comment_crud.get_end_comment, s, end_id, detail="Comment not found"
