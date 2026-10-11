@@ -1,6 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
-import { recordedArrows, reloadAfterWrites, ringButton, shoot, startGame } from "./scoreEntry";
+import {
+  AIM_OFFSET_Y,
+  nextEnd,
+  recordedArrows,
+  reloadPage,
+  ringButton,
+  saveSheet,
+  shoot,
+  startGame,
+} from "./scoreEntry";
 
 // Needs archieves-api running (see .claude/docs/testing.md's "E2E"), since
 // recording a score persists every point through it.
@@ -75,8 +84,8 @@ test("1エンド戻る・進む moves between ends and keeps every arrow", async
   const back = page.getByRole("button", { name: "1エンド戻る", exact: true });
   const forward = page.getByRole("button", { name: "1エンド進む", exact: true });
 
-  // 矢が満ちると同じラウンドの次のエンドへ自動で進む
   await shoot(page, "9", 3);
+  await forward.click();
   await expect(progress).toContainText("エンド 2/2");
   await shoot(page, "10", 2);
 
@@ -103,6 +112,7 @@ test("1矢戻る is the only thing that erases an arrow", async ({ page }) => {
   const back = page.getByRole("button", { name: "1エンド戻る", exact: true });
 
   await shoot(page, "9", 3);
+  await forward.click();
   await expect(progress).toContainText("エンド 2/2");
   await shoot(page, "7", 2);
   await page.getByRole("button", { name: "1矢戻る", exact: true }).click();
@@ -124,23 +134,67 @@ test("1矢戻る is the only thing that erases an arrow", async ({ page }) => {
   await expect(rows.nth(1).getByText("7", { exact: true })).toHaveCount(2);
 });
 
-test("arrows are written when the end changes, not one by one", async ({ page }) => {
+test("a full end stays on screen until 1エンド進む is pressed", async ({ page }) => {
   await startGame(page, { endSize: 3, roundSize: 2, gameSize: 2 });
-  const arrowPosts: string[] = [];
+  const progress = page.locator(".ScoreProgress");
+
+  await shoot(page, "9", 3);
+  // 満ちても自動で進まず、満ちたことと次の操作を知らせ、的は押せなくなる
+  await expect(progress).toContainText("エンド 1/2");
+  await expect(progress).toContainText("3/3本");
+  await expect(recordedArrows(page)).toHaveText(["9", "9", "9"]);
+  await expect(page.locator(".EndCompleteNotice")).toContainText("「1エンド進む」で次のエンドに進みます");
+  await expect(ringButton(page, "9")).toBeDisabled();
+
+  // 満ちたあとでも、最後の矢を外して打ち直せる
+  await page.getByRole("button", { name: "1矢戻る", exact: true }).click();
+  await shoot(page, "10", 1);
+  await expect(recordedArrows(page)).toHaveText(["9", "9", "10"]);
+
+  await nextEnd(page);
+  await expect(progress).toContainText("エンド 2/2");
+  await expect(recordedArrows(page)).toHaveCount(0);
+});
+
+test("scores stay on this device until 保存, which writes the whole game at once", async ({
+  page,
+}) => {
+  await startGame(page, { endSize: 3, roundSize: 2, gameSize: 2 });
+  const writes: Array<string> = [];
+  const sheets: Array<{ rounds: Array<{ ends: Array<{ points: Array<{ shot_at: string }> }> }> }> =
+    [];
   page.on("request", (request) => {
-    if (request.method() === "POST" && /\/ends\/\d+\/points$/.test(request.url())) {
-      arrowPosts.push(request.url());
-    }
+    if (request.method() === "GET") return;
+    if (!new URL(request.url()).pathname.startsWith("/api/v1/")) return;
+    writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
+    if (request.url().endsWith("/games/sheet")) sheets.push(request.postDataJSON());
   });
 
-  await shoot(page, "9", 2);
-  expect(arrowPosts).toHaveLength(0);
-  expect(await page.evaluate(() => localStorage.getItem("gameId"))).toBeNull();
+  const startedAt = Date.now();
+  await shoot(page, "9", 3);
+  await nextEnd(page);
+  await shoot(page, "8", 1);
+  await expect(page.locator(".ScoreSave")).toHaveText("保存");
+  expect(writes).toEqual([]);
 
-  // 三本目でエンドが満ち、次のエンドへ自動で進むときにまとめて書く
-  await shoot(page, "9", 1);
-  await expect.poll(() => arrowPosts.length).toBe(3);
-  expect(await page.evaluate(() => localStorage.getItem("gameId"))).not.toBeNull();
+  await saveSheet(page);
+  expect(writes).toEqual(["PUT /api/v1/games/sheet"]);
+  // 矢ごとに記録した時刻も送る
+  const shotAt = sheets[0].rounds[0].ends[0].points.map((point) => Date.parse(point.shot_at));
+  expect(shotAt).toHaveLength(3);
+  for (const time of shotAt) expect(time).toBeGreaterThanOrEqual(startedAt - 1000);
+
+  // 保存したあとも同じ画面で続けられ、次の保存は同じゲームを上書きする
+  await shoot(page, "7", 1);
+  await saveSheet(page);
+  expect(writes).toEqual(["PUT /api/v1/games/sheet", "PUT /api/v1/games/sheet"]);
+
+  await page.getByRole("button", { name: "終了" }).click();
+  await expect(page).toHaveURL(/\/score-view\?gameId=/, { timeout: ROUTE_TIMEOUT });
+  const rows = page.locator("table tbody tr");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(1).getByText("8", { exact: true })).toHaveCount(1);
+  await expect(rows.nth(1).getByText("7", { exact: true })).toHaveCount(1);
 });
 
 test("progress follows the arrow, end and round through a whole game", async ({ page }) => {
@@ -154,15 +208,18 @@ test("progress follows the arrow, end and round through a whole game", async ({ 
   // below never shifts as arrows come in.
   await expect(page.locator(".EndView .ArrowSlot")).toHaveCount(3);
 
-  // 満ちたエンドから同じラウンドの次のエンドへは自動で進む
   await shoot(page, "9", 3);
+  await nextEnd(page);
   await expect(progress).toContainText("エンド 2/2");
   await expect(progress).toContainText("0/3本");
-  // ラウンドの最後のエンドが満ちたら、次のラウンドへも自動で進む
+  // ラウンドの最後のエンドが満ちたら、次へ進むとラウンドが変わることを知らせる
   await shoot(page, "9", 3);
+  await expect(page.locator(".EndCompleteNotice")).toContainText("次のラウンドに進みます");
+  await nextEnd(page);
   await expect(progress).toContainText("ラウンド 2/2");
   await expect(progress).toContainText("エンド 1/2");
   await shoot(page, "9", 3);
+  await nextEnd(page);
   await expect(progress).toContainText("エンド 2/2");
   await shoot(page, "9", 3);
 
@@ -210,32 +267,21 @@ test("the score sheet shows one column per arrow of the end", async ({ page }) =
   await expect(page.locator("table thead th")).toHaveCount(7);
 });
 
-test("backing out past the first arrow leaves no game behind", async ({ page }) => {
+test("finishing a saved game after taking every arrow back leaves no game behind", async ({
+  page,
+}) => {
   await startGame(page, { endSize: 6, roundSize: 6, gameSize: 2 });
-
-  // Arrows are only written when the end changes, so move on and back to get the game created.
   await shoot(page, "9", 1);
-  await page.getByRole("button", { name: "1エンド進む", exact: true }).click();
-  await expect(page.locator(".ScoreProgress")).toContainText("エンド 2/6");
-  await expect
-    .poll(() => page.evaluate(() => localStorage.getItem("gameId")))
-    .not.toBeNull();
-  await page.getByRole("button", { name: "1エンド戻る", exact: true }).click();
-  await expect(page.locator(".ScoreProgress")).toContainText("エンド 1/6");
+  const saved = await saveSheet(page);
 
   await page.getByRole("button", { name: "1矢戻る", exact: true }).click();
   await expect(recordedArrows(page)).toHaveCount(0);
-  await page.getByRole("button", { name: "1エンド戻る", exact: true }).click();
+  await page.getByRole("button", { name: "終了" }).click();
 
-  // The game the arrow created is deleted rather than left in the
-  // score log with nothing in it.
-  await expect
-    .poll(() => page.evaluate(() => localStorage.getItem("gameId")))
-    .toBeNull();
-
-  // The still-empty screen keeps working and starts a fresh game.
-  await shoot(page, "8", 1);
-  await expect(recordedArrows(page)).toHaveText(["8"]);
+  // 保存してあったゲームは、空のままスコアに残さず消す
+  await expect(page).toHaveURL(/\/$/, { timeout: ROUTE_TIMEOUT });
+  const response = await page.request.get(`/api/v1/games/${saved.id}`);
+  expect(response.status()).toBe(404);
 });
 
 test("finishing a game with nothing recorded goes home", async ({ page }) => {
@@ -257,54 +303,75 @@ test("a game shape always has at least one arrow, end and round", async ({ page 
   }
 });
 
-test("resuming a game whose end is already full opens the next end", async ({ page }) => {
+test("editing a saved game whose last end is full opens the next end", async ({ page }) => {
   await startGame(page, { endSize: 3, roundSize: 6, gameSize: 2 });
-
-  // 満ちると次のエンドへ自動で進み、そのときに矢を書く
-  const arrowPosts: string[] = [];
-  page.on("request", (request) => {
-    if (request.method() === "POST" && /\/ends\/\d+\/points$/.test(request.url())) {
-      arrowPosts.push(request.url());
-    }
-  });
   await shoot(page, "10", 3);
-  await expect(page.locator(".ScoreProgress")).toContainText("エンド 2/6");
-  await page.getByRole("button", { name: "1エンド戻る", exact: true }).click();
-  await expect(page.locator(".ScoreProgress")).toContainText("エンド 1/6");
-  // 書き込みが終わる前に読み直すと、書きかけの矢が読めない
-  await expect.poll(() => arrowPosts.length).toBe(3);
+  await page.getByRole("button", { name: "終了" }).click();
+  await expect(page).toHaveURL(/\/score-view\?gameId=/, { timeout: ROUTE_TIMEOUT });
 
-  await reloadAfterWrites(page);
-
+  await page.locator(".EditGameButton").click();
+  await expect(page).toHaveURL(/\/game\/score-card$/, { timeout: ROUTE_TIMEOUT });
   await expect(page.locator(".ScoreProgress")).toContainText("エンド 2/6", {
     timeout: ROUTE_TIMEOUT,
   });
   await expect(recordedArrows(page)).toHaveCount(0);
 
-  await shoot(page, "10", 1);
+  await shoot(page, "8", 1);
+  await page.getByRole("button", { name: "終了" }).click();
+  await expect(page).toHaveURL(/\/score-view\?gameId=/, { timeout: ROUTE_TIMEOUT });
+  await expect(page.locator("table tbody tr")).toHaveCount(2);
 });
 
-test("the game resumes in the right round and end across a reload", async ({ page }) => {
+test("an unsaved game comes back in the right round and end across a reload", async ({
+  page,
+}) => {
   await startGame(page, { endSize: 2, roundSize: 2, gameSize: 2 });
 
   await shoot(page, "10", 2);
+  await nextEnd(page);
   await expect(page.locator(".ScoreProgress")).toContainText("エンド 2/2");
-  // ラウンドの最後のエンドが満ちると、次のラウンドへ自動で進む
   await shoot(page, "8", 2);
+  await nextEnd(page);
   await expect(page.locator(".ScoreProgress")).toContainText("ラウンド 2/2");
   await shoot(page, "9", 1);
-  // 矢はエンドを動かすときに書くので、動かして今のエンドを書かせる
-  await page.getByRole("button", { name: "1エンド戻る", exact: true }).click();
-  await page.getByRole("button", { name: "1エンド進む", exact: true }).click();
-  await expect(page.locator(".ScoreProgress")).toContainText("ラウンド 2/2");
 
-  await reloadAfterWrites(page);
+  await reloadPage(page);
   await expect(page.locator(".ScoreProgress")).toContainText("ラウンド 2/2", {
     timeout: ROUTE_TIMEOUT,
   });
-
   await expect(page.locator(".ScoreProgress")).toContainText("エンド 1/2");
   await expect(recordedArrows(page)).toHaveText(["9"]);
+  await expect(page.locator(".ScoreSave")).toHaveText("保存");
+});
+
+test("leaving with ✕ keeps the unsaved game to continue from home", async ({ page }) => {
+  await startGame(page, { endSize: 3, roundSize: 2, gameSize: 1 });
+  await shoot(page, "10", 2);
+
+  await page.getByRole("button", { name: "ホームへ戻る" }).click();
+  await expect(page).toHaveURL(/\/$/, { timeout: ROUTE_TIMEOUT });
+  await page.getByRole("link", { name: "入力中のゲームを続ける" }).click();
+
+  await expect(page).toHaveURL(/\/game\/score-card$/, { timeout: ROUTE_TIMEOUT });
+  await expect(recordedArrows(page)).toHaveText(["10", "10"]);
+});
+
+test("starting a new game over unsaved scores asks first", async ({ page }) => {
+  await startGame(page, { endSize: 3, roundSize: 2, gameSize: 1 });
+  await shoot(page, "10", 1);
+  await page.getByRole("button", { name: "ホームへ戻る" }).click();
+  await expect(page).toHaveURL(/\/$/, { timeout: ROUTE_TIMEOUT });
+
+  // 断ると設定の画面にとどまる
+  await page.goto("/game/setup");
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await page.getByRole("button", { name: "ゲーム開始" }).click();
+  await expect(page).toHaveURL(/\/game\/setup$/);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "ゲーム開始" }).click();
+  await expect(page).toHaveURL(/\/game\/score-card$/, { timeout: ROUTE_TIMEOUT });
+  await expect(recordedArrows(page)).toHaveCount(0);
 });
 
 test("the score entry screen cannot be reached without starting a game", async ({ page }) => {
@@ -345,8 +412,30 @@ test("矢が空のままでも 1エンド進む でエンドを飛ばせる", as
   await forward.click();
   await expect(progress).toContainText("エンド 2/3");
   await shoot(page, "8", 3);
+  await nextEnd(page);
   await expect(progress).toContainText("エンド 3/3");
 
   await page.getByRole("button", { name: "終了" }).click();
   await expect(page).toHaveURL(/\/score-view\?gameId=/, { timeout: ROUTE_TIMEOUT });
+});
+
+test("an arrow touching a line scores the higher ring", async ({ page }) => {
+  await startGame(page, { endSize: 3 });
+  const nine = await ringButton(page, "9").boundingBox();
+  if (!nine) throw new Error("9 ring not laid out");
+  const centre = { x: nine.x + nine.width / 2, y: nine.y + nine.height / 2 };
+  const nineOuterRadius = nine.width / 2;
+
+  // 矢の印の直径は 10px(TargetCircleInput の ARROW_MARK_SIZE)。中心が 9 と 8 の線の
+  // 3px 外でも、縁が線にかかるので 9。7px 外なら線にかからないので 8
+  await page.mouse.click(centre.x + nineOuterRadius + 3, centre.y + AIM_OFFSET_Y);
+  await expect(recordedArrows(page)).toHaveText(["9"]);
+  await page.mouse.click(centre.x + nineOuterRadius + 7, centre.y + AIM_OFFSET_Y);
+  await expect(recordedArrows(page)).toHaveText(["9", "8"]);
+
+  // 的の外でも、縁が 1 の帯にかかれば 1
+  const one = await ringButton(page, "1").boundingBox();
+  if (!one) throw new Error("1 ring not laid out");
+  await page.mouse.click(centre.x + one.width / 2 + 3, centre.y + AIM_OFFSET_Y);
+  await expect(recordedArrows(page)).toHaveText(["9", "8", "1"]);
 });

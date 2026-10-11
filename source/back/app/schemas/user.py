@@ -2,6 +2,7 @@ from datetime import date
 
 from pydantic import BaseModel, computed_field, field_validator
 
+from app.core.visibility import Visibility
 from app.schemas.base import ResponseModel
 
 
@@ -41,8 +42,18 @@ class UserUpdate(BaseModel):
     birth_date: date | None = None
     organization_id: int | None = None
     region_id: int | None = None
+    profile_visibility: Visibility | None = None
+    ranking_visibility: Visibility | None = None
 
     _check_birth_date = field_validator("birth_date")(_reject_future)
+
+    # 省略はそのまま、null は弾く(列は NOT NULL で、null を書くと 500 になる)
+    @field_validator("profile_visibility", "ranking_visibility")
+    @classmethod
+    def _reject_null_visibility(cls, value: Visibility | None) -> Visibility:
+        if value is None:
+            raise ValueError("visibility must not be null")
+        return value
 
 
 class UserRead(UserBase, ResponseModel):
@@ -59,6 +70,8 @@ class UserRead(UserBase, ResponseModel):
 
 
 class MeRead(UserRead):
-    """本人の行。管理者かどうかは本人にだけ返し、他人の行(UserRead)には載せない。"""
+    """本人の行。管理者かどうか・公開範囲は本人にだけ返し、他人の行(UserRead)には載せない。"""
 
     is_admin: bool
+    profile_visibility: Visibility
+    ranking_visibility: Visibility

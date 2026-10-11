@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 import { recordGame } from "./recordGame";
 
@@ -59,16 +59,62 @@ test("home page greets the signed-in user with their database name", async ({ pa
   });
 });
 
-test("the ranking lists the signed-in user once they have a game", async ({ page }) => {
+/** 設定の画面で公開範囲を選んで保存する。label は「プロフィール」か「ランキング」 */
+async function saveVisibility(page: Page, label: string, option: string) {
+  await ensureRegistered(page);
+  await page
+    .getByRole("group", { name: `${label}の公開範囲` })
+    .getByRole("button", { name: option, exact: true })
+    .click();
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page).toHaveURL("/");
+}
+
+/** ランキングの、この利用者(モックの利用者)の行 */
+function myRankingRow(page: Page) {
+  return page.locator('.RankingList a[href="/profile/local-dev-user"]');
+}
+
+test("the saved visibility is shown again on the settings page", async ({ page }) => {
+  await saveVisibility(page, "プロフィール", "グループ公開");
+
+  await page.goto("/profile/settings");
+  const group = page.getByRole("group", { name: "プロフィールの公開範囲" });
+  await expect(group.getByRole("button", { name: "グループ公開", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  await saveVisibility(page, "プロフィール", "非公開");
+});
+
+test("the ranking lists the signed-in user only while their ranking is shared", async ({ page }) => {
   await ensureRegistered(page);
   await page.getByLabel("名前").fill("ランキング太郎");
   await page.getByRole("button", { name: "保存" }).click();
   await expect(page).toHaveURL("/");
-
   await recordGame(page);
 
+  await saveVisibility(page, "ランキング", "全体公開");
   await page.goto("/ranking");
   await expect(page.locator("header")).toContainText("ランキング");
-  await expect(page.getByText("該当するデータがありません")).toHaveCount(0);
-  await expect(page.getByText("ランキング太郎").first()).toBeVisible();
+  await expect(myRankingRow(page)).toContainText("ランキング太郎");
+
+  await saveVisibility(page, "ランキング", "非公開");
+  await page.goto("/ranking");
+  await expect(page.getByText("読み込み中...")).toHaveCount(0);
+  await expect(myRankingRow(page)).toHaveCount(0);
+});
+
+test("a game recorded with a bow type shows up under that bow", async ({ page }) => {
+  await saveVisibility(page, "ランキング", "全体公開");
+  await recordGame(page, { bowType: "コンパウンド" });
+
+  await page.goto("/ranking");
+  await page.getByRole("group", { name: "弓の種類" }).getByRole("button", { name: "コンパウンド" }).click();
+  await expect(page.getByText("読み込み中...")).toHaveCount(0);
+  await expect(myRankingRow(page)).toHaveCount(1);
+  await expect(myRankingRow(page).locator(".big")).toContainText("点");
+
+  await saveVisibility(page, "ランキング", "非公開");
 });

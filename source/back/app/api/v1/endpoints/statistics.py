@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.core.bow_types import BowType
 from app.crud import statistics as statistics_crud
+from app.crud import user as user_crud
 from app.crud.statistics import GameKindFilter
 from app.db import User
 from app.schemas.statistics import (
@@ -20,10 +21,14 @@ from app.schemas.statistics import (
 router = APIRouter()
 
 
-def _target_user_id(me: User, user_id: int | None) -> int:
-    # 他人の統計は読めてよい(プロフィールで見せる)。
+def _target_user_id(s: Session, me: User, user_id: int | None) -> int:
+    # 他人の統計は、プロフィールを本人に公開している人のものだけ読める(プロフィールで見せる)。
     # 省略したときだけ本人に絞り、全員分の集計は返さない
-    return me.id if user_id is None else user_id
+    if user_id is None or user_id == me.id:
+        return me.id
+    user = deps.get_or_404(user_crud.get_user, s, user_id, detail="User not found")
+    deps.require_profile_visible(me, user)
+    return user_id
 
 
 def _game_kind(
@@ -51,7 +56,7 @@ def get_game_kind_options(
     s: Session = Depends(deps.get_session),
 ) -> GameKindOptions:
     """統計の絞り込みに選べる種別の値。"""
-    return statistics_crud.game_kind_options(s, user_id=_target_user_id(me, user_id))
+    return statistics_crud.game_kind_options(s, user_id=_target_user_id(s, me, user_id))
 
 
 @router.get("/rounds", response_model=list[RoundScoreSummary])
@@ -66,7 +71,7 @@ def list_round_scores(
     """Per-round score aggregation (total/average of its points), optionally
     filtered to a period and/or a user."""
     return statistics_crud.list_round_scores(
-        s, start=start, end=end, user_id=_target_user_id(me, user_id), kind=kind
+        s, start=start, end=end, user_id=_target_user_id(s, me, user_id), kind=kind
     )
 
 
@@ -81,7 +86,7 @@ def get_round_score_statistics(
 ) -> ScoreStatistics:
     """Min/max/average/median of round totals within a period."""
     return statistics_crud.round_score_statistics(
-        s, start=start, end=end, user_id=_target_user_id(me, user_id), kind=kind
+        s, start=start, end=end, user_id=_target_user_id(s, me, user_id), kind=kind
     )
 
 
@@ -97,7 +102,7 @@ def list_end_scores(
     """Per-end score aggregation (total/average of its points), optionally
     filtered to a period and/or a user."""
     return statistics_crud.list_end_scores(
-        s, start=start, end=end, user_id=_target_user_id(me, user_id), kind=kind
+        s, start=start, end=end, user_id=_target_user_id(s, me, user_id), kind=kind
     )
 
 
@@ -112,7 +117,7 @@ def get_end_score_statistics(
 ) -> ScoreStatistics:
     """Min/max/average/median of end totals within a period."""
     return statistics_crud.end_score_statistics(
-        s, start=start, end=end, user_id=_target_user_id(me, user_id), kind=kind
+        s, start=start, end=end, user_id=_target_user_id(s, me, user_id), kind=kind
     )
 
 
@@ -127,7 +132,7 @@ def get_point_score_statistics(
 ) -> ScoreStatistics:
     """Min/max/average/median of individual point (arrow) scores within a period."""
     return statistics_crud.point_score_statistics(
-        s, start=start, end=end, user_id=_target_user_id(me, user_id), kind=kind
+        s, start=start, end=end, user_id=_target_user_id(s, me, user_id), kind=kind
     )
 
 
@@ -142,13 +147,15 @@ def list_user_ranking(
     end: date | None = None,
     skip: int = 0,
     limit: int = 100,
+    me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
 ) -> list[UserRanking]:
     """Users ranked by total score, average round score or average point
     score, high to low, optionally filtered by bow type, distance,
-    organization, region, and/or period."""
+    organization, region, and/or period. ランキングを本人に公開している人だけを載せる。"""
     return statistics_crud.list_user_ranking(
         s,
+        viewer=me,
         metric=metric,
         organization_id=organization_id,
         region_id=region_id,

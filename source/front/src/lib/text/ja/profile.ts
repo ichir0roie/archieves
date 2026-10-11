@@ -9,11 +9,20 @@ export const profile = {
     birthDate: "生年月日",
     age: (age: number) => `${age}歳`,
     organization: t.affiliation,
+    profileVisibility: `${t.profile}の公開範囲`,
+    rankingVisibility: `${t.ranking}の公開範囲`,
+    visibility: {
+      private: "非公開",
+      organization: "グループ公開",
+      public: "全体公開",
+    } as Record<string, string>,
+    visibilityHint: `グループ公開は、同じ${t.affiliation}の人にだけ見せます(${t.affiliation}が無いときは非公開と同じ)。非公開の${t.ranking}には自分も載りません。`,
   },
   view: {
     title: t.profile,
     nickname: (nickname: string) => `(${nickname})`,
     period: (start: string, end: string) => `直近1年間の${t.statistics} (${start} 〜 ${end})`,
+    private: `この${t.profile}は公開されていません`,
   },
   organization: {
     title: `${t.organization}情報`,
@@ -52,6 +61,7 @@ export const profile = {
     roundTitle: t.roundN,
     endTitle: t.endN,
     edit: "編集(入力画面に戻る)",
+    discardUnsaved: `保存していない${t.record}があります。捨ててこの${t.game}を編集しますか?`,
     gameTotal: t.totalPoints,
     countX: "X",
     countTen: "10",

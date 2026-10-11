@@ -147,6 +147,8 @@ export default function Page() {
         </div>
       </div>
 
+      <p className="muted small">{T.stats.ranking.visibilityNote}</p>
+
       {error && <ApiErrorAlert error={error} />}
 
       {loading && <p className="status empty">{T.loading}</p>}

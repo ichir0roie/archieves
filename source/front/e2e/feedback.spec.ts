@@ -29,9 +29,9 @@ test("a sent feedback shows up in the list, awaiting a reply", async ({ page }) 
   await expect(item).toContainText("返信待ち");
 });
 
-test("the home screen lists the announcements", async ({ page }) => {
+test("the announcements screen lists the announcements", async ({ page }) => {
   // 共有の db にお知らせを書く API は無いので、応答を差し替えて画面の出し方だけを確かめる
-  await page.route("**/announcements", (route) =>
+  await page.route("**/api/v1/announcements", (route) =>
     route.fulfill({
       json: [
         {
@@ -42,7 +42,7 @@ test("the home screen lists the announcements", async ({ page }) => {
       ],
     }),
   );
-  await page.goto("/");
+  await page.goto("/announcements");
 
   await expect(page.locator(".Announcements")).toContainText("メンテナンスのお知らせ", {
     timeout: ROUTE_TIMEOUT,

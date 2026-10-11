@@ -1,19 +1,21 @@
 "use client";
 
 import ApiErrorAlert from "@/components/ApiErrorAlert";
+import BackButton from "@/components/BackButton";
+import PageHeader from "@/components/PageHeader";
 import { useLoad } from "@/hooks/useLoad";
 import { listAnnouncements } from "@/lib/api";
 import { formatDateTime } from "@/lib/formatDateTime";
 import { useT } from "@/lib/text";
 
-/** ホームに出す直近のお知らせ。 */
-export default function Announcements() {
+/** 直近のお知らせ。ホームで API を叩かないよう、ホームから分けた。 */
+export default function Page() {
   const T = useT();
   const { data, loading, error } = useLoad(listAnnouncements, []);
 
   return (
-    <section className="stack tight">
-      <span className="section-label">{T.support.announcements.title}</span>
+    <div className="page">
+      <PageHeader title={T.support.announcements.title} />
       {error && <ApiErrorAlert error={error} />}
       {loading && !data ? (
         <p className="status empty">{T.loading}</p>
@@ -29,6 +31,7 @@ export default function Announcements() {
           ))}
         </ul>
       )}
-    </section>
+      <BackButton />
+    </div>
   );
 }

@@ -33,7 +33,7 @@ Next.js(App Router)・React 19。スマホで使う前提の画面が多い。
 
 - GET の読み込みは `src/hooks/useLoad.ts`(`{ data, loading, error }`。deps が変わると読み直し、古い応答は捨てる)。ページに `useState` + `useEffect` + `cancelled` を書き写さない。SWR などは使っていない
 - 非冪等な POST を StrictMode で二度送らないよう、`useRunOnce` を使う
-- 点数の入力は `ScoreManager`(可変のクラス)が持ち、`useScoreGame` が React の状態に写す。考え方は `source/front/docs/state-management-best-practices.md`
+- 点数の入力は `ScoreManager`(可変のクラス)が持ち、`useScoreGame` が React の状態に写す。記録は手元のキャッシュ(`src/lib/score/scoreSheetCache.ts`)にだけ書き、保存・終了のときに `PUT /games/sheet` で丸ごと送る(`docs/アーキテクチャ/得点データ構造とスコアリング.md` の「入力中のデータの作られ方」)。考え方は `source/front/docs/state-management-best-practices.md`
 - 画面をまたいで残す値は `localStorage` / `sessionStorage`(`src/modules/functions/localStorage.ts`)
 
 ## 見た目

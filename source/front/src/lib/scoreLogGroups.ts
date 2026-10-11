@@ -1,4 +1,4 @@
-import type { GameRead } from "@/lib/score/scoreManager";
+import type { GameRead } from "@/lib/api";
 
 export type DayGroup = { key: string; day: string; games: Array<GameRead> };
 export type MonthGroup = {

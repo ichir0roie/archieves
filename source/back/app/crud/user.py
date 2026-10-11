@@ -1,7 +1,8 @@
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, and_, false, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.visibility import Visibility
 from app.db import User
 from app.schemas.user import UserCreate, UserUpdate
 
@@ -14,8 +15,28 @@ def get_user_by_sub(s: Session, sub: str) -> User | None:
     return s.scalar(select(User).where(User.sub == sub))
 
 
-def list_users(s: Session, skip: int = 0, limit: int = 100) -> list[User]:
-    return list(s.scalars(select(User).order_by(User.id).offset(skip).limit(limit)))
+def visible_condition(viewer: User, visibility: ColumnElement[str]) -> ColumnElement[bool]:
+    """core/visibility.py の is_visible() の SQL 版。User を引く select の where に使う。"""
+    if viewer.organization_id is None:
+        same_organization: ColumnElement[bool] = false()
+    else:
+        same_organization = and_(
+            visibility == Visibility.ORGANIZATION,
+            User.organization_id == viewer.organization_id,
+        )
+    return or_(visibility == Visibility.PUBLIC, same_organization)
+
+
+def list_users(s: Session, viewer: User, skip: int = 0, limit: int = 100) -> list[User]:
+    """viewer に見える利用者(本人と、プロフィールを viewer に公開している人)。"""
+    stmt = (
+        select(User)
+        .where(or_(User.id == viewer.id, visible_condition(viewer, User.profile_visibility)))
+        .order_by(User.id)
+        .offset(skip)
+        .limit(limit)
+    )
+    return list(s.scalars(stmt))
 
 
 def create_user(s: Session, user_in: UserCreate, sub: str | None = None) -> User:
