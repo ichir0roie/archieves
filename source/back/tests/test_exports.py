@@ -15,7 +15,11 @@ def _open(response, tmp_path) -> sqlite3.Connection:
 
 def _my_game(factories, user):
     game = factories.GameFactory(
-        user=user, recorded_at=date(2026, 5, 1), bow_type="recurve", arrow_diameter_px=14
+        user=user,
+        recorded_at=date(2026, 5, 1),
+        bow_type="recurve",
+        arrow_diameter_px=14,
+        all_in=True,
     )
     factories.GameCommentFactory(game=game, body="風が強い")
     round_ = factories.RoundFactory(game=game, number=1, distance_m=70, target_type="122cm")
@@ -38,8 +42,10 @@ def test_exports_my_records_as_sqlite(
     assert response.headers["content-type"] == "application/vnd.sqlite3"
     assert 'filename="archieves-records-' in response.headers["content-disposition"]
     conn = _open(response, tmp_path)
-    games = conn.execute("SELECT recorded_at, bow_type, arrow_diameter_px FROM games").fetchall()
-    assert games == [("2026-05-01", "recurve", 14)]
+    games = conn.execute(
+        "SELECT recorded_at, bow_type, arrow_diameter_px, all_in FROM games"
+    ).fetchall()
+    assert games == [("2026-05-01", "recurve", 14, 1)]
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert "matches" not in tables
     assert conn.execute("SELECT body FROM game_comments").fetchall() == [("風が強い",)]
@@ -58,7 +64,7 @@ def test_export_describes_its_tables_and_units(client: TestClient, current_user,
 
     about = dict(conn.execute("SELECT key, value FROM _about").fetchall())
     assert about["format"] == "archieves-export"
-    assert about["format_version"] == "2"
+    assert about["format_version"] == "3"
     assert "relations" in about
     assert conn.execute(
         "SELECT unit FROM _columns WHERE table_name = 'rounds' AND column_name = 'distance_m'"
@@ -110,6 +116,7 @@ def test_exported_file_can_be_imported_again(client: TestClient, current_user, f
     assert len(games) == 2
     imported = max(games, key=lambda g: g["id"])
     assert imported["arrow_diameter_px"] == 14
+    assert imported["all_in"] is True
     assert client.get(f"/api/v1/games/{imported['id']}/comments").status_code == 200
     rounds = client.get(f"/api/v1/games/{imported['id']}/rounds").json()
     ends = client.get(f"/api/v1/rounds/{rounds[0]['id']}/ends").json()
@@ -181,3 +188,26 @@ def test_import_rejects_a_sqlite_file_that_is_not_an_archieves_export(
 
 def test_export_without_a_registered_user_is_not_found(unregistered_client: TestClient) -> None:
     assert unregistered_client.get(PATH).status_code == 404
+
+
+def test_a_version_2_file_imports_as_not_all_in(
+    client: TestClient, current_user, factories, tmp_path
+) -> None:
+    _my_game(factories, current_user)
+    path = tmp_path / "v2.db"
+    path.write_bytes(client.get(PATH).content)
+    # 形のバージョン 2 のファイルには all_in の列が無い
+    with sqlite3.connect(path) as conn:
+        conn.execute("ALTER TABLE games DROP COLUMN all_in")
+        conn.execute("UPDATE _about SET value = '2' WHERE key = 'format_version'")
+
+    res = client.post(
+        "/api/v1/import",
+        data={"source": "archieves"},
+        files={"file": ("archieves-records.db", path.read_bytes(), "application/vnd.sqlite3")},
+    )
+
+    assert res.status_code == 201
+    games = client.get(f"/api/v1/games?user_id={current_user.id}").json()
+    imported = max(games, key=lambda g: g["id"])
+    assert imported["all_in"] is False

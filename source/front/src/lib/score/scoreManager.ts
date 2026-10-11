@@ -64,6 +64,7 @@ function fromSheetRead(read: GameSheetRead): Sheet {
     game_size: read.game_size,
     bow_type: read.bow_type,
     arrow_diameter_px: read.arrow_diameter_px,
+    all_in: read.all_in,
     comment: read.comment,
     rounds: read.rounds.map((round) => ({
       id: round.id,
@@ -136,6 +137,7 @@ export class ScoreManager {
         game_size: setup.gameSize,
         bow_type: setup.bowType,
         arrow_diameter_px: setup.arrowDiameterPx,
+        all_in: setup.allIn,
         comment: null,
         rounds: [],
       },
@@ -259,6 +261,11 @@ export class ScoreManager {
   /** 矢として扱う円の直径(画面の px)。設定する前のゲーム(と、それより前のキャッシュ)は既定の大きさ */
   get arrowDiameterPx(): number {
     return this.sheet.arrow_diameter_px ?? DEFAULT_ARROW_DIAMETER_PX;
+  }
+
+  /** オールイン: 矢の円が帯に完全に入らなければ、その帯の点にしない */
+  get allIn(): boolean {
+    return this.sheet.all_in ?? false;
   }
 
   get targetType(): string {
@@ -496,7 +503,7 @@ export class ScoreManager {
    * API に送る形。末尾の、矢もコメントも無いエンド・ラウンドは送らない(開けただけのエンドを
    * スコア表に空の行として残さない)。手元には残すので、続けて撃てる。
    */
-  private toSheetWrite(): Sheet {
+  private toSheetWrite(): Sheet & { all_in: boolean } {
     const rounds = this.sheet.rounds.map((round) => ({ ...round, ends: [...round.ends] }));
     while (rounds.length > 0) {
       const round = rounds[rounds.length - 1];
@@ -511,7 +518,7 @@ export class ScoreManager {
       }
       break;
     }
-    return { ...this.sheet, rounds };
+    return { ...this.sheet, all_in: this.allIn, rounds };
   }
 
   /** 矢もコメントも無い */

@@ -82,6 +82,9 @@ button.icon { padding: 0.3rem; line-height: 0; border-radius: 999px; }
 .field > label { font-size: 0.85rem; color: var(--muted); }
 .field .required { color: var(--danger); margin-left: 0.2rem; }
 .field .hint { font-size: 0.78rem; color: var(--muted); }
+/* チェックボックスの欄。.field > label の小さい灰色の見出しでなく、本文の大きさで出す */
+.field > label.check-field { display: flex; align-items: center; gap: 0.5rem; font-size: 1rem; color: inherit; cursor: pointer; }
+.field > label.check-field input { width: 1.2rem; height: 1.2rem; accent-color: var(--accent); }
 .field .error { font-size: 0.78rem; color: var(--danger); }
 
 /* 縦に積む入力の並び */
@@ -239,6 +242,7 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .score-progress { flex: 1; display: flex; justify-content: center; gap: 1rem; font-size: 0.95rem; }
 .score-progress b { font-size: 1.5rem; line-height: 1; }
 .score-progress .full { color: var(--ok); }
+.score-progress .all-in-badge { align-self: center; padding: 0.05rem 0.4rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
 .score-entry .notice { flex-shrink: 0; padding: 0.4rem 1rem; text-align: center; font-size: 0.85rem; font-weight: 600; }
 .score-entry .notice.done { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); color: var(--ok); }
 .score-entry .notice.full { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--accent); }
