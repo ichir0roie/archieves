@@ -7,7 +7,7 @@
     "identity_pool_id": "ap-northeast-1:00000000-0000-0000-0000-000000000000",
     "mfa_methods": [],
     "standard_required_attributes": ["email"],
-    "username_attributes": [],
+    "username_attributes": ["email"],
     "user_verification_types": ["email"],
     "unauthenticated_identities_enabled": true,
     "password_policy": {

@@ -25,9 +25,6 @@ export const common = {
   filter: "絞り込み",
   noMatch: "該当するものがありません",
   unit: t.unit,
-  auth: {
-    usernameOrEmail: "ユーザ名またはメールアドレス",
-  },
   api: {
     signInRequired: "サインインしてください",
     unreachable: (reason: string) => `API に届かない: ${reason}`,
