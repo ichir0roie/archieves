@@ -28,6 +28,8 @@ export const game: typeof ja = {
     allIn: "All-in",
     allInHint: "An arrow scores a ring only when it is completely inside it. Touching a line gives the lower ring, and touching the edge of the face is a miss.",
     sightPreview: "Scoring sight (actual size)",
+    backfill: (date: string) => `Entering later: scores of ${date}`,
+    backfillHint: "Every round, end and arrow is dated this day (at 0:00).",
   },
   entry: {
     home: "Back to Home",
@@ -35,6 +37,7 @@ export const game: typeof ja = {
     end: t.end,
     roundTotal: `${t.round} ${t.total.toLowerCase()}`,
     allIn: "All-in",
+    backfill: (date: string) => `Scores of ${date}`,
     gameComplete: "All rounds are recorded. Press \"Finish\" to check your scores.",
     endComplete: "All arrows of this end are in. Press \"Next end\" to move on to the next end.",
     roundComplete: "The last end of this round is recorded. Press \"Next end\" to move on to the next round.",

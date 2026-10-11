@@ -75,6 +75,9 @@ class GameSheetWrite(BaseModel):
     )
     # オールイン: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
     all_in: bool = False
+    # あとから入力: 日付を決めて入れたゲーム。中の記録の日付・時刻は、フロントが
+    # ゲームの日付にそろえて送る
+    backfilled: bool = False
     comment: str | None = Field(default=None, max_length=MAX_COMMENT_LENGTH)
     rounds: list[RoundSheetWrite] = Field(default=[], max_length=_MAX_ITEMS)
 
@@ -109,5 +112,6 @@ class GameSheetRead(ResponseModel):
     bow_type: str | None
     arrow_diameter_px: int | None
     all_in: bool
+    backfilled: bool
     comment: str | None
     rounds: list[RoundSheetRead]

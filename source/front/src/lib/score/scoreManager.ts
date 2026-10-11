@@ -51,6 +51,12 @@ function today(): string {
   return toDateOnly(new Date());
 }
 
+/** 手元の時間帯での、その日("yyyy-mm-dd")の 0 時 */
+function startOfDate(date: string): Date {
+  // 時差の無い日付と時刻の文字列は、手元の時間帯として読まれる
+  return new Date(`${date}T00:00:00`);
+}
+
 function hasComment(entity: { comment: string | null }): boolean {
   return entity.comment !== null && entity.comment.trim() !== "";
 }
@@ -65,6 +71,7 @@ function fromSheetRead(read: GameSheetRead): Sheet {
     bow_type: read.bow_type,
     arrow_diameter_px: read.arrow_diameter_px,
     all_in: read.all_in,
+    backfilled: read.backfilled,
     comment: read.comment,
     rounds: read.rounds.map((round) => ({
       id: round.id,
@@ -127,17 +134,21 @@ export class ScoreManager {
 
   // ---- キャッシュを作る・読む・消す ----
 
-  /** 設定の画面から新しいゲームを始める。前のキャッシュは捨てる */
-  static startNewGame(setup: RoundSetup): ScoreManager {
+  /**
+   * 設定の画面から新しいゲームを始める。前のキャッシュは捨てる。backfillDate("yyyy-mm-dd")を渡すと
+   * あとから入力にし、記録の日付・時刻をその日にそろえる
+   */
+  static startNewGame(setup: RoundSetup, backfillDate: string | null = null): ScoreManager {
     const manager = new ScoreManager({
       sheet: {
         id: null,
         client_key: crypto.randomUUID(),
-        recorded_at: today(),
+        recorded_at: backfillDate ?? today(),
         game_size: setup.gameSize,
         bow_type: setup.bowType,
         arrow_diameter_px: setup.arrowDiameterPx,
         all_in: setup.allIn,
+        backfilled: backfillDate !== null,
         comment: null,
         rounds: [],
       },
@@ -268,6 +279,16 @@ export class ScoreManager {
     return this.sheet.all_in ?? false;
   }
 
+  /** あとから入力のゲームなら、その日付("yyyy-mm-dd")。入れた時の日付で付けるゲームは null */
+  get backfillDate(): string | null {
+    return this.sheet.backfilled ? this.sheet.recorded_at : null;
+  }
+
+  /** 新しく開くラウンド・エンドと矢に付ける日付 */
+  private get recordDate(): string {
+    return this.backfillDate ?? today();
+  }
+
   get targetType(): string {
     return this.currentRound?.target_type ?? this.setup?.targetType ?? DEFAULT_TARGET_TYPE_ID;
   }
@@ -377,7 +398,7 @@ export class ScoreManager {
     this.sheet.rounds.push({
       id: null,
       number: previous ? previous.number + 1 : 1,
-      recorded_at: today(),
+      recorded_at: this.recordDate,
       end_size: previous?.end_size ?? this.setup?.endSize ?? DEFAULT_END_SIZE,
       round_size: previous?.round_size ?? this.setup?.roundSize ?? DEFAULT_ROUND_SIZE,
       distance_m: previous?.distance_m ?? this.setup?.distanceM ?? DEFAULT_DISTANCE_M,
@@ -407,7 +428,7 @@ export class ScoreManager {
     round.ends.push({
       id: null,
       number: round.ends.length + 1,
-      recorded_at: today(),
+      recorded_at: this.recordDate,
       comment: null,
       points: [],
     });
@@ -426,19 +447,23 @@ export class ScoreManager {
     points.push({ id: null, number: points.length + 1, ...point });
   }
 
-  /** 矢を一本記録する。記録した時刻も持つ。エンドが満ちていれば何もしない */
+  /**
+   * 矢を一本記録する。記録した時刻も持つ(あとから入力なら、その日の 0 時)。エンドが満ちていれば
+   * 何もしない
+   */
   addPoint(score: number, x: number = 0, y: number = 0) {
     if (this.isEndFull || !this.currentEnd) return;
 
     // 新しく撃った矢で、このエンドの履歴が分かれる
     this.undonePoints.delete(this.undoneKey);
-    const now = new Date();
+    const backfillDate = this.backfillDate;
+    const shotAt = backfillDate === null ? new Date() : startOfDate(backfillDate);
     this.pushPoint({
       score,
       x,
       y,
-      recorded_at: toDateOnly(now),
-      shot_at: now.toISOString(),
+      recorded_at: toDateOnly(shotAt),
+      shot_at: shotAt.toISOString(),
     });
     this.changed();
   }
@@ -503,7 +528,7 @@ export class ScoreManager {
    * API に送る形。末尾の、矢もコメントも無いエンド・ラウンドは送らない(開けただけのエンドを
    * スコア表に空の行として残さない)。手元には残すので、続けて撃てる。
    */
-  private toSheetWrite(): Sheet & { all_in: boolean } {
+  private toSheetWrite(): Sheet & { all_in: boolean; backfilled: boolean } {
     const rounds = this.sheet.rounds.map((round) => ({ ...round, ends: [...round.ends] }));
     while (rounds.length > 0) {
       const round = rounds[rounds.length - 1];
@@ -518,7 +543,7 @@ export class ScoreManager {
       }
       break;
     }
-    return { ...this.sheet, all_in: this.allIn, rounds };
+    return { ...this.sheet, all_in: this.allIn, backfilled: this.sheet.backfilled ?? false, rounds };
   }
 
   /** 矢もコメントも無い */

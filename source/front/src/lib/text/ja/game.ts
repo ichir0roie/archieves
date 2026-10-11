@@ -28,6 +28,8 @@ export const game = {
     allIn: "オールイン",
     allInHint: `${t.arrow}が帯に完全に入らないと、その帯の点になりません。線にかかれば低い方の点、的の縁にかかれば外れになります`,
     sightPreview: "記入画面のサイト(実寸大)",
+    backfill: (date: string) => `あとから入力: ${date} の${t.record}`,
+    backfillHint: `${t.round}・${t.end}・${t.arrow}の日付と時刻は、すべてこの日(0 時)になります`,
   },
   entry: {
     home: `${t.home}へ戻る`,
@@ -35,6 +37,7 @@ export const game = {
     end: t.end,
     roundTotal: `${t.round}${t.total}`,
     allIn: "オールイン",
+    backfill: (date: string) => `${date} の${t.record}`,
     gameComplete: `全${t.round}の${t.record}が終わりました。「終了」で${t.score}を確認できます。`,
     endComplete: `この${t.end}の${t.arrow}がすべて入りました。「1${t.end}進む」で次の${t.end}に進みます。`,
     roundComplete: `この${t.round}の最後の${t.end}が${t.record}済みです。「1${t.end}進む」で次の${t.round}に進みます。`,
