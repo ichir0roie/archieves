@@ -24,7 +24,7 @@ from app.db.models.comment_model import EndComment, GameComment, RoundComment
 from app.services.legacy_import import ImportSummary
 
 FORMAT_NAME = "archieves-export"
-# 1: 最初の形。2: points.shot_at を足した(1 のファイルは shot_at を NULL として読む)
+# 1: 最初の形。2: points.shot_at・games.arrow_diameter_px を足した(1 のファイルは NULL として読む)
 FORMAT_VERSION = 2
 
 
@@ -72,6 +72,13 @@ TABLES: tuple[Table, ...] = (
                 "TEXT",
                 "",
                 "弓の種類(recurve・compound・barebow など、または自由入力)。不明なら NULL",
+            ),
+            Column(
+                "arrow_diameter_px",
+                "INTEGER",
+                "px(記入画面の上の大きさ)",
+                "記入画面で矢として扱った円の直径。この円が帯の線にかかれば高い方の点にした。"
+                "設定する前の記録は NULL",
             ),
         ),
     ),
@@ -376,7 +383,9 @@ def export_sqlite(s: Session, user_id: int) -> bytes:
     visible_ends = select(End.id).where(End.round_id.in_(visible_rounds))
 
     queries = {
-        "games": select(Game.id, Game.recorded_at, Game.game_size, Game.bow_type)
+        "games": select(
+            Game.id, Game.recorded_at, Game.game_size, Game.bow_type, Game.arrow_diameter_px
+        )
         .where(Game.id.in_(visible_games))
         .order_by(Game.id),
         "rounds": select(
@@ -469,6 +478,9 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
                     recorded_at=date.fromisoformat(r["recorded_at"]),
                     game_size=r["game_size"],
                     bow_type=r["bow_type"],
+                    arrow_diameter_px=(
+                        r["arrow_diameter_px"] if "arrow_diameter_px" in r.keys() else None
+                    ),
                 )
             s.add_all(games.values())
             s.flush()

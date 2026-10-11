@@ -2,6 +2,7 @@ import { deleteGame, getGameSheet, saveGameSheet, type GameSheetRead } from "@/l
 import { type CommentTarget } from "@/lib/comment";
 import { toDateOnly } from "@/lib/toDateOnly";
 import {
+  DEFAULT_ARROW_DIAMETER_PX,
   DEFAULT_DISTANCE_M,
   DEFAULT_END_SIZE,
   DEFAULT_GAME_SIZE,
@@ -57,6 +58,7 @@ function fromSheetRead(read: GameSheetRead): Sheet {
     recorded_at: read.recorded_at,
     game_size: read.game_size,
     bow_type: read.bow_type,
+    arrow_diameter_px: read.arrow_diameter_px,
     comment: read.comment,
     rounds: read.rounds.map((round) => ({
       id: round.id,
@@ -128,6 +130,7 @@ export class ScoreManager {
         recorded_at: today(),
         game_size: setup.gameSize,
         bow_type: setup.bowType,
+        arrow_diameter_px: setup.arrowDiameterPx,
         comment: null,
         rounds: [],
       },
@@ -246,6 +249,11 @@ export class ScoreManager {
 
   get endSize(): number {
     return this.currentRound?.end_size ?? this.setup?.endSize ?? DEFAULT_END_SIZE;
+  }
+
+  /** 矢として扱う円の直径(画面の px)。設定する前のゲーム(と、それより前のキャッシュ)は既定の大きさ */
+  get arrowDiameterPx(): number {
+    return this.sheet.arrow_diameter_px ?? DEFAULT_ARROW_DIAMETER_PX;
   }
 
   get targetType(): string {

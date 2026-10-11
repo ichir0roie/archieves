@@ -4766,6 +4766,19 @@
               }
             ],
             "title": "Bow Type"
+          },
+          "arrow_diameter_px": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 40.0,
+                "minimum": 2.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrow Diameter Px"
           }
         },
         "type": "object",
@@ -4867,6 +4880,19 @@
             ],
             "title": "Bow Type"
           },
+          "arrow_diameter_px": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 40.0,
+                "minimum": 2.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrow Diameter Px"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -4890,6 +4916,7 @@
           "recorded_at",
           "game_size",
           "bow_type",
+          "arrow_diameter_px",
           "id",
           "deleted_at"
         ],
@@ -4986,6 +5013,17 @@
             ],
             "title": "Bow Type"
           },
+          "arrow_diameter_px": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrow Diameter Px"
+          },
           "comment": {
             "anyOf": [
               {
@@ -5013,6 +5051,7 @@
           "recorded_at",
           "game_size",
           "bow_type",
+          "arrow_diameter_px",
           "comment",
           "rounds"
         ],
@@ -5074,6 +5113,19 @@
               }
             ],
             "title": "Bow Type"
+          },
+          "arrow_diameter_px": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 40.0,
+                "minimum": 2.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrow Diameter Px"
           },
           "comment": {
             "anyOf": [
@@ -5153,6 +5205,19 @@
               }
             ],
             "title": "Bow Type"
+          },
+          "arrow_diameter_px": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 40.0,
+                "minimum": 2.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrow Diameter Px"
           }
         },
         "type": "object",

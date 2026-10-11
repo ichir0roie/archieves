@@ -1,5 +1,6 @@
 "use client";
 
+import ArrowSight from "@/components/ArrowSight";
 import Field from "@/components/Field";
 import Modal from "@/components/Modal";
 import BackButton from "@/components/BackButton";
@@ -12,10 +13,12 @@ import {
   BOW_TYPE_MAX_LENGTH,
   DEFAULT_ROUND_SETUP,
   DISTANCE_PRESETS_M,
+  MAX_ARROW_DIAMETER_PX,
   MAX_DISTANCE_M,
   MAX_END_SIZE,
   MAX_GAME_SIZE,
   MAX_ROUND_SIZE,
+  MIN_ARROW_DIAMETER_PX,
   MIN_DISTANCE_M,
   MIN_END_SIZE,
   MIN_GAME_SIZE,
@@ -120,6 +123,7 @@ export default function Page() {
   const [endSize, setEndSize] = useState(DEFAULT_ROUND_SETUP.endSize);
   const [roundSize, setRoundSize] = useState(DEFAULT_ROUND_SETUP.roundSize);
   const [gameSize, setGameSize] = useState(DEFAULT_ROUND_SETUP.gameSize);
+  const [arrowDiameterPx, setArrowDiameterPx] = useState(DEFAULT_ROUND_SETUP.arrowDiameterPx);
   const [otherOpen, setOtherOpen] = useState<"bowType" | "distance" | null>(null);
   const [draftBowName, setDraftBowName] = useState("");
   const [draftDistance, setDraftDistance] = useState(DEFAULT_ROUND_SETUP.distanceM);
@@ -134,6 +138,7 @@ export default function Page() {
     setEndSize(saved.endSize);
     setRoundSize(saved.roundSize);
     setGameSize(saved.gameSize);
+    setArrowDiameterPx(saved.arrowDiameterPx);
   }, []);
 
   const bowIsOther = !BOW_TYPES.some((b) => b.id === bowType);
@@ -162,6 +167,7 @@ export default function Page() {
       endSize,
       roundSize,
       gameSize,
+      arrowDiameterPx,
     };
     saveRoundSetup(setup);
     // この画面からは必ず新しいゲームを始める(手元のキャッシュを作り直す)。続きはこの画面を通らない
@@ -234,6 +240,42 @@ export default function Page() {
           max={MAX_GAME_SIZE}
           hint={T.game.setup.gameSizeHint}
         />
+
+        <Field
+          label={T.game.setup.arrowDiameter}
+          hint={T.game.setup.arrowDiameterHint}
+        >
+          {(id) => (
+            <div className="row">
+              <select
+                id={id}
+                className="grow"
+                value={arrowDiameterPx}
+                onChange={(e) => setArrowDiameterPx(Number(e.target.value))}
+              >
+                {integerRange(MIN_ARROW_DIAMETER_PX, MAX_ARROW_DIAMETER_PX).map((n) => (
+                  <option
+                    key={n}
+                    value={n}
+                  >
+                    {n}px
+                  </option>
+                ))}
+              </select>
+              {/* 記入画面のズームに出すのと同じ部品・同じ大きさ。帯の線への届き方を設定する前に見られる */}
+              <div
+                className="SightPreview sight-preview ring-gold"
+                role="img"
+                aria-label={T.game.setup.sightPreview}
+              >
+                <ArrowSight
+                  arrowDiameterPx={arrowDiameterPx}
+                  ringClassName="ring-gold"
+                />
+              </div>
+            </div>
+          )}
+        </Field>
 
         <p className="SetupSummary game-note muted">
           {T.game.setup.summary(

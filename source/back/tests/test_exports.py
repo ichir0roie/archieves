@@ -14,7 +14,9 @@ def _open(response, tmp_path) -> sqlite3.Connection:
 
 
 def _my_game(factories, user):
-    game = factories.GameFactory(user=user, recorded_at=date(2026, 5, 1), bow_type="recurve")
+    game = factories.GameFactory(
+        user=user, recorded_at=date(2026, 5, 1), bow_type="recurve", arrow_diameter_px=14
+    )
     factories.GameCommentFactory(game=game, body="風が強い")
     round_ = factories.RoundFactory(game=game, number=1, distance_m=70, target_type="122cm")
     end = factories.EndFactory(round=round_, number=1)
@@ -36,8 +38,8 @@ def test_exports_my_records_as_sqlite(
     assert response.headers["content-type"] == "application/vnd.sqlite3"
     assert 'filename="archieves-records-' in response.headers["content-disposition"]
     conn = _open(response, tmp_path)
-    games = conn.execute("SELECT recorded_at, bow_type FROM games").fetchall()
-    assert games == [("2026-05-01", "recurve")]
+    games = conn.execute("SELECT recorded_at, bow_type, arrow_diameter_px FROM games").fetchall()
+    assert games == [("2026-05-01", "recurve", 14)]
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert "matches" not in tables
     assert conn.execute("SELECT body FROM game_comments").fetchall() == [("風が強い",)]
@@ -107,6 +109,7 @@ def test_exported_file_can_be_imported_again(client: TestClient, current_user, f
     games = client.get(f"/api/v1/games?user_id={current_user.id}").json()
     assert len(games) == 2
     imported = max(games, key=lambda g: g["id"])
+    assert imported["arrow_diameter_px"] == 14
     assert client.get(f"/api/v1/games/{imported['id']}/comments").status_code == 200
     rounds = client.get(f"/api/v1/games/{imported['id']}/rounds").json()
     ends = client.get(f"/api/v1/rounds/{rounds[0]['id']}/ends").json()
@@ -115,15 +118,16 @@ def test_exported_file_can_be_imported_again(client: TestClient, current_user, f
     assert got == [(1, 11, 0.0, "2026-05-01T00:01:00Z"), (2, 0, None, None)]
 
 
-def test_a_version_1_file_without_shot_at_still_imports(
+def test_a_version_1_file_still_imports(
     client: TestClient, current_user, factories, tmp_path
 ) -> None:
     _my_game(factories, current_user)
     path = tmp_path / "v1.db"
     path.write_bytes(client.get(PATH).content)
-    # 矢の時刻を持つ前(形の版 1)のファイルには shot_at の列が無い
+    # 形のバージョン 1 のファイルには shot_at・arrow_diameter_px の列が無い
     with sqlite3.connect(path) as conn:
         conn.execute("ALTER TABLE points DROP COLUMN shot_at")
+        conn.execute("ALTER TABLE games DROP COLUMN arrow_diameter_px")
         conn.execute("UPDATE _about SET value = '1' WHERE key = 'format_version'")
 
     res = client.post(
