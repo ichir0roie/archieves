@@ -1,3 +1,4 @@
+import type { Visibility } from "@/lib/api";
 import { terms as t } from "./terms";
 
 /** profile の画面(プロフィール・組織・インポート・スコアの表示・スコア)の文言。 */
@@ -15,7 +16,7 @@ export const profile = {
       private: "非公開",
       organization: "グループ公開",
       public: "全体公開",
-    } as Record<string, string>,
+    } satisfies Record<Visibility, string>,
     visibilityHint: `グループ公開は、同じ${t.affiliation}の人にだけ見せます(${t.affiliation}が無いときは非公開と同じ)。非公開の${t.ranking}には自分も載りません。`,
   },
   view: {
@@ -81,7 +82,6 @@ export const profile = {
     backfill: "あとから入力",
     backfillTitle: "あとから入力",
     backfillDate: "日付",
-    backfillHint: `${t.round}・${t.end}・${t.arrow}の日付と時刻は、すべてこの日(0 時)になります`,
     backfillNext: "次へ",
     gameId: "Game ID",
     startedAt: "開始日時",

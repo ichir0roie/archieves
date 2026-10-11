@@ -267,3 +267,25 @@ def test_a_version_3_file_imports_as_not_backfilled(
     imported = max(games, key=lambda g: g["id"])
     assert imported["backfilled"] is False
     assert imported["all_in"] is True
+
+
+def test_import_rejects_an_arrow_diameter_out_of_range(
+    client: TestClient,
+    current_user,
+    factories,
+    tmp_path,
+) -> None:
+    _my_game(factories, current_user)
+    path = tmp_path / "broken.db"
+    path.write_bytes(client.get(PATH).content)
+    with sqlite3.connect(path) as conn:
+        conn.execute("UPDATE games SET arrow_diameter_mm = 31")
+
+    res = client.post(
+        "/api/v1/import",
+        data={"source": "archieves"},
+        files={"file": ("archieves-records.db", path.read_bytes(), "application/vnd.sqlite3")},
+    )
+
+    assert res.status_code == 400
+    assert "arrow_diameter_mm" in res.json()["detail"]

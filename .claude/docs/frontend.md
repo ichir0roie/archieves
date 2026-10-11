@@ -6,12 +6,14 @@ Next.js(App Router)・React 19。スマホで使う前提の画面が多い。
 
 | 置き場所 | 中身 |
 | --- | --- |
-| `src/app/` | ページ。どれも `"use client"` で、データはブラウザから API を叩いて読む |
-| `src/components/` | コンポーネント。`atoms/`・`auth/`(`AuthGate`)・`templates/<画面の種類>/` |
+| `src/app/` | ページ。どれも `"use client"` で、データはブラウザから API を叩いて読む。`src/app/api/v1` は API へ流す route handler |
+| `src/components/` | コンポーネント(階層は無く、一つのディレクトリに並べる)。ログインの門は `AuthGate.tsx` |
 | `src/lib/api/` | API の呼び出し(`client.ts`)と型(`schemas.ts`・生成した `openapi.d.ts`) |
-| `src/lib/auth/` | ログインの形(`mock` / `cognito`)とモックの利用者 |
-| `src/modules/` | 画面に依らない処理とナビ。点数の入力の状態は `src/lib/score/scoreManager.ts` |
-| `src/hooks/` | 共有の hook |
+| `src/lib/auth/` | ログインの形(`mock` / `cognito`)とモックの利用者、今の利用者(`currentUser.ts`) |
+| `src/lib/score/` | 点数の決まり(`scoreConfig.ts`)と点数の入力の状態(`scoreManager.ts`・`useScoreGame.ts`) |
+| `src/lib/text/` | 画面の文言(`ja/`・`en/`)。コンポーネントに文言を直に書かない |
+| `src/lib/` のほか | 画面をまたいで残す値(`storage.ts`)、メニューとホームの行き先(`destinations.ts`)など、画面に依らない処理 |
+| `src/hooks/` | 共有の hook(`useLoad`・`useOnResume` など) |
 | `amplify/` | Amplify Gen 2 の Cognito の定義(認証だけ。データは API が持つ) |
 | `e2e/` | Playwright の spec(`.claude/docs/testing.md` の「E2E」) |
 
@@ -32,14 +34,14 @@ Next.js(App Router)・React 19。スマホで使う前提の画面が多い。
 ## 状態
 
 - GET の読み込みは `src/hooks/useLoad.ts`(`{ data, loading, error }`。deps が変わると読み直し、古い応答は捨てる)。ページに `useState` + `useEffect` + `cancelled` を書き写さない。SWR などは使っていない
-- 非冪等な POST を StrictMode で二度送らないよう、`useRunOnce` を使う
-- 点数の入力は `ScoreManager`(可変のクラス)が持ち、`useScoreGame` が React の状態に写す。記録は手元のキャッシュ(`src/lib/score/scoreSheetCache.ts`)にだけ書き、保存・終了のときに `PUT /games/sheet` で丸ごと送る(`docs/アーキテクチャ/得点データ構造とスコアリング.md` の「入力中のデータの作られ方」)。考え方は `source/front/docs/state-management-best-practices.md`
-- 画面をまたいで残す値は `localStorage` / `sessionStorage`(`src/modules/functions/localStorage.ts`)
+- 非冪等な POST を StrictMode で二度送らないよう、`useRunOnce`(`src/lib/useRunOnce.ts`)を使う
+- 点数の入力は `ScoreManager`(可変のクラス)が持ち、`useScoreGame` が React の状態に写す。記録は手元のキャッシュ(形は `src/lib/score/scoreSheetCache.ts`、読み書きは `src/lib/storage.ts`。ログインの sub ごとに分ける)にだけ書き、保存・終了のときに `PUT /games/sheet` で丸ごと送る(`docs/アーキテクチャ/得点データ構造とスコアリング.md` の「入力中のデータの作られ方」)。考え方は `source/front/docs/state-management-best-practices.md`
+- 画面をまたいで残す値は `localStorage`。読み書きは `src/lib/storage.ts` にまとめ、ページ・コンポーネントから直に触らない(言語は `src/lib/text/locale.ts`、メニューの位置は `src/lib/menuPosition.ts` が持つ)
 
 ## 見た目
 
-- MUI と Tailwind を併せて使う。MUI のコンポーネントの見た目は Tailwind の class で上書きする(`className="!py-3 ..."`)
-- グラフはライブラリを使わず SVG で書く(`RoundScoreChart.tsx`)
+- 見た目は `src/app/globals.css` の class で書く(UI のライブラリ・Tailwind は使わない)。ログインの画面だけ `@aws-amplify/ui-react` の `Authenticator`
+- グラフはライブラリを使わず SVG で書く(`ScoreTrendChart.tsx`)
 
 ## コマンド
 

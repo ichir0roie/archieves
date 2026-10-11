@@ -4732,10 +4732,6 @@
       },
       "GameCreate": {
         "properties": {
-          "user_id": {
-            "type": "integer",
-            "title": "User Id"
-          },
           "recorded_at": {
             "type": "string",
             "format": "date",
@@ -4789,12 +4785,16 @@
             "type": "boolean",
             "title": "Backfilled",
             "default": false
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
           }
         },
         "type": "object",
         "required": [
-          "user_id",
-          "recorded_at"
+          "recorded_at",
+          "user_id"
         ],
         "title": "GameCreate"
       },
@@ -4857,10 +4857,6 @@
       },
       "GameRead": {
         "properties": {
-          "user_id": {
-            "type": "integer",
-            "title": "User Id"
-          },
           "recorded_at": {
             "type": "string",
             "format": "date",
@@ -4913,6 +4909,10 @@
             "title": "Backfilled",
             "default": false
           },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -4932,13 +4932,13 @@
         },
         "type": "object",
         "required": [
-          "user_id",
           "recorded_at",
           "game_size",
           "bow_type",
           "arrow_diameter_mm",
           "all_in",
           "backfilled",
+          "user_id",
           "id",
           "deleted_at"
         ],
@@ -5091,30 +5091,6 @@
       },
       "GameSheetWrite": {
         "properties": {
-          "id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Id"
-          },
-          "client_key": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 64,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Client Key"
-          },
           "recorded_at": {
             "type": "string",
             "format": "date",
@@ -5168,6 +5144,30 @@
             "type": "boolean",
             "title": "Backfilled",
             "default": false
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "client_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Key"
           },
           "comment": {
             "anyOf": [
@@ -5262,14 +5262,26 @@
             "title": "Arrow Diameter Mm"
           },
           "all_in": {
-            "type": "boolean",
-            "title": "All In",
-            "default": false
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "All In"
           },
           "backfilled": {
-            "type": "boolean",
-            "title": "Backfilled",
-            "default": false
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backfilled"
           }
         },
         "type": "object",
@@ -6210,17 +6222,6 @@
       },
       "RoundSheetWrite": {
         "properties": {
-          "id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Id"
-          },
           "number": {
             "type": "integer",
             "minimum": 1.0,
@@ -6261,6 +6262,17 @@
             "maxLength": 50,
             "minLength": 1,
             "title": "Target Type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
           },
           "comment": {
             "anyOf": [

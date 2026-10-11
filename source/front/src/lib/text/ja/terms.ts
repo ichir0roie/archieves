@@ -37,6 +37,7 @@ export const terms = {
   feedback: "意見箱",
   announcement: "お知らせ",
   allPeriod: "全期間",
+  allIn: "オールイン",
   roundN: (n: number) => `ラウンド ${n}`,
   endN: (n: number) => `エンド ${n}`,
   unit: {

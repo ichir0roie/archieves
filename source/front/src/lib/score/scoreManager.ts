@@ -12,8 +12,10 @@ import {
 } from "./scoreConfig";
 import {
   clearScoreSheetCache,
-  readScoreSheetCache,
-  writeScoreSheetCache,
+  loadScoreSheetCache,
+  saveScoreSheetCache,
+} from "@/lib/storage";
+import {
   type ScoreSheetCache,
   type Sheet,
   type SheetEnd,
@@ -110,6 +112,8 @@ function fromSheetRead(read: GameSheetRead): Sheet {
  * コメントも消さない。エンドが満ちても次のエンドへは自動で進まない(「1エンド進む」で進む)。
  */
 export class ScoreManager {
+  /** 入力している利用者(ログインの sub)。キャッシュはこの人のものとして書く */
+  private readonly sub: string;
   private sheet: Sheet;
   private setup: RoundSetup | null;
   private roundIndex: number;
@@ -123,6 +127,7 @@ export class ScoreManager {
   private undonePoints = new Map<string, Array<UndonePoint>>();
 
   constructor(cache: Omit<ScoreSheetCache, "version">) {
+    this.sub = cache.sub;
     this.sheet = cache.sheet;
     this.setup = cache.setup;
     this.roundIndex = cache.roundIndex;
@@ -136,10 +141,15 @@ export class ScoreManager {
 
   /**
    * 設定の画面から新しいゲームを始める。前のキャッシュは捨てる。backfillDate("yyyy-mm-dd")を渡すと
-   * あとから入力にし、記録の日付・時刻をその日にそろえる
+   * あとから入力にし、記録の日付・時刻をその日にそろえる。sub は今のログインの利用者
    */
-  static startNewGame(setup: RoundSetup, backfillDate: string | null = null): ScoreManager {
+  static startNewGame(
+    sub: string,
+    setup: RoundSetup,
+    backfillDate: string | null = null,
+  ): ScoreManager {
     const manager = new ScoreManager({
+      sub,
       sheet: {
         id: null,
         client_key: crypto.randomUUID(),
@@ -162,10 +172,11 @@ export class ScoreManager {
   }
 
   /** 保存したゲームの編集を始める。API から丸ごと読んでキャッシュを作り直し、いちばん後ろのエンドを開く */
-  static async startEditing(gameId: number): Promise<ScoreManager> {
+  static async startEditing(sub: string, gameId: number): Promise<ScoreManager> {
     const sheet = fromSheetRead(await getGameSheet(gameId));
     const roundIndex = Math.max(sheet.rounds.length - 1, 0);
     const manager = new ScoreManager({
+      sub,
       sheet,
       setup: null,
       roundIndex,
@@ -182,29 +193,26 @@ export class ScoreManager {
     return manager;
   }
 
-  /** キャッシュにある、入力の途中のゲーム。無ければ null */
-  static resume(): ScoreManager | null {
-    const cache = readScoreSheetCache();
+  /** キャッシュにある、sub の人の入力の途中のゲーム。無ければ null */
+  static resume(sub: string): ScoreManager | null {
+    const cache = loadScoreSheetCache(sub);
     return cache ? new ScoreManager(cache) : null;
   }
 
-  /** キャッシュに入力の途中のゲームがあり、保存していない変更がある */
-  static hasUnsavedCache(): boolean {
-    return readScoreSheetCache()?.dirty ?? false;
+  /** キャッシュに sub の人の入力の途中のゲームがあり、保存していない変更がある */
+  static hasUnsavedCache(sub: string): boolean {
+    return loadScoreSheetCache(sub)?.dirty ?? false;
   }
 
   private persist() {
-    try {
-      writeScoreSheetCache({
-        sheet: this.sheet,
-        setup: this.setup,
-        roundIndex: this.roundIndex,
-        endIndex: this.endIndex,
-        dirty: this.dirty,
-      });
-    } catch {
-      // 書けなくても(容量切れなど)画面の中の記録はあり、保存・終了で API に送れる
-    }
+    saveScoreSheetCache({
+      sub: this.sub,
+      sheet: this.sheet,
+      setup: this.setup,
+      roundIndex: this.roundIndex,
+      endIndex: this.endIndex,
+      dirty: this.dirty,
+    });
   }
 
   /** 記録を変えた。キャッシュに写し、保存していない印を付ける */
@@ -276,7 +284,7 @@ export class ScoreManager {
 
   /** オールイン: 矢の円が帯に完全に入らなければ、その帯の点にしない */
   get allIn(): boolean {
-    return this.sheet.all_in ?? false;
+    return this.sheet.all_in;
   }
 
   /** あとから入力のゲームなら、その日付("yyyy-mm-dd")。入れた時の日付で付けるゲームは null */
@@ -528,7 +536,7 @@ export class ScoreManager {
    * API に送る形。末尾の、矢もコメントも無いエンド・ラウンドは送らない(開けただけのエンドを
    * スコア表に空の行として残さない)。手元には残すので、続けて撃てる。
    */
-  private toSheetWrite(): Sheet & { all_in: boolean; backfilled: boolean } {
+  private toSheetWrite(): Sheet {
     const rounds = this.sheet.rounds.map((round) => ({ ...round, ends: [...round.ends] }));
     while (rounds.length > 0) {
       const round = rounds[rounds.length - 1];
@@ -543,7 +551,7 @@ export class ScoreManager {
       }
       break;
     }
-    return { ...this.sheet, all_in: this.allIn, backfilled: this.sheet.backfilled ?? false, rounds };
+    return { ...this.sheet, rounds };
   }
 
   /** 矢もコメントも無い */
@@ -593,7 +601,7 @@ export class ScoreManager {
       await this.save();
       gameId = this.sheet.id;
     }
-    clearScoreSheetCache();
+    clearScoreSheetCache(this.sub);
     return gameId;
   }
 }

@@ -2,6 +2,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { isMockAuth } from '../auth/config';
 import { toDateOnly } from '../toDateOnly';
 import { getT } from '../text';
+import { clearCachedAppUser } from '../storage';
 import type {
   AdminFeedbackRead,
   AnnouncementRead,
@@ -92,6 +93,23 @@ async function refreshSession(forceRefresh = false): Promise<void> {
   }
 }
 
+// API の app/core/errors.py の CURRENT_USER_NOT_REGISTERED。本人の行が無い(登録の前、または db から
+// 消えた)ときの 404 で、他人の行が無いときの "User not found" とは分けてある
+const CURRENT_USER_NOT_REGISTERED = 'Current user not registered';
+
+async function toApiError(response: Response, method: string, url: string): Promise<ApiError> {
+  const body = await response.json().catch(() => null);
+  const message =
+    (body && typeof body === 'object' && 'detail' in body && String(body.detail)) ||
+    response.statusText;
+  if (response.status === 404 && message === CURRENT_USER_NOT_REGISTERED) {
+    // キャッシュでは登録済みでも、API に本人の行が無い。キャッシュを消すと AuthGate が確かめ直し、
+    // 登録の画面へ送る
+    clearCachedAppUser();
+  }
+  return new ApiError(response.status, message, method, url, body);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const method = init?.method ?? 'GET';
   const url = `${API_BASE_URL}${path}`;
@@ -113,11 +131,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const message =
-      (body && typeof body === 'object' && 'detail' in body && String(body.detail)) ||
-      response.statusText;
-    throw new ApiError(response.status, message, method, url, body);
+    throw await toApiError(response, method, url);
   }
 
   if (response.status === 204) {
@@ -236,7 +250,6 @@ export function getGame(gameId: number): Promise<GameRead> {
   return request(`/games/${gameId}`);
 }
 
-/** Soft-deletes a game and, with it, its rounds/ends/points. */
 /** 入力の画面が手元に溜めたゲームの記録を一度に保存する。id が無ければ作り、あれば丸ごと上書きする。 */
 export function saveGameSheet(sheet: GameSheetWrite): Promise<GameSheetRead> {
   return request('/games/sheet', {
@@ -250,6 +263,7 @@ export function getGameSheet(gameId: number): Promise<GameSheetRead> {
   return request(`/games/${gameId}/sheet`);
 }
 
+/** ゲームを論理削除する。ラウンド・エンド・矢も一緒に消える。 */
 export function deleteGame(gameId: number): Promise<void> {
   return request(`/games/${gameId}`, { method: 'DELETE' });
 }
@@ -493,11 +507,7 @@ export async function importExportFile(source: ImportSource, file: File): Promis
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const message =
-      (body && typeof body === 'object' && 'detail' in body && String(body.detail)) ||
-      response.statusText;
-    throw new ApiError(response.status, message, method, url, body);
+    throw await toApiError(response, method, url);
   }
 
   return (await response.json()) as ImportResult;
@@ -512,11 +522,7 @@ export async function exportRecords(): Promise<{ blob: Blob; filename: string }>
   const response = await fetch(url, { method });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const message =
-      (body && typeof body === 'object' && 'detail' in body && String(body.detail)) ||
-      response.statusText;
-    throw new ApiError(response.status, message, method, url, body);
+    throw await toApiError(response, method, url);
   }
 
   const disposition = response.headers.get('Content-Disposition') ?? '';

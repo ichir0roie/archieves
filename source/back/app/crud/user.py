@@ -16,7 +16,10 @@ def get_user_by_sub(s: Session, sub: str) -> User | None:
 
 
 def visible_condition(viewer: User, visibility: ColumnElement[str]) -> ColumnElement[bool]:
-    """core/visibility.py の is_visible() の SQL 版。User を引く select の where に使う。"""
+    """core/visibility.py の is_visible() を SQL で書いたもの。
+
+    User を引く select の where に使う。
+    """
     if viewer.organization_id is None:
         same_organization: ColumnElement[bool] = false()
     else:
