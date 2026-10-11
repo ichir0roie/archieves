@@ -1078,6 +1078,8 @@ export interface components {
             game_size?: number | null;
             /** Bow Type */
             bow_type?: string | null;
+            /** Arrow Diameter Px */
+            arrow_diameter_px?: number | null;
         };
         /**
          * GameKindOptions
@@ -1110,6 +1112,8 @@ export interface components {
             game_size: number | null;
             /** Bow Type */
             bow_type: string | null;
+            /** Arrow Diameter Px */
+            arrow_diameter_px: number | null;
             /** Id */
             id: number;
             /** Deleted At */
@@ -1146,6 +1150,8 @@ export interface components {
             game_size: number | null;
             /** Bow Type */
             bow_type: string | null;
+            /** Arrow Diameter Px */
+            arrow_diameter_px: number | null;
             /** Comment */
             comment: string | null;
             /** Rounds */
@@ -1166,6 +1172,8 @@ export interface components {
             game_size?: number | null;
             /** Bow Type */
             bow_type?: string | null;
+            /** Arrow Diameter Px */
+            arrow_diameter_px?: number | null;
             /** Comment */
             comment?: string | null;
             /**
@@ -1184,6 +1192,8 @@ export interface components {
             game_size?: number | null;
             /** Bow Type */
             bow_type?: string | null;
+            /** Arrow Diameter Px */
+            arrow_diameter_px?: number | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1352,6 +1362,19 @@ export interface components {
             recorded_at?: string | null;
             /** Shot At */
             shot_at?: string | null;
+        };
+        /**
+         * RankedUser
+         * @description ランキングに載せる利用者。名前だけを見せ、生年月日・所属などのプロフィールは載せない
+         *     (ランキングは公開していても、プロフィールは非公開の人がいる)。
+         */
+        RankedUser: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Sub */
+            sub: string | null;
         };
         /**
          * RankingMetric
@@ -1573,7 +1596,7 @@ export interface components {
         UserRanking: {
             /** Rank */
             rank: number;
-            user: components["schemas"]["UserRead"];
+            user: components["schemas"]["RankedUser"];
             /** Value */
             value: number;
             /** Round Count */

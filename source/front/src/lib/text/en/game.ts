@@ -23,6 +23,9 @@ export const game: typeof ja = {
       `Total ${total} arrows (${endSize} arrows × ${roundSize} ends × ${gameSize} rounds)`,
     start: "Start game",
     discardUnsaved: "You have unsaved scores. Discard them and start a new game?",
+    arrowDiameter: "Arrow diameter",
+    arrowDiameterHint: "The size of the circle treated as the arrow while scoring. If it touches a line at all, the higher ring counts. On the right is the sight as it appears while aiming (actual size).",
+    sightPreview: "Scoring sight (actual size)",
   },
   entry: {
     home: "Back to Home",

@@ -6,11 +6,13 @@ from sqlalchemy.orm import Session
 
 from app.core.bow_types import BowType
 from app.core.scoring import scored_value_column
+from app.core.visibility import is_visible
 from app.crud import user as user_crud
 from app.db import End, Game, Point, Round, User
 from app.schemas.statistics import (
     EndScoreSummary,
     GameKindOptions,
+    RankedUser,
     RankingMetric,
     RoundScoreSummary,
     ScoreStatistics,
@@ -323,7 +325,15 @@ def list_user_ranking(
     return [
         UserRanking(
             rank=skip + index + 1,
-            user=user,
+            user=RankedUser(
+                id=user.id,
+                name=user.name,
+                sub=(
+                    user.sub
+                    if user.id == viewer.id or is_visible(viewer, user, user.profile_visibility)
+                    else None
+                ),
+            ),
             value=ranked_value,
             round_count=round_count,
             arrow_count=arrows,
