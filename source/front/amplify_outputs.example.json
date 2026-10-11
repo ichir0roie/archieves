@@ -11,9 +11,9 @@
     "user_verification_types": ["email"],
     "unauthenticated_identities_enabled": true,
     "password_policy": {
-      "min_length": 8,
-      "require_lowercase": true,
-      "require_numbers": true,
+      "min_length": 6,
+      "require_lowercase": false,
+      "require_numbers": false,
       "require_symbols": false,
       "require_uppercase": false
     }
