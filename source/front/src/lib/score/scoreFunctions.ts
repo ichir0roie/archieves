@@ -22,6 +22,14 @@ export function zoneRadiusRatio(score: number): number {
   return (MAX_RING_SCORE + 1 - score) / MAX_RING_SCORE;
 }
 
+/**
+ * インナー10 で採点する弓か。World Archery のコンパウンドは X の輪だけが 10 点で、X の外の 10 点の帯は
+ * 9 点になる。設定では選ばせず、ゲームの弓の種類で決める
+ */
+export function isInnerTenBow(bowType: string | null | undefined): boolean {
+  return bowType === "compound";
+}
+
 /** The points a stored ring is worth - mirrors the API's scored_value(). */
 export function scoreToInt(point: number) {
   if (point >= X_SCORE) return MAX_RING_SCORE;

@@ -91,6 +91,9 @@ button.icon { padding: 0.3rem; line-height: 0; border-radius: 999px; }
 .field > label.check-field { display: flex; align-items: center; gap: 0.5rem; font-size: 1rem; color: inherit; cursor: pointer; }
 .field > label.check-field input { width: 1.2rem; height: 1.2rem; accent-color: var(--accent); }
 .field .error { font-size: 0.78rem; color: var(--danger); }
+/* 整数のスライダー。右に今の値を、桁が変わっても幅が揺れないよう固定の幅で出す */
+.RangeField input[type="range"] { accent-color: var(--accent); }
+.RangeField .range-value { min-width: 2.5ch; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* 縦に積む入力の並び */
 .stack { display: flex; flex-direction: column; gap: 1rem; }
@@ -198,9 +201,6 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior
 /* ゲーム設定の開始のボタン。欄をどこまで送っても画面の下に見えている。
    main の余白(10px)のぶん下に浮いて、その隙間に欄が透けるので、bottom と下の余白で埋める */
 .setup-start { position: sticky; bottom: -10px; z-index: 5; padding: 0.6rem 0 calc(0.6rem + 10px); background: var(--bg); }
-/* 下の隅のメニューのボタンに隠れないよう、その側を空ける(ボタンの幅と隅からの間に 8px を足す) */
-body:has(nav[data-pos="bottom-right"]) .setup-start { padding-right: 66px; }
-body:has(nav[data-pos="bottom-left"]) .setup-start { padding-left: 60px; }
 .page.wide { max-width: 64rem; }
 /* 画面の見出しの行。左上に浮かべたメニューボタンと重ならないよう、ボタンの分を空ける */
 .page-header { display: flex; align-items: center; gap: 0.6rem; min-height: 42px; padding-left: 52px; }
@@ -255,8 +255,7 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .score-top .score-settings { margin-left: auto; flex-shrink: 0; }
 .score-progress { flex: 1; display: flex; justify-content: center; gap: 1rem; font-size: 0.95rem; }
 .score-progress b { font-size: 1.5rem; line-height: 1; }
-.score-progress .full { color: var(--ok); }
-.score-progress .all-in-badge { align-self: center; padding: 0.05rem 0.4rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
+.score-progress .progress-badge { align-self: center; padding: 0.05rem 0.4rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
 .score-entry .notice { flex-shrink: 0; padding: 0.4rem 1rem; text-align: center; font-size: 0.85rem; font-weight: 600; }
 .score-entry .notice.done { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); color: var(--ok); }
 /* 今のラウンドの合計とエンドごとの点数の一行。エンドが多ければこの行の中だけ横に流す */
@@ -275,7 +274,6 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 /* 今のエンドの矢(一本ずつの丸)と合計 */
 .end-view { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1rem; max-width: 28rem; width: 100%; margin: 0 auto; flex-shrink: 0; }
 .end-view .slots { flex: 1; display: grid; gap: 0.4rem; }
-.end-view .total { width: 2.5rem; text-align: right; font-weight: 700; }
 .arrow-slot { aspect-ratio: 1; width: 100%; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; }
 .arrow-slot.empty { border: 2px dashed var(--line); }
 .arrow-slot.filled { border: 3px solid var(--ring); }
@@ -291,8 +289,10 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .comment-field .icon:not(.has-body) { color: var(--muted); }
 
 .score-actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35rem; padding: 0.5rem; border-top: 1px solid var(--line); flex-shrink: 0; }
-/* 5 列だと文言が長いので、詰めて折り返させる */
+/* 5 列だと文言が長いので、詰めて折り返させる。戻る・進むは三角の形と添え字(.step) */
 .score-actions button { min-width: 0; padding: 0.55rem 0.2rem; font-size: 0.8rem; line-height: 1.2; white-space: normal; }
+.score-actions .step { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1rem; padding: 0.35rem 0.2rem; }
+.score-actions .step .caption { font-size: 0.65rem; line-height: 1; }
 
 /* 的をタッチする入力。帯は内側ほど上に重ね、押した所を覆ういちばん小さい帯に当たるようにする */
 .target-input { height: 100%; display: flex; flex-direction: column; }
@@ -322,7 +322,8 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .target-face .target-lens .lens-score { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 160; min-width: 2.2rem; padding: 0.1rem 0.5rem; border-radius: 999px; text-align: center; font-weight: 700; font-size: 1.1rem; background: var(--ring); color: var(--ring-ink); border: 1px solid #6a7080; }
 
 /* 設定画面の、記入画面のサイトの見本(実寸大)。サイトは最大でズームの倍率 × 40px の円に十字が出るので、それが収まる大きさ */
-.sight-preview { position: relative; flex-shrink: 0; width: 128px; height: 128px; border-radius: 12px; border: 1px solid var(--line); background: var(--ring); overflow: hidden; }
+/* 十字の z-index を枠の中に閉じ込める。でないと下に留めた「ゲーム開始」の帯より上に描かれる */
+.sight-preview { position: relative; flex-shrink: 0; width: 128px; height: 128px; border-radius: 12px; border: 1px solid var(--line); background: var(--ring); overflow: hidden; isolation: isolate; }
 
 /* ---- 点数の入力の追加分 ---- */
 /* 入力の要素でない見出し(Segment の上の「的の種類」)。.field > label と同じ見た目にする */
@@ -401,7 +402,6 @@ nav[data-pos$="right"] .nav-panel { left: auto; right: 16px; }
 @media (max-width: 640px) {
   .nav-fab { top: auto; left: auto; bottom: 16px; right: 16px; width: 52px; height: 52px; }
   .nav-panel { top: auto; left: auto; bottom: 80px; right: 16px; }
-  body:has(nav:not([data-pos])) .setup-start { padding-right: 76px; }
   .page-header { padding-left: 0; }
   .modal-backdrop { padding: 0.5rem; }
   .modal { max-height: 95dvh; }

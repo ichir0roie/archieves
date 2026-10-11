@@ -137,12 +137,20 @@ export async function shoot(page: Page, label: string, times: number) {
   }
 }
 
-/** 「1エンド進む」を押し、帯の位置が変わるのを待つ。 */
+/** 今のエンドの番号。上の段には出さないので、エンドごとの点数の帯で強調したマスから読む */
+export function currentEndNumber(page: Page): Locator {
+  return page.locator(".RoundTotalsBar .EndTotalCell.current .number");
+}
+
+/** 「1エンド進む」を押し、ラウンドかエンドの位置が変わるのを待つ。 */
 export async function nextEnd(page: Page) {
-  const progress = page.locator(".ScoreProgress");
-  const before = await progress.innerText();
+  const round = page.locator(".ScoreProgress");
+  const end = currentEndNumber(page);
+  const before = `${await round.innerText()}|${await end.innerText()}`;
   await page.getByRole("button", { name: "1エンド進む", exact: true }).click();
-  await expect(progress).not.toHaveText(before);
+  await expect
+    .poll(async () => `${await round.innerText()}|${await end.innerText()}`)
+    .not.toBe(before);
 }
 
 /**

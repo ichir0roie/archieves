@@ -11,7 +11,7 @@ type Props = {
   endNumber: number;
 };
 
-/** 点数の入力の上に出す、今のラウンドの合計点とエンドごとの点数の一行 */
+/** 点数の入力の上に出す、エンドごとの点数と今のラウンドの合計点(右端)の一行 */
 export default function RoundTotalsBar({ roundTotal, endTotals, endNumber }: Props) {
   const T = useT();
   const currentRef = useRef<HTMLDivElement>(null);
@@ -23,10 +23,6 @@ export default function RoundTotalsBar({ roundTotal, endTotals, endNumber }: Pro
 
   return (
     <div className="RoundTotalsBar round-totals">
-      <div className="RoundTotal round-total">
-        <span className="label">{T.game.entry.roundTotal}</span>
-        <b>{roundTotal}</b>
-      </div>
       <div className="ends">
         {endTotals.map((total, index) => {
           const isCurrent = index + 1 === endNumber;
@@ -41,6 +37,10 @@ export default function RoundTotalsBar({ roundTotal, endTotals, endNumber }: Pro
             </div>
           );
         })}
+      </div>
+      <div className="RoundTotal round-total">
+        <span className="label">{T.game.entry.roundTotal}</span>
+        <b>{roundTotal}</b>
       </div>
     </div>
   );

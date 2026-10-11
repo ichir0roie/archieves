@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import IntegerField, { parseInteger } from "@/components/IntegerField";
+import Field from "@/components/Field";
 import Modal from "@/components/Modal";
 import {
   MAX_AIM_DIVISOR,
@@ -15,6 +15,46 @@ import {
 import { saveAimSettings } from "@/lib/storage";
 import { useT } from "@/lib/text";
 
+type RangeFieldProps = {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min: number;
+  max: number;
+  hint?: string;
+};
+
+/** 整数のスライダーの欄。今の値を見出しの右に出す */
+function RangeField(props: RangeFieldProps) {
+  return (
+    <Field
+      label={props.label}
+      hint={props.hint}
+    >
+      {(id) => (
+        <div className="RangeField row">
+          <input
+            id={id}
+            type="range"
+            className="grow"
+            min={props.min}
+            max={props.max}
+            step={1}
+            value={props.value}
+            onChange={(e) => props.onChange(Number(e.target.value))}
+          />
+          <output
+            htmlFor={id}
+            className="range-value"
+          >
+            {props.value}
+          </output>
+        </div>
+      )}
+    </Field>
+  );
+}
+
 type Props = {
   settings: AimSettings;
   onClose: () => void;
@@ -25,30 +65,9 @@ type Props = {
 /** 記入画面から開く、ズームの倍率・大きさ・感度のモーダル。決定を押すまで当てない */
 export default function AimSettingsModal(props: Props) {
   const T = useT();
-  const [lensZoomText, setLensZoomText] = useState(String(props.settings.lensZoom));
-  const [lensSizePercentText, setLensSizePercentText] = useState(
-    String(props.settings.lensSizePercent),
-  );
-  const [aimDivisorText, setAimDivisorText] = useState(String(props.settings.aimDivisor));
-
-  const lensZoom = parseInteger(lensZoomText, MIN_LENS_ZOOM, MAX_LENS_ZOOM);
-  const lensSizePercent = parseInteger(
-    lensSizePercentText,
-    MIN_LENS_SIZE_PERCENT,
-    MAX_LENS_SIZE_PERCENT,
-  );
-  const aimDivisor = parseInteger(aimDivisorText, MIN_AIM_DIVISOR, MAX_AIM_DIVISOR);
-  const settings =
-    lensZoom !== null && lensSizePercent !== null && aimDivisor !== null
-      ? {
-          lensZoom,
-          aimDivisor,
-          lensSizePercent,
-        }
-      : null;
+  const [settings, setSettings] = useState(props.settings);
 
   function submit() {
-    if (settings === null) return;
     saveAimSettings(settings);
     props.onSave(settings);
   }
@@ -61,7 +80,6 @@ export default function AimSettingsModal(props: Props) {
         <button
           type="button"
           className="primary"
-          disabled={settings === null}
           onClick={submit}
         >
           {T.game.setup.ok}
@@ -69,28 +87,29 @@ export default function AimSettingsModal(props: Props) {
       }
     >
       <div className="stack">
-        <IntegerField
+        <RangeField
           label={T.game.setup.lensZoom}
-          value={lensZoomText}
-          onChange={setLensZoomText}
+          value={settings.lensZoom}
+          onChange={(lensZoom) => setSettings({ ...settings, lensZoom })}
           min={MIN_LENS_ZOOM}
           max={MAX_LENS_ZOOM}
+          hint={T.game.setup.lensZoomHint}
         />
-        <IntegerField
+        <RangeField
           label={T.game.setup.lensSize}
-          value={lensSizePercentText}
-          onChange={setLensSizePercentText}
+          value={settings.lensSizePercent}
+          onChange={(lensSizePercent) => setSettings({ ...settings, lensSizePercent })}
           min={MIN_LENS_SIZE_PERCENT}
           max={MAX_LENS_SIZE_PERCENT}
           hint={T.game.setup.lensSizeHint}
         />
-        <IntegerField
+        <RangeField
           label={T.game.setup.aimDivisor}
-          value={aimDivisorText}
-          onChange={setAimDivisorText}
+          value={settings.aimDivisor}
+          onChange={(aimDivisor) => setSettings({ ...settings, aimDivisor })}
           min={MIN_AIM_DIVISOR}
           max={MAX_AIM_DIVISOR}
-          hint={T.game.setup.aimDivisorHint(aimDivisor)}
+          hint={T.game.setup.aimDivisorHint(settings.aimDivisor)}
         />
       </div>
     </Modal>

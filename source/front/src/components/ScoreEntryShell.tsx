@@ -9,6 +9,7 @@ import ApiErrorAlert from "@/components/ApiErrorAlert";
 import AimSettingsModal from "@/components/AimSettingsModal";
 import { useGuardScoreEntry } from "@/hooks/useGuardScoreEntry";
 import { shortDate } from "@/lib/score/backfill";
+import { isInnerTenBow } from "@/lib/score/scoreFunctions";
 import { useScoreGame } from "@/lib/score/useScoreGame";
 import {
   DEFAULT_AIM_SETTINGS,
@@ -42,8 +43,10 @@ export type ScoreInputProps = {
   targetType: string;
   /** 矢の直径(mm)。入力の側が的の大きさとの比で px に直す */
   arrowDiameterMm: number;
-  /** オールイン: 矢の円が帯に完全に入らなければ、その帯の点にしない */
+  /** インサイドアウト: 矢の円が帯に完全に入らなければ、その帯の点にしない */
   allIn: boolean;
+  /** インナー10: X の外の 10 点の帯を 9 点にする(コンパウンド) */
+  innerTen: boolean;
   /** ズームの倍率・大きさと感度。記入画面の右上の設定から変えられる */
   aimSettings: AimSettings;
   /** このエンドの矢がすべて入った。残る操作は 次へ / 終了 だけ */
@@ -108,17 +111,8 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               {T.game.entry.round}{" "}
               <b>{progress.roundNumber}</b>/{progress.gameSize}
             </span>
-            <span>
-              {T.game.entry.end}{" "}
-              <b>{progress.endNumber}</b>/{progress.roundSize}
-            </span>
-            <span className={progress.isEndFull ? "full" : undefined}>
-              <b>{progress.arrowCount}</b>/{progress.endSize}
-              {T.unit.arrow}
-            </span>
-            {manager?.allIn && <span className="AllInBadge all-in-badge">{T.terms.allIn}</span>}
             {manager?.backfillDate && (
-              <span className="BackfillBadge all-in-badge">
+              <span className="BackfillBadge progress-badge">
                 {T.game.entry.backfill(shortDate(manager.backfillDate, T.intlLocale))}
               </span>
             )}
@@ -226,6 +220,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               targetType: progress ? manager.targetType : DEFAULT_TARGET_TYPE_ID,
               arrowDiameterMm: manager.arrowDiameterMm,
               allIn: manager.allIn,
+              innerTen: isInnerTenBow(manager.bowType),
               aimSettings,
               isEndFull: progress?.isEndFull ?? false,
               isGameComplete: progress?.isGameComplete ?? false,

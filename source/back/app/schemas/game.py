@@ -38,7 +38,7 @@ class GameFields(BaseModel):
     arrow_diameter_mm: int | None = Field(
         default=None, ge=MIN_ARROW_DIAMETER_MM, le=MAX_ARROW_DIAMETER_MM
     )
-    # オールイン: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
+    # インサイドアウト: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
     all_in: bool = False
     # あとから入力: 日付を決めて入れたゲーム。中の記録の日付・時刻をゲームの日付にそろえる
     backfilled: bool = False

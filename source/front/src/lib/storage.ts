@@ -209,7 +209,7 @@ type StoredScoreSheetCache = Omit<ScoreSheetCache, "sub" | "sheet"> & {
     arrow_diameter_mm?: number | null;
     /** 矢の直径を px で持っていたころの欄。的の大きさが分からず mm に直せないので捨て、既定の太さにする */
     arrow_diameter_px?: number | null;
-    /** オールインを足す前のキャッシュには無い */
+    /** インサイドアウトを足す前のキャッシュには無い */
     all_in?: boolean;
     /** あとから入力を足す前のキャッシュには無い */
     backfilled?: boolean;

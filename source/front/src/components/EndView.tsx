@@ -1,7 +1,6 @@
 "use client";
 
 import RoundPointValue from "@/components/RoundPointValue";
-import { totalScore } from "@/lib/score/scoreFunctions";
 import { PointRead } from "@/lib/api";
 
 type Props = {
@@ -12,7 +11,7 @@ type Props = {
 };
 
 /**
- * 記録中のエンド。予定の矢の数だけ枠を並べ、エンドの合計を添える。
+ * 記録中のエンド。予定の矢の数だけ枠を並べる。エンドの合計は上の RoundTotalsBar が出す。
  * 枠の数はエンドのあいだ変えない。エンドの途中で下の的が指の下からずれないように。
  */
 export default function EndView(props: Props) {
@@ -33,7 +32,6 @@ export default function EndView(props: Props) {
           />
         ))}
       </div>
-      <div className="EndTotal total">{totalScore(points)}</div>
     </div>
   );
 }
