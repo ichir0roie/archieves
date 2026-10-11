@@ -24,7 +24,8 @@ from app.db.models.comment_model import EndComment, GameComment, RoundComment
 from app.services.legacy_import import ImportSummary
 
 FORMAT_NAME = "archieves-export"
-FORMAT_VERSION = 1
+# 1: 最初の形。2: points.shot_at を足した(1 のファイルは shot_at を NULL として読む)
+FORMAT_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -221,6 +222,13 @@ TABLES: tuple[Table, ...] = (
                 "日付(YYYY-MM-DD、日本時間)",
                 "行った日",
             ),
+            Column(
+                "shot_at",
+                "TEXT",
+                "日時(ISO 8601、時差付き)",
+                "矢を記録した時刻。記入画面で記録した矢だけが持ち、それより前の記録・"
+                "取り込んだ記録は NULL",
+            ),
         ),
         ("end_id", "ends(id)"),
     ),
@@ -396,6 +404,7 @@ def export_sqlite(s: Session, user_id: int) -> bytes:
             Point.x_cm,
             Point.y_cm,
             Point.recorded_at,
+            Point.shot_at,
         )
         .where(Point.end_id.in_(visible_ends))
         .order_by(Point.id),
@@ -495,6 +504,7 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
 
             points = []
             for r in _read(conn, "points"):
+                shot_at = r["shot_at"] if "shot_at" in r.keys() else None
                 # x_cm・y_cm はファイルの値を信じず、的の種類から計算し直す
                 x_cm, y_cm = point_cm(round_of_end[r["end_id"]], r["x"], r["y"])
                 points.append(
@@ -508,6 +518,7 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
                         x_cm=x_cm,
                         y_cm=y_cm,
                         recorded_at=date.fromisoformat(r["recorded_at"]),
+                        shot_at=datetime.fromisoformat(shot_at) if shot_at else None,
                     )
                 )
             s.add_all(points)
