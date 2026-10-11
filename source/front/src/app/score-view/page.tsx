@@ -356,7 +356,6 @@ function GameSummary({
     viewRound.ends.flatMap((viewEnd) => viewEnd.points),
   );
   const { x, ten, miss } = countRings(points);
-  const targetType = rounds[0].round.target_type;
   const items = [
     { label: T.profile.scoreView.gameTotal, value: totalScore(points) },
     { label: T.profile.scoreView.countX, value: x },
@@ -385,7 +384,7 @@ function GameSummary({
       </div>
       {points.some(hasPosition) && (
         <div className="ArrowMapPanel panel">
-          <ArrowMap points={points} targetType={targetType} />
+          <ArrowMap points={points} />
         </div>
       )}
       <button type="button" className="EditGameButton block" onClick={onEdit}>

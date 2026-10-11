@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
@@ -7,6 +8,7 @@ import Field from "@/components/Field";
 import PageHeader from "@/components/PageHeader";
 import { useLoad } from "@/hooks/useLoad";
 import {
+  getPendingCounts,
   listAllFeedbacks,
   replyToFeedback,
   toErrorDetails,
@@ -21,6 +23,7 @@ import { useT } from "@/lib/text";
 export default function Page() {
   const T = useT();
   const { data: feedbacks, loading, error } = useLoad(listAllFeedbacks, []);
+  const pendingCounts = useLoad(getPendingCounts, []);
 
   return (
     <div className="page">
@@ -28,6 +31,17 @@ export default function Page() {
 
       <section className="stack tight">
         <p className="muted small">{T.support.adminFeedback.description}</p>
+        {pendingCounts.data && (
+          <div className="AdminPendingCounts status info row">
+            <span className="grow">
+              {T.support.pending.summary(
+                pendingCounts.data.unanswered_feedbacks,
+                pendingCounts.data.unresolved_error_reports,
+              )}
+            </span>
+            <Link href="/admin/error-reports">{T.support.pending.errorReportsLink}</Link>
+          </div>
+        )}
         {error && <ApiErrorAlert error={error} />}
         {loading && !feedbacks ? (
           <p className="status empty">{T.loading}</p>

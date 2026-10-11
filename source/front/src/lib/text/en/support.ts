@@ -33,6 +33,27 @@ export const support: typeof ja = {
     cancel: "Cancel",
     submitting: "Sending...",
   },
+  pending: {
+    badge: (n: number) => `${n} pending`,
+    summary: (feedbacks: number, errors: number) =>
+      `${feedbacks} unanswered feedback, ${errors} unresolved ${errors === 1 ? "error" : "errors"}`,
+    errorReportsLink: "Review errors",
+  },
+  adminErrorReports: {
+    title: "Review errors",
+    description: "Errors that happened on screen (missing pages and API errors). Unresolved first, newest first.",
+    empty: "No errors reported",
+    unresolvedCount: (n: number) => `${n} unresolved`,
+    kind: {
+      page: "Missing page",
+      api: "API",
+    },
+    unregistered: "Unregistered user",
+    userId: (id: number) => ` (id ${id})`,
+    resolve: "Mark as resolved",
+    resolving: "Sending...",
+    resolved: "Resolved",
+  },
   announcements: {
     title: t.announcement,
     empty: "No news",

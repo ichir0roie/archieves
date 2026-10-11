@@ -2,11 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 import {
   arrowDiameterPx,
+  finishSheet,
   nextEnd,
   recordedArrows,
   reloadPage,
   ringButton,
-  saveSheet,
   shoot,
   startGame,
 } from "./scoreEntry";
@@ -139,11 +139,12 @@ test("a full end stays on screen until 1エンド進む is pressed", async ({ pa
   const progress = page.locator(".ScoreProgress");
 
   await shoot(page, "9", 3);
-  // 満ちても自動で進まず、満ちたことと次の操作を知らせ、的は押せなくなる
+  // 満ちても自動で進まず、「1エンド進む」を強調するだけで文は出さず、的は押せなくなる
   await expect(progress).toContainText("エンド 1/2");
   await expect(progress).toContainText("3/3本");
   await expect(recordedArrows(page)).toHaveText(["9", "9", "9"]);
-  await expect(page.locator(".EndCompleteNotice")).toContainText("「1エンド進む」で次のエンドに進みます");
+  await expect(page.getByRole("button", { name: "1エンド進む", exact: true })).toHaveClass(/primary/);
+  await expect(page.locator(".score-entry .notice")).toHaveCount(0);
   await expect(ringButton(page, "9")).toBeDisabled();
 
   // 満ちたあとでも、最後の矢を外して打ち直せる
@@ -156,7 +157,7 @@ test("a full end stays on screen until 1エンド進む is pressed", async ({ pa
   await expect(recordedArrows(page)).toHaveCount(0);
 });
 
-test("scores stay on this device until 保存, which writes the whole game at once", async ({
+test("scores stay on this device until 終了, which writes the whole game at once", async ({
   page,
 }) => {
   await startGame(page, { endSize: 3, roundSize: 2, gameSize: 2 });
@@ -174,23 +175,16 @@ test("scores stay on this device until 保存, which writes the whole game at on
   await shoot(page, "9", 3);
   await nextEnd(page);
   await shoot(page, "8", 1);
-  await expect(page.locator(".ScoreSave")).toHaveText("保存");
+  await shoot(page, "7", 1);
   expect(writes).toEqual([]);
 
-  await saveSheet(page);
+  await finishSheet(page);
   expect(writes).toEqual(["PUT /api/v1/games/sheet"]);
   // 矢ごとに記録した時刻も送る
   const shotAt = sheets[0].rounds[0].ends[0].points.map((point) => Date.parse(point.shot_at));
   expect(shotAt).toHaveLength(3);
   for (const time of shotAt) expect(time).toBeGreaterThanOrEqual(startedAt - 1000);
 
-  // 保存したあとも同じ画面で続けられ、次の保存は同じゲームを上書きする
-  await shoot(page, "7", 1);
-  await saveSheet(page);
-  expect(writes).toEqual(["PUT /api/v1/games/sheet", "PUT /api/v1/games/sheet"]);
-
-  await page.getByRole("button", { name: "終了" }).click();
-  await expect(page).toHaveURL(/\/score-view\?gameId=/, { timeout: ROUTE_TIMEOUT });
   const rows = page.locator("table tbody tr");
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(1).getByText("8", { exact: true })).toHaveCount(1);
@@ -212,9 +206,7 @@ test("progress follows the arrow, end and round through a whole game", async ({ 
   await nextEnd(page);
   await expect(progress).toContainText("エンド 2/2");
   await expect(progress).toContainText("0/3本");
-  // ラウンドの最後のエンドが満ちたら、次へ進むとラウンドが変わることを知らせる
   await shoot(page, "9", 3);
-  await expect(page.locator(".EndCompleteNotice")).toContainText("次のラウンドに進みます");
   await nextEnd(page);
   await expect(progress).toContainText("ラウンド 2/2");
   await expect(progress).toContainText("エンド 1/2");
@@ -248,12 +240,15 @@ test("an X is shown as X and counts as ten points", async ({ page }) => {
   await expect(row.getByText("30", { exact: true })).toHaveCount(2);
 });
 
-test("a ten-ring compound face offers no X", async ({ page }) => {
-  await startGame(page, { targetType: "コンパウンド用(80cm)", endSize: 3 });
+for (const targetType of ["80cm", "40cm"]) {
+  test(`the ${targetType} face offers an X like the standard face`, async ({ page }) => {
+    await startGame(page, { targetType, endSize: 3 });
 
-  await expect(ringButton(page, "10")).toBeVisible();
-  await expect(ringButton(page, "X")).toHaveCount(0);
-});
+    await shoot(page, "X", 1);
+    await shoot(page, "9", 1);
+    await expect(recordedArrows(page)).toHaveText(["X", "9"]);
+  });
+}
 
 test("the score sheet shows one column per arrow of the end", async ({ page }) => {
   await startGame(page, { endSize: 3, roundSize: 1, gameSize: 1 });
@@ -272,8 +267,11 @@ test("finishing a saved game after taking every arrow back leaves no game behind
 }) => {
   await startGame(page, { endSize: 6, roundSize: 6, gameSize: 2 });
   await shoot(page, "9", 1);
-  const saved = await saveSheet(page);
+  const saved = await finishSheet(page);
 
+  await page.locator(".EditGameButton").click();
+  await expect(page).toHaveURL(/\/game\/score-card$/, { timeout: ROUTE_TIMEOUT });
+  await expect(recordedArrows(page)).toHaveText(["9"], { timeout: ROUTE_TIMEOUT });
   await page.getByRole("button", { name: "1矢戻る", exact: true }).click();
   await expect(recordedArrows(page)).toHaveCount(0);
   await page.getByRole("button", { name: "終了" }).click();
@@ -349,7 +347,6 @@ test("an unsaved game comes back in the right round and end across a reload", as
   });
   await expect(page.locator(".ScoreProgress")).toContainText("エンド 1/2");
   await expect(recordedArrows(page)).toHaveText(["9"]);
-  await expect(page.locator(".ScoreSave")).toHaveText("保存");
 });
 
 test("leaving with ✕ keeps the unsaved game to continue from home", async ({ page }) => {
@@ -393,10 +390,12 @@ test("tapping the same spot twice on the target records two arrows", async ({ pa
   const target = page.locator(".TargetCircleInput .TargetFace");
   const box = await target.boundingBox();
   if (!box) throw new Error("target not laid out");
-  // 的の中心は枠の中央でなく(下の余白のぶん上に寄る)、X の帯の中心
   const xRing = await ringButton(page, "X").boundingBox();
   if (!xRing) throw new Error("X ring not laid out");
   const centre = { x: xRing.x + xRing.width / 2, y: xRing.y + xRing.height / 2 };
+  // 的は枠の中央に置く
+  expect(centre.x).toBeCloseTo(box.x + box.width / 2, 0);
+  expect(centre.y).toBeCloseTo(box.y + box.height / 2, 0);
 
   // The marker drawn for the first arrow sits on top of every ring, so it
   // must not swallow the tap that records the second.
@@ -410,7 +409,7 @@ test("tapping the same spot twice on the target records two arrows", async ({ pa
   await expect(await target.boundingBox()).toEqual(box);
 });
 
-test("押した所から、狙う点は指の動きの半分だけ動く", async ({ page }) => {
+test("押した所から、狙う点は指の動きの 4 分の 1 だけ動く", async ({ page }) => {
   await startGame(page, { endSize: 3 });
   const xRing = await ringButton(page, "X").boundingBox();
   const nine = await ringButton(page, "9").boundingBox();
@@ -419,10 +418,10 @@ test("押した所から、狙う点は指の動きの半分だけ動く", async
   // 9 の帯の真ん中あたり(中心から 9 の外の半径の 3/4)
   const nineMiddle = (nine.width / 2) * 0.75;
 
-  // 中心を押し、9 の帯までの倍だけ指を動かすと、狙う点は 9 の帯に止まる
+  // 中心を押し、9 の帯までの 4 倍だけ指を動かすと、狙う点は 9 の帯に止まる
   await page.mouse.move(centre.x, centre.y);
   await page.mouse.down();
-  await page.mouse.move(centre.x + nineMiddle * 2, centre.y, { steps: 5 });
+  await page.mouse.move(centre.x + nineMiddle * 4, centre.y, { steps: 5 });
   await expect(page.locator(".target-lens .lens-score")).toHaveText("9");
   await page.mouse.up();
   await expect(recordedArrows(page)).toHaveText(["9"]);
@@ -487,14 +486,14 @@ test("the arrow diameter set for the game sizes the sight and decides line touch
   await expect(recordedArrows(page)).toHaveText(["9"]);
 
   // 直径(mm)はゲームに保存される
-  const saved = await saveSheet(page);
+  const saved = await finishSheet(page);
   const game = await (await page.request.get(`/api/v1/games/${saved.id}`)).json();
   expect(game.arrow_diameter_mm).toBe(30);
 
-  // 設定画面の見本は、記入画面のサイトと同じ大きさ(px × ズームの倍率 2.5)。ヒントの px は小数 1 桁に丸めて出す
+  // 設定画面の見本は、記入画面のサイトと同じ大きさ(px × ズームの倍率 5)。ヒントの px は小数 1 桁に丸めて出す
   await page.goto("/game/setup");
   await page.getByLabel("矢の直径").fill("30");
   await expect(page.getByText(`この端末では ${Math.round(px * 10) / 10}px`)).toBeVisible();
   const preview = await page.locator(".SightPreview .ArrowSight").boundingBox();
-  expect(preview?.width).toBeCloseTo(px * 2.5, 0);
+  expect(preview?.width).toBeCloseTo(px * 5, 0);
 });

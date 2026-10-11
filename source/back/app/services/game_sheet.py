@@ -14,7 +14,7 @@
 from sqlalchemy.orm import Session
 
 from app.core.errors import NotFoundError
-from app.core.target_types import check_score_fits_target, check_target_type
+from app.core.target_types import check_target_type
 from app.crud import comment as comment_crud
 from app.crud import game as game_crud
 from app.db import End, Game, Point, Round, User
@@ -59,7 +59,6 @@ def _save_points(s: Session, round_: Round, end: End, points_in: list[PointSheet
     existing = {point.id: point for point in end.points}
     kept: set[int] = set()
     for point_in in points_in:
-        check_score_fits_target(round_.target_type, point_in.score)
         if point_in.id is None:
             point = Point(user_id=end.user_id)
             end.points.append(point)

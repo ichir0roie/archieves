@@ -78,7 +78,6 @@ export const profile = {
   scoreLog: {
     title: t.scoreLog,
     empty: `まだ${t.game}がありません`,
-    newRecord: "新規",
     backfill: "あとから入力",
     backfillTitle: "あとから入力",
     backfillDate: "日付",

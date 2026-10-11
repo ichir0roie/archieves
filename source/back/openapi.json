@@ -4114,6 +4114,299 @@
         ]
       }
     },
+    "/api/v1/error-reports": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Create Error Report",
+        "operationId": "create_error_report_api_v1_error_reports_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ErrorReportCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/error-reports": {
+      "get": {
+        "tags": [
+          "support"
+        ],
+        "summary": "List Error Reports",
+        "operationId": "list_error_reports_api_v1_admin_error_reports_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminErrorReportRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Error Reports Api V1 Admin Error Reports Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/error-reports/{error_report_id}/resolve": {
+      "put": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Resolve Error Report",
+        "operationId": "resolve_error_report_api_v1_admin_error_reports__error_report_id__resolve_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "error_report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Error Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminErrorReportRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/pending-counts": {
+      "get": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Get Pending Counts",
+        "operationId": "get_pending_counts_api_v1_admin_pending_counts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPendingCounts"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/diaries": {
+      "post": {
+        "tags": [
+          "diaries"
+        ],
+        "summary": "Create Diary",
+        "operationId": "create_diary_api_v1_diaries_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiaryCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiaryRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "diaries"
+        ],
+        "summary": "List Diaries",
+        "description": "新しい順。year は日本時間の年。limit を省くと全部を返す",
+        "operationId": "list_diaries_api_v1_diaries_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Year"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DiaryRead"
+                  },
+                  "title": "Response List Diaries Api V1 Diaries Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/diaries/years": {
+      "get": {
+        "tags": [
+          "diaries"
+        ],
+        "summary": "List Diary Years",
+        "description": "日記のある年(日本時間)。新しい年が先",
+        "operationId": "list_diary_years_api_v1_diaries_years_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array",
+                  "title": "Response List Diary Years Api V1 Diaries Years Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/": {
       "get": {
         "tags": [
@@ -4142,6 +4435,113 @@
   },
   "components": {
     "schemas": {
+      "AdminErrorReportRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "user_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ErrorReportKind"
+          },
+          "status_code": {
+            "type": "integer",
+            "title": "Status Code"
+          },
+          "page_path": {
+            "type": "string",
+            "title": "Page Path"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "api_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Path"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "user_name",
+          "kind",
+          "status_code",
+          "page_path",
+          "method",
+          "api_path",
+          "message",
+          "created_at",
+          "resolved_at"
+        ],
+        "title": "AdminErrorReportRead",
+        "description": "管理者が見るエラー。登録の前の利用者からのものは利用者の欄が空。"
+      },
       "AdminFeedbackRead": {
         "properties": {
           "id": {
@@ -4226,6 +4626,25 @@
         "title": "AdminFeedbackRead",
         "description": "管理者が見る意見。誰が送ったかを添える。"
       },
+      "AdminPendingCounts": {
+        "properties": {
+          "unanswered_feedbacks": {
+            "type": "integer",
+            "title": "Unanswered Feedbacks"
+          },
+          "unresolved_error_reports": {
+            "type": "integer",
+            "title": "Unresolved Error Reports"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unanswered_feedbacks",
+          "unresolved_error_reports"
+        ],
+        "title": "AdminPendingCounts",
+        "description": "管理者が片付けるものの件数。ホームと意見の確認ページに出す。"
+      },
       "AnnouncementRead": {
         "properties": {
           "id": {
@@ -4292,6 +4711,50 @@
           "body"
         ],
         "title": "CommentWrite"
+      },
+      "DiaryCreate": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "DiaryCreate"
+      },
+      "DiaryRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "body",
+          "created_at"
+        ],
+        "title": "DiaryRead"
       },
       "EndCommentRead": {
         "properties": {
@@ -4553,6 +5016,77 @@
         },
         "type": "object",
         "title": "EndUpdate"
+      },
+      "ErrorReportCreate": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ErrorReportKind"
+          },
+          "status_code": {
+            "type": "integer",
+            "maximum": 599.0,
+            "minimum": 100.0,
+            "title": "Status Code"
+          },
+          "page_path": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Page Path"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "api_path": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Path"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "status_code",
+          "page_path"
+        ],
+        "title": "ErrorReportCreate"
+      },
+      "ErrorReportKind": {
+        "type": "string",
+        "enum": [
+          "page",
+          "api"
+        ],
+        "title": "ErrorReportKind",
+        "description": "フロントが送るエラーの種類。"
       },
       "FeedbackCreate": {
         "properties": {

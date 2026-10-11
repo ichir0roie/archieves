@@ -1,5 +1,7 @@
 """「本人のみ」のエンドポイントは他人の行を 403 で拒み、「本人以外も」のエンドポイントは通す。"""
 
+from datetime import UTC, datetime
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -197,10 +199,29 @@ def test_feedbacks_of_another_user_are_not_listed(
     assert [f["id"] for f in response.json()] == [mine.id]
 
 
+def test_diaries_of_another_user_are_not_listed(
+    client: TestClient, current_user, factories
+) -> None:
+    factories.DiaryFactory(created_at=datetime(2020, 6, 1, tzinfo=UTC))
+    mine = factories.DiaryFactory(user=current_user, created_at=datetime(2026, 6, 1, tzinfo=UTC))
+
+    response = client.get("/api/v1/diaries")
+
+    assert response.status_code == 200
+    assert [d["id"] for d in response.json()] == [mine.id]
+    assert client.get("/api/v1/diaries/years").json() == [2026]
+
+
 def test_admin_endpoints_are_forbidden_for_non_admins(client: TestClient, factories) -> None:
     feedback = factories.FeedbackFactory()
+    error_report = factories.ErrorReportFactory()
 
     assert client.get("/api/v1/admin/feedbacks").status_code == 403
+    assert client.get("/api/v1/admin/error-reports").status_code == 403
+    assert (
+        client.put(f"/api/v1/admin/error-reports/{error_report.id}/resolve").status_code == 403
+    )
+    assert client.get("/api/v1/admin/pending-counts").status_code == 403
     assert (
         client.put(
             f"/api/v1/admin/feedbacks/{feedback.id}/reply", json={"reply": "x"}

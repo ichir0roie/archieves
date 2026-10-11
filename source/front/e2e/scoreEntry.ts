@@ -118,7 +118,7 @@ export async function shoot(page: Page, label: string, times: number) {
   } else {
     const point = Number(label);
     const outer = box.width / 2;
-    // コンパウンドの的(80cm)でも既定の 122cm で見積もる。ずれは 1px に満たず、帯の幅に収まる
+    // 80cm・40cm の的でも既定の 122cm で見積もる。40cm の的でもずれは 2px に満たず、帯の幅に収まる
     const arrowRadius = (await arrowDiameterPx(page)) / 2;
     // 外側の半径に対する内側の帯の半径の割合。10 の内側は X で、10 の帯の半分
     const innerRatio = point === 10 ? 0.5 : (10 - point) / (11 - point);
@@ -154,13 +154,15 @@ export async function reloadPage(page: Page) {
   await page.reload();
 }
 
-/** 入力の画面の「保存」を押し、送った PUT /games/sheet の応答(保存したゲーム)を返す。 */
-export async function saveSheet(page: Page) {
+/** 入力の画面の「終了」を押し、送った PUT /games/sheet の応答(保存したゲーム)を返す。結果の画面に移るまで待つ。 */
+export async function finishSheet(page: Page) {
   const response = page.waitForResponse(
     (r) => r.request().method() === "PUT" && r.url().endsWith("/api/v1/games/sheet"),
   );
-  await page.locator(".ScoreSave").click();
-  const saved = await (await response).json();
-  await expect(page.locator(".ScoreSave")).toHaveText("保存済み");
-  return saved as { id: number };
+  await page.getByRole("button", { name: "終了" }).click();
+  const saved = (await (await response).json()) as { id: number };
+  await expect(page).toHaveURL(new RegExp(`/score-view/?\\?gameId=${saved.id}$`), {
+    timeout: ROUTE_TIMEOUT,
+  });
+  return saved;
 }

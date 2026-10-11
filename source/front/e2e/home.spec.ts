@@ -16,6 +16,7 @@ test("the home page lists the destinations as buttons", async ({ page }) => {
     "ゲーム開始",
     "スコア",
     "統計",
+    "日記",
     "プロフィール",
     "ランキング",
     "お知らせ",

@@ -195,6 +195,12 @@ table.list th { color: var(--muted); font-weight: 600; background: var(--chip); 
 main { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 10px; }
 /* 画面の中身の幅。スマホで片手で使う画面が多いので、広い画面でも読みやすい幅に止める */
 .page { width: 100%; max-width: 36rem; margin: 0 auto; display: flex; flex-direction: column; gap: 0.9rem; padding-bottom: 5rem; }
+/* ゲーム設定の開始のボタン。欄をどこまで送っても画面の下に見えている。
+   main の余白(10px)のぶん下に浮いて、その隙間に欄が透けるので、bottom と下の余白で埋める */
+.setup-start { position: sticky; bottom: -10px; z-index: 5; padding: 0.6rem 0 calc(0.6rem + 10px); background: var(--bg); }
+/* 下の隅のメニューのボタンに隠れないよう、その側を空ける(ボタンの幅と隅からの間に 8px を足す) */
+body:has(nav[data-pos="bottom-right"]) .setup-start { padding-right: 66px; }
+body:has(nav[data-pos="bottom-left"]) .setup-start { padding-left: 60px; }
 .page.wide { max-width: 64rem; }
 /* 画面の見出しの行。左上に浮かべたメニューボタンと重ならないよう、ボタンの分を空ける */
 .page-header { display: flex; align-items: center; gap: 0.6rem; min-height: 42px; padding-left: 52px; }
@@ -211,6 +217,8 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior
 .HomeMenu a:hover { border-color: var(--accent); text-decoration: none; }
 .HomeMenu a.start { min-height: 4.5rem; font-size: 1.15rem; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .HomeMenu .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+/* 管理者の行き先の未対応の件数 */
+.pending-badge { margin-left: 0.4rem; padding: 0.05rem 0.45rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; background: var(--danger); color: #ffffff; }
 
 /* 統計の一枚(平均を大きく、最小・最大・中央値・件数を小さく) */
 .stat-card { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -244,13 +252,13 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .score-entry { height: 100%; display: flex; flex-direction: column; background: var(--panel); }
 .score-entry > .grow { flex: 1; min-height: 0; }
 .score-top { display: flex; align-items: center; gap: 0.75rem; padding: 0.35rem 0.75rem; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.score-top .score-settings { margin-left: auto; flex-shrink: 0; }
 .score-progress { flex: 1; display: flex; justify-content: center; gap: 1rem; font-size: 0.95rem; }
 .score-progress b { font-size: 1.5rem; line-height: 1; }
 .score-progress .full { color: var(--ok); }
 .score-progress .all-in-badge { align-self: center; padding: 0.05rem 0.4rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
 .score-entry .notice { flex-shrink: 0; padding: 0.4rem 1rem; text-align: center; font-size: 0.85rem; font-weight: 600; }
 .score-entry .notice.done { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); color: var(--ok); }
-.score-entry .notice.full { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--accent); }
 /* 今のラウンドの合計とエンドごとの点数の一行。エンドが多ければこの行の中だけ横に流す */
 .round-totals { display: flex; align-items: stretch; gap: 0.5rem; padding: 0.25rem 0.75rem; border-bottom: 1px solid var(--line); flex-shrink: 0; }
 .round-totals .round-total { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 3.5rem; flex-shrink: 0; }
@@ -282,17 +290,20 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .comment-field .icon.has-body { color: var(--accent); }
 .comment-field .icon:not(.has-body) { color: var(--muted); }
 
-.score-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; padding: 0.6rem; border-top: 1px solid var(--line); flex-shrink: 0; }
+.score-actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35rem; padding: 0.5rem; border-top: 1px solid var(--line); flex-shrink: 0; }
+/* 5 列だと文言が長いので、詰めて折り返させる */
+.score-actions button { min-width: 0; padding: 0.55rem 0.2rem; font-size: 0.8rem; line-height: 1.2; white-space: normal; }
 
 /* 的をタッチする入力。帯は内側ほど上に重ね、押した所を覆ういちばん小さい帯に当たるようにする */
 .target-input { height: 100%; display: flex; flex-direction: column; }
-.target-face { position: relative; flex: 1; min-height: 0; }
+/* 印・ズームの z-index を枠の中に閉じ込める。でないと body に出したモーダルより上に描かれる */
+.target-face { position: relative; flex: 1; min-height: 0; isolation: isolate; }
 /* エンドが満ちて押せない間も、的は見やすいよう薄くしない(button:disabled の opacity を打ち消す) */
 .target-face .target-ring:disabled,
 .target-face .miss-area:disabled { opacity: 1; }
 .target-face .miss-area { position: absolute; inset: 0; z-index: 0; border: 0; border-radius: 0; background: none; padding: 0; }
 .target-face .target-ring { position: absolute; border-radius: 999px; background: var(--ring); border: 1px solid #6a7080; padding: 0; }
-/* 大きさは矢の太さとして TargetCircleInput の ARROW_MARK_SIZE で決める */
+/* 大きさは矢の太さとして TargetCircleInput の createArrow で決める */
 /* 置く位置(left/top)は矢の中心。描く大きさに依らず中心が合うよう translate で寄せる */
 .target-face .arrow-mark { position: absolute; transform: translate(-50%, -50%); border-radius: 999px; background: #fff; border: 2px solid #000; z-index: 100; pointer-events: none; }
 .target-face .target-ring:disabled { cursor: default; }
@@ -390,6 +401,7 @@ nav[data-pos$="right"] .nav-panel { left: auto; right: 16px; }
 @media (max-width: 640px) {
   .nav-fab { top: auto; left: auto; bottom: 16px; right: 16px; width: 52px; height: 52px; }
   .nav-panel { top: auto; left: auto; bottom: 80px; right: 16px; }
+  body:has(nav:not([data-pos])) .setup-start { padding-right: 76px; }
   .page-header { padding-left: 0; }
   .modal-backdrop { padding: 0.5rem; }
   .modal { max-height: 95dvh; }
@@ -398,9 +410,14 @@ nav[data-pos$="right"] .nav-panel { left: auto; right: 16px; }
 /* 画面の最下部の戻るボタン */
 .back-button { margin-top: 0.6rem; }
 
-/* ---- 意見箱・お知らせ ---- */
+/* ---- 意見箱・お知らせ・日記 ---- */
 .pre-wrap { margin: 0; white-space: pre-wrap; word-break: break-word; }
 .FeedbackItem p,
 .Announcements p { margin: 0; }
 .Announcements { margin: 0; list-style: none; }
+.DiaryCells { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.log-group .DiaryCells { border: 0; border-radius: 0; }
+.DiaryCell { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.5rem 0.8rem; }
+.DiaryCell + .DiaryCell { border-top: 1px solid var(--line); }
+.DiaryCell-date { color: var(--muted); font-size: 0.85rem; }
 .Announcements li + li { border-top: 1px solid var(--line); padding-top: 0.6rem; }

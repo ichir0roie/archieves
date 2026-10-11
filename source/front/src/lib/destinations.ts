@@ -19,12 +19,14 @@ export const DESTINATIONS: ReadonlyArray<Destination> = [
   START_GAME,
   { href: "/score-log", label: "scoreLog" },
   { href: "/analysis", label: "analysis" },
+  { href: "/diary", label: "diary" },
   { href: "/profile/me", label: "profile" },
   { href: "/ranking", label: "ranking" },
   { href: "/announcements", label: "announcements" },
   { href: "/feedback", label: "feedback" },
   { href: "/settings", label: "settings" },
   { href: "/admin/feedbacks", label: "adminFeedback", adminOnly: true },
+  { href: "/admin/error-reports", label: "adminErrorReports", adminOnly: true },
 ];
 
 /** isAdmin でない人には adminOnly の行き先を除く */

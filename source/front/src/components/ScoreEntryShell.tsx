@@ -1,18 +1,22 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import EndView from "@/components/EndView";
 import RoundTotalsBar from "@/components/RoundTotalsBar";
 import CommentBar from "@/components/CommentBar";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
+import AimSettingsModal from "@/components/AimSettingsModal";
 import { useGuardScoreEntry } from "@/hooks/useGuardScoreEntry";
 import { shortDate } from "@/lib/score/backfill";
 import { useScoreGame } from "@/lib/score/useScoreGame";
 import {
+  DEFAULT_AIM_SETTINGS,
   DEFAULT_END_SIZE,
   DEFAULT_TARGET_TYPE_ID,
+  type AimSettings,
 } from "@/lib/score/scoreConfig";
+import { loadAimSettings } from "@/lib/storage";
 import type { SheetPoint } from "@/lib/score/scoreSheetCache";
 import { useT } from "@/lib/text";
 
@@ -27,11 +31,8 @@ export type ScoreInputProps = {
   /** 今のエンドを消して前のエンドに戻る / 消したエンドを入れ直す(無ければ次のエンドを開く) */
   backEnd: () => void;
   forwardEnd: () => void;
-  /** 手元の記録を API に保存する / 保存して閉じる */
-  save: () => void;
+  /** 手元の記録を API に保存して閉じる */
   finish: () => void;
-  /** 保存していない変更がある */
-  hasUnsavedChanges: boolean;
   canBackPoint: boolean;
   canForwardPoint: boolean;
   canBackEnd: boolean;
@@ -43,6 +44,8 @@ export type ScoreInputProps = {
   arrowDiameterMm: number;
   /** オールイン: 矢の円が帯に完全に入らなければ、その帯の点にしない */
   allIn: boolean;
+  /** ズームの倍率・大きさと感度。記入画面の右上の設定から変えられる */
+  aimSettings: AimSettings;
   /** このエンドの矢がすべて入った。残る操作は 次へ / 終了 だけ */
   isEndFull: boolean;
   /** ゲームの矢がすべて入った。次のエンドは無い */
@@ -73,12 +76,17 @@ export default function ScoreEntryShell({ renderInput }: Props) {
     forwardPoint,
     backEnd,
     forwardEnd,
-    save,
     finish,
-    hasUnsavedChanges,
     error,
     isSaving,
   } = useScoreGame();
+  const [aimSettings, setAimSettings] = useState(DEFAULT_AIM_SETTINGS);
+  const [aimSettingsOpen, setAimSettingsOpen] = useState(false);
+
+  // サーバーでの描画中は localStorage を読めないので、画面に載ってから当てる
+  useEffect(() => {
+    setAimSettings(loadAimSettings());
+  }, []);
 
   const endSize = progress?.endSize ?? DEFAULT_END_SIZE;
 
@@ -116,7 +124,54 @@ export default function ScoreEntryShell({ renderInput }: Props) {
             )}
           </div>
         )}
+        {/* ✕ と向かい合う右上に置く。進み具合が短くても右端に寄せる */}
+        <button
+          type="button"
+          className="AimSettingsOpen ghost icon score-settings"
+          onClick={() => setAimSettingsOpen(true)}
+          aria-label={T.game.entry.aimSettings}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            aria-hidden="true"
+          >
+            <path
+              d="M4 7h10M18 7h2M4 17h2M10 17h10"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <circle
+              cx="16"
+              cy="7"
+              r="2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+            <circle
+              cx="8"
+              cy="17"
+              r="2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+          </svg>
+        </button>
       </div>
+      {aimSettingsOpen && (
+        <AimSettingsModal
+          settings={aimSettings}
+          onClose={() => setAimSettingsOpen(false)}
+          onSave={(settings) => {
+            setAimSettings(settings);
+            setAimSettingsOpen(false);
+          }}
+        />
+      )}
       {!manager ? (
         <div className="score-loading">
           <div className="spinner" />
@@ -136,14 +191,9 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               className="floating"
             />
           )}
-          {progress?.isGameComplete ? (
+          {/* エンドが満ちたときは文を出さず、「1エンド進む」の強調だけで知らせる(ScoreEntryActions) */}
+          {progress?.isGameComplete && (
             <p className="GameCompleteNotice notice done">{T.game.entry.gameComplete}</p>
-          ) : (
-            progress?.isEndFull && (
-              <p className="EndCompleteNotice notice full">
-                {progress.isRoundFull ? T.game.entry.roundComplete : T.game.entry.endComplete}
-              </p>
-            )
           )}
           <EndView
             points={mirrorPoints}
@@ -167,9 +217,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               forwardPoint,
               backEnd,
               forwardEnd,
-              save,
               finish,
-              hasUnsavedChanges,
               canBackPoint: progress?.canBackPoint ?? false,
               canForwardPoint: progress?.canForwardPoint ?? false,
               canBackEnd: progress?.canBackEnd ?? false,
@@ -178,6 +226,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               targetType: progress ? manager.targetType : DEFAULT_TARGET_TYPE_ID,
               arrowDiameterMm: manager.arrowDiameterMm,
               allIn: manager.allIn,
+              aimSettings,
               isEndFull: progress?.isEndFull ?? false,
               isGameComplete: progress?.isGameComplete ?? false,
               disabled: isSaving,

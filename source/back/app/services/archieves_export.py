@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.scoring import MAX_ARROW_DIAMETER_MM, MIN_ARROW_DIAMETER_MM
+from app.core.target_types import current_target_type_id
 from app.core.timezone import JST
 from app.crud.game import point_cm
 from app.db import End, Game, Point, Round
@@ -151,7 +152,7 @@ TABLES: tuple[Table, ...] = (
                 "target_type",
                 "TEXT NOT NULL",
                 "",
-                "的の種類。92cm・122cm・compound(80cm)、または '<直径>cm'",
+                "的の種類。122cm・80cm・40cm、または取り込んだ古い記録の '<直径>cm'(92cm など)",
             ),
         ),
         ("game_id", "games(id)"),
@@ -541,7 +542,7 @@ def import_sqlite(s: Session, conn: sqlite3.Connection, user_id: int) -> ImportS
                     end_size=r["end_size"],
                     round_size=r["round_size"],
                     distance_m=r["distance_m"],
-                    target_type=r["target_type"],
+                    target_type=current_target_type_id(r["target_type"]),
                 )
             s.add_all(rounds.values())
             s.flush()

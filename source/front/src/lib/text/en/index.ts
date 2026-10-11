@@ -1,5 +1,6 @@
 import type { Texts } from "..";
 import { common } from "./common";
+import { diary } from "./diary";
 import { game } from "./game";
 import { home } from "./home";
 import { profile } from "./profile";
@@ -15,4 +16,5 @@ export const texts: Texts = {
   profile,
   settings,
   support,
+  diary,
 };

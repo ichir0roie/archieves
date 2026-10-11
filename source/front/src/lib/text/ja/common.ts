@@ -42,15 +42,19 @@ export const common = {
     ranking: t.ranking,
     announcements: t.announcement,
     settings: t.settings,
+    diary: t.diary,
     feedback: t.feedback,
     adminFeedback: `${t.feedback}の確認`,
+    adminErrorReports: "エラーの確認",
     signOut: "サインアウト",
   },
   options: {
     targetType: {
-      "92cm": "92cm",
       "122cm": "122cm(標準)",
-      compound: "コンパウンド用(80cm)",
+      "80cm": "80cm",
+      "40cm": "40cm",
+      // 選べない古い的。記録の絞り込みなどに出る
+      "92cm": "92cm",
     } as Record<string, string>,
     bowType: {
       recurve: "リカーブ",

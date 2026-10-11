@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from app.api import deps
 from app.api.v1.endpoints import (
     comments,
+    diaries,
     exports,
     games,
     health,
@@ -37,4 +38,5 @@ authenticated_router.include_router(
     statistics.router, prefix="/statistics", tags=["statistics"]
 )
 authenticated_router.include_router(support.router, tags=["support"])
+authenticated_router.include_router(diaries.router, tags=["diaries"])
 api_router.include_router(authenticated_router)

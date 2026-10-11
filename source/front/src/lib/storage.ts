@@ -1,6 +1,11 @@
 import {
+  currentTargetTypeId,
+  DEFAULT_AIM_SETTINGS,
   DEFAULT_ROUND_SETUP,
+  isValidAimSettings,
   isValidRoundSetup,
+  selectableTargetTypeId,
+  type AimSettings,
   type RoundSetup,
 } from "@/lib/score/scoreConfig";
 import {
@@ -26,6 +31,8 @@ export function loadRoundSetup(): RoundSetup | null {
   if (!raw) return null;
   try {
     const setup = { ...DEFAULT_ROUND_SETUP, ...(JSON.parse(raw) as Partial<RoundSetup>) };
+    // 的のプリセットを変えた。前に選んだ的が選べなくなっても、ほかの設定は残す
+    setup.targetType = selectableTargetTypeId(String(setup.targetType));
     return isValidRoundSetup(setup) ? setup : null;
   } catch {
     return null;
@@ -47,6 +54,26 @@ export function loadScoreLogCollapsed(): Array<string> {
 export function saveScoreLogCollapsed(keys: Array<string>) {
   try {
     localStorage.setItem(SCORE_LOG_COLLAPSED_KEY, JSON.stringify(keys));
+  } catch {
+    // 保存できなくても、開閉そのものは画面の中で動く
+  }
+}
+
+const DIARY_LOG_COLLAPSED_KEY = "diaryLogCollapsed";
+
+/** 日記一覧で閉じている月のキー。localStorage が使えなければ全部開いた扱い */
+export function loadDiaryLogCollapsed(): Array<string> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(DIARY_LOG_COLLAPSED_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((key) => typeof key === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveDiaryLogCollapsed(keys: Array<string>) {
+  try {
+    localStorage.setItem(DIARY_LOG_COLLAPSED_KEY, JSON.stringify(keys));
   } catch {
     // 保存できなくても、開閉そのものは画面の中で動く
   }
@@ -119,6 +146,28 @@ export function subscribeCachedAppUser(onChange: () => void): () => void {
     window.removeEventListener(APP_USER_EVENT, onChange);
     window.removeEventListener("storage", onChange);
   };
+}
+
+const AIM_SETTINGS_KEY = "aimSettings";
+
+export function saveAimSettings(settings: AimSettings) {
+  try {
+    localStorage.setItem(AIM_SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // 保存できなければ、記入画面は既定の倍率・感度で動く
+  }
+}
+
+/** 記入画面のズームの倍率と感度。保存が無い・壊れていれば既定の値 */
+export function loadAimSettings(): AimSettings {
+  try {
+    const raw = localStorage.getItem(AIM_SETTINGS_KEY);
+    if (!raw) return DEFAULT_AIM_SETTINGS;
+    const settings = { ...DEFAULT_AIM_SETTINGS, ...(JSON.parse(raw) as Partial<AimSettings>) };
+    return isValidAimSettings(settings) ? settings : DEFAULT_AIM_SETTINGS;
+  } catch {
+    return DEFAULT_AIM_SETTINGS;
+  }
 }
 
 const TARGET_DIAMETER_KEY = "targetDiameterPx";
@@ -198,6 +247,15 @@ export function loadScoreSheetCache(sub: string): ScoreSheetCache | null {
       arrow_diameter_mm: sheet.arrow_diameter_mm ?? null,
       all_in: sheet.all_in ?? false,
       backfilled: sheet.backfilled ?? false,
+      // db の的の名前はマイグレーションで変えたので、送ると変えたとみなされて弾かれないよう合わせる
+      rounds: sheet.rounds.map((round) => ({
+        ...round,
+        target_type: currentTargetTypeId(round.target_type),
+      })),
+    },
+    setup: stored.setup && {
+      ...stored.setup,
+      targetType: selectableTargetTypeId(stored.setup.targetType),
     },
   };
 }

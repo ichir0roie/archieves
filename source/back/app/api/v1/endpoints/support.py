@@ -1,12 +1,16 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.crud import support as support_crud
-from app.db import Feedback, User
+from app.crud import user as user_crud
+from app.db import ErrorReport, Feedback, User
 from app.schemas.support import (
+    AdminErrorReportRead,
     AdminFeedbackRead,
+    AdminPendingCounts,
     AnnouncementRead,
+    ErrorReportCreate,
     FeedbackCreate,
     FeedbackRead,
     FeedbackReply,
@@ -87,3 +91,80 @@ def list_announcements(
     s: Session = Depends(deps.get_session),
 ) -> list[AnnouncementRead]:
     return support_crud.list_recent_announcements(s)
+
+
+@router.post("/error-reports", status_code=204)
+def create_error_report(
+    report_in: ErrorReportCreate,
+    claims: deps.Claims = Depends(deps.get_current_user),
+    s: Session = Depends(deps.get_session),
+) -> Response:
+    # 登録の前(利用者の行が無い)に起きたエラーも受けるので、get_me でなく sub から引く
+    user = user_crud.get_user_by_sub(s, claims.sub)
+    support_crud.create_error_report(s, None if user is None else user.id, report_in)
+    s.commit()
+    return Response(status_code=204)
+
+
+def _to_admin_error_read(report: ErrorReport, user: User | None) -> AdminErrorReportRead:
+    return AdminErrorReportRead(
+        id=report.id,
+        user_id=report.user_id,
+        user_name=None if user is None else user.name,
+        kind=report.kind,
+        status_code=report.status_code,
+        page_path=report.page_path,
+        method=report.method,
+        api_path=report.api_path,
+        message=report.message,
+        created_at=report.created_at,
+        resolved_at=report.resolved_at,
+    )
+
+
+@router.get(
+    "/admin/error-reports",
+    response_model=list[AdminErrorReportRead],
+    dependencies=[Depends(deps.get_admin)],
+)
+def list_error_reports(
+    s: Session = Depends(deps.get_session),
+) -> list[AdminErrorReportRead]:
+    return [
+        _to_admin_error_read(report, user)
+        for report, user in support_crud.list_error_reports(s)
+    ]
+
+
+@router.put(
+    "/admin/error-reports/{error_report_id}/resolve",
+    response_model=AdminErrorReportRead,
+    dependencies=[Depends(deps.get_admin)],
+)
+def resolve_error_report(
+    error_report_id: int,
+    s: Session = Depends(deps.get_session),
+) -> AdminErrorReportRead:
+    report, user = deps.get_or_404(
+        support_crud.get_error_report_with_user,
+        s,
+        error_report_id,
+        detail="Error report not found",
+    )
+    support_crud.resolve_error_report(s, report)
+    s.commit()
+    return _to_admin_error_read(report, user)
+
+
+@router.get(
+    "/admin/pending-counts",
+    response_model=AdminPendingCounts,
+    dependencies=[Depends(deps.get_admin)],
+)
+def get_pending_counts(
+    s: Session = Depends(deps.get_session),
+) -> AdminPendingCounts:
+    return AdminPendingCounts(
+        unanswered_feedbacks=support_crud.count_unanswered_feedbacks(s),
+        unresolved_error_reports=support_crud.count_unresolved_error_reports(s),
+    )

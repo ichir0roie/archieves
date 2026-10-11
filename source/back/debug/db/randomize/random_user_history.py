@@ -29,24 +29,19 @@ ARROWS_PER_END = 6
 ROUND_KINDS = [
     (70, "122cm", 6),
     (50, "122cm", 2),
-    (30, "92cm", 2),
+    (30, "80cm", 2),
 ]
 # 70m での着弾のばらつき(的の上の cm、標準偏差)。始めの年から終わりの年へ、この幅で上達する
 SPREAD_CM_START = 14.0
 SPREAD_CM_END = 6.0
 
 
-def _score(r_cm: float, size_cm: float, ring_count: int) -> int:
-    """中心からの距離で輪を決める。
-
-    ring_count は X を含めた点の数(core/target_types.py)。10 を越える的は、11 個目の X を
-    10 の輪の内側半分に持つ。
-    """
-    rings = min(ring_count, MAX_RING_SCORE)
-    ring_width = size_cm / 2 / rings
-    if ring_count > MAX_RING_SCORE and r_cm < ring_width / 2:
+def _score(r_cm: float, size_cm: float) -> int:
+    """中心からの距離で輪を決める。どの的も 1〜10 の輪を持ち、X は 10 の輪の内側半分。"""
+    ring_width = size_cm / 2 / MAX_RING_SCORE
+    if r_cm < ring_width / 2:
         return X_SCORE
-    ring = rings - math.floor(r_cm / ring_width)
+    ring = MAX_RING_SCORE - math.floor(r_cm / ring_width)
     return ring if ring >= 1 else MISS_SCORE
 
 
@@ -54,12 +49,11 @@ def _arrow(
     rng: random.Random,
     spread_cm: float,
     size_cm: float,
-    ring_count: int,
 ) -> tuple[int, float, float]:
     """一本の矢の点数と、的の上の位置(左上を 0、右下を 1 とした割合)。"""
     dx = rng.gauss(0, spread_cm)
     dy = rng.gauss(0, spread_cm)
-    score = _score(math.hypot(dx, dy), size_cm, ring_count)
+    score = _score(math.hypot(dx, dy), size_cm)
     # 的の外の矢も、的の縁に置く(画面は的の上にしか描けない)
     x = min(max(0.5 + dx / size_cm, 0.001), 0.999)
     y = min(max(0.5 + dy / size_cm, 0.001), 0.999)
@@ -136,7 +130,7 @@ def create_user_history(user: User, years: int = 5, seed: int | None = None) -> 
         target = get_target_type(round_.target_type)
         assert target is not None
         for number in range(1, ARROWS_PER_END + 1):
-            score, x, y = _arrow(rng, spread_cm, target.size_cm, target.ring_count)
+            score, x, y = _arrow(rng, spread_cm, target.size_cm)
             x_cm, y_cm = point_cm(round_, x, y)
             points.append(
                 {

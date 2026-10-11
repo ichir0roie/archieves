@@ -76,13 +76,6 @@ export default function Page() {
       <PageHeader title={T.profile.scoreLog.title} />
       <button
         type="button"
-        className="primary block"
-        onClick={() => router.push("/game/setup")}
-      >
-        {T.profile.scoreLog.newRecord}
-      </button>
-      <button
-        type="button"
         className="BackfillButton block"
         onClick={() => setBackfillDate(toDateOnly(new Date()))}
       >

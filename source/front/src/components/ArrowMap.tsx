@@ -1,10 +1,9 @@
 import type { PointRead } from "@/lib/api";
-import { resolveTargetType } from "@/lib/score/scoreConfig";
+import { X_SCORE } from "@/lib/score/scoreConfig";
 import { ringClass, zoneRadiusRatio } from "@/lib/score/scoreFunctions";
 
 type Props = {
   points: Array<Pick<PointRead, "x" | "y">>;
-  targetType: string | null | undefined;
 };
 
 /** 辺を 100 とした枠の中心。座標は的の入力と同じく、枠に対する 0〜1 の割合(0.5 が中心) */
@@ -18,11 +17,10 @@ export function hasPosition(point: Pick<PointRead, "x" | "y">): boolean {
   return point.x != null && point.y != null && !(point.x === 0 && point.y === 0);
 }
 
-export default function ArrowMap({ points, targetType }: Props) {
-  const { ringCount } = resolveTargetType(targetType);
+export default function ArrowMap({ points }: Props) {
   const placed = points.filter(hasPosition);
   // 外側の帯から順に重ねる
-  const scores = Array.from({ length: ringCount }, (_, index) => index + 1);
+  const scores = Array.from({ length: X_SCORE }, (_, index) => index + 1);
 
   return (
     <svg

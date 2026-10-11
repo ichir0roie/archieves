@@ -7,7 +7,7 @@ from sqlalchemy import event, select
 from sqlalchemy.orm import Session
 
 from app.core.scoring import X_SCORE
-from app.core.target_types import TARGET_TYPE_IDS
+from app.core.target_types import TARGET_TYPE_ERROR, TARGET_TYPE_IDS
 from app.crud import game as game_crud
 from app.db import Game, Point, Round
 
@@ -195,14 +195,46 @@ def test_a_sheet_cannot_move_a_round_from_another_game(client: TestClient) -> No
     assert response.status_code == 404
 
 
-def test_a_sheet_rejects_a_score_the_target_cannot_give(client: TestClient) -> None:
-    sheet = _sheet([_round(1, [_end(1, [_point(1, X_SCORE)])], target_type="compound")])
+@pytest.mark.parametrize("target_type", TARGET_TYPE_IDS)
+def test_every_target_type_takes_an_x(client: TestClient, target_type: str) -> None:
+    sheet = _sheet([_round(1, [_end(1, [_point(1, X_SCORE)])], target_type=target_type)])
+
+    saved = _save(client, sheet)
+
+    assert saved["rounds"][0]["ends"][0]["points"][0]["score"] == X_SCORE
+
+
+def test_the_old_compound_target_type_can_no_longer_be_chosen(client: TestClient) -> None:
+    # マイグレーションで 80cm に書き換えた
+    sheet = _sheet([_round(1, [], target_type="compound")])
 
     assert client.put(SHEET_URL, json=sheet).status_code == 422
 
 
 def test_a_new_round_must_use_a_known_target_type(client: TestClient) -> None:
     sheet = _sheet([_round(1, [], target_type="60cm-old")])
+
+    assert client.put(SHEET_URL, json=sheet).status_code == 422
+
+
+def test_an_other_target_type_is_saved_with_its_diameter(client: TestClient) -> None:
+    sheet = _sheet(
+        [_round(1, [_end(1, [_point(1, 9, x=1.0, y=0.5)])], target_type="60cm")]
+    )
+
+    saved = _save(client, sheet)
+
+    [round_] = saved["rounds"]
+    assert round_["target_type"] == "60cm"
+    # 的の右の縁は、中心から直径の半分
+    assert round_["ends"][0]["points"][0]["x_cm"] == 30.0
+
+
+@pytest.mark.parametrize("target_type", ["9cm", "201cm", "60.5cm", "60", "60 cm"])
+def test_an_other_target_type_must_be_an_integer_diameter_in_range(
+    client: TestClient, target_type: str
+) -> None:
+    sheet = _sheet([_round(1, [], target_type=target_type)])
 
     assert client.put(SHEET_URL, json=sheet).status_code == 422
 
@@ -430,15 +462,10 @@ def test_the_sheet_leaves_out_rounds_in_the_trash(
     assert [r["id"] for r in sheet["rounds"]] == [kept.id]
 
 
-def test_a_sheet_explains_why_a_score_or_target_type_is_rejected(client: TestClient) -> None:
-    score = client.put(
-        SHEET_URL,
-        json=_sheet([_round(1, [_end(1, [_point(1, X_SCORE)])], target_type="compound")]),
-    )
+def test_a_sheet_explains_why_a_target_type_is_rejected(client: TestClient) -> None:
     target_type = client.put(SHEET_URL, json=_sheet([_round(1, [], target_type="60cm-old")]))
 
-    assert score.json() == {"detail": "score must be at most 10 on a compound target"}
-    assert target_type.json() == {"detail": f"target_type must be one of {TARGET_TYPE_IDS}"}
+    assert target_type.json() == {"detail": TARGET_TYPE_ERROR}
 
 
 def test_a_new_sheet_racing_another_with_the_same_client_key_saves_into_the_winner(
@@ -496,8 +523,8 @@ def test_changing_the_target_type_of_a_round_checks_the_new_one(client: TestClie
     )
     changed = _save(
         client,
-        _sheet([_round(1, [], id=round_id, target_type="compound")], id=saved["id"]),
+        _sheet([_round(1, [], id=round_id, target_type="40cm")], id=saved["id"]),
     )
 
     assert rejected.status_code == 422
-    assert changed["rounds"][0]["target_type"] == "compound"
+    assert changed["rounds"][0]["target_type"] == "40cm"

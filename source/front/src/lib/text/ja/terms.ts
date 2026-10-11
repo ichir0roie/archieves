@@ -35,6 +35,7 @@ export const terms = {
   targetType: "的の種類",
   link: "リンク",
   feedback: "意見箱",
+  diary: "日記",
   announcement: "お知らせ",
   allPeriod: "全期間",
   allIn: "オールイン",

@@ -1,7 +1,7 @@
 "use client";
 
 import { JSX, useEffect, useRef, useState } from "react";
-import ArrowSight, { LENS_ZOOM } from "@/components/ArrowSight";
+import ArrowSight from "@/components/ArrowSight";
 import ScoreEntryActions from "@/components/ScoreEntryActions";
 import type { ScoreInputProps } from "@/components/ScoreEntryShell";
 import { ringClass, scoreToStr, zoneRadiusRatio } from "@/lib/score/scoreFunctions";
@@ -16,30 +16,23 @@ import { saveTargetDiameterPx } from "@/lib/storage";
 import { useT } from "@/lib/text";
 
 /**
- * 的の周りの余白(px)。下だけ広く取るのは、的の下に外した矢を押しやすくするため。
- * 的の下端から枠の下端までが外れの押せる領域になる。設定画面も、記入画面を開く前の的の大きさの見積もりに使う
+ * 的の周りの余白(px)。的は枠の中央に置く。外れは、余白を押すか、押したまま的の外へ狙う点を動かして入れる。
+ * 設定画面も、記入画面を開く前の的の大きさの見積もりに使う
  */
 export const TARGET_FACE_PADDING = 24;
-const PADDING_BOTTOM = 72;
 
 /**
- * 記録した矢の印の、描くときの最小の直径(px)。既定の矢(5mm)は実寸で 1〜2px で見えないので、
- * 印だけこれより小さくしない。点数は実寸の円で決める(scoreAt)
+ * 的の上に描く矢の印の、最小の直径(px)。既定の矢(5mm)は実寸で 1〜2px で見えないので、
+ * 印だけこれより小さくしない。点数は実寸の円で決める(scoreAt)。
+ * ズームの中には当てない。サイトの円(実寸を倍率で描く)と大きさが揃わなくなるため
  */
 const MIN_ARROW_MARK_PX = 8;
 
-/** 押しているあいだ指の上に出すズームの直径・指からの間隔(px)。倍率は ArrowSight の LENS_ZOOM */
-const LENS_SIZE = 150;
-const LENS_GAP = 32;
-
 /**
- * ズームを出す所は、狙う点のこのぶん上。押した直後は狙う点が指の下にあるので、ズームの下端と
- * 指の間が LENS_GAP になる。
+ * 押しているあいだ指の上に出すズームと、指の間隔(px)。ズームの直径と倍率は props の aimSettings で決める。
+ * ズームは狙う点の上に出し、押した直後は狙う点が指の下にあるので、ズームの下端と指の間がこの間隔になる
  */
-const LENS_OFFSET_Y = LENS_GAP + LENS_SIZE / 2;
-
-/** 指の移動に対する、狙う点の移動の割合。細かく狙えるよう、指の動きより小さく動かす */
-const AIM_MOVE_RATIO = 0.5;
+const LENS_GAP = 32;
 
 type Press = {
   pointerId: number;
@@ -57,8 +50,8 @@ function clampFraction(value: number): number {
 }
 
 /** 中心からの距離(的の半径に対する割合)が入る帯の点数。線の上は内側(高い方)。的の外は外れ */
-function scoreAtDistance(distanceRatio: number, ringCount: number): number {
-  for (let score = ringCount; score >= 1; score--) {
+function scoreAtDistance(distanceRatio: number): number {
+  for (let score = X_SCORE; score >= 1; score--) {
     if (distanceRatio <= zoneRadiusRatio(score)) return score;
   }
   return MISS_SCORE;
@@ -71,6 +64,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   const [height, setHeight] = useState<number>(0);
   const [maxDiameter, setMaxDiameter] = useState<number>(0);
   const [press, setPress] = useState<Press | null>(null);
+  const { lensZoom, aimDivisor, lensSizePercent } = props.aimSettings;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -81,7 +75,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
       const diameter = Math.max(
         Math.min(
           container.clientWidth - TARGET_FACE_PADDING * 2,
-          container.clientHeight - TARGET_FACE_PADDING - PADDING_BOTTOM
+          container.clientHeight - TARGET_FACE_PADDING * 2
         ),
         0
       );
@@ -98,12 +92,11 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     return () => observer.disconnect();
   }, []);
 
-  /** 的の中心。下の余白が広いぶん、枠の中央より上に寄る */
   const centerX = width / 2;
-  const centerY = (height - PADDING_BOTTOM + TARGET_FACE_PADDING) / 2;
+  const centerY = height / 2;
 
   const isLocked = props.isEndFull || props.disabled;
-  const { ringCount, sizeCm } = resolveTargetType(props.targetType);
+  const { sizeCm } = resolveTargetType(props.targetType);
   const arrowPx = arrowDiameterPx(props.arrowDiameterMm, sizeCm, maxDiameter);
 
   /** 指の位置を、的の枠の左上からの px にする */
@@ -114,14 +107,15 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   }
 
   /**
-   * 狙う点(ズームの中央)。押した所から、指の動きの AIM_MOVE_RATIO だけ動かす。
+   * 狙う点(ズームの中央)。押した所から、指の動きの 1/aimDivisor だけ動かす。細かく狙えるよう、
+   * 指の動きより小さく動かす。
    * 枠の外にも出られる(外れを押すため)ので、枠には寄せない。
    */
   function aimPoint(current: Press, event: React.PointerEvent<HTMLDivElement>) {
     const finger = fingerPoint(event);
     return {
-      x: current.startX + (finger.x - current.startX) * AIM_MOVE_RATIO,
-      y: current.startY + (finger.y - current.startY) * AIM_MOVE_RATIO,
+      x: current.startX + (finger.x - current.startX) / aimDivisor,
+      y: current.startY + (finger.y - current.startY) / aimDivisor,
     };
   }
 
@@ -150,12 +144,12 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     const distance = Math.hypot(x - centerX, y - centerY);
     const radius = arrowPx / 2;
     const edge = props.allIn ? distance + radius : Math.max(distance - radius, 0);
-    return scoreAtDistance(edge / (maxDiameter / 2), ringCount);
+    return scoreAtDistance(edge / (maxDiameter / 2));
   }
 
   /*
    * 指で押すと指の下が見えないので、押した所を狙う点の起点にして、その上にズームを出す。
-   * 指を動かすと、狙う点とズームは指の動きの半分だけ動く。離したときの狙う点を記録する。
+   * 指を動かすと、狙う点とズームは指の動きの 1/aimDivisor だけ動く。離したときの狙う点を記録する。
    * 帯のボタンは点数の読み上げ・テストで指すために残し、記録そのものは枠が pointer events で受ける。
    */
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
@@ -214,7 +208,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
 
   /** ズームの中に描く帯。ボタンでなく、倍率を掛けた位置に置くだけ */
   function lensRing(point: number) {
-    const size = maxDiameter * zoneRadiusRatio(point) * LENS_ZOOM;
+    const size = maxDiameter * zoneRadiusRatio(point) * lensZoom;
     return (
       <div
         key={point}
@@ -222,8 +216,8 @@ export default function TargetCircleInput(props: ScoreInputProps) {
         style={{
           width: `${size}px`,
           height: `${size}px`,
-          left: `${centerX * LENS_ZOOM - size / 2}px`,
-          top: `${centerY * LENS_ZOOM - size / 2}px`,
+          left: `${centerX * lensZoom - size / 2}px`,
+          top: `${centerY * lensZoom - size / 2}px`,
           zIndex: point,
         }}
       />
@@ -232,7 +226,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
 
   const circles = new Array<JSX.Element>();
   const lensCircles = new Array<JSX.Element>();
-  for (let i = 1; i <= ringCount; i++) {
+  for (let i = 1; i <= X_SCORE; i++) {
     circles.push(circleButton(i));
     lensCircles.push(lensRing(i));
   }
@@ -246,13 +240,15 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     relativeX: number | null | undefined,
     relativeY: number | null | undefined,
     key: number,
-    zoom: number
+    /** ズームの中に描くときの倍率。的の上に描くときは null */
+    lensZoomOrNull: number | null
   ) {
     if (relativeX == null || relativeY == null) return null;
     if (relativeX === 0 && relativeY === 0) return null;
 
-    // ズームの中でも矢の太さを同じ倍率で描き、帯の線とのかかり具合が見えるようにする
-    const size = Math.max(arrowPx * zoom, MIN_ARROW_MARK_PX);
+    // ズームの中では矢の太さをサイトと同じ倍率の実寸で描き、帯の線とのかかり具合が見えるようにする
+    const zoom = lensZoomOrNull ?? 1;
+    const size = lensZoomOrNull === null ? Math.max(arrowPx, MIN_ARROW_MARK_PX) : arrowPx * zoom;
     // 中心は translate(-50%, -50%)(globals.css の .arrow-mark)で合わせる。size / 2 を引くと、
     // 枠線より小さい印は枠線のぶん大きく描かれて中心がずれる
     return (
@@ -270,35 +266,37 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   }
 
   /**
-   * ズームは狙う点の LENS_OFFSET_Y 上に出し、中央に狙う点を拡大して描く。狙う点と一緒に動くので、
-   * 枠の中に寄せない
+   * ズームは狙う点の上に出し、中央に狙う点を拡大して描く。狙う点と一緒に動くので、枠の中に寄せない。
+   * 直径は記入画面の横幅の lensSizePercent %
    */
   function lens(current: Press) {
-    const left = current.x - LENS_SIZE / 2;
-    const top = current.y - LENS_OFFSET_Y - LENS_SIZE / 2;
+    const lensSize = (width * lensSizePercent) / 100;
+    const left = current.x - lensSize / 2;
+    const top = current.y - LENS_GAP - lensSize;
     const score = scoreAt(current.x, current.y);
 
     return (
       <div
         className="TargetLens target-lens"
-        style={{ width: `${LENS_SIZE}px`, height: `${LENS_SIZE}px`, left: `${left}px`, top: `${top}px` }}
+        style={{ width: `${lensSize}px`, height: `${lensSize}px`, left: `${left}px`, top: `${top}px` }}
       >
         <div
           className="lens-content"
           style={{
-            left: `calc(50% - ${current.x * LENS_ZOOM}px)`,
-            top: `calc(50% - ${current.y * LENS_ZOOM}px)`,
-            width: `${width * LENS_ZOOM}px`,
-            height: `${height * LENS_ZOOM}px`,
+            left: `calc(50% - ${current.x * lensZoom}px)`,
+            top: `calc(50% - ${current.y * lensZoom}px)`,
+            width: `${width * lensZoom}px`,
+            height: `${height * lensZoom}px`,
           }}
         >
           {lensCircles}
-          {props.points.map((point, index) => createArrow(point.x, point.y, index, LENS_ZOOM))}
+          {props.points.map((point, index) => createArrow(point.x, point.y, index, lensZoom))}
         </div>
         {/* 中央の帯と同じ色だと埋もれるので、帯のクラスを付けて反転色で描く(globals.css) */}
         {/* 十字の円は、ここに置く矢の太さ。円が帯の線にかかれば高い方の点数(オールインなら低い方)になる */}
         <ArrowSight
           arrowDiameterPx={arrowPx}
+          zoom={lensZoom}
           ringClassName={ringClass(score)}
         />
         <div className={`lens-score ${ringClass(score)}`}>{scoreToStr(score)}</div>
@@ -318,7 +316,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
         onPointerCancel={handlePointerCancel}
       >
         {circles}
-        {props.points.map((point, index) => createArrow(point.x, point.y, index, 1))}
+        {props.points.map((point, index) => createArrow(point.x, point.y, index, null))}
         <button
           type="button"
           tabIndex={-1}

@@ -2,9 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api import deps
-from app.core.target_types import check_score_fits_target
 from app.crud import game as game_crud
-from app.db import End, User
+from app.db import User
 from app.schemas.game import (
     EndCreate,
     EndRead,
@@ -24,12 +23,6 @@ from app.schemas.game_sheet import GameSheetRead, GameSheetWrite
 from app.services import game_sheet as game_sheet_service
 
 router = APIRouter()
-
-
-def _check_score_fits_target(s: Session, end: End, score: int) -> None:
-    # 見える end は見える round を持つので、ここの 404 は起きない
-    round_ = deps.get_or_404(game_crud.get_round, s, end.round_id, detail="Round not found")
-    check_score_fits_target(round_.target_type, score)
 
 
 @router.get("/games", response_model=list[GameRead])
@@ -355,7 +348,6 @@ def create_point(
     s: Session = Depends(deps.get_session),
 ) -> PointRead:
     end = deps.get_own_or_404(me, game_crud.get_end, s, end_id, detail="End not found")
-    _check_score_fits_target(s, end, point_in.score)
     result = game_crud.create_point(s, end, point_in)
     s.commit()
     return result
@@ -378,9 +370,6 @@ def update_point(
     s: Session = Depends(deps.get_session),
 ) -> PointRead:
     point = deps.get_own_or_404(me, game_crud.get_point, s, point_id, detail="Point not found")
-    if point_in.score is not None:
-        end = deps.get_own_or_404(me, game_crud.get_end, s, point.end_id, detail="End not found")
-        _check_score_fits_target(s, end, point_in.score)
     result = game_crud.update_point(s, point, point_in)
     s.commit()
     return result

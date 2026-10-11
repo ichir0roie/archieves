@@ -78,7 +78,6 @@ export const profile: typeof ja = {
   scoreLog: {
     title: t.scoreLog,
     empty: "No games yet",
-    newRecord: "New",
     backfill: "Enter later",
     backfillTitle: "Enter scores later",
     backfillDate: "Date",

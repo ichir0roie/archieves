@@ -289,3 +289,29 @@ def test_import_rejects_an_arrow_diameter_out_of_range(
 
     assert res.status_code == 400
     assert "arrow_diameter_mm" in res.json()["detail"]
+
+
+def test_import_renames_the_old_compound_target_type(
+    client: TestClient,
+    current_user,
+    factories,
+    tmp_path,
+) -> None:
+    _my_game(factories, current_user)
+    path = tmp_path / "old-target.db"
+    path.write_bytes(client.get(PATH).content)
+    # 的を大きさの名前にそろえる前のファイルは、80cm の的を compound と持つ
+    with sqlite3.connect(path) as conn:
+        conn.execute("UPDATE rounds SET target_type = 'compound'")
+
+    res = client.post(
+        "/api/v1/import",
+        data={"source": "archieves"},
+        files={"file": ("archieves-records.db", path.read_bytes(), "application/vnd.sqlite3")},
+    )
+
+    assert res.status_code == 201
+    games = client.get(f"/api/v1/games?user_id={current_user.id}").json()
+    imported = max(games, key=lambda g: g["id"])
+    rounds = client.get(f"/api/v1/games/{imported['id']}/rounds").json()
+    assert [r["target_type"] for r in rounds] == ["80cm"]

@@ -2,7 +2,7 @@
 
 import ArrowSight from "@/components/ArrowSight";
 import { TARGET_FACE_PADDING } from "@/components/TargetCircleInput";
-import Field from "@/components/Field";
+import IntegerField, { parseInteger } from "@/components/IntegerField";
 import Modal from "@/components/Modal";
 import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
@@ -14,19 +14,29 @@ import {
   BOW_TYPE_MAX_LENGTH,
   DEFAULT_ROUND_SETUP,
   DISTANCE_PRESETS_M,
+  DEFAULT_AIM_SETTINGS,
+  MAX_AIM_DIVISOR,
   MAX_ARROW_DIAMETER_MM,
   MAX_DISTANCE_M,
   MAX_END_SIZE,
   MAX_GAME_SIZE,
+  MAX_LENS_SIZE_PERCENT,
+  MAX_LENS_ZOOM,
   MAX_ROUND_SIZE,
+  MAX_TARGET_SIZE_CM,
+  MIN_AIM_DIVISOR,
   MIN_ARROW_DIAMETER_MM,
   MIN_DISTANCE_M,
   MIN_END_SIZE,
   MIN_GAME_SIZE,
+  MIN_LENS_SIZE_PERCENT,
+  MIN_LENS_ZOOM,
   MIN_ROUND_SIZE,
+  MIN_TARGET_SIZE_CM,
   TARGET_TYPES,
   arrowDiameterPx,
-  integerRange,
+  customTargetTypeId,
+  getTargetType,
   resolveTargetType,
   type RoundSetup,
 } from "@/lib/score/scoreConfig";
@@ -35,59 +45,13 @@ import { getCurrentUser } from "@/lib/auth/currentUser";
 import { SCORE_CARD_PATH } from "@/lib/destinations";
 import { ScoreManager } from "@/lib/score/scoreManager";
 import {
+  loadAimSettings,
   loadRoundSetup,
   loadTargetDiameterPx,
+  saveAimSettings,
   saveRoundSetup,
 } from "@/lib/storage";
 import { useT } from "@/lib/text";
-
-/** 入力の文字を、min〜max の整数に読む。読めなければ null。全角の数字も受ける(日本語入力のまま打つため) */
-function parseInteger(text: string, min: number, max: number): number | null {
-  const normalized = text
-    .trim()
-    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
-  if (!/^\d+$/.test(normalized)) return null;
-  const value = Number(normalized);
-  return value >= min && value <= max ? value : null;
-}
-
-type IntegerFieldProps = {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  min: number;
-  max: number;
-  hint: string;
-  /** 欄の右に並べるもの(矢の直径のサイトの見本) */
-  aside?: ReactNode;
-};
-
-function IntegerField(props: IntegerFieldProps) {
-  const T = useT();
-  const invalid = parseInteger(props.value, props.min, props.max) === null;
-  return (
-    <Field
-      label={props.label}
-      hint={props.hint}
-      error={invalid ? T.game.setup.integerError(props.min, props.max) : null}
-    >
-      {(id) => (
-        <div className="row">
-          <input
-            id={id}
-            type="text"
-            inputMode="numeric"
-            className="grow"
-            value={props.value}
-            onChange={(e) => props.onChange(e.target.value)}
-            aria-invalid={invalid}
-          />
-          {props.aside}
-        </div>
-      )}
-    </Field>
-  );
-}
 
 type OtherModalProps = {
   title: string;
@@ -147,11 +111,17 @@ export default function Page() {
   const [arrowDiameterMmText, setArrowDiameterMmText] = useState(
     String(DEFAULT_ROUND_SETUP.arrowDiameterMm),
   );
+  const [lensZoomText, setLensZoomText] = useState(String(DEFAULT_AIM_SETTINGS.lensZoom));
+  const [aimDivisorText, setAimDivisorText] = useState(String(DEFAULT_AIM_SETTINGS.aimDivisor));
+  const [lensSizePercentText, setLensSizePercentText] = useState(
+    String(DEFAULT_AIM_SETTINGS.lensSizePercent),
+  );
   const [targetDiameterPx, setTargetDiameterPx] = useState<number | null>(null);
   const [allIn, setAllIn] = useState(DEFAULT_ROUND_SETUP.allIn);
-  const [otherOpen, setOtherOpen] = useState<"bowType" | "distance" | null>(null);
+  const [otherOpen, setOtherOpen] = useState<"bowType" | "distance" | "targetType" | null>(null);
   const [draftBowName, setDraftBowName] = useState("");
-  const [draftDistance, setDraftDistance] = useState(DEFAULT_ROUND_SETUP.distanceM);
+  const [draftDistanceText, setDraftDistanceText] = useState("");
+  const [draftTargetSizeText, setDraftTargetSizeText] = useState("");
   // あとから入力の日付。スコアの一覧から ?date=yyyy-mm-dd で来る。無い・読めない日付なら今の日時で付ける
   const [backfillDate, setBackfillDate] = useState<string | null>(null);
 
@@ -162,6 +132,10 @@ export default function Page() {
       loadTargetDiameterPx() ??
         Math.min(window.innerWidth, window.innerHeight) - TARGET_FACE_PADDING * 2,
     );
+    const aimSettings = loadAimSettings();
+    setLensZoomText(String(aimSettings.lensZoom));
+    setAimDivisorText(String(aimSettings.aimDivisor));
+    setLensSizePercentText(String(aimSettings.lensSizePercent));
     const saved = loadRoundSetup();
     if (!saved) return;
     setBowType(saved.bowType);
@@ -182,7 +156,14 @@ export default function Page() {
 
   const bowIsOther = !BOW_TYPES.some((b) => b.id === bowType);
   const distanceIsOther = !DISTANCE_PRESETS_M.includes(distance);
+  const targetIsOther = getTargetType(targetTypeId) === undefined;
   const trimmedDraftBowName = draftBowName.trim();
+  const draftDistance = parseInteger(draftDistanceText, MIN_DISTANCE_M, MAX_DISTANCE_M);
+  const draftTargetSizeCm = parseInteger(
+    draftTargetSizeText,
+    MIN_TARGET_SIZE_CM,
+    MAX_TARGET_SIZE_CM,
+  );
 
   const endSize = parseInteger(endSizeText, MIN_END_SIZE, MAX_END_SIZE);
   const roundSize = parseInteger(roundSizeText, MIN_ROUND_SIZE, MAX_ROUND_SIZE);
@@ -192,6 +173,21 @@ export default function Page() {
     MIN_ARROW_DIAMETER_MM,
     MAX_ARROW_DIAMETER_MM,
   );
+  const lensZoom = parseInteger(lensZoomText, MIN_LENS_ZOOM, MAX_LENS_ZOOM);
+  const aimDivisor = parseInteger(aimDivisorText, MIN_AIM_DIVISOR, MAX_AIM_DIVISOR);
+  const lensSizePercent = parseInteger(
+    lensSizePercentText,
+    MIN_LENS_SIZE_PERCENT,
+    MAX_LENS_SIZE_PERCENT,
+  );
+  const aimSettings =
+    lensZoom !== null && aimDivisor !== null && lensSizePercent !== null
+      ? {
+          lensZoom,
+          aimDivisor,
+          lensSizePercent,
+        }
+      : null;
   // 読めない欄があれば null。開始もここで止める
   const sizes =
     endSize !== null && roundSize !== null && gameSize !== null && arrowDiameterMm !== null
@@ -215,12 +211,17 @@ export default function Page() {
   }
 
   function openDistanceOther() {
-    setDraftDistance(distance);
+    setDraftDistanceText(distanceIsOther ? String(distance) : "");
     setOtherOpen("distance");
   }
 
+  function openTargetOther() {
+    setDraftTargetSizeText(targetIsOther ? String(resolveTargetType(targetTypeId).sizeCm) : "");
+    setOtherOpen("targetType");
+  }
+
   async function start() {
-    if (sizes === null || starting.current) return;
+    if (sizes === null || aimSettings === null || starting.current) return;
     starting.current = true;
     try {
       const { userId } = await getCurrentUser();
@@ -236,6 +237,7 @@ export default function Page() {
         allIn,
       };
       saveRoundSetup(setup);
+      saveAimSettings(aimSettings);
       // この画面からは必ず新しいゲームを始める(手元のキャッシュを作り直す)。続きはこの画面を通らない
       ScoreManager.startNewGame(userId, setup, backfillDate);
       router.push(SCORE_CARD_PATH);
@@ -286,9 +288,14 @@ export default function Page() {
           <span className="field-label">{T.game.setup.targetType}</span>
           <Segment
             options={TARGET_OPTIONS}
-            value={targetTypeId}
+            value={targetIsOther ? "" : targetTypeId}
             onChange={setTargetTypeId}
             label={T.game.setup.targetType}
+            other={{
+              label: targetIsOther ? T.game.setup.otherValue(targetTypeId) : T.game.setup.other,
+              on: targetIsOther,
+              onClick: openTargetOther,
+            }}
           />
         </div>
         <IntegerField
@@ -332,11 +339,36 @@ export default function Page() {
               {previewArrowPx !== null && (
                 <ArrowSight
                   arrowDiameterPx={previewArrowPx}
+                  zoom={lensZoom ?? DEFAULT_AIM_SETTINGS.lensZoom}
                   ringClassName="ring-gold"
                 />
               )}
             </div>
           }
+        />
+        <IntegerField
+          label={T.game.setup.lensZoom}
+          value={lensZoomText}
+          onChange={setLensZoomText}
+          min={MIN_LENS_ZOOM}
+          max={MAX_LENS_ZOOM}
+          hint={T.game.setup.lensZoomHint}
+        />
+        <IntegerField
+          label={T.game.setup.lensSize}
+          value={lensSizePercentText}
+          onChange={setLensSizePercentText}
+          min={MIN_LENS_SIZE_PERCENT}
+          max={MAX_LENS_SIZE_PERCENT}
+          hint={T.game.setup.lensSizeHint}
+        />
+        <IntegerField
+          label={T.game.setup.aimDivisor}
+          value={aimDivisorText}
+          onChange={setAimDivisorText}
+          min={MIN_AIM_DIVISOR}
+          max={MAX_AIM_DIVISOR}
+          hint={T.game.setup.aimDivisorHint(aimDivisor)}
         />
 
         <div className="field">
@@ -362,10 +394,13 @@ export default function Page() {
           </p>
         )}
 
+      </div>
+      {/* 設定の欄が長いので、開始はどこまで送っても押せるよう画面の下に留める */}
+      <div className="SetupStart setup-start">
         <button
           type="button"
           className="primary large block"
-          disabled={sizes === null}
+          disabled={sizes === null || aimSettings === null}
           onClick={start}
         >
           {T.game.setup.start}
@@ -396,26 +431,42 @@ export default function Page() {
         <OtherModal
           title={T.game.setup.distanceOther}
           onClose={() => setOtherOpen(null)}
-          canSubmit
+          canSubmit={draftDistance !== null}
           onSubmit={() => {
+            if (draftDistance === null) return;
             setDistance(draftDistance);
             setOtherOpen(null);
           }}
         >
-          <select
-            aria-label={T.game.setup.distance}
-            value={draftDistance}
-            onChange={(e) => setDraftDistance(Number(e.target.value))}
-          >
-            {integerRange(MIN_DISTANCE_M, MAX_DISTANCE_M).map((n) => (
-              <option
-                key={n}
-                value={n}
-              >
-                {n}m
-              </option>
-            ))}
-          </select>
+          <IntegerField
+            label={T.game.setup.distance}
+            value={draftDistanceText}
+            onChange={setDraftDistanceText}
+            min={MIN_DISTANCE_M}
+            max={MAX_DISTANCE_M}
+            autoFocus
+          />
+        </OtherModal>
+      )}
+      {otherOpen === "targetType" && (
+        <OtherModal
+          title={T.game.setup.targetTypeOther}
+          onClose={() => setOtherOpen(null)}
+          canSubmit={draftTargetSizeCm !== null}
+          onSubmit={() => {
+            if (draftTargetSizeCm === null) return;
+            setTargetTypeId(customTargetTypeId(draftTargetSizeCm));
+            setOtherOpen(null);
+          }}
+        >
+          <IntegerField
+            label={T.game.setup.targetSize}
+            value={draftTargetSizeText}
+            onChange={setDraftTargetSizeText}
+            min={MIN_TARGET_SIZE_CM}
+            max={MAX_TARGET_SIZE_CM}
+            autoFocus
+          />
         </OtherModal>
       )}
       <BackButton />
