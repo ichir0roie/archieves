@@ -8,7 +8,6 @@ import outputs from "../../amplify_outputs.json";
 import { isMockAuth } from "@/lib/auth/config";
 import { isCurrentAppUserRegistered } from "@/lib/auth/currentUser";
 import { clearCachedAppUser } from "@/lib/storage";
-import { useT } from "@/lib/text";
 
 if (!isMockAuth()) {
   // ssr: トークンをクッキーに置き、route handler(src/app/api/v1)が読めるようにする
@@ -45,22 +44,11 @@ function RegistrationGate({ children }: { children: ReactNode }) {
 
 /** 画面全体を一度だけ包む(app/layout.tsx)。ログインしていなければ Amplify のログインの画面を出す。 */
 export default function AuthGate({ children }: { children: ReactNode }) {
-  const T = useT();
   if (isMockAuth()) {
     return <RegistrationGate>{children}</RegistrationGate>;
   }
   return (
-    <Authenticator
-      formFields={{
-        // User Pool の aliasAttributes で、ユーザ名の欄にメールアドレスを入れてもログインできる
-        signIn: {
-          username: {
-            label: T.auth.usernameOrEmail,
-            placeholder: T.auth.usernameOrEmail,
-          },
-        },
-      }}
-    >
+    <Authenticator>
       {({ signOut }) => (
         <SignOutContext.Provider
           value={() => {

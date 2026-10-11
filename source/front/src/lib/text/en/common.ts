@@ -24,9 +24,6 @@ export const common: typeof ja = {
   filter: "Filter",
   noMatch: "No matches",
   unit: t.unit,
-  auth: {
-    usernameOrEmail: "Username or email",
-  },
   api: {
     signInRequired: "Please sign in",
     unreachable: (reason: string) => `Cannot reach the API: ${reason}`,
