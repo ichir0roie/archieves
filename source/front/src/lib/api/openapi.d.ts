@@ -1078,8 +1078,8 @@ export interface components {
             game_size?: number | null;
             /** Bow Type */
             bow_type?: string | null;
-            /** Arrow Diameter Px */
-            arrow_diameter_px?: number | null;
+            /** Arrow Diameter Mm */
+            arrow_diameter_mm?: number | null;
             /**
              * All In
              * @default false
@@ -1122,8 +1122,8 @@ export interface components {
             game_size: number | null;
             /** Bow Type */
             bow_type: string | null;
-            /** Arrow Diameter Px */
-            arrow_diameter_px: number | null;
+            /** Arrow Diameter Mm */
+            arrow_diameter_mm: number | null;
             /**
              * All In
              * @default false
@@ -1170,8 +1170,8 @@ export interface components {
             game_size: number | null;
             /** Bow Type */
             bow_type: string | null;
-            /** Arrow Diameter Px */
-            arrow_diameter_px: number | null;
+            /** Arrow Diameter Mm */
+            arrow_diameter_mm: number | null;
             /** All In */
             all_in: boolean;
             /** Backfilled */
@@ -1196,8 +1196,8 @@ export interface components {
             game_size?: number | null;
             /** Bow Type */
             bow_type?: string | null;
-            /** Arrow Diameter Px */
-            arrow_diameter_px?: number | null;
+            /** Arrow Diameter Mm */
+            arrow_diameter_mm?: number | null;
             /**
              * All In
              * @default false
@@ -1226,8 +1226,8 @@ export interface components {
             game_size?: number | null;
             /** Bow Type */
             bow_type?: string | null;
-            /** Arrow Diameter Px */
-            arrow_diameter_px?: number | null;
+            /** Arrow Diameter Mm */
+            arrow_diameter_mm?: number | null;
             /**
              * All In
              * @default false

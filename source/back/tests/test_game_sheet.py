@@ -225,18 +225,19 @@ def test_the_sheet_of_a_deleted_game_is_not_found(client: TestClient) -> None:
 
 
 def test_the_arrow_diameter_is_kept_per_game(client: TestClient) -> None:
-    saved = _save(client, _sheet([], arrow_diameter_px=16))
+    saved = _save(client, _sheet([], arrow_diameter_mm=6))
 
-    assert saved["arrow_diameter_px"] == 16
-    assert client.get(f"/api/v1/games/{saved['id']}").json()["arrow_diameter_px"] == 16
+    assert saved["arrow_diameter_mm"] == 6
+    assert client.get(f"/api/v1/games/{saved['id']}").json()["arrow_diameter_mm"] == 6
 
-    updated = _save(client, _sheet([], id=saved["id"], arrow_diameter_px=None))
-    assert updated["arrow_diameter_px"] is None
+    updated = _save(client, _sheet([], id=saved["id"], arrow_diameter_mm=None))
+    assert updated["arrow_diameter_mm"] is None
 
 
 def test_an_arrow_diameter_outside_the_range_is_rejected(client: TestClient) -> None:
-    assert client.put(SHEET_URL, json=_sheet([], arrow_diameter_px=1)).status_code == 422
-    assert client.put(SHEET_URL, json=_sheet([], arrow_diameter_px=41)).status_code == 422
+    assert client.put(SHEET_URL, json=_sheet([], arrow_diameter_mm=0)).status_code == 422
+    assert client.put(SHEET_URL, json=_sheet([], arrow_diameter_mm=31)).status_code == 422
+    assert client.put(SHEET_URL, json=_sheet([], arrow_diameter_mm=5.5)).status_code == 422
 
 
 def test_all_in_is_kept_per_game(client: TestClient) -> None:

@@ -11,12 +11,12 @@ from pydantic import BaseModel, Field
 from app.core.bow_types import BOW_TYPE_MAX_LENGTH
 from app.core.comments import MAX_COMMENT_LENGTH
 from app.core.scoring import (
-    MAX_ARROW_DIAMETER_PX,
+    MAX_ARROW_DIAMETER_MM,
     MAX_DISTANCE_M,
     MAX_END_SIZE,
     MAX_GAME_SIZE,
     MAX_ROUND_SIZE,
-    MIN_ARROW_DIAMETER_PX,
+    MIN_ARROW_DIAMETER_MM,
     MISS_SCORE,
     X_SCORE,
 )
@@ -69,9 +69,9 @@ class GameSheetWrite(BaseModel):
     recorded_at: date
     game_size: int | None = Field(default=None, ge=1, le=MAX_GAME_SIZE)
     bow_type: str | None = Field(default=None, min_length=1, max_length=BOW_TYPE_MAX_LENGTH)
-    # 記入画面で矢として扱う円の直径(画面の px)。null は既定の大きさ
-    arrow_diameter_px: int | None = Field(
-        default=None, ge=MIN_ARROW_DIAMETER_PX, le=MAX_ARROW_DIAMETER_PX
+    # 矢の直径(mm)。null は既定の太さ
+    arrow_diameter_mm: int | None = Field(
+        default=None, ge=MIN_ARROW_DIAMETER_MM, le=MAX_ARROW_DIAMETER_MM
     )
     # オールイン: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
     all_in: bool = False
@@ -110,7 +110,7 @@ class GameSheetRead(ResponseModel):
     recorded_at: date
     game_size: int | None
     bow_type: str | None
-    arrow_diameter_px: int | None
+    arrow_diameter_mm: int | None
     all_in: bool
     backfilled: bool
     comment: str | None

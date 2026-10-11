@@ -23,8 +23,10 @@ export const game: typeof ja = {
       `Total ${total} arrows (${endSize} arrows × ${roundSize} ends × ${gameSize} rounds)`,
     start: "Start game",
     discardUnsaved: "You have unsaved scores. Discard them and start a new game?",
-    arrowDiameter: "Arrow diameter",
-    arrowDiameterHint: "The size of the circle treated as the arrow while scoring. If it touches a line at all, the higher ring counts (the lower one in all-in mode). On the right is the sight as it appears while aiming (actual size).",
+    arrowDiameter: "Arrow diameter (mm)",
+    arrowDiameterHint: (px: number | null) =>
+      `While scoring, this is scaled to screen pixels by the size of the target face and rounded${px === null ? "" : ` (${px}px on this device)`}. If the circle touches a line at all, the higher ring counts (the lower one in all-in mode). On the right is the sight as it appears while aiming (actual size).`,
+    integerError: (min: number, max: number) => `Enter a whole number from ${min} to ${max}`,
     allIn: "All-in",
     allInHint: "An arrow scores a ring only when it is completely inside it. Touching a line gives the lower ring, and touching the edge of the face is a miss.",
     sightPreview: "Scoring sight (actual size)",

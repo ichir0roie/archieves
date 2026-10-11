@@ -9,8 +9,10 @@ import {
   MAX_RING_SCORE,
   MISS_SCORE,
   X_SCORE,
+  arrowDiameterPx,
   resolveTargetType,
 } from "@/lib/score/scoreConfig";
+import { saveTargetDiameterPx } from "@/lib/storage";
 import { useT } from "@/lib/text";
 
 /**
@@ -70,17 +72,18 @@ export default function TargetCircleInput(props: ScoreInputProps) {
 
     function updateSize() {
       if (!container) return;
+      const diameter = Math.max(
+        Math.min(
+          container.clientWidth - PADDING * 2,
+          container.clientHeight - PADDING - PADDING_BOTTOM
+        ),
+        0
+      );
       setWidth(container.clientWidth);
       setHeight(container.clientHeight);
-      setMaxDiameter(
-        Math.max(
-          Math.min(
-            container.clientWidth - PADDING * 2,
-            container.clientHeight - PADDING - PADDING_BOTTOM
-          ),
-          0
-        )
-      );
+      setMaxDiameter(diameter);
+      // 設定画面のサイトの見本を、この端末の記入画面と同じ大きさで描くため
+      saveTargetDiameterPx(diameter);
     }
 
     updateSize();
@@ -94,7 +97,8 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   const centerY = (height - PADDING_BOTTOM + PADDING) / 2;
 
   const isLocked = props.isEndFull || props.disabled;
-  const { ringCount } = resolveTargetType(props.targetType);
+  const { ringCount, sizeCm } = resolveTargetType(props.targetType);
+  const arrowPx = arrowDiameterPx(props.arrowDiameterMm, sizeCm, maxDiameter);
 
   /** 指の位置を、的の枠の左上からの px にする */
   function fingerPoint(event: React.PointerEvent<HTMLDivElement>) {
@@ -129,7 +133,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   }
 
   /**
-   * 矢の中心が (x, y) のときの点数。矢をゲームで決めた直径(arrowDiameterPx)の円として、縁がいちばん
+   * 矢の中心が (x, y) のときの点数。矢をゲームで決めた直径(arrowPx)の円として、縁がいちばん
    * 中心に寄った所で決める。円が少しでも帯の線にかかれば、高い方の帯の点数(線にかかった矢は高い方の得点、
    * というアーチェリーの決まり)。
    * オールインでは逆に、縁がいちばん外に出た所で決める。円が帯に完全に入らなければその帯の点にならず、
@@ -138,7 +142,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   function scoreAt(x: number, y: number): number {
     if (maxDiameter === 0) return MISS_SCORE;
     const distance = Math.hypot(x - centerX, y - centerY);
-    const radius = props.arrowDiameterPx / 2;
+    const radius = arrowPx / 2;
     const edge = props.allIn ? distance + radius : Math.max(distance - radius, 0);
     return scoreAtDistance(edge / (maxDiameter / 2), ringCount);
   }
@@ -242,7 +246,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     if (relativeX === 0 && relativeY === 0) return null;
 
     // ズームの中でも矢の太さを同じ倍率で描き、帯の線とのかかり具合が見えるようにする
-    const size = props.arrowDiameterPx * zoom;
+    const size = arrowPx * zoom;
     return (
       <div
         key={key}
@@ -286,7 +290,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
         {/* 中央の帯と同じ色だと埋もれるので、帯のクラスを付けて反転色で描く(globals.css) */}
         {/* 十字の円は、ここに置く矢の太さ。円が帯の線にかかれば高い方の点数(オールインなら低い方)になる */}
         <ArrowSight
-          arrowDiameterPx={props.arrowDiameterPx}
+          arrowDiameterPx={arrowPx}
           ringClassName={ringClass(score)}
         />
         <div className={`lens-score ${ringClass(score)}`}>{scoreToStr(score)}</div>

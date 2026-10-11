@@ -18,7 +18,7 @@ def _my_game(factories, user):
         user=user,
         recorded_at=date(2026, 5, 1),
         bow_type="recurve",
-        arrow_diameter_px=14,
+        arrow_diameter_mm=6,
         all_in=True,
         backfilled=True,
     )
@@ -44,9 +44,9 @@ def test_exports_my_records_as_sqlite(
     assert 'filename="archieves-records-' in response.headers["content-disposition"]
     conn = _open(response, tmp_path)
     games = conn.execute(
-        "SELECT recorded_at, bow_type, arrow_diameter_px, all_in, backfilled FROM games"
+        "SELECT recorded_at, bow_type, arrow_diameter_mm, all_in, backfilled FROM games"
     ).fetchall()
-    assert games == [("2026-05-01", "recurve", 14, 1, 1)]
+    assert games == [("2026-05-01", "recurve", 6, 1, 1)]
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert "matches" not in tables
     assert conn.execute("SELECT body FROM game_comments").fetchall() == [("風が強い",)]
@@ -65,7 +65,7 @@ def test_export_describes_its_tables_and_units(client: TestClient, current_user,
 
     about = dict(conn.execute("SELECT key, value FROM _about").fetchall())
     assert about["format"] == "archieves-export"
-    assert about["format_version"] == "4"
+    assert about["format_version"] == "5"
     assert "relations" in about
     assert conn.execute(
         "SELECT unit FROM _columns WHERE table_name = 'rounds' AND column_name = 'distance_m'"
@@ -116,7 +116,7 @@ def test_exported_file_can_be_imported_again(client: TestClient, current_user, f
     games = client.get(f"/api/v1/games?user_id={current_user.id}").json()
     assert len(games) == 2
     imported = max(games, key=lambda g: g["id"])
-    assert imported["arrow_diameter_px"] == 14
+    assert imported["arrow_diameter_mm"] == 6
     assert imported["all_in"] is True
     assert imported["backfilled"] is True
     assert client.get(f"/api/v1/games/{imported['id']}/comments").status_code == 200
@@ -133,10 +133,12 @@ def test_a_version_1_file_still_imports(
     _my_game(factories, current_user)
     path = tmp_path / "v1.db"
     path.write_bytes(client.get(PATH).content)
-    # 形のバージョン 1 のファイルには shot_at・arrow_diameter_px の列が無い
+    # 形のバージョン 1 のファイルには shot_at・矢の直径・all_in・backfilled の列が無い
     with sqlite3.connect(path) as conn:
         conn.execute("ALTER TABLE points DROP COLUMN shot_at")
-        conn.execute("ALTER TABLE games DROP COLUMN arrow_diameter_px")
+        conn.execute("ALTER TABLE games DROP COLUMN arrow_diameter_mm")
+        conn.execute("ALTER TABLE games DROP COLUMN all_in")
+        conn.execute("ALTER TABLE games DROP COLUMN backfilled")
         conn.execute("UPDATE _about SET value = '1' WHERE key = 'format_version'")
 
     res = client.post(
@@ -147,6 +149,31 @@ def test_a_version_1_file_still_imports(
 
     assert res.status_code == 201
     assert res.json()["points"] == 2
+
+
+def test_a_version_4_file_drops_the_arrow_diameter_in_px(
+    client: TestClient, current_user, factories, tmp_path
+) -> None:
+    _my_game(factories, current_user)
+    path = tmp_path / "v4.db"
+    path.write_bytes(client.get(PATH).content)
+    # 形のバージョン 4 までのファイルは、矢の直径を mm でなく画面の px で持つ
+    with sqlite3.connect(path) as conn:
+        conn.execute("ALTER TABLE games RENAME COLUMN arrow_diameter_mm TO arrow_diameter_px")
+        conn.execute("UPDATE games SET arrow_diameter_px = 14")
+        conn.execute("UPDATE _about SET value = '4' WHERE key = 'format_version'")
+
+    res = client.post(
+        "/api/v1/import",
+        data={"source": "archieves"},
+        files={"file": ("archieves-records.db", path.read_bytes(), "application/vnd.sqlite3")},
+    )
+
+    assert res.status_code == 201
+    games = client.get(f"/api/v1/games?user_id={current_user.id}").json()
+    imported = max(games, key=lambda g: g["id"])
+    assert imported["arrow_diameter_mm"] is None
+    assert imported["all_in"] is True
 
 
 def test_a_file_exported_while_matches_existed_still_imports(
@@ -198,9 +225,11 @@ def test_a_version_2_file_imports_as_not_all_in(
     _my_game(factories, current_user)
     path = tmp_path / "v2.db"
     path.write_bytes(client.get(PATH).content)
-    # 形のバージョン 2 のファイルには all_in の列が無い
+    # 形のバージョン 2 のファイルには all_in・backfilled の列が無く、矢の直径を px で持つ
     with sqlite3.connect(path) as conn:
         conn.execute("ALTER TABLE games DROP COLUMN all_in")
+        conn.execute("ALTER TABLE games DROP COLUMN backfilled")
+        conn.execute("ALTER TABLE games RENAME COLUMN arrow_diameter_mm TO arrow_diameter_px")
         conn.execute("UPDATE _about SET value = '2' WHERE key = 'format_version'")
 
     res = client.post(
@@ -221,9 +250,10 @@ def test_a_version_3_file_imports_as_not_backfilled(
     _my_game(factories, current_user)
     path = tmp_path / "v3.db"
     path.write_bytes(client.get(PATH).content)
-    # 形のバージョン 3 のファイルには backfilled の列が無い
+    # 形のバージョン 3 のファイルには backfilled の列が無く、矢の直径を px で持つ
     with sqlite3.connect(path) as conn:
         conn.execute("ALTER TABLE games DROP COLUMN backfilled")
+        conn.execute("ALTER TABLE games RENAME COLUMN arrow_diameter_mm TO arrow_diameter_px")
         conn.execute("UPDATE _about SET value = '3' WHERE key = 'format_version'")
 
     res = client.post(
