@@ -17,6 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.target_types import TARGET_TYPE_MAX_LENGTH
 from app.db.base_class import Base, TimestampMixin
 
 if TYPE_CHECKING:
@@ -55,8 +56,13 @@ class Game(TimestampMixin, Base):
     backfilled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     user: Mapped[User] = relationship(back_populates="games", lazy="noload")
+    # 子の関係はどれも noload。記録を丸ごと読むところ(crud/game.py の get_game_sheet)だけが
+    # ローダーのオプションで読み、そのときの並びを order_by で決める
     rounds: Mapped[list[Round]] = relationship(
-        back_populates="game", cascade="all, delete-orphan", lazy="noload"
+        back_populates="game",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        order_by=lambda: [Round.number, Round.id],
     )
     comment: Mapped[GameComment | None] = relationship(
         back_populates="game", cascade="all, delete-orphan", uselist=False, lazy="noload"
@@ -80,11 +86,14 @@ class Round(TimestampMixin, Base):
     round_size: Mapped[int | None] = mapped_column(Integer, default=None)
     distance_m: Mapped[int] = mapped_column(Integer)
     # Target face, e.g. "122cm".
-    target_type: Mapped[str] = mapped_column(String(50))
+    target_type: Mapped[str] = mapped_column(String(TARGET_TYPE_MAX_LENGTH))
 
     game: Mapped[Game] = relationship(back_populates="rounds", lazy="noload")
     ends: Mapped[list[End]] = relationship(
-        back_populates="round", cascade="all, delete-orphan", lazy="noload"
+        back_populates="round",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        order_by=lambda: [End.number, End.id],
     )
     comment: Mapped[RoundComment | None] = relationship(
         back_populates="round", cascade="all, delete-orphan", uselist=False, lazy="noload"
@@ -107,7 +116,10 @@ class End(TimestampMixin, Base):
 
     round: Mapped[Round] = relationship(back_populates="ends", lazy="noload")
     points: Mapped[list[Point]] = relationship(
-        back_populates="end", cascade="all, delete-orphan", lazy="noload"
+        back_populates="end",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        order_by=lambda: [Point.number, Point.id],
     )
     comment: Mapped[EndComment | None] = relationship(
         back_populates="end", cascade="all, delete-orphan", uselist=False, lazy="noload"

@@ -30,22 +30,32 @@ def create_feedback(
 
 @router.get("/feedbacks", response_model=list[FeedbackRead])
 def list_feedbacks(
-    me: User = Depends(deps.get_me), s: Session = Depends(deps.get_session)
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
 ) -> list[FeedbackRead]:
     return support_crud.list_feedbacks(s, me.id)
 
 
 def _to_admin_read(feedback: Feedback, user: User) -> AdminFeedbackRead:
     return AdminFeedbackRead(
-        **FeedbackRead.model_validate(feedback).model_dump(),
+        id=feedback.id,
+        user_id=feedback.user_id,
+        email=feedback.email,
+        body=feedback.body,
+        created_at=feedback.created_at,
+        reply=feedback.reply,
+        replied_at=feedback.replied_at,
         user_name=user.name,
         user_nickname=user.nickname,
     )
 
 
-@router.get("/admin/feedbacks", response_model=list[AdminFeedbackRead])
+@router.get(
+    "/admin/feedbacks",
+    response_model=list[AdminFeedbackRead],
+    dependencies=[Depends(deps.get_admin)],
+)
 def list_all_feedbacks(
-    admin: User = Depends(deps.get_admin),
     s: Session = Depends(deps.get_session),
 ) -> list[AdminFeedbackRead]:
     return [
@@ -54,11 +64,14 @@ def list_all_feedbacks(
     ]
 
 
-@router.put("/admin/feedbacks/{feedback_id}/reply", response_model=AdminFeedbackRead)
+@router.put(
+    "/admin/feedbacks/{feedback_id}/reply",
+    response_model=AdminFeedbackRead,
+    dependencies=[Depends(deps.get_admin)],
+)
 def reply_to_feedback(
     feedback_id: int,
     reply_in: FeedbackReply,
-    admin: User = Depends(deps.get_admin),
     s: Session = Depends(deps.get_session),
 ) -> AdminFeedbackRead:
     feedback, user = deps.get_or_404(
@@ -70,5 +83,7 @@ def reply_to_feedback(
 
 
 @router.get("/announcements", response_model=list[AnnouncementRead])
-def list_announcements(s: Session = Depends(deps.get_session)) -> list[AnnouncementRead]:
+def list_announcements(
+    s: Session = Depends(deps.get_session),
+) -> list[AnnouncementRead]:
     return support_crud.list_recent_announcements(s)

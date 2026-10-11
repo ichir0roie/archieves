@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 
-// Needs archieves-api running (see .claude/docs/testing.md's "E2E").
+// API を起こしてから回す(.claude/docs/testing.md の「E2E」)。
 
 const ROUTE_TIMEOUT = 15_000;
 

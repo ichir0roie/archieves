@@ -114,24 +114,6 @@ def seed(url: str) -> None:
     logger.info(f"{url.rsplit('/', 1)[1]} に乱数の行を足した")
 
 
-def make_mock_user_admin(url: str) -> None:
-    """モックの利用者の行があれば管理者にする。
-
-    行は seed のほか、画面の登録(/users/me/ensure)でも作られ、そちらは管理者にならない。
-    起こすたびに付け直し、意見箱の確認の画面を手元で見られるようにする。
-    """
-    from sqlalchemy import create_engine, update
-
-    from app.db import User
-
-    engine = create_engine(url)
-    try:
-        with engine.begin() as conn:
-            conn.execute(update(User).where(User.sub == MOCK_USER["SUB"]).values(is_admin=True))
-    finally:
-        engine.dispose()
-
-
 def migrate_local_database() -> None:
     """.env の db が手元のものなら、マイグレーションを head まで流す。
 
@@ -158,7 +140,10 @@ def build_children(args: argparse.Namespace) -> list[Child]:
         # 使い回す db に足すと、起こすたびに行が増えていく
         if args.seed and recreated:
             seed(url)
-        make_mock_user_admin(url)
+        # pin() のあとに読む。画面の登録で作った行も、起こすたびに管理者にする
+        from debug.db.setup.setup_debug_user import make_admin
+
+        make_admin(MOCK_USER["SUB"])
         api_env["DATABASE_URL"] = url
         api_env["AUTH_MODE"] = "mock"
         web_env["NEXT_PUBLIC_AUTH_MODE"] = "mock"

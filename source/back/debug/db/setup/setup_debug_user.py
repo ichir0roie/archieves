@@ -1,30 +1,29 @@
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.core.config import debug_settings
 from app.db import *
 from mods.factory_db import *
 
 
-def create_debug_user(
-) -> User:
-    """Create a mock user for debugging purposes.
+def make_admin(sub: str) -> None:
+    """sub の利用者の行があれば管理者にする(意見箱の確認の画面を手元で見られるように)。
 
-    モックの利用者は管理者にする(意見箱の確認の画面を手元で見られるように)。
+    モックの利用者の行は create_debug_user のほか、画面の登録(/users/me/ensure)でも作られ、
+    そちらは管理者にならない。tools/dev.py が起こすたびにこれで付け直す。
     """
-    debug_user = FactorySession.scalar(
-        select(User).where(
-            User.sub == debug_settings.MOCK_USER_SUB
-        )
-    )
-    if not debug_user:
+    FactorySession.execute(update(User).where(User.sub == sub).values(is_admin=True))
+    FactorySession.commit()
+
+
+def create_debug_user() -> User:
+    """モックの利用者。無ければ作り、管理者にする。"""
+    sub = debug_settings.MOCK_USER_SUB
+    debug_user = FactorySession.scalar(select(User).where(User.sub == sub))
+    if debug_user is None:
         debug_user = UserFactory.create(
             name=debug_settings.MOCK_USER_USERNAME,
             nickname=debug_settings.MOCK_USER_USERNAME,
-            sub=debug_settings.MOCK_USER_SUB,
-            is_admin=True,
+            sub=sub,
         )
-        FactorySession.commit()
-    elif not debug_user.is_admin:
-        debug_user.is_admin = True
-        FactorySession.commit()
+    make_admin(sub)
     return debug_user

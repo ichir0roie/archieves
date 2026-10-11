@@ -3,10 +3,13 @@ import { toDateOnly } from "@/lib/toDateOnly";
 /** あとから入力の日付を、設定の画面へ渡す URL の引数の名前 */
 export const BACKFILL_DATE_PARAM = "date";
 
-/** 入力の画面の帯に出す、月と日だけの短い日付("2026-09-20" → "9/20") */
-export function shortDate(date: string): string {
-  const [, month, day] = date.split("-");
-  return `${Number(month)}/${Number(day)}`;
+/** 入力の画面の帯に出す、月と日だけの短い日付("2026-09-20" → ja-JP なら "9/20")。locale は T.intlLocale */
+export function shortDate(date: string, locale: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Intl.DateTimeFormat(locale, {
+    month: "numeric",
+    day: "numeric",
+  }).format(new Date(year, month - 1, day));
 }
 
 /** あとから入力の日付("yyyy-mm-dd")として使えるか。無い日(2 月 30 日など)と、今日より後の日は弾く */

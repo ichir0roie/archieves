@@ -37,11 +37,13 @@ export function saveLocale(locale: Locale) {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
-function readLocale(): Locale {
+/** 今の言語。saveLocale で保存できなかったときの、このタブの間の言語も含む */
+export function readLocale(): Locale {
   return memoryLocale ?? getLocale();
 }
 
-function subscribe(onChange: () => void) {
+/** 言語が変わったら(このタブの saveLocale・別のタブでの書き換え)呼ぶ。React の外で言語に合わせるもの向け */
+export function subscribeLocale(onChange: () => void) {
   window.addEventListener(CHANGE_EVENT, onChange);
   window.addEventListener("storage", onChange);
   return () => {
@@ -52,5 +54,5 @@ function subscribe(onChange: () => void) {
 
 /** 今の言語。サーバーでの描画中は localStorage を読めないので既定の言語を返す */
 export function useLocale(): Locale {
-  return useSyncExternalStore(subscribe, readLocale, () => DEFAULT_LOCALE);
+  return useSyncExternalStore(subscribeLocale, readLocale, () => DEFAULT_LOCALE);
 }

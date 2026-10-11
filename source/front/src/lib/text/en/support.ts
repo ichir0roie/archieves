@@ -23,6 +23,7 @@ export const support: typeof ja = {
     count: (n: number) => `${n} ${n === 1 ? "message" : "messages"}`,
     email: "Reply to",
     noEmail: "No reply address",
+    userId: (id: number) => ` (id ${id})`,
     replied: "Replied",
     reply: "Reply",
     replyHint: "Shown on the sender's feedback screen.",

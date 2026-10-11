@@ -108,10 +108,10 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               <b>{progress.arrowCount}</b>/{progress.endSize}
               {T.unit.arrow}
             </span>
-            {manager?.allIn && <span className="AllInBadge all-in-badge">{T.game.entry.allIn}</span>}
+            {manager?.allIn && <span className="AllInBadge all-in-badge">{T.terms.allIn}</span>}
             {manager?.backfillDate && (
               <span className="BackfillBadge all-in-badge">
-                {T.game.entry.backfill(shortDate(manager.backfillDate))}
+                {T.game.entry.backfill(shortDate(manager.backfillDate, T.intlLocale))}
               </span>
             )}
           </div>

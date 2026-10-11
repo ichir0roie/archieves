@@ -1,13 +1,14 @@
 "use client";
 
 import ArrowSight from "@/components/ArrowSight";
+import { TARGET_FACE_PADDING } from "@/components/TargetCircleInput";
 import Field from "@/components/Field";
 import Modal from "@/components/Modal";
 import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import Segment from "@/components/Segment";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   BOW_TYPES,
   BOW_TYPE_MAX_LENGTH,
@@ -30,6 +31,8 @@ import {
   type RoundSetup,
 } from "@/lib/score/scoreConfig";
 import { BACKFILL_DATE_PARAM, isBackfillDate } from "@/lib/score/backfill";
+import { getCurrentUser } from "@/lib/auth/currentUser";
+import { SCORE_CARD_PATH } from "@/lib/destinations";
 import { ScoreManager } from "@/lib/score/scoreManager";
 import {
   loadRoundSetup,
@@ -37,9 +40,6 @@ import {
   saveRoundSetup,
 } from "@/lib/storage";
 import { useT } from "@/lib/text";
-
-/** 的の周りの余白(TargetCircleInput の PADDING の 2 倍)。記入画面を開く前の的の大きさの見積もりに使う */
-const TARGET_FACE_PADDING_PX = 48;
 
 /** 入力の文字を、min〜max の整数に読む。読めなければ null。全角の数字も受ける(日本語入力のまま打つため) */
 function parseInteger(text: string, min: number, max: number): number | null {
@@ -160,7 +160,7 @@ export default function Page() {
     // 記入画面を一度も開いていなければ、的は画面の幅か高さいっぱいに描かれるものとして見積もる
     setTargetDiameterPx(
       loadTargetDiameterPx() ??
-        Math.min(window.innerWidth, window.innerHeight) - TARGET_FACE_PADDING_PX,
+        Math.min(window.innerWidth, window.innerHeight) - TARGET_FACE_PADDING * 2,
     );
     const saved = loadRoundSetup();
     if (!saved) return;
@@ -192,6 +192,18 @@ export default function Page() {
     MIN_ARROW_DIAMETER_MM,
     MAX_ARROW_DIAMETER_MM,
   );
+  // 読めない欄があれば null。開始もここで止める
+  const sizes =
+    endSize !== null && roundSize !== null && gameSize !== null && arrowDiameterMm !== null
+      ? {
+          endSize,
+          roundSize,
+          gameSize,
+          arrowDiameterMm,
+        }
+      : null;
+  // 開始は sub を引いてから進むので、二度押しで二つ始めないようにする
+  const starting = useRef(false);
   const previewArrowPx =
     arrowDiameterMm !== null && targetDiameterPx !== null
       ? arrowDiameterPx(arrowDiameterMm, resolveTargetType(targetTypeId).sizeCm, targetDiameterPx)
@@ -207,26 +219,29 @@ export default function Page() {
     setOtherOpen("distance");
   }
 
-  function start() {
-    if (endSize === null || roundSize === null || gameSize === null || arrowDiameterMm === null) {
-      return;
+  async function start() {
+    if (sizes === null || starting.current) return;
+    starting.current = true;
+    try {
+      const { userId } = await getCurrentUser();
+      // 入力の途中のゲームの、保存していない記録はキャッシュにしか無い。始めると捨てるので確かめる
+      if (ScoreManager.hasUnsavedCache(userId) && !window.confirm(T.game.setup.discardUnsaved)) {
+        return;
+      }
+      const setup: RoundSetup = {
+        bowType,
+        distanceM: distance,
+        targetType: targetTypeId,
+        ...sizes,
+        allIn,
+      };
+      saveRoundSetup(setup);
+      // この画面からは必ず新しいゲームを始める(手元のキャッシュを作り直す)。続きはこの画面を通らない
+      ScoreManager.startNewGame(userId, setup, backfillDate);
+      router.push(SCORE_CARD_PATH);
+    } finally {
+      starting.current = false;
     }
-    // 入力の途中のゲームの、保存していない記録はキャッシュにしか無い。始めると捨てるので確かめる
-    if (ScoreManager.hasUnsavedCache() && !window.confirm(T.game.setup.discardUnsaved)) return;
-    const setup: RoundSetup = {
-      bowType,
-      distanceM: distance,
-      targetType: targetTypeId,
-      endSize,
-      roundSize,
-      gameSize,
-      arrowDiameterMm,
-      allIn,
-    };
-    saveRoundSetup(setup);
-    // この画面からは必ず新しいゲームを始める(手元のキャッシュを作り直す)。続きはこの画面を通らない
-    ScoreManager.startNewGame(setup, backfillDate);
-    router.push("/game/score-card");
   }
 
   return (
@@ -235,7 +250,7 @@ export default function Page() {
       {backfillDate && (
         <div className="BackfillNotice panel stack tight">
           <b>{T.game.setup.backfill(backfillDate)}</b>
-          <span className="muted small">{T.game.setup.backfillHint}</span>
+          <span className="muted small">{T.game.backfillHint}</span>
         </div>
       )}
       <div className="panel stack">
@@ -331,7 +346,7 @@ export default function Page() {
               checked={allIn}
               onChange={(e) => setAllIn(e.target.checked)}
             />
-            {T.game.setup.allIn}
+            {T.terms.allIn}
           </label>
           <span className="hint">{T.game.setup.allInHint}</span>
         </div>
@@ -350,9 +365,7 @@ export default function Page() {
         <button
           type="button"
           className="primary large block"
-          disabled={
-            endSize === null || roundSize === null || gameSize === null || arrowDiameterMm === null
-          }
+          disabled={sizes === null}
           onClick={start}
         >
           {T.game.setup.start}

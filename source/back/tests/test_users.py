@@ -194,6 +194,7 @@ def test_ensure_current_user_creates_then_reuses(client: TestClient) -> None:
 def test_get_me_returns_404_when_not_registered(unregistered_client: TestClient) -> None:
     response = unregistered_client.get("/api/v1/users/me")
     assert response.status_code == 404
+    assert response.json()["detail"] == "Current user not registered"
 
 
 def test_get_me_returns_current_user_after_ensure(client: TestClient) -> None:

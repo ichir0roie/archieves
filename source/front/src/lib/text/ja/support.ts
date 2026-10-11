@@ -23,6 +23,7 @@ export const support = {
     count: (n: number) => `${n} 件`,
     email: "返信先",
     noEmail: "返信先なし",
+    userId: (id: number) => ` (id ${id})`,
     replied: "返信済み",
     reply: "返信",
     replyHint: "送った人の意見箱の画面に表示されます。",

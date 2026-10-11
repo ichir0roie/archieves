@@ -17,7 +17,7 @@
 ## pytest(`source/back/tests`)
 
 - `tests/conftest.py` は、app を import する前に `tools.testing_db.pin("archieves_test")` で `DATABASE_URL` を固定し、`AUTH_MODE=cognito` にする(手元の `.env` に引きずられない)
-- `archieves_test` は、マイグレーションの版が head と違うとき(マイグレーションを足した・ブランチを替えた)と、db が無いときだけ消して作り直し、マイグレーション(`alembic upgrade head`)で表を作る。版が同じなら作り直さずに使う(行は各テストが巻き戻す)。同じ版のままマイグレーションの中身を書き換えたときは `ARCHIEVES_TEST_DB_RESET=1` を付けて回す。終わったあとは消さないので、落ちたあとに `psql` で表を覗ける
+- `archieves_test` は、マイグレーションのバージョンが head と違うとき(マイグレーションを足した・ブランチを替えた)と、db が無いときだけ消して作り直し、マイグレーション(`alembic upgrade head`)で表を作る。バージョンが同じなら作り直さずに使う(行は各テストが巻き戻す)。同じバージョンのままマイグレーションの中身を書き換えたときは `ARCHIEVES_TEST_DB_RESET=1` を付けて回す。終わったあとは消さないので、落ちたあとに `psql` で表を覗ける
 - PostgreSQL が止まっていれば `infra_local/postgres.sh` が起こす(`tools/testing_db.py` が回す)。`ARCHIEVES_DEV_DATABASE_URL` を渡せば回さない
 - `tests/test_migrations.py` が、モデルとマイグレーションの食い違いを落とす。モデルを変えたらマイグレーションを足す(`.claude/docs/backend.md` の「マイグレーション」)
 - `tests/test_openapi.py` が、`source/back/openapi.json` が今の API と食い違うと落とす。API を変えたら書き出し直す(`.claude/docs/backend.md` の「OpenAPI」)
@@ -41,10 +41,9 @@ def test_something(client, factories):
 
 ### カバレッジ
 
-`app/` は 2 か所を除いて全行を通す(`.venv/bin/python -m pytest --cov=app --cov-report=term-missing`)。2 か所はどちらも、テストから構造上届かないもの:
+`app/` は 1 か所を除いて全行を通す(`.venv/bin/python -m pytest --cov=app --cov-report=term-missing`)。その 1 か所は、テストから構造上届かないもの:
 
 - `app/db/session.py` の `get_session` の中身: `conftest` が差し替えるので、pytest では本番のセッションを作らない
-- `app/api/v1/endpoints/games.py` の `_check_score_fits_target` の `round_ is None`: 呼び出し元はどちらも先に `get_or_404(game_crud.get_end, ...)` で end を引き、見える end は見える round を持つので、`get_round` が `None` を返さない
 
 ほかが通っていなければテストが足りない。この一覧を広げずにテストを書く。
 
@@ -56,7 +55,7 @@ def test_something(client, factories):
 cd source/back && .venv/bin/python debug/test_env/run_test_api_server.py
 ```
 
-- `archieves_test_api` は pytest と同じく、マイグレーションの版が変わったときだけ作り直す(`--reset` で必ず作り直す)。前の E2E の行は残るが、spec はそのテストが作ったもので確かめるので差し支えない。`AUTH_MODE=mock` で `:8080` を聞く(`--port` / `--db` で変えられる)
+- `archieves_test_api` は pytest と同じく、マイグレーションのバージョンが変わったときだけ作り直す(`--reset` で必ず作り直す)。前の E2E の行は残るが、spec はそのテストが作ったもので確かめるので差し支えない。`AUTH_MODE=mock` で `:8080` を聞く(`--port` / `--db` で変えられる)
 - それから `source/front` で `npm run test:e2e`(画面で見ながらなら `npm run test:e2e:ui`)。`playwright.config.ts` が `next dev` を `:13100`・ビルド先 `.next-test`・`NEXT_PUBLIC_AUTH_MODE=mock`・`ARCHIEVES_API_URL=http://127.0.0.1:8080` で起こす。ユーザの `next dev`(`:3100`・`.next`)とは別なので、使い回されない。API の向け先は `ARCHIEVES_API_URL`、画面のポートは `ARCHIEVES_E2E_WEB_PORT` で変えられる
 - API の合言葉まで確かめるときは、API を `API_KEYS=web=<鍵>` で起こし、E2E に `ARCHIEVES_API_KEY=<鍵>` を渡す
 - 前の E2E の `next dev`(:13100)が残っていると使い回される。API の向け先を変えたときは止めてから回す
@@ -75,7 +74,7 @@ cd source/back && .venv/bin/python debug/test_env/run_test_api_server.py
 cd source/back && .venv/bin/python -m tools.dev --test --seed --api-port 18000 --web-port 13101 --dist-dir .next-test
 ```
 
-- `--test` は `archieves_test_dev` に向け、API と画面をモックのログインにする。db はマイグレーションの版が変わったとき(と `--reset`)だけ作り直し、それ以外は前の行を残して使う。`--seed` は、作り直したときだけ乱数の行(`debug/db/randomize`)と、モックの利用者・その 5 年分の試合(`random_user_history.py`)を足す。使い回すときは足さない。行を入れ直したいときは `--reset --seed`。`--test` を付けずに起こすと `source/back/.env` の db に向くので、確かめでは必ず付ける
+- `--test` は `archieves_test_dev` に向け、API と画面をモックのログインにする。db はマイグレーションのバージョンが変わったとき(と `--reset`)だけ作り直し、それ以外は前の行を残して使う。`--seed` は、作り直したときだけ乱数の行(`debug/db/randomize`)と、モックの利用者・その 5 年分の試合(`random_user_history.py`)を足す。使い回すときは足さない。行を入れ直したいときは `--reset --seed`。`--test` を付けずに起こすと `source/back/.env` の db に向くので、確かめでは必ず付ける
 - ポート・ビルド先はユーザのもの(:8000 / :3100 / `.next`)と分ける。同じだと `tools.dev` がユーザの起動を止める(指定のポートを使うプロセスを止めてから起こす)。E2E の `next dev` も `.next-test` を使うので、並べて起こすときは `--web-port` を E2E の 13100 と違えるか、片方を止める
 - `source/front` の依存が無ければランチャーが `npm ci` する
 - どちらかが落ちる・20 秒を越えて応答しないと、そちらだけを起こし直す

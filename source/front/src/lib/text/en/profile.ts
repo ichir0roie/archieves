@@ -1,3 +1,4 @@
+import type { Visibility } from "@/lib/api";
 import type { profile as ja } from "../ja/profile";
 import { terms as t } from "./terms";
 
@@ -15,7 +16,7 @@ export const profile: typeof ja = {
       private: "Only me",
       organization: "My group",
       public: "Everyone",
-    } as Record<string, string>,
+    } satisfies Record<Visibility, string>,
     visibilityHint: `"My group" shows it only to people with the same ${t.affiliation.toLowerCase()} (same as "Only me" if you have none). With "Only me" you are not listed in the ranking, even for yourself.`,
   },
   view: {
@@ -81,7 +82,6 @@ export const profile: typeof ja = {
     backfill: "Enter later",
     backfillTitle: "Enter scores later",
     backfillDate: "Date",
-    backfillHint: "Every round, end and arrow is dated this day (at 0:00).",
     backfillNext: "Next",
     gameId: "Game ID",
     startedAt: "Started at",

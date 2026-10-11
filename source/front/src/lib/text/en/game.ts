@@ -2,6 +2,7 @@ import type { game as ja } from "../ja/game";
 import { terms as t } from "./terms";
 
 export const game: typeof ja = {
+  backfillHint: "Every round, end and arrow is dated this day (at 0:00).",
   setup: {
     title: "Game setup",
     bowType: t.bowType,
@@ -25,20 +26,17 @@ export const game: typeof ja = {
     discardUnsaved: "You have unsaved scores. Discard them and start a new game?",
     arrowDiameter: "Arrow diameter (mm)",
     arrowDiameterHint: (px: number | null) =>
-      `While scoring, this is scaled to screen pixels by the size of the target face and rounded${px === null ? "" : ` (${px}px on this device)`}. If the circle touches a line at all, the higher ring counts (the lower one in all-in mode). On the right is the sight as it appears while aiming (actual size).`,
+      `While scoring, this is scaled to screen pixels by the size of the target face${px === null ? "" : ` (${Math.round(px * 10) / 10}px on this device)`}. If the circle touches a line at all, the higher ring counts (the lower one in all-in mode). On the right is the sight as it appears while aiming (actual size).`,
     integerError: (min: number, max: number) => `Enter a whole number from ${min} to ${max}`,
-    allIn: "All-in",
     allInHint: "An arrow scores a ring only when it is completely inside it. Touching a line gives the lower ring, and touching the edge of the face is a miss.",
     sightPreview: "Scoring sight (actual size)",
     backfill: (date: string) => `Entering later: scores of ${date}`,
-    backfillHint: "Every round, end and arrow is dated this day (at 0:00).",
   },
   entry: {
     home: "Back to Home",
     round: t.round,
     end: t.end,
     roundTotal: `${t.round} ${t.total.toLowerCase()}`,
-    allIn: "All-in",
     backfill: (date: string) => `Scores of ${date}`,
     gameComplete: "All rounds are recorded. Press \"Finish\" to check your scores.",
     endComplete: "All arrows of this end are in. Press \"Next end\" to move on to the next end.",

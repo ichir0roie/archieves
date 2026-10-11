@@ -2,23 +2,16 @@
 
 import { useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
-import Segment from "@/components/Segment";
+import VisibilityFields from "@/components/VisibilityFields";
 import {
   getMyUser,
   toErrorDetails,
   updateUser,
   type ErrorDetails,
   type MeRead,
-  type Visibility,
 } from "@/lib/api";
 import { useLoad } from "@/hooks/useLoad";
 import { useT } from "@/lib/text";
-
-const VISIBILITIES: Array<Visibility> = [
-  "private",
-  "organization",
-  "public",
-];
 
 /** 本人のプロフィールの画面で、公開範囲を選んだらすぐに保存する。 */
 export default function VisibilitySettings() {
@@ -31,13 +24,9 @@ export default function VisibilitySettings() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<ErrorDetails | null>(null);
 
-  const options = VISIBILITIES.map((visibility) => ({
-    value: visibility,
-    label: T.profile.settings.visibility[visibility],
-  }));
-
   async function save(change: Partial<Pick<MeRead, "profile_visibility" | "ranking_visibility">>) {
-    if (!me) return;
+    // 保存の途中は選べなくしてある。重なると、先に送った方の応答が後から着いて選び直しを戻すため
+    if (!me || saving) return;
     const before = me;
     // 押したボタンをすぐに on にし、落ちたら戻す
     setUpdated({ ...me, ...change });
@@ -62,25 +51,13 @@ export default function VisibilitySettings() {
     <section className="VisibilitySettings panel stack">
       <h2>{T.profile.view.visibilityTitle}</h2>
       {error && <ApiErrorAlert error={error} />}
-      <div className="field">
-        <span className="field-label">{T.profile.settings.profileVisibility}</span>
-        <Segment
-          options={options}
-          value={me.profile_visibility}
-          onChange={(value) => save({ profile_visibility: value })}
-          label={T.profile.settings.profileVisibility}
-        />
-      </div>
-      <div className="field">
-        <span className="field-label">{T.profile.settings.rankingVisibility}</span>
-        <Segment
-          options={options}
-          value={me.ranking_visibility}
-          onChange={(value) => save({ ranking_visibility: value })}
-          label={T.profile.settings.rankingVisibility}
-        />
-      </div>
-      <p className="muted small">{T.profile.settings.visibilityHint}</p>
+      <VisibilityFields
+        profileVisibility={me.profile_visibility}
+        rankingVisibility={me.ranking_visibility}
+        onChangeProfileVisibility={(value) => save({ profile_visibility: value })}
+        onChangeRankingVisibility={(value) => save({ ranking_visibility: value })}
+        disabled={saving}
+      />
       <p
         className="muted small"
         role="status"

@@ -37,7 +37,7 @@ export default function RoundTotalsBar({ roundTotal, endTotals, endNumber }: Pro
               className={isCurrent ? "EndTotalCell end current" : "EndTotalCell end"}
             >
               <span className="number">{index + 1}</span>
-              <span className="value">{total ?? "-"}</span>
+              <span className="value">{total ?? T.none}</span>
             </div>
           );
         })}
