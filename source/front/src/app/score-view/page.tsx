@@ -31,6 +31,7 @@ import {
 import { countRings, scoreToStr, totalScore } from "@/lib/score/scoreFunctions";
 import { DEFAULT_END_SIZE } from "@/lib/score/scoreConfig";
 import { ScoreManager } from "@/lib/score/scoreManager";
+import { useOnResume } from "@/hooks/useOnResume";
 import { useT } from "@/lib/text";
 import { useRunOnce } from "@/lib/useRunOnce";
 
@@ -96,6 +97,9 @@ function ScoreViewContent() {
   const [error, setError] = useState<ErrorDetails | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // 画面に戻ったときの読み直しは、前の読み込みが終わるのを待たずに始める(裏に回る前の読み込みが
+  // 止まったまま返らないことがある)。重なったら、いちばん後に始めた読み込みの結果だけを使う
+  const loadSeq = useRef(0);
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -110,6 +114,7 @@ function ScoreViewContent() {
   }
 
   async function loadGame() {
+    const seq = ++loadSeq.current;
     setError(null);
     try {
       const requestedId = searchParams.get("gameId");
@@ -121,10 +126,12 @@ function ScoreViewContent() {
         listRounds(game.id).then((list) => Promise.all(list.map(loadRound))),
         listGameComments(game.id),
       ]);
+      if (seq !== loadSeq.current) return;
       setGameId(game.id);
       setRounds(loadedRounds);
       setComments(toCommentTexts(loadedComments));
     } catch (e) {
+      if (seq !== loadSeq.current) return;
       setError(toErrorDetails(e));
     }
   }
@@ -133,6 +140,14 @@ function ScoreViewContent() {
   useEffect(() => {
     runOnMount();
   }, [runOnMount]);
+
+  // 終了から来る途中で閉じた・裏に回したときは、読み込みが失敗・途中のまま、あるいは古いまま戻るので読み直す
+  useOnResume(async () => {
+    if (deleting) return;
+    // 裏で書いているコメントが API に届いてから読む。でないと押したばかりのコメントが古い文に戻る
+    await Promise.all(commentWrites.current.values());
+    loadGame();
+  });
 
   /**
    * コメントを、押した時点で画面に出し、API へは裏で書く(書き終わるまで待たせない)。空の文は消す。

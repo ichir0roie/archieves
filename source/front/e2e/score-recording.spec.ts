@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 import {
-  AIM_OFFSET_Y,
   arrowDiameterPx,
   nextEnd,
   recordedArrows,
@@ -397,8 +396,7 @@ test("tapping the same spot twice on the target records two arrows", async ({ pa
   // 的の中心は枠の中央でなく(下の余白のぶん上に寄る)、X の帯の中心
   const xRing = await ringButton(page, "X").boundingBox();
   if (!xRing) throw new Error("X ring not laid out");
-  // 狙う点は指の上 107px(TargetCircleInput の AIM_OFFSET_Y)なので、そのぶん下を押す
-  const centre = { x: xRing.x + xRing.width / 2, y: xRing.y + xRing.height / 2 + 107 };
+  const centre = { x: xRing.x + xRing.width / 2, y: xRing.y + xRing.height / 2 };
 
   // The marker drawn for the first arrow sits on top of every ring, so it
   // must not swallow the tap that records the second.
@@ -410,6 +408,24 @@ test("tapping the same spot twice on the target records two arrows", async ({ pa
 
   // The end's slots are laid out up front, so the target keeps its place.
   await expect(await target.boundingBox()).toEqual(box);
+});
+
+test("押した所から、狙う点は指の動きの半分だけ動く", async ({ page }) => {
+  await startGame(page, { endSize: 3 });
+  const xRing = await ringButton(page, "X").boundingBox();
+  const nine = await ringButton(page, "9").boundingBox();
+  if (!xRing || !nine) throw new Error("rings not laid out");
+  const centre = { x: xRing.x + xRing.width / 2, y: xRing.y + xRing.height / 2 };
+  // 9 の帯の真ん中あたり(中心から 9 の外の半径の 3/4)
+  const nineMiddle = (nine.width / 2) * 0.75;
+
+  // 中心を押し、9 の帯までの倍だけ指を動かすと、狙う点は 9 の帯に止まる
+  await page.mouse.move(centre.x, centre.y);
+  await page.mouse.down();
+  await page.mouse.move(centre.x + nineMiddle * 2, centre.y, { steps: 5 });
+  await expect(page.locator(".target-lens .lens-score")).toHaveText("9");
+  await page.mouse.up();
+  await expect(recordedArrows(page)).toHaveText(["9"]);
 });
 
 test("矢が空のままでも 1エンド進む でエンドを飛ばせる", async ({ page }) => {
@@ -440,15 +456,15 @@ test("an arrow touching a line scores the higher ring", async ({ page }) => {
   const nineOuterRadius = nine.width / 2;
 
   // 中心が 9 と 8 の線の外でも、半径より近ければ縁が線にかかるので 9。半径より遠ければ 8
-  await page.mouse.click(centre.x + nineOuterRadius + radius - 2, centre.y + AIM_OFFSET_Y);
+  await page.mouse.click(centre.x + nineOuterRadius + radius - 2, centre.y);
   await expect(recordedArrows(page)).toHaveText(["9"]);
-  await page.mouse.click(centre.x + nineOuterRadius + radius + 2, centre.y + AIM_OFFSET_Y);
+  await page.mouse.click(centre.x + nineOuterRadius + radius + 2, centre.y);
   await expect(recordedArrows(page)).toHaveText(["9", "8"]);
 
   // 的の外でも、縁が 1 の帯にかかれば 1
   const one = await ringButton(page, "1").boundingBox();
   if (!one) throw new Error("1 ring not laid out");
-  await page.mouse.click(centre.x + one.width / 2 + radius - 2, centre.y + AIM_OFFSET_Y);
+  await page.mouse.click(centre.x + one.width / 2 + radius - 2, centre.y);
   await expect(recordedArrows(page)).toHaveText(["9", "8", "1"]);
 });
 
@@ -467,7 +483,7 @@ test("the arrow diameter set for the game sizes the sight and decides line touch
   const centre = { x: nine.x + nine.width / 2, y: nine.y + nine.height / 2 };
 
   // 中心が 9 と 8 の線の外でも、半径より近ければ縁がかかるので 9(既定の 5mm なら 8)
-  await page.mouse.click(centre.x + nine.width / 2 + px / 2 - 2, centre.y + AIM_OFFSET_Y);
+  await page.mouse.click(centre.x + nine.width / 2 + px / 2 - 2, centre.y);
   await expect(recordedArrows(page)).toHaveText(["9"]);
 
   // 直径(mm)はゲームに保存される

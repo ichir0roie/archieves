@@ -73,6 +73,8 @@ class GameSheetWrite(BaseModel):
     arrow_diameter_mm: int | None = Field(
         default=None, ge=MIN_ARROW_DIAMETER_MM, le=MAX_ARROW_DIAMETER_MM
     )
+    # オールイン: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
+    all_in: bool = False
     comment: str | None = Field(default=None, max_length=MAX_COMMENT_LENGTH)
     rounds: list[RoundSheetWrite] = Field(default=[], max_length=_MAX_ITEMS)
 
@@ -106,5 +108,6 @@ class GameSheetRead(ResponseModel):
     game_size: int | None
     bow_type: str | None
     arrow_diameter_mm: int | None
+    all_in: bool
     comment: str | None
     rounds: list[RoundSheetRead]

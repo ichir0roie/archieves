@@ -1,7 +1,7 @@
 """replace arrow_diameter_px with arrow_diameter_mm
 
 Revision ID: ac1668cc28ed
-Revises: f20ca9ffe1db
+Revises: 420ced789a8f
 Create Date: 2026-10-11 01:48:45.134417
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'ac1668cc28ed'
-down_revision: str | None = 'f20ca9ffe1db'
+down_revision: str | None = '420ced789a8f'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

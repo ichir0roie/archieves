@@ -47,6 +47,8 @@ export interface Sheet {
   bow_type: string | null;
   /** 矢の直径(mm)。null は既定の太さ */
   arrow_diameter_mm: number | null;
+  /** オールイン。これを足す前のキャッシュには無い(無ければ false) */
+  all_in?: boolean;
   comment: string | null;
   rounds: Array<SheetRound>;
 }

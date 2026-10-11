@@ -157,6 +157,8 @@ export interface RoundSetup {
   gameSize: number;
   /** 矢の直径(mm) */
   arrowDiameterMm: number;
+  /** オールイン: 矢の円が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方) */
+  allIn: boolean;
 }
 
 export const DEFAULT_ROUND_SETUP: RoundSetup = {
@@ -167,6 +169,7 @@ export const DEFAULT_ROUND_SETUP: RoundSetup = {
   roundSize: DEFAULT_ROUND_SIZE,
   gameSize: DEFAULT_GAME_SIZE,
   arrowDiameterMm: DEFAULT_ARROW_DIAMETER_MM,
+  allIn: false,
 };
 
 function isBowName(value: unknown): value is string {
@@ -186,6 +189,7 @@ export function isValidRoundSetup(setup: RoundSetup): boolean {
     isWithin(setup.roundSize, MIN_ROUND_SIZE, MAX_ROUND_SIZE) &&
     isWithin(setup.gameSize, MIN_GAME_SIZE, MAX_GAME_SIZE) &&
     isWithin(setup.arrowDiameterMm, MIN_ARROW_DIAMETER_MM, MAX_ARROW_DIAMETER_MM) &&
+    typeof setup.allIn === "boolean" &&
     getTargetType(setup.targetType) !== undefined
   );
 }

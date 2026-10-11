@@ -27,13 +27,20 @@ const LENS_SIZE = 150;
 const LENS_GAP = 32;
 
 /**
- * 狙う点(ズームの中央)は、指のこのぶん上。ズームを指の上に出すので、ズームの下端と指の間が
- * LENS_GAP になる所がちょうどズームの中心にあたる。
+ * ズームを出す所は、狙う点のこのぶん上。押した直後は狙う点が指の下にあるので、ズームの下端と
+ * 指の間が LENS_GAP になる。
  */
-const AIM_OFFSET_Y = LENS_GAP + LENS_SIZE / 2;
+const LENS_OFFSET_Y = LENS_GAP + LENS_SIZE / 2;
+
+/** 指の移動に対する、狙う点の移動の割合。細かく狙えるよう、指の動きより小さく動かす */
+const AIM_MOVE_RATIO = 0.5;
 
 type Press = {
   pointerId: number;
+  /** 押した所(枠の左上からの px)。狙う点はここから動き始める */
+  startX: number;
+  startY: number;
+  /** 狙う点(ズームの中央)。枠の左上からの px */
   x: number;
   y: number;
 };
@@ -93,14 +100,23 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   const { ringCount, sizeCm } = resolveTargetType(props.targetType);
   const arrowPx = arrowDiameterPx(props.arrowDiameterMm, sizeCm, maxDiameter);
 
-  /**
-   * 狙う点(ズームの中央)を、的の枠の左上からの px にする。押した所でなく、指の上の
-   * AIM_OFFSET_Y だけ上。枠の外にも出られる(外れを押すため)ので、枠には寄せない。
-   */
-  function aimPoint(event: React.PointerEvent<HTMLDivElement>) {
+  /** 指の位置を、的の枠の左上からの px にする */
+  function fingerPoint(event: React.PointerEvent<HTMLDivElement>) {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return { x: centerX, y: centerY };
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top - AIM_OFFSET_Y };
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  }
+
+  /**
+   * 狙う点(ズームの中央)。押した所から、指の動きの AIM_MOVE_RATIO だけ動かす。
+   * 枠の外にも出られる(外れを押すため)ので、枠には寄せない。
+   */
+  function aimPoint(current: Press, event: React.PointerEvent<HTMLDivElement>) {
+    const finger = fingerPoint(event);
+    return {
+      x: current.startX + (finger.x - current.startX) * AIM_MOVE_RATIO,
+      y: current.startY + (finger.y - current.startY) * AIM_MOVE_RATIO,
+    };
   }
 
   /**
@@ -119,36 +135,43 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   /**
    * 矢の中心が (x, y) のときの点数。矢をゲームで決めた直径(arrowPx)の円として、縁がいちばん
    * 中心に寄った所で決める。円が少しでも帯の線にかかれば、高い方の帯の点数(線にかかった矢は高い方の得点、
-   * というアーチェリーの決まり)
+   * というアーチェリーの決まり)。
+   * オールインでは逆に、縁がいちばん外に出た所で決める。円が帯に完全に入らなければその帯の点にならず、
+   * 線にかかれば低い方、的の縁にかかれば外れ。
    */
   function scoreAt(x: number, y: number): number {
     if (maxDiameter === 0) return MISS_SCORE;
-    const nearestEdge = Math.max(
-      Math.hypot(x - centerX, y - centerY) - arrowPx / 2,
-      0
-    );
-    return scoreAtDistance(nearestEdge / (maxDiameter / 2), ringCount);
+    const distance = Math.hypot(x - centerX, y - centerY);
+    const radius = arrowPx / 2;
+    const edge = props.allIn ? distance + radius : Math.max(distance - radius, 0);
+    return scoreAtDistance(edge / (maxDiameter / 2), ringCount);
   }
 
   /*
-   * 指で押すと指の下が見えないので、押した所で決めずに、指の上にズームを出し、その中央の
-   * 位置を狙う点にする。離したときの狙う点を記録する。帯のボタンは点数の読み上げ・テストで
-   * 指すために残し、記録そのものは枠が pointer events で受ける。
+   * 指で押すと指の下が見えないので、押した所を狙う点の起点にして、その上にズームを出す。
+   * 指を動かすと、狙う点とズームは指の動きの半分だけ動く。離したときの狙う点を記録する。
+   * 帯のボタンは点数の読み上げ・テストで指すために残し、記録そのものは枠が pointer events で受ける。
    */
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (isLocked || press) return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    setPress({ pointerId: event.pointerId, ...aimPoint(event) });
+    const finger = fingerPoint(event);
+    setPress({
+      pointerId: event.pointerId,
+      startX: finger.x,
+      startY: finger.y,
+      ...finger,
+    });
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
     if (!press || press.pointerId !== event.pointerId) return;
-    setPress({ pointerId: event.pointerId, ...aimPoint(event) });
+    setPress({ ...press, ...aimPoint(press, event) });
   }
 
   function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
     if (!press || press.pointerId !== event.pointerId) return;
-    const point = aimPoint(event);
+    const point = aimPoint(press, event);
     setPress(null);
     if (isLocked) return;
     const coordinates = toTargetCoordinates(point.x, point.y);
@@ -238,10 +261,13 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     );
   }
 
-  /** ズームは狙う点を中心に出す。中央が記録する位置そのものなので、枠の中に寄せない */
+  /**
+   * ズームは狙う点の LENS_OFFSET_Y 上に出し、中央に狙う点を拡大して描く。狙う点と一緒に動くので、
+   * 枠の中に寄せない
+   */
   function lens(current: Press) {
     const left = current.x - LENS_SIZE / 2;
-    const top = current.y - LENS_SIZE / 2;
+    const top = current.y - LENS_OFFSET_Y - LENS_SIZE / 2;
     const score = scoreAt(current.x, current.y);
 
     return (
@@ -262,7 +288,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
           {props.points.map((point, index) => createArrow(point.x, point.y, index, LENS_ZOOM))}
         </div>
         {/* 中央の帯と同じ色だと埋もれるので、帯のクラスを付けて反転色で描く(globals.css) */}
-        {/* 十字の円は、ここに置く矢の太さ。円が帯の線にかかれば高い方の点数になる */}
+        {/* 十字の円は、ここに置く矢の太さ。円が帯の線にかかれば高い方の点数(オールインなら低い方)になる */}
         <ArrowSight
           arrowDiameterPx={arrowPx}
           ringClassName={ringClass(score)}

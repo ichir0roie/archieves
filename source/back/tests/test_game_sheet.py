@@ -238,3 +238,30 @@ def test_an_arrow_diameter_outside_the_range_is_rejected(client: TestClient) -> 
     assert client.put(SHEET_URL, json=_sheet([], arrow_diameter_mm=0)).status_code == 422
     assert client.put(SHEET_URL, json=_sheet([], arrow_diameter_mm=31)).status_code == 422
     assert client.put(SHEET_URL, json=_sheet([], arrow_diameter_mm=5.5)).status_code == 422
+
+
+def test_all_in_is_kept_per_game(client: TestClient) -> None:
+    saved = _save(client, _sheet([], all_in=True))
+
+    assert saved["all_in"] is True
+    assert client.get(f"/api/v1/games/{saved['id']}").json()["all_in"] is True
+    assert client.get(f"/api/v1/games/{saved['id']}/sheet").json()["all_in"] is True
+
+    updated = _save(client, _sheet([], id=saved["id"], all_in=False))
+    assert updated["all_in"] is False
+
+
+def test_a_sheet_without_all_in_is_not_all_in(client: TestClient) -> None:
+    # all_in を足す前のフロント(入力の途中のキャッシュ)は送ってこない
+    assert _save(client, _sheet([]))["all_in"] is False
+
+
+def test_all_in_cannot_be_null(client: TestClient, current_user, factories) -> None:
+    game = factories.GameFactory(user=current_user, all_in=True)
+
+    assert client.put(SHEET_URL, json=_sheet([], all_in=None)).status_code == 422
+    assert client.patch(f"/api/v1/games/{game.id}", json={"all_in": None}).status_code == 422
+    # 送らなければ変えない
+    patched = client.patch(f"/api/v1/games/{game.id}", json={"bow_type": "compound"})
+    assert patched.status_code == 200
+    assert patched.json()["all_in"] is True
