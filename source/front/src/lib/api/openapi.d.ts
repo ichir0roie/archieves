@@ -112,7 +112,7 @@ export interface paths {
         patch: operations["update_user_api_v1_users__user_id__patch"];
         trace?: never;
     };
-    "/api/v1/users/{sub}/profile": {
+    "/api/v1/users/{user_id}/profile": {
         parameters: {
             query?: never;
             header?: never;
@@ -120,7 +120,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get User Profile */
-        get: operations["get_user_profile_api_v1_users__sub__profile_get"];
+        get: operations["get_user_profile_api_v1_users__user_id__profile_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1599,8 +1599,8 @@ export interface components {
             id: number;
             /** Name */
             name: string;
-            /** Sub */
-            sub: string | null;
+            /** Profile Visible */
+            profile_visible: boolean;
         };
         /**
          * RankingMetric
@@ -2135,12 +2135,12 @@ export interface operations {
             };
         };
     };
-    get_user_profile_api_v1_users__sub__profile_get: {
+    get_user_profile_api_v1_users__user_id__profile_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                sub: string;
+                user_id: number;
             };
             cookie?: never;
         };

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
@@ -12,7 +12,7 @@ import {
   getOrganization,
   getUserProfile,
 } from "@/lib/api";
-import { getCurrentUser } from "@/lib/auth/currentUser";
+import { getCurrentAppUser } from "@/lib/auth/currentUser";
 import { useT, type Texts } from "@/lib/text";
 
 function formatDate(T: Texts, value: string): string {
@@ -23,19 +23,21 @@ function formatDate(T: Texts, value: string): string {
 
 export default function Page() {
   const T = useT();
-  const params = useParams<{ sub: string }>();
-  const sub = params.sub;
-  const currentUser = useLoad(() => getCurrentUser(), []);
-  const isMe = currentUser.data?.userId === sub;
+  const params = useParams<{ userId: string }>();
+  const userId = Number(params.userId);
+  // 前は sub を URL にしていた。そのころのブックマークなど、数でない URL は無いページにする
+  if (!Number.isSafeInteger(userId)) notFound();
+  const currentUser = useLoad(() => getCurrentAppUser(), []);
+  const isMe = currentUser.data?.id === userId;
 
   const loaded = useLoad(async () => {
-    const profile = await getUserProfile(sub);
+    const profile = await getUserProfile(userId);
     const organization =
       profile.user.organization_id === null
         ? null
         : await getOrganization(profile.user.organization_id);
     return { profile, organization };
-  }, [sub]);
+  }, [userId]);
   // 本人に公開されていないプロフィールは API が 403 を返す。壊れたのではないので、エラーにせず知らせる
   const isPrivate = loaded.error?.status === 403;
   const error = isPrivate ? null : loaded.error;

@@ -369,13 +369,13 @@
         }
       }
     },
-    "/api/v1/users/{sub}/profile": {
+    "/api/v1/users/{user_id}/profile": {
       "get": {
         "tags": [
           "users"
         ],
         "summary": "Get User Profile",
-        "operationId": "get_user_profile_api_v1_users__sub__profile_get",
+        "operationId": "get_user_profile_api_v1_users__user_id__profile_get",
         "security": [
           {
             "HTTPBearer": []
@@ -383,12 +383,12 @@
         ],
         "parameters": [
           {
-            "name": "sub",
+            "name": "user_id",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "title": "Sub"
+              "type": "integer",
+              "title": "User Id"
             }
           }
         ],
@@ -6425,23 +6425,16 @@
             "type": "string",
             "title": "Name"
           },
-          "sub": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sub"
+          "profile_visible": {
+            "type": "boolean",
+            "title": "Profile Visible"
           }
         },
         "type": "object",
         "required": [
           "id",
           "name",
-          "sub"
+          "profile_visible"
         ],
         "title": "RankedUser",
         "description": "ランキングに載せる利用者。名前だけを見せ、生年月日・所属などのプロフィールは載せない\n(ランキングは公開していても、プロフィールは非公開の人がいる)。"

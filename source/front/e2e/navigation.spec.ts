@@ -75,7 +75,7 @@ test("menu navigates to each primary destination", async ({ page }) => {
 
   await page.goto("/");
   await openMenuAndGo(page, "プロフィール");
-  await expect(page).toHaveURL(/\/profile\/local-dev-user$/, { timeout: ROUTE_TIMEOUT });
+  await expect(page).toHaveURL(/\/profile\/\d+$/, { timeout: ROUTE_TIMEOUT });
 
   await openMenuAndGo(page, "Archieves");
   await expect(page).toHaveURL(/\/$/, { timeout: ROUTE_TIMEOUT });

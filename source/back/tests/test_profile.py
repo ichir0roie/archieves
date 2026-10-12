@@ -58,7 +58,7 @@ def _build_round(
 def test_get_user_profile_returns_basic_info(client: TestClient) -> None:
     user = _create_user(client)
 
-    res = client.get("/api/v1/users/test-user-sub/profile")
+    res = client.get(f"/api/v1/users/{user['id']}/profile")
     assert res.status_code == 200
     body = res.json()
     assert body["user"]["id"] == user["id"]
@@ -66,9 +66,10 @@ def test_get_user_profile_returns_basic_info(client: TestClient) -> None:
     assert body["rounds"]["count"] == 0
 
 
-def test_get_missing_user_profile_returns_404(unregistered_client: TestClient) -> None:
-    response = unregistered_client.get("/api/v1/users/test-user-sub/profile")
+def test_get_missing_user_profile_returns_404(client: TestClient) -> None:
+    response = client.get("/api/v1/users/999999/profile")
     assert response.status_code == 404
+    assert response.json() == {"detail": "User not found"}
 
 
 def test_get_other_users_profile_is_viewable(client: TestClient, s: Session) -> None:
@@ -77,7 +78,7 @@ def test_get_other_users_profile_is_viewable(client: TestClient, s: Session) -> 
     s.add(other)
     s.commit()
 
-    response = client.get("/api/v1/users/someone-elses-sub/profile")
+    response = client.get(f"/api/v1/users/{other.id}/profile")
     assert response.status_code == 200
     body = response.json()
     assert body["user"]["id"] == other.id
@@ -95,7 +96,7 @@ def test_user_profile_only_counts_last_year_activity(client: TestClient) -> None
     old_game = _create_game(client, user["id"], now - timedelta(days=400))
     _build_round(client, old_game["id"], now - timedelta(days=400), scores=[10, 10, 10])
 
-    res = client.get("/api/v1/users/test-user-sub/profile")
+    res = client.get(f"/api/v1/users/{user['id']}/profile")
     assert res.status_code == 200
     body = res.json()
     assert body["rounds"]["count"] == 1
@@ -127,25 +128,25 @@ def test_other_users_profile_follows_its_visibility(
     organization = factories.OrganizationFactory()
     current_user.organization_id = organization.id
     other_organization = organization if same_organization else factories.OrganizationFactory()
-    factories.UserFactory(
+    other = factories.UserFactory(
         sub="other-sub",
         profile_visibility=visibility,
         organization_id=other_organization.id,
     )
 
-    assert client.get("/api/v1/users/other-sub/profile").status_code == status
+    assert client.get(f"/api/v1/users/{other.id}/profile").status_code == status
 
 
 def test_organization_visibility_needs_an_organization_on_both_sides(
     client: TestClient, factories
 ) -> None:
     # 組織に入っていない利用者どうしは、組織公開でも見えない
-    factories.UserFactory(sub="other-sub", profile_visibility="organization")
+    other = factories.UserFactory(sub="other-sub", profile_visibility="organization")
 
-    assert client.get("/api/v1/users/other-sub/profile").status_code == 403
+    assert client.get(f"/api/v1/users/{other.id}/profile").status_code == 403
 
 
 def test_own_private_profile_is_viewable(client: TestClient, current_user) -> None:
     assert current_user.profile_visibility == "private"
 
-    assert client.get(f"/api/v1/users/{current_user.sub}/profile").status_code == 200
+    assert client.get(f"/api/v1/users/{current_user.id}/profile").status_code == 200
