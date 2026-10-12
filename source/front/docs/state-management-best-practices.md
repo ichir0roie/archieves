@@ -111,7 +111,7 @@ Playwright で検証したところ、初回マウントでは二重発火は再
    クエリ変更後の古いレスポンス適用を防ぐ。** レコードが増えるわけでは
    ないため優先度は下げつつも、`setState` の警告や表示のちらつきを防ぐ
    ために揃えて適用する（`ranking`・`profile/matches`・
-   `profile/settings`・`profile/[sub]`・`analysis` は既にこの形になって
+   `profile/settings`・`profile/[userId]`・`analysis` は既にこの形になって
    おり、`score-log` だけ欠けていたので揃えた）。
 5. 上記 2・3 を毎回手書きしないよう、`src/hooks/useRunOnce.ts` に
    「マウントごとに 1 回だけ・多重呼び出しなしで」実行するための小さな

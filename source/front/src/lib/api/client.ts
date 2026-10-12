@@ -261,8 +261,8 @@ export function updateUser(userId: number, user: UserUpdate): Promise<MeRead> {
 
 /** Public profile: basic info plus the user's activity (stats) over the last year. */
 /** 本人に公開されていないプロフィールは 403 になる。画面が受けて「非公開」と出す */
-export function getUserProfile(sub: string): Promise<UserProfile> {
-  return request(`/users/${encodeURIComponent(sub)}/profile`, undefined, { expectedStatuses: [403] });
+export function getUserProfile(userId: number): Promise<UserProfile> {
+  return request(`/users/${userId}/profile`, undefined, { expectedStatuses: [403] });
 }
 
 export function listOrganizations(params?: {

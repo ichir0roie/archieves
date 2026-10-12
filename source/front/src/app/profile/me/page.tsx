@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth/currentUser";
+import { getCurrentAppUser } from "@/lib/auth/currentUser";
 import { useT } from "@/lib/text";
 
 export default function Page() {
@@ -12,8 +12,8 @@ export default function Page() {
   useEffect(() => {
     let cancelled = false;
 
-    getCurrentUser().then(({ userId }) => {
-      if (!cancelled) router.replace(`/profile/${userId}`);
+    getCurrentAppUser().then(({ id }) => {
+      if (!cancelled) router.replace(`/profile/${id}`);
     });
 
     return () => {

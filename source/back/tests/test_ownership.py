@@ -183,7 +183,7 @@ def test_public_profiles_and_organizations_can_be_read_by_anyone_signed_in(
     organization = factories.OrganizationFactory()
 
     assert client.get(f"/api/v1/users/{other.id}").status_code == 200
-    assert client.get("/api/v1/users/other-sub/profile").status_code == 200
+    assert client.get(f"/api/v1/users/{other.id}/profile").status_code == 200
     assert client.get("/api/v1/organizations").status_code == 200
     assert client.get(f"/api/v1/organizations/{organization.id}").status_code == 200
 
