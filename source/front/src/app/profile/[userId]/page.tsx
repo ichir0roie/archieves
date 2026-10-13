@@ -7,7 +7,6 @@ import BackButton from "@/components/BackButton";
 import DiaryCell from "@/components/DiaryCell";
 import PageHeader from "@/components/PageHeader";
 import StatSummaryCard from "@/components/StatSummaryCard";
-import VisibilitySettings from "@/components/VisibilitySettings";
 import { useLoad } from "@/hooks/useLoad";
 import {
   getOrganization,
@@ -138,7 +137,14 @@ export default function Page() {
             </section>
           )}
 
-          {isMe && <VisibilitySettings />}
+          {isMe && (
+            <Link
+              className="ProfileSettingsLink"
+              href="/profile/settings"
+            >
+              {T.profile.view.toSettings}
+            </Link>
+          )}
         </>
       )}
       <BackButton />

@@ -30,7 +30,7 @@ export const profile: typeof ja = {
     noDiaries: "No diary entries yet",
     scoreLink: (date: string, total: number, arrows: number) => `${date} ${total} pts (${arrows} arrows)`,
     private: "This profile is not public",
-    visibilityTitle: "Privacy",
+    toSettings: `${t.profile} settings`,
   },
   organization: {
     title: "Organization info",

@@ -22,7 +22,7 @@ type Props = {
   disabled?: boolean;
 };
 
-/** プロフィール・ランキング・スコア・日記の公開範囲を選ぶ欄と、その説明。プロフィールの設定と、本人のプロフィールの画面で使う */
+/** プロフィール・ランキング・スコア・日記の公開範囲を選ぶ欄と、その説明。プロフィールの設定の画面で使う */
 export default function VisibilityFields(props: Props) {
   const T = useT();
   const options = VISIBILITIES.map((visibility) => ({

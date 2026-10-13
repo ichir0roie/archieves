@@ -29,7 +29,7 @@ export const profile = {
     noDiaries: `まだ${t.diary}がありません`,
     scoreLink: (date: string, total: number, arrows: number) => `${date} ${total}${t.unit.point} (${arrows}${t.unit.arrow})`,
     private: `この${t.profile}は公開されていません`,
-    visibilityTitle: "公開設定",
+    toSettings: `${t.profile}${t.settings}へ`,
   },
   organization: {
     title: `${t.organization}情報`,
