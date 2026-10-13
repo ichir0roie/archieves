@@ -17,9 +17,15 @@ function targetSize(round: RoundSheetRead): string | null {
   return /^\d+cm$/.test(id) ? id : null;
 }
 
+/** 距離と的はラウンドごとに持つので、ゲームの欄にはラウンドで違う値を順に並べる */
+function distinctValues(values: Array<string | null>): string | null {
+  const distinct = [...new Set(values.filter((value) => value !== null))];
+  return distinct.length > 0 ? distinct.join("・") : null;
+}
+
 /**
- * 公開ページの一ゲーム。見出し(日付・持ち主)、合計と X・10・M・ゲームのコメントを一行まるまる使って出し、
- * その下にラウンドごとの点数表(距離・的の大きさ・弓の種類、ラウンド・エンドのコメント)と、
+ * 公開ページの一ゲーム。見出し(日付・持ち主)、合計と X・10・M・距離・的の大きさ・弓の種類・ゲームのコメントを
+ * 一行まるまる使って出し、その下にラウンドごとの点数表(ラウンド・エンドのコメント)と、
  * そのラウンドの的中の図を同じ行に並べる
  */
 export default function SharedGameCard({ game }: Props) {
@@ -36,6 +42,13 @@ export default function SharedGameCard({ game }: Props) {
     game.rounds.flatMap((round) => round.ends.map((end) => [end.id, end.comment] as const)),
   );
   const bowType = game.bow_type ? (T.options.bowType[game.bow_type] ?? game.bow_type) : null;
+  const distance = distinctValues(game.rounds.map((round) => `${round.distance_m}m`));
+  const size = distinctValues(game.rounds.map(targetSize));
+  const details = [
+    { label: T.profile.scoreShare.distance, value: distance },
+    { label: T.profile.scoreShare.targetSize, value: size },
+    { label: T.profile.scoreShare.bowType, value: bowType },
+  ].filter((detail) => detail.value !== null);
 
   return (
     <article
@@ -55,25 +68,27 @@ export default function SharedGameCard({ game }: Props) {
             </div>
           ))}
         </div>
+        {details.length > 0 && (
+          <dl className="GameDetails shared-game-details small">
+            {details.map((detail) => (
+              <div key={detail.label}>
+                <dt className="muted">{detail.label}</dt>
+                <dd>{detail.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
         {game.comment && (
           <p className="GameComment CommentText view-comment-text">{game.comment}</p>
         )}
       </div>
       {game.rounds.length === 0 && <p className="status empty">{T.profile.scoreView.noScores}</p>}
-      {game.rounds.map((round, index) => {
+      {game.rounds.map((round) => {
         const roundPoints = round.ends.flatMap((end) => end.points);
-        const size = targetSize(round);
-        const details = [
-          { label: T.profile.scoreShare.distance, value: `${round.distance_m}m` },
-          ...(size ? [{ label: T.profile.scoreShare.targetSize, value: size }] : []),
-          ...(bowType ? [{ label: T.profile.scoreShare.bowType, value: bowType }] : []),
-        ];
         return (
           <RoundScoreSheet
             key={round.id}
             round={round}
-            number={index + 1}
-            details={details}
             roundComment={round.comment}
             endComment={(endId) => endComments.get(endId) ?? null}
             aside={roundPoints.some(hasPosition) && <ArrowMap points={roundPoints} />}

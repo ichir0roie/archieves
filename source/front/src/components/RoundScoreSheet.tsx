@@ -9,8 +9,6 @@ import { useT } from "@/lib/text";
 
 type Props = {
   round: RoundSheetRead;
-  /** 見出しのラウンドの番号。取り込んだ記録は round.number が 0 から始まることがあるので、並び順から 1 で数えて渡す */
-  number: number;
   roundComment: string | null;
   endComment: (endId: number) => string | null;
   /** 渡せばコメントを書くアイコンを出す(本人の score-view)。公開ページは渡さず、読むだけにする */
@@ -18,8 +16,6 @@ type Props = {
   onSaveEndComment?: (endId: number, body: string) => Promise<void>;
   /** 表の右に並べるもの(公開ページのラウンドの的中の図) */
   aside?: ReactNode;
-  /** 見出しの下に並べる項目と値(公開ページの距離・的の大きさ・弓の種類) */
-  details?: Array<{ label: string; value: string }>;
 };
 
 /** ラウンドの点数表(エンドごとの矢・小計・累計)と、ラウンド・エンドのコメント。 */
@@ -46,26 +42,16 @@ export default function RoundScoreSheet(props: Props) {
       <div className="view-comment view-round-head">
         <div>
           <div className="view-round-title">
-            {T.profile.scoreView.round(props.number)}
+            {T.profile.scoreView.round(round.number)}
           </div>
           <div className="muted small">
             {T.profile.scoreView.date(round.recorded_at)}
           </div>
-          {props.details && props.details.length > 0 && (
-            <dl className="RoundDetails view-round-details small">
-              {props.details.map((detail) => (
-                <div key={detail.label}>
-                  <dt className="muted">{detail.label}</dt>
-                  <dd>{detail.value}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
         </div>
         {onSaveRoundComment && (
           <CommentField
             iconOnly
-            title={T.profile.scoreView.roundTitle(props.number)}
+            title={T.profile.scoreView.roundTitle(round.number)}
             body={props.roundComment}
             onSave={(body) => onSaveRoundComment(round.id, body)}
           />

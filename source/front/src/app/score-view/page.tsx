@@ -284,11 +284,10 @@ function ScoreViewContent() {
           {rounds.length === 0 && (
             <p className="status empty">{T.profile.scoreView.noScores}</p>
           )}
-          {rounds.map((viewRound, index) => (
+          {rounds.map((viewRound) => (
             <RoundScoreSheet
               key={viewRound.round.id}
               round={viewRound.round}
-              number={index + 1}
               roundComment={roundComment(viewRound.round.id)}
               endComment={endComment}
               onSaveRoundComment={onSaveRoundComment}
