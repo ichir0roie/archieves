@@ -76,6 +76,12 @@ class User(TimestampMixin, Base):
         default=Visibility.PRIVATE,
         server_default=Visibility.PRIVATE.value,
     )
+    # スコアの公開ページ(GET /public/scores)で、ゲームの記録をだれへ見せるか
+    score_visibility: Mapped[str] = mapped_column(
+        String(VISIBILITY_MAX_LENGTH),
+        default=Visibility.PRIVATE,
+        server_default=Visibility.PRIVATE.value,
+    )
 
     organization: Mapped[Organization | None] = relationship(
         back_populates="users", lazy="noload"

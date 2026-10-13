@@ -1,12 +1,14 @@
 from datetime import date
 
-from sqlalchemy import Select, extract, func, select
+from sqlalchemy import Select, extract, func, or_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, contains_eager, joinedload
 
 from app.core.scoring import scored_value_column
 from app.core.target_types import resolve_target_size_cm
-from app.db import End, Game, Point, Round
+from app.core.visibility import Visibility
+from app.crud import user as user_crud
+from app.db import End, Game, Point, Round, User
 from app.schemas.game import (
     EndCreate,
     EndUpdate,
@@ -81,6 +83,31 @@ def _with_sheet(stmt: Select[tuple[Game]]) -> Select[tuple[Game]]:
 def get_game_sheet(s: Session, game_id: int) -> Game | None:
     """見えるゲームを、記録を丸ごと読み込んだ形で。"""
     return s.scalars(_with_sheet(_visible_games().where(Game.id == game_id))).unique().one_or_none()
+
+
+def list_shared_game_sheets(s: Session, viewer: User | None, game_ids: list[int]) -> list[Game]:
+    """game_ids のうち、持ち主の score_visibility が viewer に見せるゲーム。
+
+    記録と持ち主(Game.user)を読み込んだ形で返す。
+
+    viewer が None(ログインしていない)なら全体公開の分だけ。本人のゲームは公開範囲に依らず返す。
+    無いゲーム・消したゲームは外す。日付の古い順。
+    """
+    if viewer is None:
+        visible = User.score_visibility == Visibility.PUBLIC
+    else:
+        visible = or_(
+            User.id == viewer.id,
+            user_crud.visible_condition(viewer, User.score_visibility),
+        )
+    stmt = (
+        _with_sheet(_visible_games())
+        .join(User, User.id == Game.user_id)
+        .options(contains_eager(Game.user))
+        .where(Game.id.in_(game_ids), visible)
+        .order_by(Game.recorded_at, Game.id)
+    )
+    return list(s.scalars(stmt).unique())
 
 
 def _by_client_key(user_id: int, client_key: str) -> Select[tuple[Game]]:

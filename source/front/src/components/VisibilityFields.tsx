@@ -13,12 +13,14 @@ const VISIBILITIES: ReadonlyArray<Visibility> = [
 type Props = {
   profileVisibility: Visibility;
   rankingVisibility: Visibility;
+  scoreVisibility: Visibility;
   onChangeProfileVisibility: (visibility: Visibility) => void;
   onChangeRankingVisibility: (visibility: Visibility) => void;
+  onChangeScoreVisibility: (visibility: Visibility) => void;
   disabled?: boolean;
 };
 
-/** プロフィール・ランキングの公開範囲を選ぶ欄と、その説明。プロフィールの設定と、本人のプロフィールの画面で使う */
+/** プロフィール・ランキング・スコアの公開範囲を選ぶ欄と、その説明。プロフィールの設定と、本人のプロフィールの画面で使う */
 export default function VisibilityFields(props: Props) {
   const T = useT();
   const options = VISIBILITIES.map((visibility) => ({
@@ -45,6 +47,16 @@ export default function VisibilityFields(props: Props) {
           value={props.rankingVisibility}
           onChange={props.onChangeRankingVisibility}
           label={T.profile.settings.rankingVisibility}
+          disabled={props.disabled}
+        />
+      </div>
+      <div className="field">
+        <span className="field-label">{T.profile.settings.scoreVisibility}</span>
+        <Segment
+          options={options}
+          value={props.scoreVisibility}
+          onChange={props.onChangeScoreVisibility}
+          label={T.profile.settings.scoreVisibility}
           disabled={props.disabled}
         />
       </div>

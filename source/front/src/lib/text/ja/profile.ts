@@ -10,12 +10,13 @@ export const profile = {
     organization: t.affiliation,
     profileVisibility: `${t.profile}の公開範囲`,
     rankingVisibility: `${t.ranking}の公開範囲`,
+    scoreVisibility: `${t.score}の公開範囲`,
     visibility: {
       private: "非公開",
       organization: "グループ公開",
       public: "全体公開",
     } satisfies Record<Visibility, string>,
-    visibilityHint: `グループ公開は、同じ${t.affiliation}の人にだけ見せます(${t.affiliation}が無いときは非公開と同じ)。非公開の${t.ranking}には自分も載りません。`,
+    visibilityHint: `グループ公開は、同じ${t.affiliation}の人にだけ見せます(${t.affiliation}が無いときは非公開と同じ)。非公開の${t.ranking}には自分も載りません。全体公開の${t.score}は、公開URLからサインインしていない人も見られます。`,
   },
   view: {
     title: t.profile,
@@ -96,6 +97,20 @@ export const profile = {
     pointAverage: `${t.arrow}${t.average}`,
     count: (count: number) => `${count}件`,
     trash: "ゴミ箱",
+    copyShareUrl: "公開URLをコピー",
+    copiedShareUrl: "コピーしました",
+    shareUrlPrompt: "公開URL",
+  },
+  scoreShare: {
+    title: `公開${t.score}`,
+    noGames: `表示する${t.score}が指定されていません。`,
+    empty: `表示できる${t.score}がありません。非公開か、削除された${t.score}です。`,
+    count: (count: number) => `${count}${t.game}`,
+    date: (date: string) => {
+      const [year, month, day] = date.split("-").map(Number);
+      return `${year}年${month}月${day}日`;
+    },
+    gameComment: `${t.game}の${t.comment}`,
   },
   trash: {
     title: "ゴミ箱",

@@ -37,6 +37,7 @@ export default function Page() {
   const [organizationOptions, setOrganizationOptions] = useState<OrganizationSummary[]>([]);
   const [profileVisibility, setProfileVisibility] = useState<Visibility>("private");
   const [rankingVisibility, setRankingVisibility] = useState<Visibility>("private");
+  const [scoreVisibility, setScoreVisibility] = useState<Visibility>("private");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,6 +48,7 @@ export default function Page() {
     setNickname(user.nickname ?? "");
     setProfileVisibility(user.profile_visibility);
     setRankingVisibility(user.ranking_visibility);
+    setScoreVisibility(user.score_visibility);
   }
 
   useEffect(() => {
@@ -122,6 +124,7 @@ export default function Page() {
         organization_id: resolvedOrganizationId,
         profile_visibility: profileVisibility,
         ranking_visibility: rankingVisibility,
+        score_visibility: scoreVisibility,
       });
       setUserId(id);
       applyUser(updated);
@@ -192,8 +195,10 @@ export default function Page() {
           <VisibilityFields
             profileVisibility={profileVisibility}
             rankingVisibility={rankingVisibility}
+            scoreVisibility={scoreVisibility}
             onChangeProfileVisibility={setProfileVisibility}
             onChangeRankingVisibility={setRankingVisibility}
+            onChangeScoreVisibility={setScoreVisibility}
           />
 
           <button

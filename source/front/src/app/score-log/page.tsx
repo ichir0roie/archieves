@@ -9,8 +9,9 @@ import LogGroup from "@/components/LogGroup";
 import BackButton from "@/components/BackButton";
 import Modal from "@/components/Modal";
 import PageHeader from "@/components/PageHeader";
+import ShareUrlButton from "@/components/ShareUrlButton";
 import YearSwitcher from "@/components/YearSwitcher";
-import { listGameScoresOfYear, listGameYears, listGamesOfYear } from "@/lib/api";
+import { getMyUser, listGameScoresOfYear, listGameYears, listGamesOfYear } from "@/lib/api";
 import { useLoad } from "@/hooks/useLoad";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
 import { BACKFILL_DATE_PARAM, isBackfillDate } from "@/lib/score/backfill";
@@ -26,7 +27,8 @@ export default function Page() {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const { data, loading, error } = useLoad(async () => {
     const { id: userId } = await getCurrentAppUser();
-    const years = await listGameYears(userId);
+    // 公開 URL のボタンは、スコアを全体公開している人にだけ出す
+    const [me, years] = await Promise.all([getMyUser(), listGameYears(userId)]);
     const year = selectedYear ?? years[0] ?? null;
     const [games, scores] =
       year === null
@@ -35,7 +37,7 @@ export default function Page() {
             listGamesOfYear(userId, year),
             listGameScoresOfYear(userId, year),
           ]);
-    return { years, year, games, scores };
+    return { canShare: me.score_visibility === "public", years, year, games, scores };
   }, [selectedYear]);
   const years = data?.years ?? [];
   const year = data?.year ?? null;
@@ -112,6 +114,13 @@ export default function Page() {
               count={T.profile.scoreLog.count(month.count)}
               open={!collapsed.includes(month.key)}
               onToggle={() => toggle(month.key)}
+              actions={
+                data?.canShare && (
+                  <ShareUrlButton
+                    gameIds={month.days.flatMap((day) => day.games.map((game) => game.id))}
+                  />
+                )
+              }
             >
               <div className="log-table">
                 {month.days.flatMap((day) =>

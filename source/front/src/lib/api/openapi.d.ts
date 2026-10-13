@@ -38,6 +38,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/scores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Shared Scores
+         * @description game_ids のゲームのうち、持ち主のスコアの公開範囲が見る人に見せるものの記録。日付の古い順。
+         *
+         *     見せないゲームは、無い・消したゲームと区別せずに外す(id から、有るかどうかを探らせない)。
+         */
+        get: operations["list_shared_scores_api_v1_public_scores_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -1467,6 +1489,7 @@ export interface components {
             is_admin: boolean;
             profile_visibility: components["schemas"]["Visibility"];
             ranking_visibility: components["schemas"]["Visibility"];
+            score_visibility: components["schemas"]["Visibility"];
         };
         /** OrganizationCreate */
         OrganizationCreate: {
@@ -1767,6 +1790,29 @@ export interface components {
             /** Median */
             median: number | null;
         };
+        /**
+         * SharedGameRead
+         * @description スコアの公開ページ(GET /public/scores)に出すゲーム。
+         *
+         *     ログインしていない人にも返すので、持ち主は名前だけを載せ、入力の画面の印(client_key)などは載せない。
+         */
+        SharedGameRead: {
+            /** Id */
+            id: number;
+            /** Owner Name */
+            owner_name: string;
+            /**
+             * Recorded At
+             * Format: date
+             */
+            recorded_at: string;
+            /** Bow Type */
+            bow_type: string | null;
+            /** Comment */
+            comment: string | null;
+            /** Rounds */
+            rounds: components["schemas"]["RoundSheetRead"][];
+        };
         /** UserCreate */
         UserCreate: {
             /** Name */
@@ -1853,6 +1899,7 @@ export interface components {
             region_id?: number | null;
             profile_visibility?: components["schemas"]["Visibility"] | null;
             ranking_visibility?: components["schemas"]["Visibility"] | null;
+            score_visibility?: components["schemas"]["Visibility"] | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1865,7 +1912,7 @@ export interface components {
         };
         /**
          * Visibility
-         * @description プロフィール・ランキングを、本人のほかにだれへ見せるか。既定は private。
+         * @description プロフィール・ランキング・スコアを、本人のほかにだれへ見せるか。既定は private。
          * @enum {string}
          */
         Visibility: "private" | "organization" | "public";
@@ -1920,6 +1967,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_shared_scores_api_v1_public_scores_get: {
+        parameters: {
+            query: {
+                game_ids: number[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedGameRead"][];
                 };
             };
             /** @description Validation Error */

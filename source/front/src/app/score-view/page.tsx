@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, Suspense, useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import ArrowMap, { hasPosition } from "@/components/ArrowMap";
@@ -8,6 +8,7 @@ import CommentField from "@/components/CommentField";
 import BackButton from "@/components/BackButton";
 import Modal from "@/components/Modal";
 import PageHeader from "@/components/PageHeader";
+import RoundScoreSheet from "@/components/RoundScoreSheet";
 import {
   deleteEndComment,
   deleteGame,
@@ -28,8 +29,7 @@ import {
 } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { SCORE_CARD_PATH } from "@/lib/destinations";
-import { countRings, scoreToStr, totalScore } from "@/lib/score/scoreFunctions";
-import { DEFAULT_END_SIZE } from "@/lib/score/scoreConfig";
+import { countRings, totalScore } from "@/lib/score/scoreFunctions";
 import { ScoreManager } from "@/lib/score/scoreManager";
 import { useLoad } from "@/hooks/useLoad";
 import { useOnResume } from "@/hooks/useOnResume";
@@ -285,9 +285,9 @@ function ScoreViewContent() {
             <p className="status empty">{T.profile.scoreView.noScores}</p>
           )}
           {rounds.map((viewRound) => (
-            <RoundSheet
+            <RoundScoreSheet
               key={viewRound.round.id}
-              viewRound={viewRound}
+              round={viewRound.round}
               roundComment={roundComment(viewRound.round.id)}
               endComment={endComment}
               onSaveRoundComment={onSaveRoundComment}
@@ -394,110 +394,5 @@ function GameSummary({
         {T.profile.scoreView.edit}
       </button>
     </>
-  );
-}
-
-type RoundSheetProps = {
-  viewRound: ViewRound;
-  roundComment: string | null;
-  endComment: (endId: number) => string | null;
-  onSaveRoundComment: (roundId: number, body: string) => Promise<void>;
-  onSaveEndComment: (endId: number, body: string) => Promise<void>;
-};
-
-function RoundSheet(props: RoundSheetProps) {
-  const T = useT();
-  const { round, ends } = props.viewRound;
-  // 取り込んだラウンドはアプリの既定と違う矢数のことがあるので、列は定数でなくラウンドに合わせる
-  const endSize = round.end_size ?? DEFAULT_END_SIZE;
-
-  let roundTotal = 0;
-  const rows = ends.map((viewEnd) => {
-    const endTotal = totalScore(viewEnd.points);
-    roundTotal += endTotal;
-    return { ...viewEnd, endTotal, runningTotal: roundTotal };
-  });
-
-  return (
-    <section className="panel stack tight">
-      <div className="view-comment view-round-head">
-        <div>
-          <div className="view-round-title">
-            {T.profile.scoreView.round(round.number)}
-          </div>
-          <div className="muted small">
-            {T.profile.scoreView.date(round.recorded_at)}
-          </div>
-        </div>
-        <CommentField
-          iconOnly
-          title={T.profile.scoreView.roundTitle(round.number)}
-          body={props.roundComment}
-          onSave={(body) => props.onSaveRoundComment(round.id, body)}
-        />
-      </div>
-      {props.roundComment && (
-        <p className="RoundComment CommentText view-comment-text">
-          {props.roundComment}
-        </p>
-      )}
-
-      <div className="view-sheet-scroll">
-        <table className="list view-sheet">
-          <thead>
-            <tr>
-              <th className="end-col" />
-              {Array.from({ length: endSize }, (_, index) => index + 1).map(
-                (arrowNumber) => (
-                  <th key={arrowNumber}>{arrowNumber}</th>
-                ),
-              )}
-              {/* 合計の列は幅を決めておき、コメントの列に押されて潰れないようにする */}
-              <th className="sum-col">{T.profile.scoreView.subtotal}</th>
-              <th className="sum-col">{T.profile.scoreView.total}</th>
-              <th className="icon-col" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const comment = props.endComment(row.end.id);
-              return (
-                <Fragment key={row.end.id}>
-                  <tr>
-                    <td className="end-col">{row.end.number}</td>
-                    {Array.from({ length: endSize }, (_, index) => (
-                      <td key={`arrow-${index}`}>
-                        {row.points[index]
-                          ? scoreToStr(row.points[index].score)
-                          : T.none}
-                      </td>
-                    ))}
-                    <td>{row.endTotal}</td>
-                    <td>{row.runningTotal}</td>
-                    <td className="icon-col">
-                      <CommentField
-                        iconOnly
-                        title={T.profile.scoreView.endTitle(row.end.number)}
-                        body={comment}
-                        onSave={(body) =>
-                          props.onSaveEndComment(row.end.id, body)
-                        }
-                      />
-                    </td>
-                  </tr>
-                  {comment && (
-                    <tr className="comment-row">
-                      <td colSpan={endSize + 4}>
-                        <span className="CommentText">{comment}</span>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
   );
 }

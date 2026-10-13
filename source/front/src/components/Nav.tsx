@@ -8,6 +8,7 @@ import { useCachedAppUser } from "@/hooks/useCachedAppUser";
 import { isMockAuth } from "@/lib/auth/config";
 import { DESTINATIONS, SCORE_CARD_PATH, type Destination } from "@/lib/destinations";
 import { useMenuPosition } from "@/lib/menuPosition";
+import { isPublicPath } from "@/lib/scoreShare";
 import { useT } from "@/lib/text";
 
 // 点数の入力の画面は画面全体をキーと的に使い、右下のボタンがキーに重なるので出さない(戻るは画面の ✕)
@@ -45,7 +46,8 @@ export default function Nav() {
     };
   }, [open]);
 
-  if (FULL_SCREEN_PATHS.includes(pathname)) return null;
+  // 公開の画面はログインしていない人も開くので、ログインを前提にする行き先を並べない
+  if (FULL_SCREEN_PATHS.includes(pathname) || isPublicPath(pathname)) return null;
 
   function link(item: Destination) {
     return (

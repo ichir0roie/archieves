@@ -88,6 +88,7 @@ def unregistered_client(s: Session) -> Generator[TestClient]:
 
     app.dependency_overrides[deps.get_session] = _get_session_override
     app.dependency_overrides[deps.get_current_user] = lambda: TEST_CLAIMS
+    app.dependency_overrides[deps.get_optional_current_user] = lambda: TEST_CLAIMS
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -97,6 +98,16 @@ def unregistered_client(s: Session) -> Generator[TestClient]:
 def client(unregistered_client: TestClient, current_user) -> TestClient:
     """本人の行がある状態の client(「本人のみ」のエンドポイントは本人の行を引く)。"""
     return unregistered_client
+
+
+@pytest.fixture()
+def anonymous_client(client: TestClient) -> TestClient:
+    """ログインしていない人の client。ログインしていなくても通すエンドポイント(/public)用。
+
+    「本人のみ」などは deps.get_current_user を差し替えたままなので、ここでは試さない。
+    """
+    app.dependency_overrides[deps.get_optional_current_user] = lambda: None
+    return client
 
 
 @pytest.fixture()

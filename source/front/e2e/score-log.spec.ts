@@ -52,7 +52,7 @@ test("スコアは月の見出しで閉じられ、開閉は再読み込みし�
   await expect(card).toBeVisible();
 
   // 月の見出しだけを閉じる
-  await page.locator(".LogGroup > .log-head").first().click();
+  await page.locator(".LogGroup .log-head").first().click();
   await expect(card).toBeHidden();
 });
 
