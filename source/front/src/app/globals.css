@@ -368,6 +368,10 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .view-comment-text { margin: 0; font-size: 0.85rem; white-space: pre-wrap; }
 .comment-field.icon-only { flex: none; }
 .view-round-title { font-weight: 700; }
+/* ラウンドの距離・的の大きさ・弓の種類。項目と値を一組ずつ横に並べ、収まらなければ折り返す */
+.view-round-details { display: flex; flex-wrap: wrap; gap: 0 0.9rem; margin: 0.1rem 0 0; }
+.view-round-details > div { display: flex; gap: 0.3rem; }
+.view-round-details dd { margin: 0; font-weight: 600; }
 .view-summary { display: flex; justify-content: space-around; align-items: center; text-align: center; }
 .arrow-map { display: block; width: 100%; max-width: 360px; margin: 0 auto; }
 .view-summary-value { font-size: 1.4rem; font-weight: 700; }
