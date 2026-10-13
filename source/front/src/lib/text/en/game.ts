@@ -59,6 +59,8 @@ export const game: typeof ja = {
     endCaption: t.end,
     finish: "Finish",
     aimSettings: "Zoom and sensitivity",
+    gameSettings: "Game setup",
+    gameSettingsHint: "Changes apply to every round of this game. The numbers of arrows, ends and rounds cannot be lower than what is already recorded. Changing the target face does not rescore arrows already recorded.",
     ringLabel: (point: number) => `${point}${t.unit.point}`,
     miss: "Miss",
   },
