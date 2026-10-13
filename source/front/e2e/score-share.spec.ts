@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   await ensureRegistered(page);
 });
 
-test("公開ページに、指定したゲームの合計・点数表を出し、メニューは出さない", async ({ page }) => {
+test("公開ページに、指定したゲームの合計・点数表・ラウンドの的中の図を出し、メニューは出さない", async ({ page }) => {
   const game = await recordGame(page, { score: "9" });
 
   await page.goto(`/score-share?ids=${game.id}`);
@@ -19,7 +19,7 @@ test("公開ページに、指定したゲームの合計・点数表を出し�
   await expect(card).toBeVisible();
   await expect(card.locator(".GameSummary")).toContainText(String(game.total));
   await expect(card.getByText("ラウンド 1", { exact: true })).toBeVisible();
-  await expect(card.locator(".ArrowMap")).toBeVisible();
+  await expect(card.locator(".RoundScoreSheet .ArrowMap")).toBeVisible();
   await expect(page.getByRole("button", { name: "メニュー" })).toHaveCount(0);
 });
 
