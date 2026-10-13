@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import CommentField from "@/components/CommentField";
 import type { RoundSheetRead } from "@/lib/api";
 import { DEFAULT_END_SIZE } from "@/lib/score/scoreConfig";
@@ -14,6 +14,8 @@ type Props = {
   /** 渡せばコメントを書くアイコンを出す(本人の score-view)。公開ページは渡さず、読むだけにする */
   onSaveRoundComment?: (roundId: number, body: string) => Promise<void>;
   onSaveEndComment?: (endId: number, body: string) => Promise<void>;
+  /** 表の右に並べるもの(公開ページのラウンドの的中の図) */
+  aside?: ReactNode;
 };
 
 /** ラウンドの点数表(エンドごとの矢・小計・累計)と、ラウンド・エンドのコメント。 */
@@ -34,7 +36,9 @@ export default function RoundScoreSheet(props: Props) {
   });
 
   return (
-    <section className="RoundScoreSheet panel stack tight">
+    <section
+      className={`RoundScoreSheet panel stack tight${props.aside ? " has-aside" : ""}`}
+    >
       <div className="view-comment view-round-head">
         <div>
           <div className="view-round-title">
@@ -115,6 +119,7 @@ export default function RoundScoreSheet(props: Props) {
           </tbody>
         </table>
       </div>
+      {props.aside && <div className="view-sheet-aside">{props.aside}</div>}
     </section>
   );
 }

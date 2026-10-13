@@ -11,9 +11,8 @@ type Props = {
 };
 
 /**
- * 公開ページの一ゲーム。見出し(日付・持ち主・弓)、合計と X・10・M、的中の図、ゲームのコメント、
- * ラウンドごとの点数表(ラウンド・エンドのコメント)を、読むだけの形で出す。
- * 広い画面は、合計と的中の図を左の列に、点数表を右の列に並べる(globals.css の .shared-game-body)
+ * 公開ページの一ゲーム。見出し(日付・持ち主・弓)、合計と X・10・M・ゲームのコメントを一行まるまる使って出し、
+ * その下にラウンドごとの点数表(ラウンド・エンドのコメント)と、そのラウンドの的中の図を同じ行に並べる
  */
 export default function SharedGameCard({ game }: Props) {
   const T = useT();
@@ -41,41 +40,32 @@ export default function SharedGameCard({ game }: Props) {
           {[game.owner_name, bowType].filter(Boolean).join(" / ")}
         </span>
       </header>
-      <div className="shared-game-body">
-        <div className="shared-game-side stack tight">
-          <div className="GameSummary panel view-comment-block">
-            <div className="view-summary">
-              {items.map((item) => (
-                <div key={item.label}>
-                  <div className="muted small">{item.label}</div>
-                  <div className="view-summary-value">{item.value}</div>
-                </div>
-              ))}
+      <div className="GameSummary panel view-comment-block">
+        <div className="view-summary">
+          {items.map((item) => (
+            <div key={item.label}>
+              <div className="muted small">{item.label}</div>
+              <div className="view-summary-value">{item.value}</div>
             </div>
-            {game.comment && (
-              <p className="GameComment CommentText view-comment-text">{game.comment}</p>
-            )}
-          </div>
-          {points.some(hasPosition) && (
-            <div className="ArrowMapPanel panel">
-              <ArrowMap points={points} />
-            </div>
-          )}
-        </div>
-        <div className="shared-game-rounds stack tight">
-          {game.rounds.length === 0 && (
-            <p className="status empty">{T.profile.scoreView.noScores}</p>
-          )}
-          {game.rounds.map((round) => (
-            <RoundScoreSheet
-              key={round.id}
-              round={round}
-              roundComment={round.comment}
-              endComment={(endId) => endComments.get(endId) ?? null}
-            />
           ))}
         </div>
+        {game.comment && (
+          <p className="GameComment CommentText view-comment-text">{game.comment}</p>
+        )}
       </div>
+      {game.rounds.length === 0 && <p className="status empty">{T.profile.scoreView.noScores}</p>}
+      {game.rounds.map((round) => {
+        const roundPoints = round.ends.flatMap((end) => end.points);
+        return (
+          <RoundScoreSheet
+            key={round.id}
+            round={round}
+            roundComment={round.comment}
+            endComment={(endId) => endComments.get(endId) ?? null}
+            aside={roundPoints.some(hasPosition) && <ArrowMap points={roundPoints} />}
+          />
+        );
+      })}
     </article>
   );
 }
