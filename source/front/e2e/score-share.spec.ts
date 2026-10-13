@@ -9,8 +9,8 @@ test.beforeEach(async ({ page }) => {
   await ensureRegistered(page);
 });
 
-test("公開ページに、指定したゲームの合計・点数表・ラウンドの的中の図を出し、メニューは出さない", async ({ page }) => {
-  const game = await recordGame(page, { score: "9" });
+test("公開ページに、指定したゲームの合計・距離などのゲームの情報・点数表・ラウンドの的中の図を出し、メニューは出さない", async ({ page }) => {
+  const game = await recordGame(page, { score: "9", bowType: "コンパウンド" });
 
   await page.goto(`/score-share?ids=${game.id}`);
 
@@ -18,6 +18,10 @@ test("公開ページに、指定したゲームの合計・点数表・ラウ�
   const card = page.locator(`.SharedGame[data-game-id="${game.id}"]`);
   await expect(card).toBeVisible();
   await expect(card.locator(".GameSummary")).toContainText(String(game.total));
+  const details = card.locator(".GameSummary .GameDetails");
+  await expect(details).toContainText("距離");
+  await expect(details).toContainText("的の大きさ");
+  await expect(details).toContainText("弓の種類コンパウンド");
   await expect(card.getByText("ラウンド 1", { exact: true })).toBeVisible();
   await expect(card.locator(".RoundScoreSheet .ArrowMap")).toBeVisible();
   await expect(page.getByRole("button", { name: "メニュー" })).toHaveCount(0);
