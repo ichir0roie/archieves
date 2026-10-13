@@ -60,8 +60,8 @@ class RankedUser(ResponseModel):
 
     id: int
     name: str
-    # プロフィールへのリンク先。プロフィールを見る人に見せていない利用者は null
-    sub: str | None
+    # プロフィールを見る人に見せているか。false ならプロフィールへのリンクを出さない
+    profile_visible: bool
 
 
 class UserRanking(ResponseModel):

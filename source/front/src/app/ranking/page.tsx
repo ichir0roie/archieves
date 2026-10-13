@@ -174,10 +174,10 @@ export default function Page() {
               </>
             );
 
-            return entry.user.sub ? (
+            return entry.user.profile_visible ? (
               <Link
                 key={entry.user.id}
-                href={`/profile/${entry.user.sub}`}
+                href={`/profile/${entry.user.id}`}
               >
                 {row}
               </Link>

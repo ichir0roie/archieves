@@ -667,5 +667,13 @@ def test_ranking_shows_only_the_name_and_links_only_visible_profiles(
     users = {row["user"]["name"]: row["user"] for row in _ranking(client)}
 
     # 生年月日・所属などのプロフィールは、ランキングには載せない
-    assert users["hidden_profile"] == {"id": hidden.id, "name": "hidden_profile", "sub": None}
-    assert users["shown_profile"] == {"id": shown.id, "name": "shown_profile", "sub": "shown-sub"}
+    assert users["hidden_profile"] == {
+        "id": hidden.id,
+        "name": "hidden_profile",
+        "profile_visible": False,
+    }
+    assert users["shown_profile"] == {
+        "id": shown.id,
+        "name": "shown_profile",
+        "profile_visible": True,
+    }

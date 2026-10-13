@@ -328,7 +328,7 @@ def list_user_ranking(
             user=RankedUser(
                 id=user.id,
                 name=user.name,
-                sub=user.sub if can_view_profile(viewer, user) else None,
+                profile_visible=can_view_profile(viewer, user),
             ),
             value=ranked_value,
             round_count=round_count,

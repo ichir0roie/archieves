@@ -68,9 +68,16 @@ async function saveVisibility(page: Page, label: string, option: string) {
   await expect(page).toHaveURL("/");
 }
 
-/** ランキングの、この利用者(モックの利用者)の行 */
-function myRankingRow(page: Page) {
-  return page.locator('.RankingList a[href="/profile/local-dev-user"]');
+/** この利用者(モックの利用者)の、API の行の id */
+async function myUserId(page: Page): Promise<number> {
+  const me = await page.request.get("/api/v1/users/me");
+  expect(me.ok()).toBeTruthy();
+  return (await me.json()).id;
+}
+
+/** ランキングの、この利用者の行 */
+async function myRankingRow(page: Page) {
+  return page.locator(`.RankingList a[href="/profile/${await myUserId(page)}"]`);
 }
 
 test("the saved visibility is shown again on the settings page", async ({ page }) => {
@@ -96,12 +103,12 @@ test("the ranking lists the signed-in user only while their ranking is shared", 
   await saveVisibility(page, "ランキング", "全体公開");
   await page.goto("/ranking");
   await expect(page.locator("header")).toContainText("ランキング");
-  await expect(myRankingRow(page)).toContainText("ランキング太郎");
+  await expect(await myRankingRow(page)).toContainText("ランキング太郎");
 
   await saveVisibility(page, "ランキング", "非公開");
   await page.goto("/ranking");
   await expect(page.getByText("読み込み中...")).toHaveCount(0);
-  await expect(myRankingRow(page)).toHaveCount(0);
+  await expect(await myRankingRow(page)).toHaveCount(0);
 });
 
 test("a game recorded with a bow type shows up under that bow", async ({ page }) => {
@@ -111,8 +118,9 @@ test("a game recorded with a bow type shows up under that bow", async ({ page })
   await page.goto("/ranking");
   await page.getByRole("group", { name: "弓の種類" }).getByRole("button", { name: "コンパウンド" }).click();
   await expect(page.getByText("読み込み中...")).toHaveCount(0);
-  await expect(myRankingRow(page)).toHaveCount(1);
-  await expect(myRankingRow(page).locator(".big")).toContainText("点");
+  const row = await myRankingRow(page);
+  await expect(row).toHaveCount(1);
+  await expect(row.locator(".big")).toContainText("点");
 
   await saveVisibility(page, "ランキング", "非公開");
 });
@@ -121,7 +129,7 @@ test("the visibility chosen on my profile page is saved at once", async ({ page 
   await ensureRegistered(page);
 
   await page.goto("/profile/me");
-  await expect(page).toHaveURL("/profile/local-dev-user");
+  await expect(page).toHaveURL(`/profile/${await myUserId(page)}`);
   const settings = page.locator(".VisibilitySettings");
   const group = settings.getByRole("group", { name: "プロフィールの公開範囲" });
   await group.getByRole("button", { name: "全体公開", exact: true }).click();
@@ -140,15 +148,14 @@ test("the visibility chosen on my profile page is saved at once", async ({ page 
 test("another user's profile page has no visibility settings", async ({ page }) => {
   await ensureRegistered(page);
   // モックのログインでは他人としてログインできないので、他人の行は API で作る(既定は非公開)
-  const sub = `e2e-other-${Date.now()}`;
   const created = await page.request.post("/api/v1/users/find-or-create", {
     data: {
-      sub,
+      sub: `e2e-other-${Date.now()}`,
       name: "他人",
     },
   });
   expect(created.ok()).toBeTruthy();
-  await page.goto(`/profile/${sub}`);
+  await page.goto(`/profile/${(await created.json()).id}`);
   await expect(page.getByText("このプロフィールは公開されていません")).toBeVisible();
   await expect(page.locator(".VisibilitySettings")).toHaveCount(0);
 });

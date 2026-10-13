@@ -8,7 +8,7 @@ from app.core.errors import (
     ForbiddenError,
     NotFoundError,
 )
-from app.core.security import Claims, get_current_user
+from app.core.security import Claims, get_current_user, get_optional_current_user
 from app.core.visibility import can_view_profile
 from app.crud import user as user_crud
 from app.db import User
@@ -18,6 +18,8 @@ __all__ = [
     "Claims",
     "get_current_user",
     "get_me",
+    "get_optional_current_user",
+    "get_optional_me",
     "get_admin",
     "get_or_404",
     "get_own_or_404",
@@ -50,6 +52,19 @@ def get_me(
     if user is None:
         raise NotFoundError(CURRENT_USER_NOT_REGISTERED)
     return user
+
+
+def get_optional_me(
+    claims: Claims | None = Depends(get_optional_current_user),
+    s: Session = Depends(get_session),
+) -> User | None:
+    """ログインしていなくても通すエンドポイントの、見る人の行。
+
+    ログインしていない、または利用者の行がまだ無いなら None(ログインしていない人と同じに扱う)。
+    """
+    if claims is None:
+        return None
+    return user_crud.get_user_by_sub(s, claims.sub)
 
 
 def get_admin(me: User = Depends(get_me)) -> User:

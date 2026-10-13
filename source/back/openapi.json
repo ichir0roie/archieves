@@ -71,6 +71,63 @@
         }
       }
     },
+    "/api/v1/public/scores": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "List Shared Scores",
+        "description": "game_ids のゲームのうち、持ち主のスコアの公開範囲が見る人に見せるものの記録。日付の古い順。\n\n見せないゲームは、無い・消したゲームと区別せずに外す(id から、有るかどうかを探らせない)。",
+        "operationId": "list_shared_scores_api_v1_public_scores_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 1,
+              "maxItems": 200,
+              "title": "Game Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SharedGameRead"
+                  },
+                  "title": "Response List Shared Scores Api V1 Public Scores Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users": {
       "get": {
         "tags": [
@@ -369,13 +426,13 @@
         }
       }
     },
-    "/api/v1/users/{sub}/profile": {
+    "/api/v1/users/{user_id}/profile": {
       "get": {
         "tags": [
           "users"
         ],
         "summary": "Get User Profile",
-        "operationId": "get_user_profile_api_v1_users__sub__profile_get",
+        "operationId": "get_user_profile_api_v1_users__user_id__profile_get",
         "security": [
           {
             "HTTPBearer": []
@@ -383,12 +440,12 @@
         ],
         "parameters": [
           {
-            "name": "sub",
+            "name": "user_id",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "title": "Sub"
+              "type": "integer",
+              "title": "User Id"
             }
           }
         ],
@@ -5951,6 +6008,9 @@
           },
           "ranking_visibility": {
             "$ref": "#/components/schemas/Visibility"
+          },
+          "score_visibility": {
+            "$ref": "#/components/schemas/Visibility"
           }
         },
         "type": "object",
@@ -5963,7 +6023,8 @@
           "sub",
           "is_admin",
           "profile_visibility",
-          "ranking_visibility"
+          "ranking_visibility",
+          "score_visibility"
         ],
         "title": "MeRead",
         "description": "本人の行。管理者かどうか・公開範囲は本人にだけ返し、他人の行(UserRead)には載せない。"
@@ -6425,23 +6486,16 @@
             "type": "string",
             "title": "Name"
           },
-          "sub": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sub"
+          "profile_visible": {
+            "type": "boolean",
+            "title": "Profile Visible"
           }
         },
         "type": "object",
         "required": [
           "id",
           "name",
-          "sub"
+          "profile_visible"
         ],
         "title": "RankedUser",
         "description": "ランキングに載せる利用者。名前だけを見せ、生年月日・所属などのプロフィールは載せない\n(ランキングは公開していても、プロフィールは非公開の人がいる)。"
@@ -6967,6 +7021,63 @@
         "title": "ScoreStatistics",
         "description": "Min/max/average/median over a set of scores within a period."
       },
+      "SharedGameRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "owner_name": {
+            "type": "string",
+            "title": "Owner Name"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Recorded At"
+          },
+          "bow_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bow Type"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "rounds": {
+            "items": {
+              "$ref": "#/components/schemas/RoundSheetRead"
+            },
+            "type": "array",
+            "title": "Rounds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "owner_name",
+          "recorded_at",
+          "bow_type",
+          "comment",
+          "rounds"
+        ],
+        "title": "SharedGameRead",
+        "description": "スコアの公開ページ(GET /public/scores)に出すゲーム。\n\nログインしていない人にも返すので、持ち主は名前だけを載せ、入力の画面の印(client_key)などは載せない。"
+      },
       "UserCreate": {
         "properties": {
           "name": {
@@ -7265,6 +7376,16 @@
                 "type": "null"
               }
             ]
+          },
+          "score_visibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Visibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -7311,7 +7432,7 @@
           "public"
         ],
         "title": "Visibility",
-        "description": "プロフィール・ランキングを、本人のほかにだれへ見せるか。既定は private。"
+        "description": "プロフィール・ランキング・スコアを、本人のほかにだれへ見せるか。既定は private。"
       }
     },
     "securitySchemes": {

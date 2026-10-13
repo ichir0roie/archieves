@@ -117,14 +117,12 @@ def update_user(
     return result
 
 
-@router.get("/{sub}/profile", response_model=UserProfile)
+@router.get("/{user_id}/profile", response_model=UserProfile)
 def get_user_profile(
-    sub: str,
+    user_id: int,
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
 ) -> UserProfile:
-    user = user_crud.get_user_by_sub(s, sub)
-    if user is None:
-        raise NotFoundError("User not found")
+    user = deps.get_or_404(user_crud.get_user, s, user_id, detail="User not found")
     deps.require_profile_visible(me, user)
     return deps.get_or_404(profile_crud.get_user_profile, s, user.id, detail="User not found")

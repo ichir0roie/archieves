@@ -81,6 +81,20 @@ class RoundSheetRead(ResponseModel):
     ends: list[EndSheetRead]
 
 
+class SharedGameRead(ResponseModel):
+    """スコアの公開ページ(GET /public/scores)に出すゲーム。
+
+    ログインしていない人にも返すので、持ち主は名前だけを載せ、入力の画面の印(client_key)などは載せない。
+    """
+
+    id: int
+    owner_name: str
+    recorded_at: date
+    bow_type: str | None
+    comment: str | None
+    rounds: list[RoundSheetRead]
+
+
 class GameSheetRead(ResponseModel):
     id: int
     client_key: str | None

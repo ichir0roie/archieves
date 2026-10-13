@@ -24,7 +24,7 @@ export default function VisibilitySettings() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<ErrorDetails | null>(null);
 
-  async function save(change: Partial<Pick<MeRead, "profile_visibility" | "ranking_visibility">>) {
+  async function save(change: Partial<Pick<MeRead, "profile_visibility" | "ranking_visibility" | "score_visibility">>) {
     // 保存の途中は選べなくしてある。重なると、先に送った方の応答が後から着いて選び直しを戻すため
     if (!me || saving) return;
     const before = me;
@@ -54,8 +54,10 @@ export default function VisibilitySettings() {
       <VisibilityFields
         profileVisibility={me.profile_visibility}
         rankingVisibility={me.ranking_visibility}
+        scoreVisibility={me.score_visibility}
         onChangeProfileVisibility={(value) => save({ profile_visibility: value })}
         onChangeRankingVisibility={(value) => save({ ranking_visibility: value })}
+        onChangeScoreVisibility={(value) => save({ score_visibility: value })}
         disabled={saving}
       />
       <p

@@ -183,7 +183,7 @@ def test_public_profiles_and_organizations_can_be_read_by_anyone_signed_in(
     organization = factories.OrganizationFactory()
 
     assert client.get(f"/api/v1/users/{other.id}").status_code == 200
-    assert client.get("/api/v1/users/other-sub/profile").status_code == 200
+    assert client.get(f"/api/v1/users/{other.id}/profile").status_code == 200
     assert client.get("/api/v1/organizations").status_code == 200
     assert client.get(f"/api/v1/organizations/{organization.id}").status_code == 200
 
@@ -244,3 +244,14 @@ def test_deleting_my_account_leaves_another_users_rows(
     s.expire_all()
     for row in others.values():
         assert s.get(type(row), row.id) is not None
+
+
+def test_public_scores_can_be_read_without_signing_in(
+    anonymous_client: TestClient, factories
+) -> None:
+    """/public は「本人のみ」「本人以外も」のどちらでもなく、ログインしていなくても通す。"""
+    game = factories.GameFactory(user=factories.UserFactory(score_visibility="public"))
+
+    response = anonymous_client.get("/api/v1/public/scores", params={"game_ids": [game.id]})
+
+    assert response.status_code == 200
