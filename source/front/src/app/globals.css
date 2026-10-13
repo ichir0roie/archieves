@@ -383,20 +383,24 @@ table.list.view-sheet { table-layout: fixed; }
 .view-sheet .icon-col { width: 2.5rem; padding: 0; }
 .view-sheet .comment-row td { text-align: left; font-weight: 400; font-size: 0.8rem; padding-top: 0; white-space: pre-wrap; }
 
-/* スコアの公開ページ(/score-share)。狭い画面は合計・的中の図・点数表を縦に積み、
-   広い画面は合計と的中の図を左の列に置いて、点数表を右に並べる */
+/* スコアの公開ページ(/score-share)。合計は一行まるまる使い、その下にラウンドごとの点数表と
+   そのラウンドの的中の図を同じ行に並べる(図は表の右。スマホの幅では表の下) */
 /* メニューのボタンを出さないので、見出しの左を空けない */
 .ScoreShare .page-header { padding-left: 0; }
 .shared-game { display: flex; flex-direction: column; gap: 0.6rem; }
 .shared-game + .shared-game { border-top: 1px solid var(--line); padding-top: 1.2rem; margin-top: 0.4rem; }
 .shared-game-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.25rem 0.75rem; }
 .shared-game-head h2 { margin: 0; }
-.shared-game-body { display: flex; flex-direction: column; gap: 0.6rem; }
-.shared-game-side .arrow-map { max-width: 280px; }
-@media (min-width: 900px) {
-  .shared-game-body { display: grid; grid-template-columns: 20rem minmax(0, 1fr); align-items: start; gap: 1rem; }
-  .shared-game-side { position: sticky; top: 0.75rem; }
-  .shared-game-side .arrow-map { max-width: 100%; }
+/* 見出し・コメントは二列にまたがらせ、表を左の列、図を右の列に置く */
+.RoundScoreSheet.has-aside { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: 0.75rem; }
+.RoundScoreSheet.has-aside > * { grid-column: 1 / -1; }
+.RoundScoreSheet.has-aside > .view-sheet-scroll { grid-column: 1; }
+.RoundScoreSheet.has-aside > .view-sheet-aside { grid-column: 2; width: 14rem; }
+.view-sheet-aside .arrow-map { max-width: 100%; }
+/* スマホの幅では、図を表の下に置く */
+@media (max-width: 640px) {
+  .RoundScoreSheet.has-aside > .view-sheet-aside { grid-column: 1 / -1; width: 100%; }
+  .view-sheet-aside .arrow-map { max-width: 280px; }
 }
 
 /* スコアの年・月・日の見出し */
