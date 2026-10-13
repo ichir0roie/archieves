@@ -7,6 +7,7 @@ import RoundTotalsBar from "@/components/RoundTotalsBar";
 import CommentBar from "@/components/CommentBar";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import AimSettingsModal from "@/components/AimSettingsModal";
+import GameSettingsModal from "@/components/GameSettingsModal";
 import { useGuardScoreEntry } from "@/hooks/useGuardScoreEntry";
 import { shortDate } from "@/lib/score/backfill";
 import { isInnerTenBow } from "@/lib/score/scoreFunctions";
@@ -80,11 +81,13 @@ export default function ScoreEntryShell({ renderInput }: Props) {
     backEnd,
     forwardEnd,
     finish,
+    applySetup,
     error,
     isSaving,
   } = useScoreGame();
   const [aimSettings, setAimSettings] = useState(DEFAULT_AIM_SETTINGS);
   const [aimSettingsOpen, setAimSettingsOpen] = useState(false);
+  const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
 
   // サーバーでの描画中は localStorage を読めないので、画面に載ってから当てる
   useEffect(() => {
@@ -119,42 +122,81 @@ export default function ScoreEntryShell({ renderInput }: Props) {
           </div>
         )}
         {/* ✕ と向かい合う右上に置く。進み具合が短くても右端に寄せる */}
-        <button
-          type="button"
-          className="AimSettingsOpen ghost icon score-settings"
-          onClick={() => setAimSettingsOpen(true)}
-          aria-label={T.game.entry.aimSettings}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="22"
-            height="22"
-            aria-hidden="true"
+        <div className="score-settings">
+          <button
+            type="button"
+            className="GameSettingsOpen ghost icon"
+            onClick={() => setGameSettingsOpen(true)}
+            disabled={!manager || isSaving}
+            aria-label={T.game.entry.gameSettings}
           >
-            <path
-              d="M4 7h10M18 7h2M4 17h2M10 17h10"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <circle
-              cx="16"
-              cy="7"
-              r="2"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            />
-            <circle
-              cx="8"
-              cy="17"
-              r="2"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            />
-          </svg>
-        </button>
+            <svg
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              aria-hidden="true"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="9"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <circle
+                cx="12"
+                cy="12"
+                r="5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <circle
+                cx="12"
+                cy="12"
+                r="1.5"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="AimSettingsOpen ghost icon"
+            onClick={() => setAimSettingsOpen(true)}
+            aria-label={T.game.entry.aimSettings}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 7h10M18 7h2M4 17h2M10 17h10"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <circle
+                cx="16"
+                cy="7"
+                r="2"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <circle
+                cx="8"
+                cy="17"
+                r="2"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
       {aimSettingsOpen && (
         <AimSettingsModal
@@ -163,6 +205,17 @@ export default function ScoreEntryShell({ renderInput }: Props) {
           onSave={(settings) => {
             setAimSettings(settings);
             setAimSettingsOpen(false);
+          }}
+        />
+      )}
+      {gameSettingsOpen && manager && (
+        <GameSettingsModal
+          setup={manager.gameSetup}
+          minSizes={manager.setupMinSizes}
+          onClose={() => setGameSettingsOpen(false)}
+          onSave={(setup) => {
+            applySetup(setup);
+            setGameSettingsOpen(false);
           }}
         />
       )}

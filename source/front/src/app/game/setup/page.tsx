@@ -1,139 +1,32 @@
 "use client";
 
-import ArrowSight from "@/components/ArrowSight";
-import { TARGET_FACE_PADDING } from "@/components/TargetCircleInput";
-import IntegerField, { parseInteger } from "@/components/IntegerField";
-import Modal from "@/components/Modal";
 import BackButton from "@/components/BackButton";
+import GameSetupFields, {
+  parseGameSetupDraft,
+  toGameSetupDraft,
+} from "@/components/GameSetupFields";
 import PageHeader from "@/components/PageHeader";
-import Segment from "@/components/Segment";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  BOW_TYPES,
-  BOW_TYPE_MAX_LENGTH,
-  DEFAULT_ROUND_SETUP,
-  DISTANCE_PRESETS_M,
-  DEFAULT_AIM_SETTINGS,
-  MAX_ARROW_DIAMETER_MM,
-  MAX_DISTANCE_M,
-  MAX_END_SIZE,
-  MAX_GAME_SIZE,
-  MAX_ROUND_SIZE,
-  MAX_TARGET_SIZE_CM,
-  MIN_ARROW_DIAMETER_MM,
-  MIN_DISTANCE_M,
-  MIN_END_SIZE,
-  MIN_GAME_SIZE,
-  MIN_ROUND_SIZE,
-  MIN_TARGET_SIZE_CM,
-  TARGET_TYPES,
-  arrowDiameterPx,
-  customTargetTypeId,
-  getTargetType,
-  resolveTargetType,
-  type RoundSetup,
-} from "@/lib/score/scoreConfig";
+import { useEffect, useRef, useState } from "react";
+import { DEFAULT_ROUND_SETUP } from "@/lib/score/scoreConfig";
 import { BACKFILL_DATE_PARAM, isBackfillDate } from "@/lib/score/backfill";
-import { isInnerTenBow } from "@/lib/score/scoreFunctions";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { SCORE_CARD_PATH } from "@/lib/destinations";
 import { ScoreManager } from "@/lib/score/scoreManager";
-import {
-  loadAimSettings,
-  loadRoundSetup,
-  loadTargetDiameterPx,
-  saveRoundSetup,
-} from "@/lib/storage";
+import { loadRoundSetup, saveRoundSetup } from "@/lib/storage";
 import { useT } from "@/lib/text";
-
-type OtherModalProps = {
-  title: string;
-  onClose: () => void;
-  onSubmit: () => void;
-  canSubmit: boolean;
-  children: ReactNode;
-};
-
-/** 「その他」を押したときの入力のモーダル。決定を押すまで設定には反映しない */
-function OtherModal(props: OtherModalProps) {
-  const T = useT();
-  return (
-    <Modal
-      title={props.title}
-      onClose={props.onClose}
-      actions={
-        <button
-          type="button"
-          className="primary"
-          disabled={!props.canSubmit}
-          onClick={props.onSubmit}
-        >
-          {T.game.setup.ok}
-        </button>
-      }
-    >
-      {props.children}
-    </Modal>
-  );
-}
-
-const DISTANCE_OPTIONS = DISTANCE_PRESETS_M.map((distanceM) => ({
-  value: String(distanceM),
-  label: `${distanceM}m`,
-}));
 
 export default function Page() {
   const T = useT();
   const router = useRouter();
-  const BOW_OPTIONS = BOW_TYPES.map((bowType) => ({
-    value: bowType.id,
-    label: T.options.bowType[bowType.id],
-  }));
-  const TARGET_OPTIONS = TARGET_TYPES.map((targetType) => ({
-    value: targetType.id,
-    label: T.options.targetType[targetType.id],
-  }));
-
-  const [bowType, setBowType] = useState<string>(DEFAULT_ROUND_SETUP.bowType);
-  const [distance, setDistance] = useState(DEFAULT_ROUND_SETUP.distanceM);
-  const [targetTypeId, setTargetTypeId] = useState(DEFAULT_ROUND_SETUP.targetType);
-  // 数は文字のまま持ち、読めない間は開始させない(打ちかけの空や範囲外も、そのまま見せて直させる)
-  const [endSizeText, setEndSizeText] = useState(String(DEFAULT_ROUND_SETUP.endSize));
-  const [roundSizeText, setRoundSizeText] = useState(String(DEFAULT_ROUND_SETUP.roundSize));
-  const [gameSizeText, setGameSizeText] = useState(String(DEFAULT_ROUND_SETUP.gameSize));
-  const [arrowDiameterMmText, setArrowDiameterMmText] = useState(
-    String(DEFAULT_ROUND_SETUP.arrowDiameterMm),
-  );
-  // サイトの見本を描く倍率。変えるのは記入画面のモーダル(AimSettingsModal)で、ここでは読むだけ
-  const [lensZoom, setLensZoom] = useState(DEFAULT_AIM_SETTINGS.lensZoom);
-  const [targetDiameterPx, setTargetDiameterPx] = useState<number | null>(null);
-  const [allIn, setAllIn] = useState(DEFAULT_ROUND_SETUP.allIn);
-  const [otherOpen, setOtherOpen] = useState<"bowType" | "distance" | "targetType" | null>(null);
-  const [draftBowName, setDraftBowName] = useState("");
-  const [draftDistanceText, setDraftDistanceText] = useState("");
-  const [draftTargetSizeText, setDraftTargetSizeText] = useState("");
+  const [draft, setDraft] = useState(() => toGameSetupDraft(DEFAULT_ROUND_SETUP));
   // あとから入力の日付。スコアの一覧から ?date=yyyy-mm-dd で来る。無い・読めない日付なら今の日時で付ける
   const [backfillDate, setBackfillDate] = useState<string | null>(null);
 
   // サーバーでの描画中は localStorage を読めないので、前回の設定は画面に載ってから当てる
   useEffect(() => {
-    // 記入画面を一度も開いていなければ、的は画面の幅か高さいっぱいに描かれるものとして見積もる
-    setTargetDiameterPx(
-      loadTargetDiameterPx() ??
-        Math.min(window.innerWidth, window.innerHeight) - TARGET_FACE_PADDING * 2,
-    );
-    setLensZoom(loadAimSettings().lensZoom);
     const saved = loadRoundSetup();
-    if (!saved) return;
-    setBowType(saved.bowType);
-    setDistance(saved.distanceM);
-    setTargetTypeId(saved.targetType);
-    setEndSizeText(String(saved.endSize));
-    setRoundSizeText(String(saved.roundSize));
-    setGameSizeText(String(saved.gameSize));
-    setArrowDiameterMmText(String(saved.arrowDiameterMm));
-    setAllIn(saved.allIn);
+    if (saved) setDraft(toGameSetupDraft(saved));
   }, []);
 
   // useSearchParams は Suspense で包まないとビルドの事前描画で落ちるので、画面に載ってから URL を読む
@@ -142,59 +35,13 @@ export default function Page() {
     if (isBackfillDate(date)) setBackfillDate(date);
   }, []);
 
-  const bowIsOther = !BOW_TYPES.some((b) => b.id === bowType);
-  const distanceIsOther = !DISTANCE_PRESETS_M.includes(distance);
-  const targetIsOther = getTargetType(targetTypeId) === undefined;
-  const trimmedDraftBowName = draftBowName.trim();
-  const draftDistance = parseInteger(draftDistanceText, MIN_DISTANCE_M, MAX_DISTANCE_M);
-  const draftTargetSizeCm = parseInteger(
-    draftTargetSizeText,
-    MIN_TARGET_SIZE_CM,
-    MAX_TARGET_SIZE_CM,
-  );
-
-  const endSize = parseInteger(endSizeText, MIN_END_SIZE, MAX_END_SIZE);
-  const roundSize = parseInteger(roundSizeText, MIN_ROUND_SIZE, MAX_ROUND_SIZE);
-  const gameSize = parseInteger(gameSizeText, MIN_GAME_SIZE, MAX_GAME_SIZE);
-  const arrowDiameterMm = parseInteger(
-    arrowDiameterMmText,
-    MIN_ARROW_DIAMETER_MM,
-    MAX_ARROW_DIAMETER_MM,
-  );
   // 読めない欄があれば null。開始もここで止める
-  const sizes =
-    endSize !== null && roundSize !== null && gameSize !== null && arrowDiameterMm !== null
-      ? {
-          endSize,
-          roundSize,
-          gameSize,
-          arrowDiameterMm,
-        }
-      : null;
+  const setup = parseGameSetupDraft(draft);
   // 開始は sub を引いてから進むので、二度押しで二つ始めないようにする
   const starting = useRef(false);
-  const previewArrowPx =
-    arrowDiameterMm !== null && targetDiameterPx !== null
-      ? arrowDiameterPx(arrowDiameterMm, resolveTargetType(targetTypeId).sizeCm, targetDiameterPx)
-      : null;
-
-  function openBowOther() {
-    setDraftBowName(bowIsOther ? bowType : "");
-    setOtherOpen("bowType");
-  }
-
-  function openDistanceOther() {
-    setDraftDistanceText(distanceIsOther ? String(distance) : "");
-    setOtherOpen("distance");
-  }
-
-  function openTargetOther() {
-    setDraftTargetSizeText(targetIsOther ? String(resolveTargetType(targetTypeId).sizeCm) : "");
-    setOtherOpen("targetType");
-  }
 
   async function start() {
-    if (sizes === null || starting.current) return;
+    if (setup === null || starting.current) return;
     starting.current = true;
     try {
       const { userId } = await getCurrentUser();
@@ -202,13 +49,6 @@ export default function Page() {
       if (ScoreManager.hasUnsavedCache(userId) && !window.confirm(T.game.setup.discardUnsaved)) {
         return;
       }
-      const setup: RoundSetup = {
-        bowType,
-        distanceM: distance,
-        targetType: targetTypeId,
-        ...sizes,
-        allIn,
-      };
       saveRoundSetup(setup);
       // この画面からは必ず新しいゲームを始める(手元のキャッシュを作り直す)。続きはこの画面を通らない
       ScoreManager.startNewGame(userId, setup, backfillDate);
@@ -228,195 +68,22 @@ export default function Page() {
         </div>
       )}
       <div className="panel stack">
-        <div className="field">
-          <span className="field-label">{T.game.setup.bowType}</span>
-          <Segment
-            options={BOW_OPTIONS}
-            value={bowIsOther ? "" : bowType}
-            onChange={setBowType}
-            label={T.game.setup.bowType}
-            other={{
-              label: bowIsOther ? T.game.setup.otherValue(bowType) : T.game.setup.other,
-              on: bowIsOther,
-              onClick: openBowOther,
-            }}
-          />
-          {isInnerTenBow(bowType) && <span className="hint">{T.game.setup.innerTenHint}</span>}
-        </div>
-        <div className="field">
-          <span className="field-label">{T.game.setup.distance}</span>
-          <Segment
-            options={DISTANCE_OPTIONS}
-            value={distanceIsOther ? "" : String(distance)}
-            onChange={(value) => setDistance(Number(value))}
-            label={T.game.setup.distance}
-            other={{
-              label: distanceIsOther ? T.game.setup.otherValue(`${distance}m`) : T.game.setup.other,
-              on: distanceIsOther,
-              onClick: openDistanceOther,
-            }}
-          />
-        </div>
-        <div className="field">
-          <span className="field-label">{T.game.setup.targetType}</span>
-          <Segment
-            options={TARGET_OPTIONS}
-            value={targetIsOther ? "" : targetTypeId}
-            onChange={setTargetTypeId}
-            label={T.game.setup.targetType}
-            other={{
-              label: targetIsOther ? T.game.setup.otherValue(targetTypeId) : T.game.setup.other,
-              on: targetIsOther,
-              onClick: openTargetOther,
-            }}
-          />
-        </div>
-        <IntegerField
-          label={T.game.setup.endSize}
-          value={endSizeText}
-          onChange={setEndSizeText}
-          min={MIN_END_SIZE}
-          max={MAX_END_SIZE}
-          hint={T.game.setup.endSizeHint}
+        <GameSetupFields
+          draft={draft}
+          onChange={setDraft}
         />
-        <IntegerField
-          label={T.game.setup.roundSize}
-          value={roundSizeText}
-          onChange={setRoundSizeText}
-          min={MIN_ROUND_SIZE}
-          max={MAX_ROUND_SIZE}
-          hint={T.game.setup.roundSizeHint}
-        />
-        <IntegerField
-          label={T.game.setup.gameSize}
-          value={gameSizeText}
-          onChange={setGameSizeText}
-          min={MIN_GAME_SIZE}
-          max={MAX_GAME_SIZE}
-          hint={T.game.setup.gameSizeHint}
-        />
-        <IntegerField
-          label={T.game.setup.arrowDiameter}
-          value={arrowDiameterMmText}
-          onChange={setArrowDiameterMmText}
-          min={MIN_ARROW_DIAMETER_MM}
-          max={MAX_ARROW_DIAMETER_MM}
-          hint={T.game.setup.arrowDiameterHint(previewArrowPx)}
-          aside={
-            // 記入画面のズームに出すのと同じ部品・同じ大きさ。帯の線への届き方を設定する前に見られる
-            <div
-              className="SightPreview sight-preview ring-gold"
-              role="img"
-              aria-label={T.game.setup.sightPreview}
-            >
-              {previewArrowPx !== null && (
-                <ArrowSight
-                  arrowDiameterPx={previewArrowPx}
-                  zoom={lensZoom}
-                  ringClassName="ring-gold"
-                />
-              )}
-            </div>
-          }
-        />
-        <div className="field">
-          <label className="AllInField check-field">
-            <input
-              type="checkbox"
-              checked={allIn}
-              onChange={(e) => setAllIn(e.target.checked)}
-            />
-            {T.terms.allIn}
-          </label>
-          <span className="hint">{T.game.setup.allInHint}</span>
-        </div>
-
-        {endSize !== null && roundSize !== null && gameSize !== null && (
-          <p className="SetupSummary game-note muted">
-            {T.game.setup.summary(
-              endSize * roundSize * gameSize,
-              String(endSize),
-              String(roundSize),
-              String(gameSize),
-            )}
-          </p>
-        )}
-
       </div>
       {/* 設定の欄が長いので、開始はどこまで送っても押せるよう画面の下に留める */}
       <div className="SetupStart setup-start">
         <button
           type="button"
           className="primary large block"
-          disabled={sizes === null}
+          disabled={setup === null}
           onClick={start}
         >
           {T.game.setup.start}
         </button>
       </div>
-      {otherOpen === "bowType" && (
-        <OtherModal
-          title={T.game.setup.bowTypeOther}
-          onClose={() => setOtherOpen(null)}
-          canSubmit={trimmedDraftBowName !== ""}
-          onSubmit={() => {
-            setBowType(trimmedDraftBowName);
-            setOtherOpen(null);
-          }}
-        >
-          <input
-            type="text"
-            aria-label={T.game.setup.bowTypeOtherPlaceholder}
-            placeholder={T.game.setup.bowTypeOtherPlaceholder}
-            maxLength={BOW_TYPE_MAX_LENGTH}
-            value={draftBowName}
-            onChange={(e) => setDraftBowName(e.target.value)}
-            autoFocus
-          />
-        </OtherModal>
-      )}
-      {otherOpen === "distance" && (
-        <OtherModal
-          title={T.game.setup.distanceOther}
-          onClose={() => setOtherOpen(null)}
-          canSubmit={draftDistance !== null}
-          onSubmit={() => {
-            if (draftDistance === null) return;
-            setDistance(draftDistance);
-            setOtherOpen(null);
-          }}
-        >
-          <IntegerField
-            label={T.game.setup.distance}
-            value={draftDistanceText}
-            onChange={setDraftDistanceText}
-            min={MIN_DISTANCE_M}
-            max={MAX_DISTANCE_M}
-            autoFocus
-          />
-        </OtherModal>
-      )}
-      {otherOpen === "targetType" && (
-        <OtherModal
-          title={T.game.setup.targetTypeOther}
-          onClose={() => setOtherOpen(null)}
-          canSubmit={draftTargetSizeCm !== null}
-          onSubmit={() => {
-            if (draftTargetSizeCm === null) return;
-            setTargetTypeId(customTargetTypeId(draftTargetSizeCm));
-            setOtherOpen(null);
-          }}
-        >
-          <IntegerField
-            label={T.game.setup.targetSize}
-            value={draftTargetSizeText}
-            onChange={setDraftTargetSizeText}
-            min={MIN_TARGET_SIZE_CM}
-            max={MAX_TARGET_SIZE_CM}
-            autoFocus
-          />
-        </OtherModal>
-      )}
       <BackButton />
     </div>
   );

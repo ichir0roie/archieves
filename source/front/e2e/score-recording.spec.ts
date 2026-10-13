@@ -328,6 +328,50 @@ test("editing a saved game whose last end is full opens the next end", async ({ 
   await expect(page.locator("table tbody tr")).toHaveCount(2);
 });
 
+// 記入の途中で開くゲーム設定。変えた項目はゲームとすべてのラウンドに当て、数は記録した数より減らせない
+test("the game setup can be changed while recording", async ({ page }) => {
+  await startGame(page, { endSize: 3, roundSize: 2, gameSize: 2 });
+  await shoot(page, "10", 3);
+  await nextEnd(page);
+  await expect(currentEndNumber(page)).toHaveText("2");
+
+  await page.getByRole("button", { name: "ゲーム設定" }).click();
+  const dialog = page.getByRole("dialog", { name: "ゲーム設定" });
+  const ok = dialog.getByRole("button", { name: "決定" });
+  await expect(dialog.getByLabel("1エンドの矢数")).toHaveValue("3");
+  await dialog.getByLabel("1エンドの矢数").fill("2");
+  await expect(dialog.getByText("3〜100の整数で入力してください")).toBeVisible();
+  await expect(ok).toBeDisabled();
+
+  await dialog.getByLabel("1エンドの矢数").fill("6");
+  // 開けただけの 2 エンド目は数えないので、エンド数は 1 にできる
+  await dialog.getByLabel("エンド数").fill("1");
+  await dialog.getByRole("button", { name: "50m" }).click();
+  await ok.click();
+  await expect(dialog).toHaveCount(0);
+
+  await expect(currentEndNumber(page)).toHaveText("1");
+  await expect(recordedArrows(page)).toHaveText(["10", "10", "10"]);
+  await expect(page.locator(".RoundTotalsBar .EndTotalCell")).toHaveCount(1);
+  await shoot(page, "9", 3);
+
+  const saved = (await finishSheet(page)) as unknown as {
+    game_size: number;
+    rounds: Array<{
+      end_size: number;
+      round_size: number;
+      distance_m: number;
+      ends: Array<{ points: Array<{ score: number }> }>;
+    }>;
+  };
+  expect(saved.game_size).toBe(2);
+  expect(saved.rounds).toHaveLength(1);
+  expect(saved.rounds[0]).toMatchObject({ end_size: 6, round_size: 1, distance_m: 50 });
+  expect(saved.rounds[0].ends.map((end) => end.points.map((point) => point.score))).toEqual([
+    [10, 10, 10, 9, 9, 9],
+  ]);
+});
+
 test("an unsaved game comes back in the right round and end across a reload", async ({
   page,
 }) => {
