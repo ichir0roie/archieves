@@ -1490,6 +1490,7 @@ export interface components {
             profile_visibility: components["schemas"]["Visibility"];
             ranking_visibility: components["schemas"]["Visibility"];
             score_visibility: components["schemas"]["Visibility"];
+            diary_visibility: components["schemas"]["Visibility"];
         };
         /** OrganizationCreate */
         OrganizationCreate: {
@@ -1611,6 +1612,23 @@ export interface components {
             recorded_at?: string | null;
             /** Shot At */
             shot_at?: string | null;
+        };
+        /**
+         * ProfileGame
+         * @description プロフィールに並べる、スコアの公開ページへのリンクの一件。
+         */
+        ProfileGame: {
+            /** Game Id */
+            game_id: number;
+            /**
+             * Recorded At
+             * Format: date
+             */
+            recorded_at: string;
+            /** Arrow Count */
+            arrow_count: number;
+            /** Total Score */
+            total_score: number;
         };
         /**
          * RankedUser
@@ -1839,23 +1857,25 @@ export interface components {
         };
         /**
          * UserProfile
-         * @description A user's public profile: basic info plus their activity over a recent period.
+         * @description 利用者のプロフィール。基本情報と、直近のゲームの集計・スコア・日記。
+         *
+         *     recent_games・recent_diaries は、持ち主のスコア・日記の公開範囲が見る人に見せないとき None。
          */
         UserProfile: {
             user: components["schemas"]["UserRead"];
-            /**
-             * Period Start
-             * Format: date
-             */
-            period_start: string;
-            /**
-             * Period End
-             * Format: date
-             */
-            period_end: string;
+            /** Game Count */
+            game_count: number;
+            /** Period Start */
+            period_start: string | null;
+            /** Period End */
+            period_end: string | null;
             rounds: components["schemas"]["ScoreStatistics"];
             ends: components["schemas"]["ScoreStatistics"];
             points: components["schemas"]["ScoreStatistics"];
+            /** Recent Games */
+            recent_games: components["schemas"]["ProfileGame"][] | null;
+            /** Recent Diaries */
+            recent_diaries: components["schemas"]["DiaryRead"][] | null;
         };
         /**
          * UserRanking
@@ -1900,6 +1920,7 @@ export interface components {
             profile_visibility?: components["schemas"]["Visibility"] | null;
             ranking_visibility?: components["schemas"]["Visibility"] | null;
             score_visibility?: components["schemas"]["Visibility"] | null;
+            diary_visibility?: components["schemas"]["Visibility"] | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1912,7 +1933,7 @@ export interface components {
         };
         /**
          * Visibility
-         * @description プロフィール・ランキング・スコアを、本人のほかにだれへ見せるか。既定は private。
+         * @description プロフィール・ランキング・スコア・日記を、本人のほかにだれへ見せるか。既定は private。
          * @enum {string}
          */
         Visibility: "private" | "organization" | "public";

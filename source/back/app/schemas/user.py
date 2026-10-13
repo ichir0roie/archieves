@@ -27,9 +27,15 @@ class UserUpdate(BaseModel):
     profile_visibility: Visibility | None = None
     ranking_visibility: Visibility | None = None
     score_visibility: Visibility | None = None
+    diary_visibility: Visibility | None = None
 
     # 省略はそのまま、null は弾く(列は NOT NULL で、null を書くと 500 になる)
-    @field_validator("profile_visibility", "ranking_visibility", "score_visibility")
+    @field_validator(
+        "profile_visibility",
+        "ranking_visibility",
+        "score_visibility",
+        "diary_visibility",
+    )
     @classmethod
     def _reject_null_visibility(cls, value: Visibility | None) -> Visibility:
         if value is None:
@@ -49,3 +55,4 @@ class MeRead(UserRead):
     profile_visibility: Visibility
     ranking_visibility: Visibility
     score_visibility: Visibility
+    diary_visibility: Visibility

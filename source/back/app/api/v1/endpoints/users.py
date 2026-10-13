@@ -125,4 +125,4 @@ def get_user_profile(
 ) -> UserProfile:
     user = deps.get_or_404(user_crud.get_user, s, user_id, detail="User not found")
     deps.require_profile_visible(me, user)
-    return deps.get_or_404(profile_crud.get_user_profile, s, user.id, detail="User not found")
+    return profile_crud.get_user_profile(s, me, user)

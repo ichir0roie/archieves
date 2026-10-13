@@ -6011,6 +6011,9 @@
           },
           "score_visibility": {
             "$ref": "#/components/schemas/Visibility"
+          },
+          "diary_visibility": {
+            "$ref": "#/components/schemas/Visibility"
           }
         },
         "type": "object",
@@ -6024,7 +6027,8 @@
           "is_admin",
           "profile_visibility",
           "ranking_visibility",
-          "score_visibility"
+          "score_visibility",
+          "diary_visibility"
         ],
         "title": "MeRead",
         "description": "本人の行。管理者かどうか・公開範囲は本人にだけ返し、他人の行(UserRead)には載せない。"
@@ -6475,6 +6479,36 @@
         },
         "type": "object",
         "title": "PointUpdate"
+      },
+      "ProfileGame": {
+        "properties": {
+          "game_id": {
+            "type": "integer",
+            "title": "Game Id"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Recorded At"
+          },
+          "arrow_count": {
+            "type": "integer",
+            "title": "Arrow Count"
+          },
+          "total_score": {
+            "type": "integer",
+            "title": "Total Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "game_id",
+          "recorded_at",
+          "arrow_count",
+          "total_score"
+        ],
+        "title": "ProfileGame",
+        "description": "プロフィールに並べる、スコアの公開ページへのリンクの一件。"
       },
       "RankedUser": {
         "properties": {
@@ -7180,14 +7214,32 @@
           "user": {
             "$ref": "#/components/schemas/UserRead"
           },
+          "game_count": {
+            "type": "integer",
+            "title": "Game Count"
+          },
           "period_start": {
-            "type": "string",
-            "format": "date",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Period Start"
           },
           "period_end": {
-            "type": "string",
-            "format": "date",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Period End"
           },
           "rounds": {
@@ -7198,19 +7250,50 @@
           },
           "points": {
             "$ref": "#/components/schemas/ScoreStatistics"
+          },
+          "recent_games": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProfileGame"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recent Games"
+          },
+          "recent_diaries": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DiaryRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recent Diaries"
           }
         },
         "type": "object",
         "required": [
           "user",
+          "game_count",
           "period_start",
           "period_end",
           "rounds",
           "ends",
-          "points"
+          "points",
+          "recent_games",
+          "recent_diaries"
         ],
         "title": "UserProfile",
-        "description": "A user's public profile: basic info plus their activity over a recent period."
+        "description": "利用者のプロフィール。基本情報と、直近のゲームの集計・スコア・日記。\n\nrecent_games・recent_diaries は、持ち主のスコア・日記の公開範囲が見る人に見せないとき None。"
       },
       "UserRanking": {
         "properties": {
@@ -7386,6 +7469,16 @@
                 "type": "null"
               }
             ]
+          },
+          "diary_visibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Visibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -7432,7 +7525,7 @@
           "public"
         ],
         "title": "Visibility",
-        "description": "プロフィール・ランキング・スコアを、本人のほかにだれへ見せるか。既定は private。"
+        "description": "プロフィール・ランキング・スコア・日記を、本人のほかにだれへ見せるか。既定は private。"
       }
     },
     "securitySchemes": {

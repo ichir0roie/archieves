@@ -12,9 +12,14 @@ export function isPublicPath(pathname: string): boolean {
   return pathname === SCORE_SHARE_PATH || pathname.startsWith(`${SCORE_SHARE_PATH}/`);
 }
 
+/** gameIds を載せた公開ページのパス。同じアプリの中から Link で開くときに使う */
+export function scoreSharePath(gameIds: ReadonlyArray<number>): string {
+  return `${SCORE_SHARE_PATH}?${SCORE_SHARE_IDS_PARAM}=${gameIds.join(",")}`;
+}
+
 /** gameIds を載せた公開ページの URL。origin はブラウザの location.origin */
 export function scoreShareUrl(origin: string, gameIds: ReadonlyArray<number>): string {
-  return `${origin}${SCORE_SHARE_PATH}?${SCORE_SHARE_IDS_PARAM}=${gameIds.join(",")}`;
+  return `${origin}${scoreSharePath(gameIds)}`;
 }
 
 /** クエリの `ids` を id の並びに。数でないもの・重なりは捨て、多すぎる分は切る */

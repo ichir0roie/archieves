@@ -48,6 +48,7 @@ export type ScoreStatistics = Schemas['ScoreStatistics'];
 export type GameKindOptions = Schemas['GameKindOptions'];
 export type UserCreate = Schemas['UserCreate'];
 export type MeRead = Schemas['MeRead'];
+export type ProfileGame = Schemas['ProfileGame'];
 export type UserProfile = Schemas['UserProfile'];
 export type UserRanking = Schemas['UserRanking'];
 export type UserRead = Schemas['UserRead'];

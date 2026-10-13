@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
+import DiaryCell from "@/components/DiaryCell";
 import PageHeader from "@/components/PageHeader";
 import StatSummaryCard from "@/components/StatSummaryCard";
 import VisibilitySettings from "@/components/VisibilitySettings";
@@ -13,6 +14,8 @@ import {
   getUserProfile,
 } from "@/lib/api";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
+import { formatDateTime } from "@/lib/formatDateTime";
+import { scoreSharePath } from "@/lib/scoreShare";
 import { useT, type Texts } from "@/lib/text";
 
 function formatDate(T: Texts, value: string): string {
@@ -65,7 +68,13 @@ export default function Page() {
             </div>
             {organization && <Link href={`/organization/${organization.id}`}>{organization.name}</Link>}
             <span className="muted small">
-              {T.profile.view.period(formatDate(T, profile.period_start), formatDate(T, profile.period_end))}
+              {profile.period_start && profile.period_end
+                ? T.profile.view.period(
+                    profile.game_count,
+                    formatDate(T, profile.period_start),
+                    formatDate(T, profile.period_end),
+                  )
+                : T.profile.view.noGames}
             </span>
           </section>
 
@@ -86,6 +95,48 @@ export default function Page() {
               stats={profile.points}
             />
           </div>
+
+          {/* スコア・日記は、持ち主の公開範囲が見せないとき API が null を返す。そのときは欄ごと出さない */}
+          {profile.recent_games && (
+            <section className="ProfileRecentScores panel stack tight">
+              <h2>{T.profile.view.recentScores}</h2>
+              {profile.recent_games.length === 0 ? (
+                <p className="status empty">{T.profile.view.noGames}</p>
+              ) : (
+                profile.recent_games.map((game) => (
+                  <Link
+                    key={game.game_id}
+                    href={scoreSharePath([game.game_id])}
+                  >
+                    {T.profile.view.scoreLink(
+                      formatDate(T, game.recorded_at),
+                      game.total_score,
+                      game.arrow_count,
+                    )}
+                  </Link>
+                ))
+              )}
+            </section>
+          )}
+
+          {profile.recent_diaries && (
+            <section className="ProfileRecentDiaries stack tight">
+              <span className="section-label">{T.profile.view.recentDiaries}</span>
+              {profile.recent_diaries.length === 0 ? (
+                <p className="status empty">{T.profile.view.noDiaries}</p>
+              ) : (
+                <div className="DiaryCells">
+                  {profile.recent_diaries.map((diary) => (
+                    <DiaryCell
+                      key={diary.id}
+                      diary={diary}
+                      date={formatDateTime(diary.created_at)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {isMe && <VisibilitySettings />}
         </>
