@@ -114,6 +114,9 @@ export const profile: typeof ja = {
         day: "numeric",
       }),
     gameComment: "Game comment",
+    distance: t.distance,
+    targetSize: "Target size",
+    bowType: t.bowType,
   },
   trash: {
     title: "Trash",

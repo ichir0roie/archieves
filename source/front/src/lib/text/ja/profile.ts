@@ -111,6 +111,9 @@ export const profile = {
       return `${year}年${month}月${day}日`;
     },
     gameComment: `${t.game}の${t.comment}`,
+    distance: t.distance,
+    targetSize: "的の大きさ",
+    bowType: t.bowType,
   },
   trash: {
     title: "ゴミ箱",
