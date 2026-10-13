@@ -3,6 +3,7 @@ import { type CommentTarget } from "@/lib/comment";
 import { toDateOnly } from "@/lib/toDateOnly";
 import {
   DEFAULT_ARROW_DIAMETER_MM,
+  DEFAULT_BOW_TYPE,
   DEFAULT_DISTANCE_M,
   DEFAULT_END_SIZE,
   DEFAULT_GAME_SIZE,
@@ -61,6 +62,10 @@ function startOfDate(date: string): Date {
 
 function hasComment(entity: { comment: string | null }): boolean {
   return entity.comment !== null && entity.comment.trim() !== "";
+}
+
+function isBlankEnd(end: SheetEnd): boolean {
+  return end.points.length === 0 && !hasComment(end);
 }
 
 /** API の応答を、手元の形にする(読むだけの欄を落とす) */
@@ -323,6 +328,96 @@ export class ScoreManager {
       this.ends.length >= this.roundSize &&
       this.sheet.rounds.length >= this.gameSize
     );
+  }
+
+  // ---- ゲームの設定 ----
+
+  /** 設定のモーダルに出す今の設定。ラウンドごとの値(距離・的・数)は今のラウンドのもの */
+  get gameSetup(): RoundSetup {
+    return {
+      bowType: this.bowType ?? this.setup?.bowType ?? DEFAULT_BOW_TYPE,
+      distanceM: this.currentRound?.distance_m ?? this.setup?.distanceM ?? DEFAULT_DISTANCE_M,
+      targetType: this.targetType,
+      endSize: this.endSize,
+      roundSize: this.roundSize,
+      gameSize: this.gameSize,
+      arrowDiameterMm: this.arrowDiameterMm,
+      allIn: this.allIn,
+    };
+  }
+
+  /** 最後のラウンドの、末尾の矢もコメントも無いエンド(開けただけのもの)の数 */
+  private get blankTailEnds(): number {
+    const ends = this.sheet.rounds[this.sheet.rounds.length - 1]?.ends ?? [];
+    let count = 0;
+    while (count < ends.length && isBlankEnd(ends[ends.length - 1 - count])) count += 1;
+    return count;
+  }
+
+  /** 最後のラウンドが、矢もコメントも無い(開けただけのもの) */
+  private get isLastRoundBlank(): boolean {
+    const round = this.sheet.rounds[this.sheet.rounds.length - 1];
+    return round !== undefined && !hasComment(round) && round.ends.every(isBlankEnd);
+  }
+
+  /**
+   * 設定で小さくできる数の下限。記録した矢・エンド・ラウンドの数。最後のラウンドの末尾の開けただけの
+   * エンドと、開けただけの最後のラウンドは数えない(設定を小さくしたら外す。applySetup)
+   */
+  get setupMinSizes(): { endSize: number; roundSize: number; gameSize: number } {
+    const rounds = this.sheet.rounds;
+    const endCounts = rounds.map((round) => round.ends.length);
+    if (endCounts.length > 0) endCounts[endCounts.length - 1] -= this.blankTailEnds;
+    return {
+      endSize: Math.max(0, ...rounds.flatMap((round) => round.ends.map((end) => end.points.length))),
+      roundSize: Math.max(0, ...endCounts),
+      gameSize: rounds.length - (this.isLastRoundBlank ? 1 : 0),
+    };
+  }
+
+  /**
+   * ゲームの設定を変える。変えた値だけを書き、ラウンドごとの値はすべてのラウンドに当てる
+   * (ゲームの中のラウンドは同じ設定。取り込んだ古いゲームのラウンドごとに違う値は、変えなければ残す)。
+   * 数は setupMinSizes より小さくしない前提。記録済みの矢の点数は、的を変えても付け直さない
+   */
+  applySetup(next: RoundSetup) {
+    const current = this.gameSetup;
+    if (next.bowType !== current.bowType) this.sheet.bow_type = next.bowType;
+    if (next.arrowDiameterMm !== current.arrowDiameterMm) {
+      this.sheet.arrow_diameter_mm = next.arrowDiameterMm;
+    }
+    if (next.allIn !== current.allIn) this.sheet.all_in = next.allIn;
+    if (next.gameSize !== current.gameSize) this.sheet.game_size = next.gameSize;
+    for (const round of this.sheet.rounds) {
+      if (next.distanceM !== current.distanceM) round.distance_m = next.distanceM;
+      if (next.targetType !== current.targetType) round.target_type = next.targetType;
+      if (next.endSize !== current.endSize) round.end_size = next.endSize;
+      if (next.roundSize !== current.roundSize) round.round_size = next.roundSize;
+    }
+    if (this.setup) this.setup = { ...next };
+
+    // 数を小さくして溢れた、開けただけのラウンド・エンドを外し、いちばん後ろのエンドを見る
+    const rounds = this.sheet.rounds;
+    let trimmed = false;
+    if (rounds.length > this.gameSize && this.isLastRoundBlank) {
+      rounds.pop();
+      trimmed = true;
+    }
+    const lastRound = rounds[rounds.length - 1];
+    while (
+      lastRound &&
+      lastRound.ends.length > (lastRound.round_size ?? next.roundSize) &&
+      this.blankTailEnds > 0
+    ) {
+      lastRound.ends.pop();
+      trimmed = true;
+    }
+    if (trimmed) {
+      this.roundIndex = rounds.length - 1;
+      this.endIndex = Math.max((lastRound?.ends.length ?? 0) - 1, 0);
+    }
+    this.clampPosition();
+    this.changed();
   }
 
   // ---- コメント ----

@@ -7,6 +7,7 @@ import { type SheetPoint } from "@/lib/score/scoreSheetCache";
 import { toErrorDetails, type ErrorDetails } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { type CommentTarget } from "@/lib/comment";
+import { type RoundSetup } from "@/lib/score/scoreConfig";
 
 /** The notes shown on the entry screen: the game's, and the round/end in progress. */
 export interface ScoreComments {
@@ -123,6 +124,10 @@ export function useScoreGame() {
     act((scoreManager) => scoreManager.saveComment(target, body));
   }
 
+  function applySetup(setup: RoundSetup) {
+    act((scoreManager) => scoreManager.applySetup(setup));
+  }
+
   async function save() {
     await sendToApi((scoreManager) => scoreManager.save());
   }
@@ -153,6 +158,7 @@ export function useScoreGame() {
     forwardPoint,
     backEnd,
     forwardEnd,
+    applySetup,
     save,
     finish,
     error,
