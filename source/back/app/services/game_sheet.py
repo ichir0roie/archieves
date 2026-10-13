@@ -27,6 +27,7 @@ from app.schemas.game_sheet import (
     PointSheetWrite,
     RoundSheetRead,
     RoundSheetWrite,
+    SharedGameRead,
 )
 
 
@@ -191,4 +192,17 @@ def read_game_sheet(game: Game) -> GameSheetRead:
             )
             for round_ in game.rounds
         ],
+    )
+
+
+def read_shared_game(game: Game) -> SharedGameRead:
+    """list_shared_game_sheets で持ち主ごと読み込んだゲームを、公開ページの応答の形にする。"""
+    sheet = read_game_sheet(game)
+    return SharedGameRead(
+        id=sheet.id,
+        owner_name=game.user.name,
+        recorded_at=sheet.recorded_at,
+        bow_type=sheet.bow_type,
+        comment=sheet.comment,
+        rounds=sheet.rounds,
     )

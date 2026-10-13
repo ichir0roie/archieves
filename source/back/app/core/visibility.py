@@ -3,7 +3,7 @@ from typing import Protocol
 
 
 class Visibility(StrEnum):
-    """プロフィール・ランキングを、本人のほかにだれへ見せるか。既定は private。"""
+    """プロフィール・ランキング・スコアを、本人のほかにだれへ見せるか。既定は private。"""
 
     PRIVATE = "private"
     # 同じ組織(users.organization_id)の利用者だけ

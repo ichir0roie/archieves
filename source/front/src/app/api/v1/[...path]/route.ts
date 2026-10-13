@@ -29,6 +29,8 @@ const USER_HEADERS = {
 } as const;
 // ログインの前に叩かれるもの(死活の確かめ)
 const PUBLIC_PATHS = new Set(["health"]);
+// ログインしていなくても通す API(スコアの公開ページ)。ログインしていれば利用者を渡し、API が公開範囲を当てる
+const OPTIONAL_USER_PREFIX = "public/";
 const FORWARDED_REQUEST_HEADERS = ["content-type", "accept"];
 const FORWARDED_RESPONSE_HEADERS = ["content-type", "content-disposition", "cache-control", "location"];
 
@@ -128,11 +130,11 @@ async function forward(request: NextRequest, context: Context): Promise<Response
   }
   if (API_KEY) headers.set(API_KEY_HEADER, API_KEY);
 
-  if (!PUBLIC_PATHS.has(joined)) {
-    const user = await verifiedUser();
-    if (user === null) {
-      return Response.json({ detail: T.api.signInRequired }, { status: 401 });
-    }
+  const user = PUBLIC_PATHS.has(joined) ? null : await verifiedUser();
+  if (user === null && !PUBLIC_PATHS.has(joined) && !joined.startsWith(OPTIONAL_USER_PREFIX)) {
+    return Response.json({ detail: T.api.signInRequired }, { status: 401 });
+  }
+  if (user !== null) {
     if (signer === null) {
       headers.set("authorization", `Bearer ${user.token}`);
     }

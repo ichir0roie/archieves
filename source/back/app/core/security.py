@@ -27,6 +27,8 @@ from pydantic import BaseModel
 from app.core.config import debug_settings, settings
 
 bearer_scheme = HTTPBearer()
+# ログインしていなくても通すエンドポイント用。Authorization が無ければ None にする
+optional_bearer_scheme = HTTPBearer(auto_error=False)
 
 # AUTH_MODE=proxy で利用者を受けるヘッダー(値は URL エンコード)
 USER_SUB_HEADER = "x-archieves-user-sub"
@@ -129,4 +131,38 @@ get_current_user = {
     "cognito": cognito_user,
     "proxy": proxied_user,
     "mock": mock_user,
+}[debug_settings.AUTH_MODE]
+
+
+# 以下は、ログインしていなくても通すエンドポイント(公開の範囲だけを返すもの)が使う。
+# 利用者が分かれば Claims、ログインしていなければ None。ログインしている印があるのに確かめられない
+# (トークンが壊れている・切れている)ときは、ログインしていない扱いにせず 401 にする
+
+
+def optional_cognito_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(optional_bearer_scheme)],
+) -> Claims | None:
+    if credentials is None:
+        return None
+    return cognito_user(credentials)
+
+
+def optional_proxied_user(request: Request) -> Claims | None:
+    if _header(request, USER_SUB_HEADER) is None:
+        return None
+    return proxied_user(request)
+
+
+def optional_mock_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(optional_bearer_scheme)],
+) -> Claims | None:
+    if credentials is None:
+        return None
+    return mock_user(credentials)
+
+
+get_optional_current_user = {
+    "cognito": optional_cognito_user,
+    "proxy": optional_proxied_user,
+    "mock": optional_mock_user,
 }[debug_settings.AUTH_MODE]

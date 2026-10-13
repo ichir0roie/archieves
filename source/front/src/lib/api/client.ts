@@ -33,6 +33,7 @@ import type {
   RoundCommentRead,
   RoundRead,
   RoundScoreSummary,
+  SharedGameRead,
   ScoreStatistics,
   GameKindOptions,
   GameSheetRead,
@@ -367,6 +368,16 @@ export function listGamesOfYear(userId: number, year: number): Promise<GameRead[
 /** その年のゲームごとの合計点・エンド平均・ポイント平均 */
 export function listGameScoresOfYear(userId: number, year: number): Promise<GameScoreSummary[]> {
   return request(`/games/scores?user_id=${userId}&year=${year}`);
+}
+
+/**
+ * スコアの公開ページに出すゲーム。ログインしていなくても読める。持ち主のスコアの公開範囲が
+ * 見せないもの・無いもの・消したものは、区別されずに外れる。日付の古い順
+ */
+export function listSharedScores(gameIds: ReadonlyArray<number>): Promise<SharedGameRead[]> {
+  const query = new URLSearchParams();
+  for (const id of gameIds) query.append('game_ids', String(id));
+  return request(`/public/scores?${query}`);
 }
 
 /** ゲームのある年。新しい年が先 */

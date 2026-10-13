@@ -199,6 +199,45 @@ def test_proxied_user_raises_401_without_a_user() -> None:
 def test_get_current_user_is_chosen_by_auth_mode() -> None:
     # conftest が AUTH_MODE=cognito にしてから import している
     assert security.get_current_user is security.cognito_user
+    assert security.get_optional_current_user is security.optional_cognito_user
+
+
+def test_optional_users_are_none_without_a_sign_in() -> None:
+    assert security.optional_cognito_user(None) is None
+    assert security.optional_mock_user(None) is None
+    assert security.optional_proxied_user(_request()) is None
+
+
+def test_optional_cognito_user_returns_claims_for_a_valid_token(
+    cognito_auth: None,
+    private_pem: str,
+) -> None:
+    claims = security.optional_cognito_user(_credentials(_make_token(private_pem)))
+
+    assert claims is not None
+    assert claims.sub == "cognito-user-sub"
+
+
+def test_optional_cognito_user_raises_401_for_an_invalid_token(cognito_auth: None) -> None:
+    # トークンを送ってきたのに確かめられないときは、ログインしていない扱いにしない
+    with pytest.raises(HTTPException) as exc_info:
+        security.optional_cognito_user(_credentials("not-a-jwt"))
+
+    assert exc_info.value.status_code == 401
+
+
+def test_optional_mock_and_proxied_users_return_the_signed_in_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(debug_settings, "MOCK_USER_SUB", "mock-sub")
+
+    mock_claims = security.optional_mock_user(_credentials("ignored"))
+    proxied_claims = security.optional_proxied_user(_request(x_archieves_user_sub="proxy-sub"))
+
+    assert mock_claims is not None
+    assert mock_claims.sub == "mock-sub"
+    assert proxied_claims is not None
+    assert proxied_claims.sub == "proxy-sub"
 
 
 def test_get_jwks_fetches_the_userpool_keys_once(

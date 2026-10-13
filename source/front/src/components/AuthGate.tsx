@@ -13,6 +13,7 @@ import {
   subscribeCachedAppUser,
 } from "@/lib/storage";
 import LegalLinks from "@/components/LegalLinks";
+import { isPublicPath } from "@/lib/scoreShare";
 import { useT } from "@/lib/text";
 import {
   DEFAULT_LOCALE,
@@ -83,8 +84,14 @@ function AgreementFooter() {
 
 const AUTHENTICATOR_COMPONENTS = { Footer: AgreementFooter };
 
-/** 画面全体を一度だけ包む(app/layout.tsx)。ログインしていなければ Amplify のログインの画面を出す。 */
+/** 画面全体を一度だけ包む(app/layout.tsx)。ログインしていなければ Amplify のログインの画面を出す(公開の画面を除く)。 */
 export default function AuthGate({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  // ログインしていなくても見せる画面(スコアの公開ページ)。ログインの画面も登録の確かめも挟まない。
+  // ログインしていればクッキーのトークンを route handler が読み、API が公開範囲を当てる
+  if (isPublicPath(pathname)) {
+    return <>{children}</>;
+  }
   if (isMockAuth()) {
     return <RegistrationGate>{children}</RegistrationGate>;
   }

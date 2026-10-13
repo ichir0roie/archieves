@@ -133,6 +133,7 @@ def test_visibility_defaults_to_private(client: TestClient) -> None:
     me = client.get("/api/v1/users/me").json()
     assert me["profile_visibility"] == "private"
     assert me["ranking_visibility"] == "private"
+    assert me["score_visibility"] == "private"
 
 
 def test_update_visibility(client: TestClient) -> None:
@@ -140,11 +141,16 @@ def test_update_visibility(client: TestClient) -> None:
 
     response = client.patch(
         f"/api/v1/users/{me['id']}",
-        json={"profile_visibility": "organization", "ranking_visibility": "public"},
+        json={
+            "profile_visibility": "organization",
+            "ranking_visibility": "public",
+            "score_visibility": "public",
+        },
     )
     assert response.status_code == 200
     assert response.json()["profile_visibility"] == "organization"
     assert response.json()["ranking_visibility"] == "public"
+    assert response.json()["score_visibility"] == "public"
     assert client.get("/api/v1/users/me").json()["ranking_visibility"] == "public"
 
 
@@ -153,6 +159,8 @@ def test_update_visibility(client: TestClient) -> None:
     [
         {"profile_visibility": "friends"},
         {"ranking_visibility": None},
+        {"score_visibility": "friends"},
+        {"score_visibility": None},
     ],
 )
 def test_update_rejects_an_unknown_or_null_visibility(client: TestClient, payload: dict) -> None:

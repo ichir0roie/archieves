@@ -10,12 +10,13 @@ export const profile: typeof ja = {
     organization: t.affiliation,
     profileVisibility: "Who can see your profile",
     rankingVisibility: "Who can see you in the ranking",
+    scoreVisibility: "Who can see your scores",
     visibility: {
       private: "Only me",
       organization: "My group",
       public: "Everyone",
     } satisfies Record<Visibility, string>,
-    visibilityHint: `"My group" shows it only to people with the same ${t.affiliation.toLowerCase()} (same as "Only me" if you have none). With "Only me" you are not listed in the ranking, even for yourself.`,
+    visibilityHint: `"My group" shows it only to people with the same ${t.affiliation.toLowerCase()} (same as "Only me" if you have none). With "Only me" you are not listed in the ranking, even for yourself. Scores shared with "Everyone" can be opened from the share URL without signing in.`,
   },
   view: {
     title: t.profile,
@@ -97,6 +98,22 @@ export const profile: typeof ja = {
     pointAverage: "Arrow avg",
     count: (count: number) => (count === 1 ? "1 game" : `${count} games`),
     trash: "Trash",
+    copyShareUrl: "Copy share URL",
+    copiedShareUrl: "Copied",
+    shareUrlPrompt: "Share URL",
+  },
+  scoreShare: {
+    title: "Shared scores",
+    noGames: "No scores were specified.",
+    empty: "No scores to show. They are private or have been deleted.",
+    count: (count: number) => (count === 1 ? "1 game" : `${count} games`),
+    date: (date: string) =>
+      new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }),
+    gameComment: "Game comment",
   },
   trash: {
     title: "Trash",

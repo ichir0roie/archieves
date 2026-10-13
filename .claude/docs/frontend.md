@@ -31,6 +31,7 @@ Next.js(App Router)・React 19。スマホで使う前提の画面が多い。
 
 - `NEXT_PUBLIC_AUTH_MODE=mock` なら Amplify を通さず `NEXT_PUBLIC_MOCK_USER_*` の利用者としてログインした扱いにし、`Bearer mock-token-<sub>` を送る。API の `AUTH_MODE=mock` と揃える
 - `cognito` なら Amplify の `Authenticator` でログインし、ID トークンを送る
+- スコアの公開ページ(`/score-share`。`src/lib/scoreShare.ts` の `isPublicPath`)はログインしていなくても開ける。`AuthGate` の `Authenticator` と登録の確かめ、メニュー(`Nav`)、エラーでホームへ戻すこと(`ApiErrorRedirect`)を外す。route handler は `public/*` の API を、ログインしていなければ利用者なしで流す
 - `AuthGate.tsx` は `amplify_outputs.json` を import するので、`predev`・`pretypecheck`・`pretest:e2e` が `amplify_outputs.example.json` から写す(`scripts/ensure-amplify-outputs.mjs`)。本物は `npx ampx sandbox` が書く(git には入れない)
 
 ## 状態
