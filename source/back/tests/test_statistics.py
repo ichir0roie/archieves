@@ -1,5 +1,6 @@
 from datetime import date
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -126,6 +127,26 @@ def test_round_score_summary_filters_by_period(client: TestClient) -> None:
     body = res.json()
     assert body["count"] == 1
     assert body["total"] == 2
+
+
+@pytest.mark.parametrize("kind", ["rounds", "ends", "points"])
+def test_score_summary_filters_by_both_period_bounds(client: TestClient, kind: str) -> None:
+    game = _create_game(client)
+    for recorded_at, score in [
+        ("2026-01-01T00:00:00Z", 10),
+        ("2026-02-01T00:00:00Z", 8),
+        ("2026-03-01T00:00:00Z", 6),
+    ]:
+        _build_round(client, game["id"], recorded_at=recorded_at, scores=[score])
+
+    res = client.get(
+        f"/api/v1/statistics/{kind}/summary",
+        params={"start": "2026-01-15T00:00:00Z", "end": "2026-02-15T00:00:00Z"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["count"] == 1
+    assert body["total"] == 8
 
 
 def test_round_score_summary_filters_by_user(client: TestClient) -> None:
