@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,47 +12,6 @@ def _create_user(client: TestClient) -> dict:
     res = client.post("/api/v1/users/me/ensure", json={"name": "Yumi"})
     assert res.status_code == 200
     return res.json()
-
-
-def _create_game(client: TestClient, user_id: int, recorded_at: date) -> dict:
-    res = client.post(
-        "/api/v1/games", json={"recorded_at": recorded_at.isoformat(), "user_id": user_id}
-    )
-    assert res.status_code == 201
-    return res.json()
-
-
-def _build_round(
-    client: TestClient, game_id: int, recorded_at: date, scores: list[int]
-) -> None:
-    round_res = client.post(
-        f"/api/v1/games/{game_id}/rounds",
-        json={
-            "number": 1,
-            "recorded_at": recorded_at.isoformat(),
-            "end_size": len(scores),
-            "distance_m": 30,
-            "target_type": "122cm",
-        },
-    )
-    assert round_res.status_code == 201
-    end_res = client.post(
-        f"/api/v1/rounds/{round_res.json()['id']}/ends",
-        json={"number": 1, "recorded_at": recorded_at.isoformat()},
-    )
-    assert end_res.status_code == 201
-    for i, score in enumerate(scores):
-        point_res = client.post(
-            f"/api/v1/ends/{end_res.json()['id']}/points",
-            json={
-                "number": i + 1,
-                "score": score,
-                "x": 0.0,
-                "y": 0.0,
-                "recorded_at": recorded_at.isoformat(),
-            },
-        )
-        assert point_res.status_code == 201
 
 
 def test_get_user_profile_returns_basic_info(client: TestClient) -> None:
@@ -86,26 +45,124 @@ def test_get_other_users_profile_is_viewable(client: TestClient, s: Session) -> 
     assert body["user"]["sub"] == "someone-elses-sub"
 
 
-def test_user_profile_only_counts_last_year_activity(client: TestClient) -> None:
-    user = _create_user(client)
-    now = date.today()
+def test_user_profile_summarizes_the_latest_100_games(
+    client: TestClient, current_user, factories, monkeypatch
+) -> None:
+    monkeypatch.setattr(profile_crud, "SUMMARY_GAME_COUNT", 2)
+    today = date.today()
+    for days_ago, score in [(1, 9), (2, 8), (3, 10)]:
+        game = factories.GameFactory(
+            user=current_user,
+            recorded_at=today - timedelta(days=days_ago),
+        )
+        factories.PointFactory.create_batch(
+            3,
+            end=factories.EndFactory(round=factories.RoundFactory(game=game)),
+            score=score,
+        )
+    # 消したゲームは数えない
+    factories.GameFactory(user=current_user, recorded_at=today, deleted_at=datetime.now(UTC))
 
-    recent_game = _create_game(client, user["id"], now - timedelta(days=10))
-    _build_round(client, recent_game["id"], now - timedelta(days=10), scores=[9, 8, 7])
-
-    old_game = _create_game(client, user["id"], now - timedelta(days=400))
-    _build_round(client, old_game["id"], now - timedelta(days=400), scores=[10, 10, 10])
-
-    res = client.get(f"/api/v1/users/{user['id']}/profile")
-    assert res.status_code == 200
-    body = res.json()
-    assert body["rounds"]["count"] == 1
-    assert body["rounds"]["total"] == 24
-    assert body["points"]["count"] == 3
+    body = client.get(f"/api/v1/users/{current_user.id}/profile").json()
+    assert body["game_count"] == 2
+    assert body["period_start"] == (today - timedelta(days=2)).isoformat()
+    assert body["period_end"] == (today - timedelta(days=1)).isoformat()
+    assert body["rounds"]["count"] == 2
+    assert body["rounds"]["total"] == 27 + 24
+    assert body["points"]["count"] == 6
 
 
-def test_profile_of_a_user_id_that_does_not_exist_is_none(s: Session) -> None:
-    assert profile_crud.get_user_profile(s, 999) is None
+def test_user_profile_without_games(client: TestClient, current_user) -> None:
+    body = client.get(f"/api/v1/users/{current_user.id}/profile").json()
+    assert body["game_count"] == 0
+    assert body["period_start"] is None
+    assert body["period_end"] is None
+    assert body["recent_game_ids"] == []
+    assert body["recent_diaries"] == []
+
+
+def test_user_profile_lists_the_latest_10_games(
+    client: TestClient, current_user, factories
+) -> None:
+    today = date.today()
+    games = [
+        factories.GameFactory(user=current_user, recorded_at=today - timedelta(days=days_ago))
+        for days_ago in range(12)
+    ]
+    # 消したゲームは外す
+    factories.GameFactory(user=current_user, recorded_at=today, deleted_at=datetime.now(UTC))
+
+    body = client.get(f"/api/v1/users/{current_user.id}/profile").json()
+    assert body["recent_game_ids"] == [game.id for game in games[:10]]
+
+
+def test_user_profile_lists_the_latest_10_diaries(
+    client: TestClient, current_user, factories
+) -> None:
+    diaries = [factories.DiaryFactory(user=current_user) for _ in range(12)]
+    factories.DiaryFactory(user=current_user, deleted_at=datetime.now(UTC))
+
+    recent = client.get(f"/api/v1/users/{current_user.id}/profile").json()["recent_diaries"]
+    assert [diary["id"] for diary in recent] == [diary.id for diary in reversed(diaries[2:])]
+    assert recent[0]["body"] == diaries[-1].body
+
+
+@pytest.mark.parametrize(
+    ("score_visibility", "diary_visibility", "same_organization", "shows_games", "shows_diaries"),
+    [
+        ("private", "private", True, False, False),
+        ("public", "private", False, True, False),
+        ("private", "public", False, False, True),
+        ("organization", "organization", True, True, True),
+        ("organization", "organization", False, False, False),
+    ],
+)
+def test_other_users_scores_and_diaries_follow_their_visibility(
+    client: TestClient,
+    current_user,
+    factories,
+    score_visibility: str,
+    diary_visibility: str,
+    same_organization: bool,
+    shows_games: bool,
+    shows_diaries: bool,
+) -> None:
+    organization = factories.OrganizationFactory()
+    current_user.organization_id = organization.id
+    other = factories.UserFactory(
+        sub="other-sub",
+        profile_visibility="public",
+        score_visibility=score_visibility,
+        diary_visibility=diary_visibility,
+        organization_id=(organization if same_organization else factories.OrganizationFactory()).id,
+    )
+    game = factories.GameFactory(user=other)
+    diary = factories.DiaryFactory(user=other)
+
+    body = client.get(f"/api/v1/users/{other.id}/profile").json()
+    if shows_games:
+        assert body["recent_game_ids"] == [game.id]
+    else:
+        assert body["recent_game_ids"] is None
+    if shows_diaries:
+        assert [d["id"] for d in body["recent_diaries"]] == [diary.id]
+    else:
+        assert body["recent_diaries"] is None
+    # 集計は、プロフィールが見えれば見せる
+    assert body["game_count"] == 1
+
+
+def test_own_private_scores_and_diaries_are_shown_to_me(
+    client: TestClient, current_user, factories
+) -> None:
+    assert current_user.score_visibility == "private"
+    assert current_user.diary_visibility == "private"
+    game = factories.GameFactory(user=current_user)
+    diary = factories.DiaryFactory(user=current_user)
+
+    body = client.get(f"/api/v1/users/{current_user.id}/profile").json()
+    assert body["recent_game_ids"] == [game.id]
+    assert [d["id"] for d in body["recent_diaries"]] == [diary.id]
 
 
 @pytest.mark.parametrize(

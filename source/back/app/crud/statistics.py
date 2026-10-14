@@ -32,8 +32,14 @@ class GameKindFilter:
     game_size: int | None = None
 
 
-def _where_kind(stmt: Select, kind: GameKindFilter | None) -> Select:
-    """Game と Round を join 済みの stmt を種別で絞る。"""
+def _where_kind(
+    stmt: Select,
+    kind: GameKindFilter | None,
+    game_ids: Select[tuple[int]] | None = None,
+) -> Select:
+    """Game と Round を join 済みの stmt を種別と、game_ids(Game.id を返す select)で絞る。"""
+    if game_ids is not None:
+        stmt = stmt.where(Game.id.in_(game_ids))
     if kind is None:
         return stmt
     conditions = [
@@ -77,6 +83,7 @@ def _round_totals(
     end: date | None,
     user_id: int | None,
     kind: GameKindFilter | None,
+    game_ids: Select[tuple[int]] | None = None,
 ) -> Select:
     stmt = (
         select(
@@ -100,7 +107,7 @@ def _round_totals(
         stmt = stmt.where(Round.recorded_at <= end)
     if user_id is not None:
         stmt = stmt.where(Game.user_id == user_id)
-    return _where_kind(stmt, kind)
+    return _where_kind(stmt, kind, game_ids)
 
 
 def _end_totals(
@@ -108,6 +115,7 @@ def _end_totals(
     end: date | None,
     user_id: int | None,
     kind: GameKindFilter | None,
+    game_ids: Select[tuple[int]] | None = None,
 ) -> Select:
     stmt = (
         select(
@@ -131,7 +139,7 @@ def _end_totals(
         stmt = stmt.where(End.recorded_at <= end)
     if user_id is not None:
         stmt = stmt.where(Game.user_id == user_id)
-    return _where_kind(stmt, kind)
+    return _where_kind(stmt, kind, game_ids)
 
 
 def list_round_scores(
@@ -185,8 +193,9 @@ def round_score_statistics(
     end: date | None = None,
     user_id: int | None = None,
     kind: GameKindFilter | None = None,
+    game_ids: Select[tuple[int]] | None = None,
 ) -> ScoreStatistics:
-    totals = _round_totals(start, end, user_id, kind).order_by(None).subquery()
+    totals = _round_totals(start, end, user_id, kind, game_ids).order_by(None).subquery()
     return _statistics(s, totals.c.total_score)
 
 
@@ -197,8 +206,9 @@ def end_score_statistics(
     end: date | None = None,
     user_id: int | None = None,
     kind: GameKindFilter | None = None,
+    game_ids: Select[tuple[int]] | None = None,
 ) -> ScoreStatistics:
-    totals = _end_totals(start, end, user_id, kind).order_by(None).subquery()
+    totals = _end_totals(start, end, user_id, kind, game_ids).order_by(None).subquery()
     return _statistics(s, totals.c.total_score)
 
 
@@ -209,6 +219,7 @@ def point_score_statistics(
     end: date | None = None,
     user_id: int | None = None,
     kind: GameKindFilter | None = None,
+    game_ids: Select[tuple[int]] | None = None,
 ) -> ScoreStatistics:
     scores = (
         select(scored_value_column(Point.score).label("score"))
@@ -223,7 +234,7 @@ def point_score_statistics(
         scores = scores.where(Point.recorded_at <= end)
     if user_id is not None:
         scores = scores.where(Game.user_id == user_id)
-    scores = _where_kind(scores, kind)
+    scores = _where_kind(scores, kind, game_ids)
     return _statistics(s, scores.subquery().c.score)
 
 

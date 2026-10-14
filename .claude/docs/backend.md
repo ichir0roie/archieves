@@ -79,10 +79,11 @@ cd source/front && npm run types
 - `GET/POST /users` は持ち主のいない操作なので、どちらにも分けず、トークンが通れば使える(フロントは使っていない)
 - `POST /error-reports`(フロントで起きたエラーの集積)も、登録の前のエラーも受けるので、どちらにも分けずトークンが通れば使える。利用者の行があれば `user_id` を付ける
 - 新しいエンドポイントを足したら、どの区分かを決めて `tests/test_ownership.py` に足す
-- 公開範囲: `users.profile_visibility`・`users.ranking_visibility`・`users.score_visibility`(`private` / `organization` / `public`、既定は `private`。`app/core/visibility.py`)。`organization` は同じ `organization_id` の利用者にだけ見せる(所属の無い人どうしは見えない)
+- 公開範囲: `users.profile_visibility`・`users.ranking_visibility`・`users.score_visibility`・`users.diary_visibility`(`private` / `organization` / `public`、既定は `private`。`app/core/visibility.py`)。`organization` は同じ `organization_id` の利用者にだけ見せる(所属の無い人どうしは見えない)
   - プロフィール: `GET /users`・`GET /users/{user_id}`・`GET /users/{user_id}/profile`・`/statistics/*` の他人の `user_id` は、本人か、`profile_visibility` が見せる相手だけ(`deps.require_profile_visible`。違えば 403)
   - ランキング: `ranking_visibility` が見せる相手の分だけを数える(`crud/user.py` の `visible_condition`)。本人も例外にしない(非公開なら本人のランキングにも載らない)
   - スコア: `GET /public/scores` は、本人のゲームと、`score_visibility` が見せる相手のゲームだけを返す(`crud/game.py` の `list_shared_game_sheets`)。ログインしていない人には `public` の分だけ
+  - プロフィールの中身: `GET /users/{user_id}/profile` は、基本情報と直近 100 ゲームの集計をプロフィールが見える相手に返す。直近 10 ゲームの id(まとめてスコアの公開ページで開く)は `score_visibility`、直近 10 件の日記は `diary_visibility` が見せる相手(と本人)にだけ載せ、ほかは null にする(`crud/profile.py`)
   - 公開範囲は本人の行(`MeRead`)にだけ載せる
 - 管理者は画面からは決めない。db の行を直に書き換える(`UPDATE users SET is_admin = true WHERE sub = '<Cognito の sub>';`)。`is_admin` は本人の行(`GET /users/me`・`/users/me/ensure` の `MeRead`)にだけ載せ、他人の行(`UserRead`)には出さない
 - テストの `client` は `current_user`(`TEST_CLAIMS` の `sub` の利用者)がいる状態。他人の行は `factories` で作る。利用者の行が無い状態は `unregistered_client`、ログインしていない人(「ログインなしも」用)は `anonymous_client`

@@ -82,6 +82,12 @@ class User(TimestampMixin, Base):
         default=Visibility.PRIVATE,
         server_default=Visibility.PRIVATE.value,
     )
+    # プロフィールの画面で、日記をだれへ見せるか
+    diary_visibility: Mapped[str] = mapped_column(
+        String(VISIBILITY_MAX_LENGTH),
+        default=Visibility.PRIVATE,
+        server_default=Visibility.PRIVATE.value,
+    )
 
     organization: Mapped[Organization | None] = relationship(
         back_populates="users", lazy="noload"
