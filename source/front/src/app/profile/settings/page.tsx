@@ -38,6 +38,7 @@ export default function Page() {
   const [profileVisibility, setProfileVisibility] = useState<Visibility>("private");
   const [rankingVisibility, setRankingVisibility] = useState<Visibility>("private");
   const [scoreVisibility, setScoreVisibility] = useState<Visibility>("private");
+  const [diaryVisibility, setDiaryVisibility] = useState<Visibility>("private");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,6 +50,7 @@ export default function Page() {
     setProfileVisibility(user.profile_visibility);
     setRankingVisibility(user.ranking_visibility);
     setScoreVisibility(user.score_visibility);
+    setDiaryVisibility(user.diary_visibility);
   }
 
   useEffect(() => {
@@ -125,6 +127,7 @@ export default function Page() {
         profile_visibility: profileVisibility,
         ranking_visibility: rankingVisibility,
         score_visibility: scoreVisibility,
+        diary_visibility: diaryVisibility,
       });
       setUserId(id);
       applyUser(updated);
@@ -196,9 +199,11 @@ export default function Page() {
             profileVisibility={profileVisibility}
             rankingVisibility={rankingVisibility}
             scoreVisibility={scoreVisibility}
+            diaryVisibility={diaryVisibility}
             onChangeProfileVisibility={setProfileVisibility}
             onChangeRankingVisibility={setRankingVisibility}
             onChangeScoreVisibility={setScoreVisibility}
+            onChangeDiaryVisibility={setDiaryVisibility}
           />
 
           <button

@@ -125,27 +125,18 @@ test("a game recorded with a bow type shows up under that bow", async ({ page })
   await saveVisibility(page, "ランキング", "非公開");
 });
 
-test("the visibility chosen on my profile page is saved at once", async ({ page }) => {
+test("my profile page has no visibility settings and links to the profile settings", async ({ page }) => {
   await ensureRegistered(page);
 
   await page.goto("/profile/me");
   await expect(page).toHaveURL(`/profile/${await myUserId(page)}`);
-  const settings = page.locator(".VisibilitySettings");
-  const group = settings.getByRole("group", { name: "プロフィールの公開範囲" });
-  await group.getByRole("button", { name: "全体公開", exact: true }).click();
-  await expect(settings.getByRole("status")).toHaveText("保存しました");
-
-  await page.goto("/profile/settings");
-  await expect(
-    page
-      .getByRole("group", { name: "プロフィールの公開範囲" })
-      .getByRole("button", { name: "全体公開", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
-
-  await saveVisibility(page, "プロフィール", "非公開");
+  await expect(page.getByRole("group", { name: "プロフィールの公開範囲" })).toHaveCount(0);
+  await page.getByRole("link", { name: "プロフィール設定へ" }).click();
+  await expect(page).toHaveURL("/profile/settings");
+  await expect(page.getByRole("group", { name: "日記の公開範囲" })).toBeVisible();
 });
 
-test("another user's profile page has no visibility settings", async ({ page }) => {
+test("another user's profile page has no link to the profile settings", async ({ page }) => {
   await ensureRegistered(page);
   // モックのログインでは他人としてログインできないので、他人の行は API で作る(既定は非公開)
   const created = await page.request.post("/api/v1/users/find-or-create", {
@@ -157,5 +148,5 @@ test("another user's profile page has no visibility settings", async ({ page }) 
   expect(created.ok()).toBeTruthy();
   await page.goto(`/profile/${(await created.json()).id}`);
   await expect(page.getByText("このプロフィールは公開されていません")).toBeVisible();
-  await expect(page.locator(".VisibilitySettings")).toHaveCount(0);
+  await expect(page.locator(".ProfileSettingsLink")).toHaveCount(0);
 });

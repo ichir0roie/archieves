@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { notFound, useParams } from "next/navigation";
+import { notFound, useParams, useRouter } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
+import DiaryCell from "@/components/DiaryCell";
 import PageHeader from "@/components/PageHeader";
 import StatSummaryCard from "@/components/StatSummaryCard";
-import VisibilitySettings from "@/components/VisibilitySettings";
 import { useLoad } from "@/hooks/useLoad";
 import {
   getOrganization,
   getUserProfile,
 } from "@/lib/api";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
+import { formatDateTime } from "@/lib/formatDateTime";
+import { scoreSharePath } from "@/lib/scoreShare";
 import { useT, type Texts } from "@/lib/text";
 
 function formatDate(T: Texts, value: string): string {
@@ -23,6 +25,7 @@ function formatDate(T: Texts, value: string): string {
 
 export default function Page() {
   const T = useT();
+  const router = useRouter();
   const params = useParams<{ userId: string }>();
   const userId = Number(params.userId);
   // 前は sub を URL にしていた。そのころのブックマークなど、数でない URL は無いページにする
@@ -44,6 +47,7 @@ export default function Page() {
   // 別の人のプロフィールへ移って読み直している間・読めなかったときは、前の人のものを出さない
   const profile = loaded.loading || loaded.error ? null : loaded.data?.profile ?? null;
   const organization = loaded.data?.organization ?? null;
+  const recentGameIds = profile?.recent_game_ids ?? null;
 
   return (
     <div className="page wide">
@@ -65,7 +69,13 @@ export default function Page() {
             </div>
             {organization && <Link href={`/organization/${organization.id}`}>{organization.name}</Link>}
             <span className="muted small">
-              {T.profile.view.period(formatDate(T, profile.period_start), formatDate(T, profile.period_end))}
+              {profile.period_start && profile.period_end
+                ? T.profile.view.period(
+                    profile.game_count,
+                    formatDate(T, profile.period_start),
+                    formatDate(T, profile.period_end),
+                  )
+                : T.profile.view.noGames}
             </span>
           </section>
 
@@ -87,7 +97,51 @@ export default function Page() {
             />
           </div>
 
-          {isMe && <VisibilitySettings />}
+          {/* スコア・日記は、持ち主の公開範囲が見せないとき API が null を返す。そのときは欄ごと出さない */}
+          {recentGameIds && (
+            <section className="ProfileRecentScores panel stack tight">
+              <h2>{T.profile.view.recentScores}</h2>
+              {recentGameIds.length === 0 ? (
+                <p className="status empty">{T.profile.view.noGames}</p>
+              ) : (
+                <button
+                  type="button"
+                  className="primary large block"
+                  onClick={() => router.push(scoreSharePath(recentGameIds))}
+                >
+                  {T.profile.view.openRecentScores(recentGameIds.length)}
+                </button>
+              )}
+            </section>
+          )}
+
+          {profile.recent_diaries && (
+            <section className="ProfileRecentDiaries stack tight">
+              <span className="section-label">{T.profile.view.recentDiaries}</span>
+              {profile.recent_diaries.length === 0 ? (
+                <p className="status empty">{T.profile.view.noDiaries}</p>
+              ) : (
+                <div className="DiaryCells">
+                  {profile.recent_diaries.map((diary) => (
+                    <DiaryCell
+                      key={diary.id}
+                      diary={diary}
+                      date={formatDateTime(diary.created_at)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {isMe && (
+            <Link
+              className="ProfileSettingsLink"
+              href="/profile/settings"
+            >
+              {T.profile.view.toSettings}
+            </Link>
+          )}
         </>
       )}
       <BackButton />

@@ -14,13 +14,15 @@ type Props = {
   profileVisibility: Visibility;
   rankingVisibility: Visibility;
   scoreVisibility: Visibility;
+  diaryVisibility: Visibility;
   onChangeProfileVisibility: (visibility: Visibility) => void;
   onChangeRankingVisibility: (visibility: Visibility) => void;
   onChangeScoreVisibility: (visibility: Visibility) => void;
+  onChangeDiaryVisibility: (visibility: Visibility) => void;
   disabled?: boolean;
 };
 
-/** プロフィール・ランキング・スコアの公開範囲を選ぶ欄と、その説明。プロフィールの設定と、本人のプロフィールの画面で使う */
+/** プロフィール・ランキング・スコア・日記の公開範囲を選ぶ欄と、その説明。プロフィールの設定の画面で使う */
 export default function VisibilityFields(props: Props) {
   const T = useT();
   const options = VISIBILITIES.map((visibility) => ({
@@ -57,6 +59,16 @@ export default function VisibilityFields(props: Props) {
           value={props.scoreVisibility}
           onChange={props.onChangeScoreVisibility}
           label={T.profile.settings.scoreVisibility}
+          disabled={props.disabled}
+        />
+      </div>
+      <div className="field">
+        <span className="field-label">{T.profile.settings.diaryVisibility}</span>
+        <Segment
+          options={options}
+          value={props.diaryVisibility}
+          onChange={props.onChangeDiaryVisibility}
+          label={T.profile.settings.diaryVisibility}
           disabled={props.disabled}
         />
       </div>

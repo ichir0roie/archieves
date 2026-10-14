@@ -5,7 +5,7 @@ export const diary = {
   title: t.diary,
   listTitle: "日記一覧",
   toList: "日記一覧へ",
-  description: "その日に思ったことを書き残せます。書いたものは自分だけが見られます。",
+  description: "その日に思ったことを書き残せます。書いたものは、プロフィールの設定で公開しない限り自分だけが見られます。",
   body: "本文",
   submit: "書く",
   submitting: "送信中...",
