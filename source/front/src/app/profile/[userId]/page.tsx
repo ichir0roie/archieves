@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { notFound, useParams } from "next/navigation";
+import { notFound, useParams, useRouter } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
 import DiaryCell from "@/components/DiaryCell";
@@ -25,6 +25,7 @@ function formatDate(T: Texts, value: string): string {
 
 export default function Page() {
   const T = useT();
+  const router = useRouter();
   const params = useParams<{ userId: string }>();
   const userId = Number(params.userId);
   // 前は sub を URL にしていた。そのころのブックマークなど、数でない URL は無いページにする
@@ -46,6 +47,7 @@ export default function Page() {
   // 別の人のプロフィールへ移って読み直している間・読めなかったときは、前の人のものを出さない
   const profile = loaded.loading || loaded.error ? null : loaded.data?.profile ?? null;
   const organization = loaded.data?.organization ?? null;
+  const recentGameIds = profile?.recent_game_ids ?? null;
 
   return (
     <div className="page wide">
@@ -96,24 +98,19 @@ export default function Page() {
           </div>
 
           {/* スコア・日記は、持ち主の公開範囲が見せないとき API が null を返す。そのときは欄ごと出さない */}
-          {profile.recent_games && (
+          {recentGameIds && (
             <section className="ProfileRecentScores panel stack tight">
               <h2>{T.profile.view.recentScores}</h2>
-              {profile.recent_games.length === 0 ? (
+              {recentGameIds.length === 0 ? (
                 <p className="status empty">{T.profile.view.noGames}</p>
               ) : (
-                profile.recent_games.map((game) => (
-                  <Link
-                    key={game.game_id}
-                    href={scoreSharePath([game.game_id])}
-                  >
-                    {T.profile.view.scoreLink(
-                      formatDate(T, game.recorded_at),
-                      game.total_score,
-                      game.arrow_count,
-                    )}
-                  </Link>
-                ))
+                <button
+                  type="button"
+                  className="primary large block"
+                  onClick={() => router.push(scoreSharePath(recentGameIds))}
+                >
+                  {T.profile.view.openRecentScores(recentGameIds.length)}
+                </button>
               )}
             </section>
           )}

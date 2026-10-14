@@ -77,11 +77,11 @@ def test_user_profile_without_games(client: TestClient, current_user) -> None:
     assert body["game_count"] == 0
     assert body["period_start"] is None
     assert body["period_end"] is None
-    assert body["recent_games"] == []
+    assert body["recent_game_ids"] == []
     assert body["recent_diaries"] == []
 
 
-def test_user_profile_lists_the_latest_10_games_with_scores(
+def test_user_profile_lists_the_latest_10_games(
     client: TestClient, current_user, factories
 ) -> None:
     today = date.today()
@@ -89,22 +89,11 @@ def test_user_profile_lists_the_latest_10_games_with_scores(
         factories.GameFactory(user=current_user, recorded_at=today - timedelta(days=days_ago))
         for days_ago in range(12)
     ]
-    end = factories.EndFactory(round=factories.RoundFactory(game=games[0]))
-    factories.PointFactory.create_batch(3, end=end, score=7)
-    # 消したラウンドの点は足さない
-    deleted_round = factories.RoundFactory(game=games[0], deleted_at=datetime.now(UTC))
-    factories.PointFactory(end=factories.EndFactory(round=deleted_round), score=10)
+    # 消したゲームは外す
+    factories.GameFactory(user=current_user, recorded_at=today, deleted_at=datetime.now(UTC))
 
-    recent = client.get(f"/api/v1/users/{current_user.id}/profile").json()["recent_games"]
-    assert [game["game_id"] for game in recent] == [game.id for game in games[:10]]
-    assert recent[0] == {
-        "game_id": games[0].id,
-        "recorded_at": today.isoformat(),
-        "arrow_count": 3,
-        "total_score": 21,
-    }
-    assert recent[1]["arrow_count"] == 0
-    assert recent[1]["total_score"] == 0
+    body = client.get(f"/api/v1/users/{current_user.id}/profile").json()
+    assert body["recent_game_ids"] == [game.id for game in games[:10]]
 
 
 def test_user_profile_lists_the_latest_10_diaries(
@@ -152,9 +141,9 @@ def test_other_users_scores_and_diaries_follow_their_visibility(
 
     body = client.get(f"/api/v1/users/{other.id}/profile").json()
     if shows_games:
-        assert [g["game_id"] for g in body["recent_games"]] == [game.id]
+        assert body["recent_game_ids"] == [game.id]
     else:
-        assert body["recent_games"] is None
+        assert body["recent_game_ids"] is None
     if shows_diaries:
         assert [d["id"] for d in body["recent_diaries"]] == [diary.id]
     else:
@@ -172,7 +161,7 @@ def test_own_private_scores_and_diaries_are_shown_to_me(
     diary = factories.DiaryFactory(user=current_user)
 
     body = client.get(f"/api/v1/users/{current_user.id}/profile").json()
-    assert [g["game_id"] for g in body["recent_games"]] == [game.id]
+    assert body["recent_game_ids"] == [game.id]
     assert [d["id"] for d in body["recent_diaries"]] == [diary.id]
 
 

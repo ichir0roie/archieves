@@ -27,7 +27,7 @@ export const profile = {
     recentScores: `直近の${t.score}`,
     recentDiaries: `直近の${t.diary}`,
     noDiaries: `まだ${t.diary}がありません`,
-    scoreLink: (date: string, total: number, arrows: number) => `${date} ${total}${t.unit.point} (${arrows}${t.unit.arrow})`,
+    openRecentScores: (count: number) => `直近${count}${t.game}の${t.score}を見る`,
     private: `この${t.profile}は公開されていません`,
     toSettings: `${t.profile}${t.settings}へ`,
   },

@@ -28,7 +28,7 @@ export const profile: typeof ja = {
     recentScores: "Recent scores",
     recentDiaries: "Recent diary entries",
     noDiaries: "No diary entries yet",
-    scoreLink: (date: string, total: number, arrows: number) => `${date} ${total} pts (${arrows} arrows)`,
+    openRecentScores: (count: number) => `See the scores of the last ${count} ${count === 1 ? "game" : "games"}`,
     private: "This profile is not public",
     toSettings: `${t.profile} settings`,
   },

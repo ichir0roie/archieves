@@ -6480,36 +6480,6 @@
         "type": "object",
         "title": "PointUpdate"
       },
-      "ProfileGame": {
-        "properties": {
-          "game_id": {
-            "type": "integer",
-            "title": "Game Id"
-          },
-          "recorded_at": {
-            "type": "string",
-            "format": "date",
-            "title": "Recorded At"
-          },
-          "arrow_count": {
-            "type": "integer",
-            "title": "Arrow Count"
-          },
-          "total_score": {
-            "type": "integer",
-            "title": "Total Score"
-          }
-        },
-        "type": "object",
-        "required": [
-          "game_id",
-          "recorded_at",
-          "arrow_count",
-          "total_score"
-        ],
-        "title": "ProfileGame",
-        "description": "プロフィールに並べる、スコアの公開ページへのリンクの一件。"
-      },
       "RankedUser": {
         "properties": {
           "id": {
@@ -7251,11 +7221,11 @@
           "points": {
             "$ref": "#/components/schemas/ScoreStatistics"
           },
-          "recent_games": {
+          "recent_game_ids": {
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/ProfileGame"
+                  "type": "integer"
                 },
                 "type": "array"
               },
@@ -7263,7 +7233,7 @@
                 "type": "null"
               }
             ],
-            "title": "Recent Games"
+            "title": "Recent Game Ids"
           },
           "recent_diaries": {
             "anyOf": [
@@ -7289,11 +7259,11 @@
           "rounds",
           "ends",
           "points",
-          "recent_games",
+          "recent_game_ids",
           "recent_diaries"
         ],
         "title": "UserProfile",
-        "description": "利用者のプロフィール。基本情報と、直近のゲームの集計・スコア・日記。\n\nrecent_games・recent_diaries は、持ち主のスコア・日記の公開範囲が見る人に見せないとき None。"
+        "description": "利用者のプロフィール。基本情報と、直近のゲームの集計・スコア・日記。\n\nrecent_game_ids・recent_diaries は、持ち主のスコア・日記の公開範囲が見る人に見せないとき None。"
       },
       "UserRanking": {
         "properties": {

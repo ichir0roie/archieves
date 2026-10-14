@@ -1614,23 +1614,6 @@ export interface components {
             shot_at?: string | null;
         };
         /**
-         * ProfileGame
-         * @description プロフィールに並べる、スコアの公開ページへのリンクの一件。
-         */
-        ProfileGame: {
-            /** Game Id */
-            game_id: number;
-            /**
-             * Recorded At
-             * Format: date
-             */
-            recorded_at: string;
-            /** Arrow Count */
-            arrow_count: number;
-            /** Total Score */
-            total_score: number;
-        };
-        /**
          * RankedUser
          * @description ランキングに載せる利用者。名前だけを見せ、生年月日・所属などのプロフィールは載せない
          *     (ランキングは公開していても、プロフィールは非公開の人がいる)。
@@ -1859,7 +1842,7 @@ export interface components {
          * UserProfile
          * @description 利用者のプロフィール。基本情報と、直近のゲームの集計・スコア・日記。
          *
-         *     recent_games・recent_diaries は、持ち主のスコア・日記の公開範囲が見る人に見せないとき None。
+         *     recent_game_ids・recent_diaries は、持ち主のスコア・日記の公開範囲が見る人に見せないとき None。
          */
         UserProfile: {
             user: components["schemas"]["UserRead"];
@@ -1872,8 +1855,8 @@ export interface components {
             rounds: components["schemas"]["ScoreStatistics"];
             ends: components["schemas"]["ScoreStatistics"];
             points: components["schemas"]["ScoreStatistics"];
-            /** Recent Games */
-            recent_games: components["schemas"]["ProfileGame"][] | null;
+            /** Recent Game Ids */
+            recent_game_ids: number[] | null;
             /** Recent Diaries */
             recent_diaries: components["schemas"]["DiaryRead"][] | null;
         };
