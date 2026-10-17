@@ -25,9 +25,9 @@ type Term = (typeof TERMS)[number];
 // API の app/core/access_token.py の MAX_NAME_LENGTH
 const MAX_NAME_LENGTH = 50;
 
-/** Claude Code on the web の環境変数に入れる、API の在りか。案内は `${ARCHIEVES_API_URL}/guide` */
-function apiUrlEnv(): string {
-  return `ARCHIEVES_API_URL=${window.location.origin}/api/v1`;
+/** この API の在りか(サイトの /api/v1)。REST の案内は `${apiUrl}/guide`、MCP は `${apiUrl}/mcp` */
+function apiUrl(): string {
+  return `${window.location.origin}/api/v1`;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -169,13 +169,38 @@ export default function AccessTokens() {
             label={texts.token}
             value={issued.token}
           />
+
+          <span className="section-label">{texts.mcpTitle}</span>
+          <span className="small">{texts.mcpNote}</span>
+          <CopyableValue
+            label={texts.mcpUrl}
+            value={`${apiUrl()}/mcp`}
+          />
+          <CopyableValue
+            label={texts.mcpHeader}
+            value={`Authorization: Bearer ${issued.token}`}
+          />
+          <CopyableValue
+            label={texts.claudeCodeCommand}
+            value={`claude mcp add --transport http archieves ${apiUrl()}/mcp --header "Authorization: Bearer ${issued.token}"`}
+          />
+
+          <span className="section-label">{texts.connectorTitle}</span>
+          <span className="small">{texts.connectorNote}</span>
+          <CopyableValue
+            label={texts.connectorUrl}
+            value={`${apiUrl()}/mcp/${issued.token}`}
+          />
+
+          <span className="section-label">{texts.restTitle}</span>
+          <span className="small">{texts.restNote}</span>
           <CopyableValue
             label={texts.secretHost}
             value={window.location.host}
           />
           <CopyableValue
             label={texts.envVar}
-            value={apiUrlEnv()}
+            value={`ARCHIEVES_API_URL=${apiUrl()}`}
           />
           <div className="row">
             <button

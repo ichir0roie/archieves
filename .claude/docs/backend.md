@@ -70,6 +70,7 @@ cd source/front && npm run types
 | 依存 | 通すもの | 使うところ |
 | --- | --- | --- |
 | `deps.get_reader` | 画面からログインした本人と、本人が発行したトークン | 本人の記録を読む GET: `games`(`/games/{game_id}/sheet`・`/games/sheets` を含む)・`rounds`・`ends`・`points`・コメント・`trash/*`・`/statistics/*`・`/diaries`・`GET /users/me`・`/export/records.db`。`tests/test_ownership.py` の `TOKEN_READABLE_ROUTES` に並べる |
+| `deps.require_access_token` | 本人が発行したトークンだけ(画面からのログインは 401) | `POST /mcp`。`tests/test_ownership.py` の `TOKEN_ONLY_ROUTES` に並べる |
 | `deps.get_ai_commenter` | 本人が発行したトークンだけ(画面からのログインは 403)。トークンの名前を書いた人として残す | `PUT /games/{game_id}/ai-comment`。`tests/test_ownership.py` の `TOKEN_WRITABLE_ROUTES` に並べる |
 | `deps.get_me` | 画面からログインした本人(トークンは 403) | 上の書き込み全部、`PATCH/DELETE /users/me`、`/import`、`/feedbacks`、`/access-tokens` |
 | `deps.get_admin` | 画面からログインした管理者(`users.is_admin`。違えば 403) | `/admin/*` |
@@ -85,8 +86,11 @@ cd source/front && npm run types
 - 利用者の行がまだ無いログインは、`get_me`・`get_reader` で 404(`Current user not registered`。`app/core/errors.py` の `CURRENT_USER_NOT_REGISTERED`)になる。他人の行が無いときの `User not found` と分け、フロントはこれを受けると登録の画面へ送る。先に `/users/me/ensure` で作る
 - トークン(`/access-tokens`): 発行・一覧・失効は画面からログインした本人だけ。平文は発行の応答にだけ載せ、db には sha256 と見分け用の頭だけを置く。期限は 1〜365 日(既定 90)、一人 10 本まで(越えたら 409)。失効は行ごと消す
 - AI コメント(`game_ai_comments`): Claude Code などが本人のトークンで、ゲームに一つ書く指摘・改善点(書き直すと上書き)。読むのは `GameSheetRead.ai_comment`、消すのは本人の画面から(`DELETE /games/{game_id}/ai-comment`)。スコアの公開ページには載せない。Claude Code は `GET /games/sheets`(`recorded_on` でその日、`until`・`limit` で直近 N 件の記録を丸ごと)を読んで書く。画面では読む・消すだけにする
-- AI 向けの案内: `GET /api/v1/guide` が `app/api/v1/agent_guide.md` を返す(ログイン不要。本番ではフロントの route handler を通すので、トークンかログインは要る)。トークンでできること・よく使うエンドポイント・記録の読み方・AI コメントの書き方を書く。エンドポイントや記録の形を変えたら、ここも直す
-- Claude Code on the web から使うとき: 環境(environment)に、環境変数 `ARCHIEVES_API_URL=https://<サイト>/api/v1` と、network secret(種類 Bearer、ホストはサイト、ヘッダー Authorization、値はトークン)を入れる。トークンはセッションの中に置かない。Claude に案内を読ませる Skill を `claude-ai-skills/archieves/SKILL.md` に置く(claude.ai の Skill に足す)
+- AI から使う口: 利用者がリポジトリも Skill も持たずに、AI に繋いで頼むだけで動くようにする。使い方は API の側が渡す(`app/agent/`)
+  - MCP(`POST /api/v1/mcp`、`app/agent/mcp.py`): Streamable HTTP の POST に JSON で答える(SSE・セッションは持たない)。トークンだけで通す(`deps.require_access_token`)。ツールはこの API の REST を中から呼び直すので、トークンで通る範囲も検証も REST と同じ。使い方は initialize の `instructions`(`mcp.md`+`records.md`)とツールの説明で渡す。ツールを足すときは `TOOLS` に足す
+  - ヘッダーを付けられないコネクタ(claude.ai・ChatGPT)向けに、フロントの route handler が `/api/v1/mcp/<トークン>` も受け、トークンをヘッダーに載せ替えて `/api/v1/mcp` へ流す(API のログに URL のトークンを残さない)
+  - REST の案内(`GET /api/v1/guide`、`rest.md`+`records.md`。ログイン不要。本番ではフロントの route handler を通すので、トークンかログインは要る)。MCP を使わない AI(Claude Code on the web など)向け。環境変数 `ARCHIEVES_API_URL=https://<サイト>/api/v1` と network secret(種類 Bearer、ホストはサイト、ヘッダー Authorization、値はトークン)を入れ、頼むときに案内を読ませる
+  - 記録の読み方・AI コメントの書き方は `records.md` に一つだけ書き、MCP と REST の両方に入れる。エンドポイントや記録の形を変えたら、ここも直す
 - 管理者は画面からは決めない。db の行を直に書き換える(`UPDATE users SET is_admin = true WHERE sub = '<Cognito の sub>';`)。`is_admin` は本人の行(`GET /users/me`・`/users/me/ensure` の `MeRead`)にだけ載せる
 - テストの `client` は `current_user`(`TEST_CLAIMS` の `sub` の利用者)がいる状態。他人の行は `factories` で作る。利用者の行が無い状態は `unregistered_client`、ログインしていない人は `anonymous_client`、`current_user` が発行したトークンで来る Claude Code は `token_client`
 

@@ -21,6 +21,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/guide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Agent Guide
+         * @description AI 向けの、この API の使い方(Markdown)。
+         */
+        get: operations["get_agent_guide_api_v1_guide_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/scores": {
         parameters: {
             query?: never;
@@ -1001,6 +1021,28 @@ export interface paths {
          * @description トークンを失効させる(行ごと消す)。
          */
         delete: operations["delete_access_token_api_v1_access_tokens__access_token_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Handle Mcp
+         * @description MCP の Streamable HTTP。JSON-RPC のメッセージを一つ受け、JSON で答える(通知には 202)。
+         *
+         *     SSE の流し(GET)とセッションは持たない。
+         */
+        post: operations["handle_mcp_api_v1_mcp_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2056,6 +2098,26 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    get_agent_guide_api_v1_guide_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -4390,6 +4452,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    handle_mcp_api_v1_mcp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

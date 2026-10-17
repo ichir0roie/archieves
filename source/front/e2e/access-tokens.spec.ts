@@ -37,11 +37,15 @@ test("発行したトークンで本人の記録を読め、書き込み・他�
   await panel.getByRole("button", { name: "トークンを発行する" }).click();
 
   const issued = panel.locator(".AccessTokenIssued");
-  // Claude Code on the web の環境に入れる、network secret の値・ホストと環境変数
-  const token = await issued.getByLabel("トークン(network secret の値)").inputValue();
+  // AI に設定する値: MCP の URL とヘッダー、トークン入りの URL(コネクタ)、REST の network secret と環境変数
+  const token = await issued.getByLabel("トークン", { exact: true }).inputValue();
   expect(token).toMatch(/^arc_/);
-  await expect(issued.getByLabel("network secret のホスト")).toHaveValue(new URL(page.url()).host);
-  await expect(issued.getByLabel("環境変数")).toHaveValue(`ARCHIEVES_API_URL=${new URL(page.url()).origin}/api/v1`);
+  const apiUrl = `${new URL(page.url()).origin}/api/v1`;
+  await expect(issued.getByLabel("MCP の URL", { exact: true })).toHaveValue(`${apiUrl}/mcp`);
+  await expect(issued.getByLabel("ヘッダー", { exact: true })).toHaveValue(`Authorization: Bearer ${token}`);
+  await expect(issued.getByLabel("トークン入りの MCP の URL", { exact: true })).toHaveValue(`${apiUrl}/mcp/${token}`);
+  await expect(issued.getByLabel("network secret のホスト", { exact: true })).toHaveValue(new URL(page.url()).host);
+  await expect(issued.getByLabel("環境変数", { exact: true })).toHaveValue(`ARCHIEVES_API_URL=${apiUrl}`);
   await expect(panel.locator(".AccessTokenItem", { hasText: name })).toBeVisible();
 
   // request はブラウザのログインを持たない。トークンだけで route handler を通る
@@ -57,6 +61,20 @@ test("発行したトークンで本人の記録を読め、書き込み・他�
   expect(await statusOf(request, "DELETE", `/api/v1/games/${game.id}`, token)).toBe(403);
   expect(await statusOf(request, "GET", "/api/v1/access-tokens", token)).toBe(403);
   expect(await statusOf(request, "GET", "/api/v1/public/ranking", token)).toBe(403);
+  // MCP: ヘッダーで付けても、URL に入れても、サイトの route handler を通って本人の記録を読める
+  const listSheets = { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "list_game_sheets", arguments: { limit: 100 } } };
+  for (const [url, headers] of [
+    ["/api/v1/mcp", { Authorization: `Bearer ${token}` }],
+    [`/api/v1/mcp/${token}`, {}],
+  ] as const) {
+    const mcp = await request.post(url, { headers, data: listSheets });
+    expect(mcp.status()).toBe(200);
+    const result = (await mcp.json()).result;
+    expect(result.isError).toBe(false);
+    expect(result.content[0].text).toContain(`"id": ${game.id}`);
+  }
+  expect((await request.post("/api/v1/mcp/arc_invalid", { data: listSheets })).status()).toBe(401);
+
   // 一度しか見せないので、閉じたら平文は画面から消える
   await issued.getByRole("button", { name: "閉じる" }).click();
   await expect(issued).toHaveCount(0);
