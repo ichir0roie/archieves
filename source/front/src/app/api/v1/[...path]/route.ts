@@ -37,6 +37,8 @@ const ACCESS_TOKEN_PREFIX = "arc_";
 const PUBLIC_PATHS = new Set(["health"]);
 // ログインしていなくても通す API(スコアの公開ページ)。ログインしていれば利用者を渡し、API が公開範囲を当てる
 const OPTIONAL_USER_PREFIX = "public/";
+// 書き換えをしないメソッド。クッキーのログインでも、よそのサイトからの要求を止めない
+const SAFE_METHODS = new Set(["GET", "HEAD"]);
 const FORWARDED_REQUEST_HEADERS = ["content-type", "accept"];
 const FORWARDED_RESPONSE_HEADERS = ["content-type", "content-disposition", "cache-control", "location"];
 
@@ -131,12 +133,62 @@ async function sign(target: URL, method: string, headers: Headers, body: Uint8Ar
   return new Headers(Object.entries(signed.headers).filter(([name]) => name.toLowerCase() !== "host"));
 }
 
-async function forward(request: NextRequest, context: Context): Promise<Response> {
-  const { path } = await context.params;
-  // ヘッダーを付けられない MCP のクライアント(claude.ai・ChatGPT のコネクタ)向けに、トークンを URL に入れた
-  // mcp/<トークン> も受ける。API へはトークンを URL でなくヘッダーで渡す(API のログに残さない)
+/** 本人のデータを返すので、CDN やブラウザに溜めさせない(API が付けたものはそのまま) */
+function json(body: unknown, status: number): Response {
+  return Response.json(body, { status, headers: { "cache-control": "no-store" } });
+}
+
+/**
+ * 流す先の API のパス(/api/v1 から下)。ヘッダーを付けられない MCP のクライアント(claude.ai・ChatGPT の
+ * コネクタ)向けに、トークンを URL に入れた mcp/<トークン> も受け、パスからは外す(API のログに残さない)。
+ * `.`・`..` の段は、/api/v1 の外を指させないよう null にする
+ */
+function apiPath(path: string[]): { joined: string; pathToken: string | null } | null {
+  if (path.some((segment) => segment === "." || segment === "..")) return null;
   const pathToken = path.length === 2 && path[0] === "mcp" && path[1].startsWith(ACCESS_TOKEN_PREFIX) ? path[1] : null;
-  const joined = (pathToken === null ? path : ["mcp"]).map(encodeURIComponent).join("/");
+  return {
+    joined: (pathToken === null ? path : ["mcp"]).map(encodeURIComponent).join("/"),
+    pathToken,
+  };
+}
+
+/**
+ * クッキーのログインで来た書き込みが、よそのサイトの画面から送られたもの(CSRF)か。
+ * ブラウザは Sec-Fetch-Site を付ける。付けないもの(ブラウザの外)はこのサイトのクッキーを持たないので止めない
+ */
+function isCrossSiteWrite(request: NextRequest): boolean {
+  if (SAFE_METHODS.has(request.method)) return false;
+  const site = request.headers.get("sec-fetch-site");
+  return site !== null && site !== "same-origin" && site !== "none";
+}
+
+type Caller = { kind: "token"; token: string } | { kind: "user"; user: VerifiedUser } | { kind: "anonymous" };
+
+/**
+ * だれとして API に流すか。トークン(AI)で来た要求はクッキーを見ず、ブラウザのログインに格上げしない
+ * (どこまで通すかは API が決める)
+ */
+async function resolveCaller(request: NextRequest, joined: string, pathToken: string | null): Promise<Caller> {
+  const token = pathToken ?? accessToken(request);
+  if (token !== null) return { kind: "token", token };
+  if (PUBLIC_PATHS.has(joined)) return { kind: "anonymous" };
+  const user = await verifiedUser();
+  return user === null ? { kind: "anonymous" } : { kind: "user", user };
+}
+
+async function forward(request: NextRequest, context: Context): Promise<Response> {
+  const resolved = apiPath((await context.params).path);
+  if (resolved === null) return json({ detail: T.api.notFound }, 404);
+  const { joined, pathToken } = resolved;
+
+  const caller = await resolveCaller(request, joined, pathToken);
+  if (caller.kind === "user" && isCrossSiteWrite(request)) {
+    return json({ detail: T.api.crossSite }, 403);
+  }
+  if (caller.kind === "anonymous" && !PUBLIC_PATHS.has(joined) && !joined.startsWith(OPTIONAL_USER_PREFIX)) {
+    return json({ detail: T.api.signInRequired }, 401);
+  }
+
   // ブラウザのヘッダーは写さず組み直す(利用者や合言葉のヘッダーを外から差し込ませない)
   const headers = new Headers();
   for (const name of FORWARDED_REQUEST_HEADERS) {
@@ -144,21 +196,14 @@ async function forward(request: NextRequest, context: Context): Promise<Response
     if (value) headers.set(name, value);
   }
   if (API_KEY) headers.set(API_KEY_HEADER, API_KEY);
-
-  const token = pathToken ?? accessToken(request);
-  // トークンで来た要求は、ブラウザのログインに格上げしない(どこまで通すかは API が決める)
-  const user = PUBLIC_PATHS.has(joined) || token !== null ? null : await verifiedUser();
-  if (token !== null) {
-    headers.set(ACCESS_TOKEN_HEADER, token);
-  } else if (user === null && !PUBLIC_PATHS.has(joined) && !joined.startsWith(OPTIONAL_USER_PREFIX)) {
-    return Response.json({ detail: T.api.signInRequired }, { status: 401 });
-  }
-  if (user !== null) {
+  if (caller.kind === "token") {
+    headers.set(ACCESS_TOKEN_HEADER, caller.token);
+  } else if (caller.kind === "user") {
     if (signer === null) {
-      headers.set("authorization", `Bearer ${user.token}`);
+      headers.set("authorization", `Bearer ${caller.user.token}`);
     }
     for (const [claim, name] of Object.entries(USER_HEADERS) as [keyof typeof USER_HEADERS, string][]) {
-      const value = user[claim];
+      const value = caller.user[claim];
       if (value) headers.set(name, encodeURIComponent(value));
     }
   }
@@ -177,10 +222,7 @@ async function forward(request: NextRequest, context: Context): Promise<Response
       redirect: "manual",
     });
   } catch (e) {
-    return Response.json(
-      { detail: T.api.unreachable(e instanceof Error ? e.message : String(e)) },
-      { status: 502 },
-    );
+    return json({ detail: T.api.unreachable(e instanceof Error ? e.message : String(e)) }, 502);
   }
 
   const responseHeaders = new Headers();
@@ -188,6 +230,7 @@ async function forward(request: NextRequest, context: Context): Promise<Response
     const value = upstream.headers.get(name);
     if (value) responseHeaders.set(name, value);
   }
+  if (!responseHeaders.has("cache-control")) responseHeaders.set("cache-control", "no-store");
   // 本文は読み切らずに流す(204 / 304 の body は null)
   return new Response(upstream.body, {
     status: upstream.status,

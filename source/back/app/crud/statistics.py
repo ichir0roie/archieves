@@ -81,7 +81,7 @@ def _statistics(s: Session, value: ColumnElement) -> ScoreStatistics:
 def _round_totals(
     start: date | None,
     end: date | None,
-    user_id: int | None,
+    user_id: int,
     kind: GameKindFilter | None,
     game_ids: Select[tuple[int]] | None = None,
 ) -> Select:
@@ -105,15 +105,13 @@ def _round_totals(
         stmt = stmt.where(Round.recorded_at >= start)
     if end is not None:
         stmt = stmt.where(Round.recorded_at <= end)
-    if user_id is not None:
-        stmt = stmt.where(Game.user_id == user_id)
-    return _where_kind(stmt, kind, game_ids)
+    return _where_kind(stmt.where(Game.user_id == user_id), kind, game_ids)
 
 
 def _end_totals(
     start: date | None,
     end: date | None,
-    user_id: int | None,
+    user_id: int,
     kind: GameKindFilter | None,
     game_ids: Select[tuple[int]] | None = None,
 ) -> Select:
@@ -137,9 +135,7 @@ def _end_totals(
         stmt = stmt.where(End.recorded_at >= start)
     if end is not None:
         stmt = stmt.where(End.recorded_at <= end)
-    if user_id is not None:
-        stmt = stmt.where(Game.user_id == user_id)
-    return _where_kind(stmt, kind, game_ids)
+    return _where_kind(stmt.where(Game.user_id == user_id), kind, game_ids)
 
 
 def list_round_scores(
@@ -147,7 +143,7 @@ def list_round_scores(
     *,
     start: date | None = None,
     end: date | None = None,
-    user_id: int | None = None,
+    user_id: int,
     kind: GameKindFilter | None = None,
 ) -> list[RoundScoreSummary]:
     return [
@@ -169,7 +165,7 @@ def list_end_scores(
     *,
     start: date | None = None,
     end: date | None = None,
-    user_id: int | None = None,
+    user_id: int,
     kind: GameKindFilter | None = None,
 ) -> list[EndScoreSummary]:
     return [
@@ -191,7 +187,7 @@ def round_score_statistics(
     *,
     start: date | None = None,
     end: date | None = None,
-    user_id: int | None = None,
+    user_id: int,
     kind: GameKindFilter | None = None,
     game_ids: Select[tuple[int]] | None = None,
 ) -> ScoreStatistics:
@@ -204,7 +200,7 @@ def end_score_statistics(
     *,
     start: date | None = None,
     end: date | None = None,
-    user_id: int | None = None,
+    user_id: int,
     kind: GameKindFilter | None = None,
     game_ids: Select[tuple[int]] | None = None,
 ) -> ScoreStatistics:
@@ -217,7 +213,7 @@ def point_score_statistics(
     *,
     start: date | None = None,
     end: date | None = None,
-    user_id: int | None = None,
+    user_id: int,
     kind: GameKindFilter | None = None,
     game_ids: Select[tuple[int]] | None = None,
 ) -> ScoreStatistics:
@@ -232,9 +228,7 @@ def point_score_statistics(
         scores = scores.where(Point.recorded_at >= start)
     if end is not None:
         scores = scores.where(Point.recorded_at <= end)
-    if user_id is not None:
-        scores = scores.where(Game.user_id == user_id)
-    scores = _where_kind(scores, kind, game_ids)
+    scores = _where_kind(scores.where(Game.user_id == user_id), kind, game_ids)
     return _statistics(s, scores.subquery().c.score)
 
 

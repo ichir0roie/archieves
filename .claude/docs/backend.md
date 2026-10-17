@@ -44,6 +44,8 @@
 
 - 上の表に無い状態(409 など)を返すときだけ `HTTPException` を使う。crud・services からは `HTTPException` を投げない
 - 要求の形の検証(型・必須)は FastAPI が 422 で返す。モデルの `Field`・`field_validator` に書く
+- db や SQL に届くと 500 になる値は、要求の形で 422 にする。文字の欄の長さは db の列と同じ定数(`app/core/names.py` など)を `Field(max_length=...)` に使う。検証は要求の形(`XCreate`・`XUpdate`)にだけ付け、応答の形には付けない(今ある行が合わずに読めなくなる)
+- 一覧の `skip`・`limit` は `app/api/pagination.py` の `Skip`・`Limit` を使う(負の値・大きすぎる値を弾く)
 
 ## スキーマ
 

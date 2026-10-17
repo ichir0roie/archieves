@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.api.pagination import Limit, Skip
 from app.crud import game as game_crud
 from app.db import User
 from app.schemas.game import (
@@ -35,8 +36,8 @@ MAX_GAME_SHEETS = 100
 
 @router.get("/games", response_model=list[GameRead])
 def list_games(
-    skip: int = 0,
-    limit: int = 100,
+    skip: Skip = 0,
+    limit: Limit = 100,
     year: int | None = None,
     me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
@@ -177,8 +178,8 @@ def delete_game(
 
 @router.get("/trash/games", response_model=list[GameRead])
 def list_deleted_games(
-    skip: int = 0,
-    limit: int = 100,
+    skip: Skip = 0,
+    limit: Limit = 100,
     me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[GameRead]:
@@ -207,8 +208,8 @@ def restore_game(
 @router.get("/games/{game_id}/rounds", response_model=list[RoundRead])
 def list_rounds(
     game_id: int,
-    skip: int = 0,
-    limit: int = 100,
+    skip: Skip = 0,
+    limit: Limit = 100,
     me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[RoundRead]:
@@ -264,8 +265,8 @@ def delete_round(
 
 @router.get("/trash/rounds", response_model=list[RoundRead])
 def list_deleted_rounds(
-    skip: int = 0,
-    limit: int = 100,
+    skip: Skip = 0,
+    limit: Limit = 100,
     game_id: int | None = None,
     me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
@@ -296,8 +297,8 @@ def restore_round(
 @router.get("/rounds/{round_id}/ends", response_model=list[EndRead])
 def list_ends(
     round_id: int,
-    skip: int = 0,
-    limit: int = 100,
+    skip: Skip = 0,
+    limit: Limit = 100,
     me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[EndRead]:
@@ -354,8 +355,8 @@ def delete_end(
 @router.get("/ends/{end_id}/points", response_model=list[PointRead])
 def list_points(
     end_id: int,
-    skip: int = 0,
-    limit: int = 100,
+    skip: Skip = 0,
+    limit: Limit = 100,
     me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[PointRead]:

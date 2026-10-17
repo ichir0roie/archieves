@@ -40,6 +40,8 @@ export const common = {
   unit: t.unit,
   api: {
     signInRequired: "サインインしてください",
+    crossSite: "ほかのサイトからの書き込みは受け付けません",
+    notFound: "見つかりません",
     unreachable: (reason: string) => `API に届かない: ${reason}`,
     failed: "通信に失敗しました。もう一度お試しください。",
     status: (status: number) => `status: ${status}`,

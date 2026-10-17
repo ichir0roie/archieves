@@ -76,3 +76,22 @@ def test_proxy_mode_refuses_to_start_without_api_keys(monkeypatch: pytest.Monkey
     finally:
         monkeypatch.undo()
         importlib.reload(main)
+
+
+@pytest.mark.parametrize("env", ["prod", "dev"])
+def test_mock_mode_refuses_to_start_in_a_deployed_env(
+    monkeypatch: pytest.MonkeyPatch, env: str
+) -> None:
+    """mock は確かめずにだれでも通すので、デプロイした環境で誤って使っても起こさない。"""
+    import importlib
+
+    import app.main as main
+
+    monkeypatch.setattr(debug_settings, "AUTH_MODE", "mock")
+    monkeypatch.setattr(settings, "ENV", env)
+    try:
+        with pytest.raises(RuntimeError, match="AUTH_MODE=mock"):
+            importlib.reload(main)
+    finally:
+        monkeypatch.undo()
+        importlib.reload(main)
