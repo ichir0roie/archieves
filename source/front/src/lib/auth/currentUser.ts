@@ -64,9 +64,13 @@ export async function getCurrentAppUser(): Promise<CachedAppUser> {
  * API から今の利用者を読み直してキャッシュに書く(行が無ければ作る)。管理者のフラグは db を直に
  * 書き換えて決めるので、キャッシュはここ(プロフィールの設定を開いたとき)でだけ新しくなる
  */
+// API の app/core/names.py の MAX_USER_NAME_LENGTH と同じ
+const MAX_USER_NAME_LENGTH = 50;
+
 export async function refreshCurrentAppUser(): Promise<{ user: MeRead; cached: CachedAppUser }> {
-  const { userId, email } = await getCurrentUser();
-  const user = await ensureCurrentUser({ name: email });
+  const { userId, username, email } = await getCurrentUser();
+  // 名前は登録のあとで変えられるので、仮にメールアドレスを入れる。API の上限(app/core/names.py)を越える分は切る
+  const user = await ensureCurrentUser({ name: (email || username || userId).slice(0, MAX_USER_NAME_LENGTH) });
   return { user, cached: cacheAppUser(userId, user) };
 }
 

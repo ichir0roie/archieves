@@ -294,6 +294,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -304,6 +305,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -505,6 +508,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -515,6 +519,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -626,6 +632,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 10,
               "title": "Limit"
             }
@@ -780,6 +788,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -790,6 +799,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -1339,6 +1350,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -1349,6 +1361,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -1463,6 +1477,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -1473,6 +1488,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -1735,6 +1752,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -1745,6 +1763,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -1875,6 +1895,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -1885,6 +1906,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -2156,6 +2179,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -2166,6 +2190,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -4434,6 +4460,7 @@
               "anyOf": [
                 {
                   "type": "integer",
+                  "maximum": 10000,
                   "minimum": 1
                 },
                 {
@@ -6354,12 +6381,15 @@
         "properties": {
           "name": {
             "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
             "title": "Name"
           },
           "formal_name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -6370,7 +6400,8 @@
           "description": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
@@ -6381,7 +6412,8 @@
           "homepage_url": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
@@ -6392,7 +6424,8 @@
           "location": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -7445,12 +7478,15 @@
         "properties": {
           "name": {
             "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
             "title": "Name"
           },
           "nickname": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -7611,7 +7647,9 @@
           "name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50,
+                "minLength": 1
               },
               {
                 "type": "null"
@@ -7622,7 +7660,8 @@
           "nickname": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"

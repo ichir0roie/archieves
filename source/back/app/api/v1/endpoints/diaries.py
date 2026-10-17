@@ -1,7 +1,10 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.api.pagination import MAX_LIMIT
 from app.crud import diary as diary_crud
 from app.db import User
 from app.schemas.diary import DiaryCreate, DiaryRead
@@ -23,7 +26,7 @@ def create_diary(
 @router.get("/diaries", response_model=list[DiaryRead])
 def list_diaries(
     year: int | None = None,
-    limit: int | None = Query(default=None, ge=1),
+    limit: Annotated[int | None, Query(ge=1, le=MAX_LIMIT)] = None,
     me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[DiaryRead]:

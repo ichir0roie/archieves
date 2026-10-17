@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.api.pagination import Limit, Skip
 from app.core.errors import NotFoundError
 from app.crud import organization as organization_crud
 from app.schemas.organization import OrganizationCreate, OrganizationRead, OrganizationSummary
@@ -27,8 +28,8 @@ def _check_parent_organization_exists(
     dependencies=[Depends(deps.get_browser_claims)],
 )
 def list_organizations(
-    skip: int = 0,
-    limit: int = 100,
+    skip: Skip = 0,
+    limit: Limit = 100,
     s: Session = Depends(deps.get_session),
 ) -> list[OrganizationRead]:
     return organization_crud.list_organizations(
@@ -45,7 +46,7 @@ def list_organizations(
 )
 def search_organizations(
     q: str,
-    limit: int = 10,
+    limit: Limit = 10,
     s: Session = Depends(deps.get_session),
 ) -> list[OrganizationSummary]:
     return organization_crud.search_organizations_by_prefix(

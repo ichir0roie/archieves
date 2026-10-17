@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.api.pagination import Limit, Skip
 from app.core.bow_types import BowType
 from app.crud import game as game_crud
 from app.crud import profile as profile_crud
@@ -69,8 +70,8 @@ def list_user_ranking(
     distance_m: int | None = None,
     start: date | None = None,
     end: date | None = None,
-    skip: int = 0,
-    limit: int = 100,
+    skip: Skip = 0,
+    limit: Limit = 100,
     viewer: User | None = Depends(deps.get_optional_me),
     s: Session = Depends(deps.get_session),
 ) -> list[UserRanking]:
