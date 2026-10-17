@@ -2,6 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "archieves-api",
+    "description": "Claude などの AI は、まず `GET /api/v1/guide` で使い方を読む。",
     "version": "0.1.0"
   },
   "paths": {
@@ -30,40 +31,21 @@
         }
       }
     },
-    "/api/v1/users/find-or-create": {
-      "post": {
+    "/api/v1/guide": {
+      "get": {
         "tags": [
-          "users"
+          "guide"
         ],
-        "summary": "Find Or Create User",
-        "operationId": "find_or_create_user_api_v1_users_find_or_create_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserFindOrCreate"
-              }
-            }
-          },
-          "required": true
-        },
+        "summary": "Get Agent Guide",
+        "description": "AI 向けの、この API の使い方(Markdown)。",
+        "operationId": "get_agent_guide_api_v1_guide_get",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserRead"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "string"
                 }
               }
             }
@@ -80,6 +62,9 @@
         "description": "game_ids のゲームのうち、持ち主のスコアの公開範囲が見る人に見せるものの記録。日付の古い順。\n\n見せないゲームは、無い・消したゲームと区別せずに外す(id から、有るかどうかを探らせない)。",
         "operationId": "list_shared_scores_api_v1_public_scores_get",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -128,37 +113,30 @@
         }
       }
     },
-    "/api/v1/users": {
+    "/api/v1/public/users/{user_id}/profile": {
       "get": {
         "tags": [
-          "users"
+          "public"
         ],
-        "summary": "List Users",
-        "operationId": "list_users_api_v1_users_get",
+        "summary": "Get User Profile",
+        "description": "プロフィールの公開範囲が見る人に見せる利用者の、基本情報と直近の集計。\n\n見せないなら 403(画面が「非公開」と出す)。\nスコア・日記は、それぞれの公開範囲が見せないとき null。",
+        "operationId": "get_user_profile_api_v1_public_users__user_id__profile_get",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
         ],
         "parameters": [
           {
-            "name": "skip",
-            "in": "query",
-            "required": false,
+            "name": "user_id",
+            "in": "path",
+            "required": true,
             "schema": {
               "type": "integer",
-              "default": 0,
-              "title": "Skip"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 100,
-              "title": "Limit"
+              "title": "User Id"
             }
           }
         ],
@@ -168,11 +146,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/UserRead"
-                  },
-                  "title": "Response List Users Api V1 Users Get"
+                  "$ref": "#/components/schemas/UserProfile"
                 }
               }
             }
@@ -188,35 +162,167 @@
             }
           }
         }
-      },
-      "post": {
+      }
+    },
+    "/api/v1/public/ranking": {
+      "get": {
         "tags": [
-          "users"
+          "public"
         ],
-        "summary": "Create User",
-        "operationId": "create_user_api_v1_users_post",
+        "summary": "List User Ranking",
+        "description": "Users ranked by total score, average round score or average point\nscore, high to low, optionally filtered by bow type, distance,\norganization, region, and/or period. ランキングを見る人に公開している人だけを載せる。",
+        "operationId": "list_user_ranking_api_v1_public_ranking_get",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserCreate"
-              }
+        "parameters": [
+          {
+            "name": "metric",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/RankingMetric",
+              "default": "total_score"
+            }
+          },
+          {
+            "name": "organization_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "region_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Region Id"
+            }
+          },
+          {
+            "name": "bow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/BowType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bow Type"
+            }
+          },
+          {
+            "name": "distance_m",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Distance M"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
             }
           }
-        },
+        ],
         "responses": {
-          "201": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserRead"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserRanking"
+                  },
+                  "title": "Response List User Ranking Api V1 Public Ranking Get"
                 }
               }
             }
@@ -275,6 +381,9 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -301,6 +410,9 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -319,88 +431,28 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
-      }
-    },
-    "/api/v1/users/{user_id}": {
-      "get": {
-        "tags": [
-          "users"
-        ],
-        "summary": "Get User",
-        "operationId": "get_user_api_v1_users__user_id__get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "user_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "User Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserRead"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
       },
       "patch": {
         "tags": [
           "users"
         ],
-        "summary": "Update User",
-        "operationId": "update_user_api_v1_users__user_id__patch",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "user_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "User Id"
-            }
-          }
-        ],
+        "summary": "Update My User",
+        "operationId": "update_my_user_api_v1_users_me_patch",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UserUpdate"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -423,54 +475,15 @@
               }
             }
           }
-        }
-      }
-    },
-    "/api/v1/users/{user_id}/profile": {
-      "get": {
-        "tags": [
-          "users"
-        ],
-        "summary": "Get User Profile",
-        "operationId": "get_user_profile_api_v1_users__user_id__profile_get",
+        },
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
-        ],
-        "parameters": [
-          {
-            "name": "user_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "User Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserProfile"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
+        ]
       }
     },
     "/api/v1/organizations": {
@@ -482,6 +495,9 @@
         "operationId": "list_organizations_api_v1_organizations_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -492,6 +508,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -502,6 +519,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -541,6 +560,9 @@
         "summary": "Create Organization",
         "operationId": "create_organization_api_v1_organizations_post",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -588,6 +610,9 @@
         "operationId": "search_organizations_api_v1_organizations_search_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -607,6 +632,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 10,
               "title": "Limit"
             }
@@ -681,6 +708,9 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -694,6 +724,9 @@
         "summary": "Get Organization",
         "operationId": "get_organization_api_v1_organizations__organization_id__get",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -742,6 +775,9 @@
         "operationId": "list_games_api_v1_games_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -752,6 +788,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -762,24 +799,10 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "User Id"
             }
           },
           {
@@ -834,6 +857,9 @@
         "operationId": "create_game_api_v1_games_post",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -879,26 +905,93 @@
         "summary": "List Game Years",
         "description": "ゲームのある年。新しい年が先",
         "operationId": "list_game_years_api_v1_games_years_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array",
+                  "title": "Response List Game Years Api V1 Games Years Get"
+                }
+              }
+            }
+          }
+        },
         "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/games/sheets": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "List Game Sheets",
+        "description": "ゲームの記録(ラウンド・エンド・矢・コメント)を丸ごと、新しい順に limit 件。\n\nrecorded_on でその日のゲーム、until でその日までのゲームに絞る。AI(Claude Code など)が、\nその日のスコアと直近のスコアを比べるために読む。",
+        "operationId": "list_game_sheets_api_v1_games_sheets_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
         ],
         "parameters": [
           {
-            "name": "user_id",
+            "name": "recorded_on",
             "in": "query",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "type": "integer"
+                  "type": "string",
+                  "format": "date"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "User Id"
+              "title": "Recorded On"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 30,
+              "title": "Limit"
             }
           }
         ],
@@ -910,9 +1003,9 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "integer"
+                    "$ref": "#/components/schemas/GameSheetRead"
                   },
-                  "title": "Response List Game Years Api V1 Games Years Get"
+                  "title": "Response List Game Sheets Api V1 Games Sheets Get"
                 }
               }
             }
@@ -940,6 +1033,9 @@
         "operationId": "list_game_scores_api_v1_games_scores_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -951,22 +1047,6 @@
             "schema": {
               "type": "integer",
               "title": "Year"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "User Id"
             }
           }
         ],
@@ -1040,6 +1120,9 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -1054,6 +1137,9 @@
         "description": "ゲームの記録(ラウンド・エンド・矢・コメント)を丸ごと。入力の画面で編集を始めるときに読む。",
         "operationId": "get_game_sheet_api_v1_games__game_id__sheet_get",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -1102,6 +1188,9 @@
         "operationId": "get_game_api_v1_games__game_id__get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -1146,6 +1235,9 @@
         "summary": "Update Game",
         "operationId": "update_game_api_v1_games__game_id__patch",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -1202,6 +1294,9 @@
         "operationId": "delete_game_api_v1_games__game_id__delete",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -1242,6 +1337,9 @@
         "operationId": "list_deleted_games_api_v1_trash_games_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -1252,6 +1350,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -1262,24 +1361,10 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "User Id"
             }
           }
         ],
@@ -1319,6 +1404,9 @@
         "summary": "Restore Game",
         "operationId": "restore_game_api_v1_games__game_id__restore_post",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -1367,6 +1455,9 @@
         "operationId": "list_rounds_api_v1_games__game_id__rounds_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -1386,6 +1477,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -1396,6 +1488,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -1435,6 +1529,9 @@
         "summary": "Create Round",
         "operationId": "create_round_api_v1_games__game_id__rounds_post",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -1493,6 +1590,9 @@
         "operationId": "get_round_api_v1_rounds__round_id__get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -1537,6 +1637,9 @@
         "summary": "Update Round",
         "operationId": "update_round_api_v1_rounds__round_id__patch",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -1593,6 +1696,9 @@
         "operationId": "delete_round_api_v1_rounds__round_id__delete",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -1633,6 +1739,9 @@
         "operationId": "list_deleted_rounds_api_v1_trash_rounds_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -1643,6 +1752,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -1653,6 +1763,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -1671,22 +1783,6 @@
                 }
               ],
               "title": "Game Id"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "User Id"
             }
           }
         ],
@@ -1726,6 +1822,9 @@
         "summary": "Restore Round",
         "operationId": "restore_round_api_v1_rounds__round_id__restore_post",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -1774,6 +1873,9 @@
         "operationId": "list_ends_api_v1_rounds__round_id__ends_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -1793,6 +1895,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -1803,6 +1906,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -1842,6 +1947,9 @@
         "summary": "Create End",
         "operationId": "create_end_api_v1_rounds__round_id__ends_post",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -1900,6 +2008,9 @@
         "operationId": "get_end_api_v1_ends__end_id__get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -1944,6 +2055,9 @@
         "summary": "Update End",
         "operationId": "update_end_api_v1_ends__end_id__patch",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -2000,6 +2114,9 @@
         "operationId": "delete_end_api_v1_ends__end_id__delete",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -2040,6 +2157,9 @@
         "operationId": "list_points_api_v1_ends__end_id__points_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -2059,6 +2179,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Skip"
             }
@@ -2069,6 +2190,8 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -2108,6 +2231,9 @@
         "summary": "Create Point",
         "operationId": "create_point_api_v1_ends__end_id__points_post",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -2166,6 +2292,9 @@
         "operationId": "get_point_api_v1_points__point_id__get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -2210,6 +2339,9 @@
         "summary": "Update Point",
         "operationId": "update_point_api_v1_points__point_id__patch",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -2266,6 +2398,9 @@
         "operationId": "delete_point_api_v1_points__point_id__delete",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -2306,6 +2441,9 @@
         "description": "Every comment under one game - its own, its rounds' and its ends' -\nso a score sheet can be drawn in a single request.",
         "operationId": "list_comments_for_game_api_v1_games__game_id__comments_get",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -2354,6 +2492,9 @@
         "operationId": "get_game_comment_api_v1_games__game_id__comment_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -2398,6 +2539,9 @@
         "summary": "Save Game Comment",
         "operationId": "save_game_comment_api_v1_games__game_id__comment_put",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -2454,6 +2598,9 @@
         "operationId": "delete_game_comment_api_v1_games__game_id__comment_delete",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -2493,6 +2640,9 @@
         "summary": "Get Round Comment",
         "operationId": "get_round_comment_api_v1_rounds__round_id__comment_get",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -2538,6 +2688,9 @@
         "summary": "Save Round Comment",
         "operationId": "save_round_comment_api_v1_rounds__round_id__comment_put",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -2594,6 +2747,9 @@
         "operationId": "delete_round_comment_api_v1_rounds__round_id__comment_delete",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -2633,6 +2789,9 @@
         "summary": "Get End Comment",
         "operationId": "get_end_comment_api_v1_ends__end_id__comment_get",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -2678,6 +2837,9 @@
         "summary": "Save End Comment",
         "operationId": "save_end_comment_api_v1_ends__end_id__comment_put",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -2734,6 +2896,9 @@
         "operationId": "delete_end_comment_api_v1_ends__end_id__comment_delete",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -2745,6 +2910,109 @@
             "schema": {
               "type": "integer",
               "title": "End Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/{game_id}/ai-comment": {
+      "put": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Save Game Ai Comment",
+        "description": "AI(Claude Code など)が、本人のトークンでゲームに指摘・改善点を書く。あれば上書きする。",
+        "operationId": "save_game_ai_comment_api_v1_games__game_id__ai_comment_put",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiCommentWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiCommentRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Delete Game Ai Comment",
+        "description": "本人が画面から AI コメントを消す。",
+        "operationId": "delete_game_ai_comment_api_v1_games__game_id__ai_comment_delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Game Id"
             }
           }
         ],
@@ -2807,6 +3075,9 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -2835,6 +3106,9 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -2848,29 +3122,6 @@
         "summary": "Get Game Kind Options",
         "description": "統計の絞り込みに選べる種別の値。",
         "operationId": "get_game_kind_options_api_v1_statistics_game_kinds_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "User Id"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2881,18 +3132,16 @@
                 }
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/statistics/rounds": {
@@ -2901,9 +3150,12 @@
           "statistics"
         ],
         "summary": "List Round Scores",
-        "description": "Per-round score aggregation (total/average of its points), optionally\nfiltered to a period and/or a user.",
+        "description": "Per-round score aggregation (total/average of its points), optionally\nfiltered to a period.",
         "operationId": "list_round_scores_api_v1_statistics_rounds_get",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -2941,22 +3193,6 @@
                 }
               ],
               "title": "End"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "User Id"
             }
           },
           {
@@ -3094,6 +3330,9 @@
         "operationId": "get_round_score_statistics_api_v1_statistics_rounds_summary_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -3130,22 +3369,6 @@
                 }
               ],
               "title": "End"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "User Id"
             }
           },
           {
@@ -3275,9 +3498,12 @@
           "statistics"
         ],
         "summary": "List End Scores",
-        "description": "Per-end score aggregation (total/average of its points), optionally\nfiltered to a period and/or a user.",
+        "description": "Per-end score aggregation (total/average of its points), optionally\nfiltered to a period.",
         "operationId": "list_end_scores_api_v1_statistics_ends_get",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -3315,22 +3541,6 @@
                 }
               ],
               "title": "End"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "User Id"
             }
           },
           {
@@ -3468,6 +3678,9 @@
         "operationId": "get_end_score_statistics_api_v1_statistics_ends_summary_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -3504,22 +3717,6 @@
                 }
               ],
               "title": "End"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "User Id"
             }
           },
           {
@@ -3653,6 +3850,9 @@
         "operationId": "get_point_score_statistics_api_v1_statistics_points_summary_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -3689,22 +3889,6 @@
                 }
               ],
               "title": "End"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "User Id"
             }
           },
           {
@@ -3828,176 +4012,6 @@
         }
       }
     },
-    "/api/v1/statistics/ranking": {
-      "get": {
-        "tags": [
-          "statistics"
-        ],
-        "summary": "List User Ranking",
-        "description": "Users ranked by total score, average round score or average point\nscore, high to low, optionally filtered by bow type, distance,\norganization, region, and/or period. ランキングを本人に公開している人だけを載せる。",
-        "operationId": "list_user_ranking_api_v1_statistics_ranking_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "metric",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/RankingMetric",
-              "default": "total_score"
-            }
-          },
-          {
-            "name": "organization_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Organization Id"
-            }
-          },
-          {
-            "name": "region_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Region Id"
-            }
-          },
-          {
-            "name": "bow_type",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/BowType"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Bow Type"
-            }
-          },
-          {
-            "name": "distance_m",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Distance M"
-            }
-          },
-          {
-            "name": "start",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Start"
-            }
-          },
-          {
-            "name": "end",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "End"
-            }
-          },
-          {
-            "name": "skip",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 0,
-              "title": "Skip"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 100,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/UserRanking"
-                  },
-                  "title": "Response List User Ranking Api V1 Statistics Ranking Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/feedbacks": {
       "get": {
         "tags": [
@@ -4022,6 +4036,9 @@
           }
         },
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -4067,6 +4084,9 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -4097,6 +4117,9 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -4110,6 +4133,9 @@
         "summary": "Reply To Feedback",
         "operationId": "reply_to_feedback_api_v1_admin_feedbacks__feedback_id__reply_put",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -4184,6 +4210,9 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -4223,6 +4252,9 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -4253,6 +4285,9 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -4266,6 +4301,9 @@
         "summary": "Resolve Error Report",
         "operationId": "resolve_error_report_api_v1_admin_error_reports__error_report_id__resolve_put",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -4326,6 +4364,9 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -4339,6 +4380,9 @@
         "summary": "Create Diary",
         "operationId": "create_diary_api_v1_diaries_post",
         "security": [
+          {
+            "APIKeyHeader": []
+          },
           {
             "HTTPBearer": []
           }
@@ -4385,6 +4429,9 @@
         "operationId": "list_diaries_api_v1_diaries_get",
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ],
@@ -4413,6 +4460,7 @@
               "anyOf": [
                 {
                   "type": "integer",
+                  "maximum": 10000,
                   "minimum": 1
                 },
                 {
@@ -4477,6 +4525,163 @@
         },
         "security": [
           {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access-tokens": {
+      "get": {
+        "tags": [
+          "access-tokens"
+        ],
+        "summary": "List Access Tokens",
+        "description": "本人のトークン。期限の切れたものも含む。新しい順。",
+        "operationId": "list_access_tokens_api_v1_access_tokens_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AccessTokenRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Access Tokens Api V1 Access Tokens Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "access-tokens"
+        ],
+        "summary": "Create Access Token",
+        "description": "トークンを発行する。平文(token)はこの応答にしか載らない。",
+        "operationId": "create_access_token_api_v1_access_tokens_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessTokenCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessTokenCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access-tokens/{access_token_id}": {
+      "delete": {
+        "tags": [
+          "access-tokens"
+        ],
+        "summary": "Delete Access Token",
+        "description": "トークンを失効させる(行ごと消す)。",
+        "operationId": "delete_access_token_api_v1_access_tokens__access_token_id__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "access_token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Access Token Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp": {
+      "post": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Handle Mcp",
+        "description": "MCP の Streamable HTTP。JSON-RPC のメッセージを一つ受け、JSON で答える(通知には 202)。\n\nSSE の流し(GET)とセッションは持たない。",
+        "operationId": "handle_mcp_api_v1_mcp_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
             "HTTPBearer": []
           }
         ]
@@ -4510,6 +4715,104 @@
   },
   "components": {
     "schemas": {
+      "AccessTokenCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "expires_in_days": {
+            "type": "integer",
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Expires In Days",
+            "default": 90
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "AccessTokenCreate"
+      },
+      "AccessTokenCreated": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "token_prefix": {
+            "type": "string",
+            "title": "Token Prefix"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "token_prefix",
+          "created_at",
+          "expires_at",
+          "token"
+        ],
+        "title": "AccessTokenCreated",
+        "description": "発行したときだけ返す。token(平文)は二度と読めない。"
+      },
+      "AccessTokenRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "token_prefix": {
+            "type": "string",
+            "title": "Token Prefix"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "token_prefix",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "AccessTokenRead"
+      },
       "AdminErrorReportRead": {
         "properties": {
           "id": {
@@ -4719,6 +5022,51 @@
         ],
         "title": "AdminPendingCounts",
         "description": "管理者が片付けるものの件数。ホームと意見の確認ページに出す。"
+      },
+      "AiCommentRead": {
+        "properties": {
+          "game_id": {
+            "type": "integer",
+            "title": "Game Id"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "game_id",
+          "body",
+          "author",
+          "updated_at"
+        ],
+        "title": "AiCommentRead",
+        "description": "AI がゲームに付けた指摘・改善点。author は書いたトークンの名前。"
+      },
+      "AiCommentWrite": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "AiCommentWrite"
       },
       "AnnouncementRead": {
         "properties": {
@@ -5394,18 +5742,14 @@
             "type": "boolean",
             "title": "Backfilled",
             "default": false
-          },
-          "user_id": {
-            "type": "integer",
-            "title": "User Id"
           }
         },
         "type": "object",
         "required": [
-          "recorded_at",
-          "user_id"
+          "recorded_at"
         ],
-        "title": "GameCreate"
+        "title": "GameCreate",
+        "description": "持ち主は受けず、ログインした本人にする。"
       },
       "GameKindOptions": {
         "properties": {
@@ -5674,6 +6018,16 @@
             ],
             "title": "Comment"
           },
+          "ai_comment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiCommentRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rounds": {
             "items": {
               "$ref": "#/components/schemas/RoundSheetRead"
@@ -5694,6 +6048,7 @@
           "all_in",
           "backfilled",
           "comment",
+          "ai_comment",
           "rounds"
         ],
         "title": "GameSheetRead"
@@ -5808,17 +6163,6 @@
       },
       "GameUpdate": {
         "properties": {
-          "user_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "User Id"
-          },
           "recorded_at": {
             "anyOf": [
               {
@@ -6031,18 +6375,21 @@
           "diary_visibility"
         ],
         "title": "MeRead",
-        "description": "本人の行。管理者かどうか・公開範囲は本人にだけ返し、他人の行(UserRead)には載せない。"
+        "description": "本人の行。sub・管理者かどうか・公開範囲は本人にだけ返す。\n\n他人に見せる形は schemas/profile.py の PublicUserRead。"
       },
       "OrganizationCreate": {
         "properties": {
           "name": {
             "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
             "title": "Name"
           },
           "formal_name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -6053,7 +6400,8 @@
           "description": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
@@ -6064,7 +6412,8 @@
           "homepage_url": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
@@ -6075,7 +6424,8 @@
           "location": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 200
               },
               {
                 "type": "null"
@@ -6479,6 +6829,48 @@
         },
         "type": "object",
         "title": "PointUpdate"
+      },
+      "PublicUserRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "nickname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nickname"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "nickname",
+          "organization"
+        ],
+        "title": "PublicUserRead",
+        "description": "他人に見せる利用者。Cognito の sub・公開範囲・管理者かどうかは載せない。"
       },
       "RankedUser": {
         "properties": {
@@ -7086,12 +7478,15 @@
         "properties": {
           "name": {
             "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
             "title": "Name"
           },
           "nickname": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -7128,61 +7523,10 @@
         ],
         "title": "UserCreate"
       },
-      "UserFindOrCreate": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "nickname": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Nickname"
-          },
-          "organization_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Organization Id"
-          },
-          "region_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Region Id"
-          },
-          "sub": {
-            "type": "string",
-            "title": "Sub"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "sub"
-        ],
-        "title": "UserFindOrCreate"
-      },
       "UserProfile": {
         "properties": {
           "user": {
-            "$ref": "#/components/schemas/UserRead"
+            "$ref": "#/components/schemas/PublicUserRead"
           },
           "game_count": {
             "type": "integer",
@@ -7263,7 +7607,7 @@
           "recent_diaries"
         ],
         "title": "UserProfile",
-        "description": "利用者のプロフィール。基本情報と、直近のゲームの集計・スコア・日記。\n\nrecent_game_ids・recent_diaries は、持ち主のスコア・日記の公開範囲が見る人に見せないとき None。"
+        "description": "利用者のプロフィール(GET /public/users/{user_id}/profile)。\n\n基本情報と、直近のゲームの集計・スコア・日記。\n\nrecent_game_ids・recent_diaries は、持ち主のスコア・日記の公開範囲が見る人に見せないとき None。"
       },
       "UserRanking": {
         "properties": {
@@ -7298,78 +7642,14 @@
         "title": "UserRanking",
         "description": "metric の値が高い順の、利用者の順位。"
       },
-      "UserRead": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "nickname": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Nickname"
-          },
-          "organization_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Organization Id"
-          },
-          "region_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Region Id"
-          },
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "sub": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sub"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "nickname",
-          "organization_id",
-          "region_id",
-          "id",
-          "sub"
-        ],
-        "title": "UserRead"
-      },
       "UserUpdate": {
         "properties": {
           "name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 50,
+                "minLength": 1
               },
               {
                 "type": "null"
@@ -7380,7 +7660,8 @@
           "nickname": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -7499,6 +7780,11 @@
       }
     },
     "securitySchemes": {
+      "APIKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-archieves-access-token"
+      },
       "HTTPBearer": {
         "type": "http",
         "scheme": "bearer"

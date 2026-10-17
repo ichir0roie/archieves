@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.api.pagination import Limit, Skip
 from app.core.errors import NotFoundError
 from app.crud import organization as organization_crud
 from app.schemas.organization import OrganizationCreate, OrganizationRead, OrganizationSummary
 
+# 組織は持ち主のいない行。画面からログインした人だけが使い、トークンでは通さない
 router = APIRouter()
 
 
@@ -20,10 +22,14 @@ def _check_parent_organization_exists(
         raise NotFoundError("Parent organization not found")
 
 
-@router.get("", response_model=list[OrganizationRead])
+@router.get(
+    "",
+    response_model=list[OrganizationRead],
+    dependencies=[Depends(deps.get_browser_claims)],
+)
 def list_organizations(
-    skip: int = 0,
-    limit: int = 100,
+    skip: Skip = 0,
+    limit: Limit = 100,
     s: Session = Depends(deps.get_session),
 ) -> list[OrganizationRead]:
     return organization_crud.list_organizations(
@@ -33,10 +39,14 @@ def list_organizations(
     )
 
 
-@router.get("/search", response_model=list[OrganizationSummary])
+@router.get(
+    "/search",
+    response_model=list[OrganizationSummary],
+    dependencies=[Depends(deps.get_browser_claims)],
+)
 def search_organizations(
     q: str,
-    limit: int = 10,
+    limit: Limit = 10,
     s: Session = Depends(deps.get_session),
 ) -> list[OrganizationSummary]:
     return organization_crud.search_organizations_by_prefix(
@@ -46,7 +56,12 @@ def search_organizations(
     )
 
 
-@router.post("", response_model=OrganizationRead, status_code=201)
+@router.post(
+    "",
+    response_model=OrganizationRead,
+    status_code=201,
+    dependencies=[Depends(deps.get_browser_claims)],
+)
 def create_organization(
     organization_in: OrganizationCreate,
     s: Session = Depends(deps.get_session),
@@ -59,7 +74,11 @@ def create_organization(
     return result
 
 
-@router.post("/find-or-create", response_model=OrganizationRead)
+@router.post(
+    "/find-or-create",
+    response_model=OrganizationRead,
+    dependencies=[Depends(deps.get_browser_claims)],
+)
 def find_or_create_organization(
     organization_in: OrganizationCreate,
     s: Session = Depends(deps.get_session),
@@ -70,7 +89,11 @@ def find_or_create_organization(
     return result
 
 
-@router.get("/{organization_id}", response_model=OrganizationRead)
+@router.get(
+    "/{organization_id}",
+    response_model=OrganizationRead,
+    dependencies=[Depends(deps.get_browser_claims)],
+)
 def get_organization(
     organization_id: int,
     s: Session = Depends(deps.get_session),

@@ -31,6 +31,9 @@ Next.js(App Router)・React 19。スマホで使う前提の画面が多い。
 
 - `NEXT_PUBLIC_AUTH_MODE=mock` なら Amplify を通さず `NEXT_PUBLIC_MOCK_USER_*` の利用者としてログインした扱いにし、`Bearer mock-token-<sub>` を送る。API の `AUTH_MODE=mock` と揃える
 - `cognito` なら Amplify の `Authenticator` でログインし、ID トークンを送る
+- 本人が発行したトークン(設定の画面の `AccessTokens.tsx`)で `Authorization: Bearer arc_...` と来た要求は、route handler がクッキーを見ずに `x-archieves-access-token` へ載せ替えて流す(Claude Code などの AI が `<サイト>/api/v1/*` を読むため)。MCP の `mcp/<トークン>` も、トークンをヘッダーに載せ替えて `mcp` へ流す。どこまで通すかは API が決める(`.claude/docs/backend.md` の「認証」)
+- 本人の記録の API は利用者の id を送らない(API がログインから本人を引く)。他人を見る画面(プロフィール・ランキング・スコアの公開ページ)は `/public/*` を読む
+- route handler の守り: クッキーのログインでの書き込みは、`Sec-Fetch-Site` がよそのサイトなら 403(CSRF)。`.`・`..` のパスは流さない。応答に `cache-control` が無ければ `no-store` を付ける(本人のデータを CDN に溜めさせない)
 - スコアの公開ページ(`/score-share`。`src/lib/scoreShare.ts` の `isPublicPath`)はログインしていなくても開ける。`AuthGate` の `Authenticator` と登録の確かめ、メニュー(`Nav`)、エラーでホームへ戻すこと(`ApiErrorRedirect`)を外す。route handler は `public/*` の API を、ログインしていなければ利用者なしで流す
 - `AuthGate.tsx` は `amplify_outputs.json` を import するので、`predev`・`pretypecheck`・`pretest:e2e` が `amplify_outputs.example.json` から写す(`scripts/ensure-amplify-outputs.mjs`)。本物は `npx ampx sandbox` が書く(git には入れない)
 

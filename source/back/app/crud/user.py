@@ -1,26 +1,22 @@
 from sqlalchemy import ColumnElement, and_, delete, false, or_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.visibility import Visibility
 from app.db import User
 from app.schemas.user import UserCreate, UserUpdate
 
 
-def get_user(s: Session, user_id: int) -> User | None:
-    return s.get(User, user_id)
-
-
 def get_user_by_sub(s: Session, sub: str) -> User | None:
     return s.scalar(select(User).where(User.sub == sub))
 
 
-def visible_condition(viewer: User, visibility: ColumnElement[str]) -> ColumnElement[bool]:
+def visible_condition(viewer: User | None, visibility: ColumnElement[str]) -> ColumnElement[bool]:
     """core/visibility.py の is_visible() を SQL で書いたもの。
 
-    User を引く select の where に使う。
+    User を引く select の where に使う。viewer が None(ログインしていない)なら全体公開の分だけ。
     """
-    if viewer.organization_id is None:
+    if viewer is None or viewer.organization_id is None:
         same_organization: ColumnElement[bool] = false()
     else:
         same_organization = and_(
@@ -30,16 +26,11 @@ def visible_condition(viewer: User, visibility: ColumnElement[str]) -> ColumnEle
     return or_(visibility == Visibility.PUBLIC, same_organization)
 
 
-def list_users(s: Session, viewer: User, skip: int = 0, limit: int = 100) -> list[User]:
-    """viewer に見える利用者(本人と、プロフィールを viewer に公開している人)。"""
-    stmt = (
-        select(User)
-        .where(or_(User.id == viewer.id, visible_condition(viewer, User.profile_visibility)))
-        .order_by(User.id)
-        .offset(skip)
-        .limit(limit)
+def get_user_with_organization(s: Session, user_id: int) -> User | None:
+    """所属の組織(User.organization)を読み込んだ利用者の行。"""
+    return s.scalar(
+        select(User).options(joinedload(User.organization)).where(User.id == user_id)
     )
-    return list(s.scalars(stmt))
 
 
 def create_user(s: Session, user_in: UserCreate, sub: str | None = None) -> User:
@@ -75,6 +66,7 @@ def update_user(s: Session, user: User, user_in: UserUpdate) -> User:
 
 
 def delete_user(s: Session, user: User) -> None:
-    """利用者の行を消す。試合・日記・コメント・意見・エラーの集積は、外部キーの ON DELETE CASCADE で
-    db が一緒に消す(relationship は noload なので、ORM の cascade には任せない)。"""
+    """利用者の行を消す。試合・日記・コメント・意見・エラーの集積・トークンは、
+    外部キーの ON DELETE CASCADE で db が一緒に消す(relationship は noload なので、
+    ORM の cascade には任せない)。"""
     s.execute(delete(User).where(User.id == user.id))

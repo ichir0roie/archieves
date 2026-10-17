@@ -5,6 +5,9 @@ import { getT } from '../text';
 import { clearCachedAppUser } from '../storage';
 import { MAX_ERROR_MESSAGE_LENGTH, MAX_ERROR_PATH_LENGTH } from '../support';
 import type {
+  AccessTokenCreate,
+  AccessTokenCreated,
+  AccessTokenRead,
   AdminErrorReportRead,
   AdminFeedbackRead,
   AdminPendingCounts,
@@ -42,7 +45,6 @@ import type {
   UserCreate,
   UserProfile,
   UserRanking,
-  UserRead,
   UserUpdate,
 } from './schemas';
 
@@ -216,25 +218,6 @@ export function healthCheck(): Promise<{ status: string }> {
   return request('/health');
 }
 
-export function listUsers(params?: { skip?: number; limit?: number }): Promise<UserRead[]> {
-  const query = new URLSearchParams();
-  if (params?.skip !== undefined) query.set('skip', String(params.skip));
-  if (params?.limit !== undefined) query.set('limit', String(params.limit));
-  const qs = query.toString();
-  return request(`/users${qs ? `?${qs}` : ''}`);
-}
-
-export function getUser(userId: number): Promise<UserRead> {
-  return request(`/users/${userId}`);
-}
-
-export function createUser(user: UserCreate): Promise<UserRead> {
-  return request('/users', {
-    method: 'POST',
-    body: JSON.stringify(user),
-  });
-}
-
 /** Finds or creates the signed-in user's row, keyed off their Cognito sub. */
 export function ensureCurrentUser(user: UserCreate): Promise<MeRead> {
   return request('/users/me/ensure', {
@@ -252,18 +235,20 @@ export function deleteMyUser(): Promise<void> {
   return request('/users/me', { method: 'DELETE' });
 }
 
-/** Updates a user's basic profile info (name, nickname, organization, region). */
-export function updateUser(userId: number, user: UserUpdate): Promise<MeRead> {
-  return request(`/users/${userId}`, {
+/** 本人の基本情報(名前・ニックネーム・所属・地域)と公開範囲を書き換える。 */
+export function updateMyUser(user: UserUpdate): Promise<MeRead> {
+  return request('/users/me', {
     method: 'PATCH',
     body: JSON.stringify(user),
   });
 }
 
-/** Public profile: basic info plus the user's activity (stats) over the last year. */
-/** 本人に公開されていないプロフィールは 403 になる。画面が受けて「非公開」と出す */
+/**
+ * 利用者のプロフィール(基本情報・所属・直近の集計・スコア・日記)。持ち主の公開範囲が見せる分だけが載る。
+ * 本人に公開されていないプロフィールは 403 になる。画面が受けて「非公開」と出す
+ */
 export function getUserProfile(userId: number): Promise<UserProfile> {
-  return request(`/users/${userId}/profile`, undefined, { expectedStatuses: [403] });
+  return request(`/public/users/${userId}/profile`, undefined, { expectedStatuses: [403] });
 }
 
 export function listOrganizations(params?: {
@@ -307,7 +292,6 @@ export function getOrganization(organizationId: number): Promise<OrganizationRea
 }
 
 export function createGame(
-  userId: number,
   recordedAt: Date = new Date(),
   gameSize?: number,
   bowType?: string,
@@ -315,7 +299,6 @@ export function createGame(
   return request('/games', {
     method: 'POST',
     body: JSON.stringify({
-      user_id: userId,
       recorded_at: toDateOnly(recordedAt),
       game_size: gameSize,
       bow_type: bowType,
@@ -346,8 +329,8 @@ export function deleteGame(gameId: number): Promise<void> {
 }
 
 /** 論理削除したゲーム。消した日が新しい順。 */
-export function listDeletedGames(userId: number): Promise<GameRead[]> {
-  return request(`/trash/games?user_id=${userId}`);
+export function listDeletedGames(): Promise<GameRead[]> {
+  return request('/trash/games');
 }
 
 /** 論理削除したゲームを、配下のラウンド・エンド・点ごと戻す。 */
@@ -355,19 +338,19 @@ export function restoreGame(gameId: number): Promise<GameRead> {
   return request(`/games/${gameId}/restore`, { method: 'POST' });
 }
 
-/** Games belonging to a single user, most recently created last. */
-export function listGames(userId: number): Promise<GameRead[]> {
-  return request(`/games?user_id=${userId}`);
+/** 本人のゲーム。作った順 */
+export function listGames(): Promise<GameRead[]> {
+  return request('/games');
 }
 
-/** その年(recorded_at)のゲーム全部。既定の 100 件で切れないよう上限を広げる */
-export function listGamesOfYear(userId: number, year: number): Promise<GameRead[]> {
-  return request(`/games?user_id=${userId}&year=${year}&limit=10000`);
+/** 本人のその年(recorded_at)のゲーム全部。既定の 100 件で切れないよう上限を広げる */
+export function listGamesOfYear(year: number): Promise<GameRead[]> {
+  return request(`/games?year=${year}&limit=10000`);
 }
 
-/** その年のゲームごとの合計点・エンド平均・ポイント平均 */
-export function listGameScoresOfYear(userId: number, year: number): Promise<GameScoreSummary[]> {
-  return request(`/games/scores?user_id=${userId}&year=${year}`);
+/** 本人のその年のゲームごとの合計点・エンド平均・ポイント平均 */
+export function listGameScoresOfYear(year: number): Promise<GameScoreSummary[]> {
+  return request(`/games/scores?year=${year}`);
 }
 
 /**
@@ -380,9 +363,9 @@ export function listSharedScores(gameIds: ReadonlyArray<number>): Promise<Shared
   return request(`/public/scores?${query}`);
 }
 
-/** ゲームのある年。新しい年が先 */
-export function listGameYears(userId: number): Promise<number[]> {
-  return request(`/games/years?user_id=${userId}`);
+/** 本人のゲームのある年。新しい年が先 */
+export function listGameYears(): Promise<number[]> {
+  return request('/games/years');
 }
 
 /** Rounds within a single game, in creation order. */
@@ -483,6 +466,11 @@ export function deleteGameComment(gameId: number): Promise<void> {
   return request(`/games/${gameId}/comment`, { method: 'DELETE' });
 }
 
+/** ゲームの AI コメントを消す。AI コメントは Claude Code がトークンで書き、画面からは書かない。 */
+export function deleteGameAiComment(gameId: number): Promise<void> {
+  return request(`/games/${gameId}/ai-comment`, { method: 'DELETE' });
+}
+
 /** Writes the round's comment, replacing the one already there if any. */
 export function saveRoundComment(roundId: number, body: string): Promise<RoundCommentRead> {
   return request(`/rounds/${roundId}/comment`, {
@@ -507,13 +495,12 @@ export function deleteEndComment(endId: number): Promise<void> {
   return request(`/ends/${endId}/comment`, { method: 'DELETE' });
 }
 
-/** Optional period/user filters shared by every /statistics endpoint. */
+/** /statistics(本人の記録の集計)に共通の、期間と種別の絞り込み。 */
 export interface StatisticsQuery {
   /** "yyyy-mm-dd" date; inclusive lower bound on `recorded_at`. */
   start?: string;
   /** "yyyy-mm-dd" date; inclusive upper bound on `recorded_at`. */
   end?: string;
-  userId?: number;
   /** ゲームの種別で絞る。/statistics だけが使い、未指定の欄は絞らない */
   bowType?: string;
   distanceM?: number;
@@ -527,7 +514,6 @@ function statisticsQueryString(params?: StatisticsQuery): string {
   const query = new URLSearchParams();
   if (params?.start) query.set('start', params.start);
   if (params?.end) query.set('end', params.end);
-  if (params?.userId !== undefined) query.set('user_id', String(params.userId));
   if (params?.bowType) query.set('bow_type', params.bowType);
   if (params?.distanceM !== undefined) query.set('distance_m', String(params.distanceM));
   if (params?.targetType) query.set('target_type', params.targetType);
@@ -538,9 +524,9 @@ function statisticsQueryString(params?: StatisticsQuery): string {
   return qs ? `?${qs}` : '';
 }
 
-/** 統計の絞り込みに選べる種別の値(利用者の記録にあるもの)。 */
-export function getGameKindOptions(userId?: number): Promise<GameKindOptions> {
-  return request(`/statistics/game-kinds${statisticsQueryString({ userId })}`);
+/** 統計の絞り込みに選べる種別の値(本人の記録にあるもの)。 */
+export function getGameKindOptions(): Promise<GameKindOptions> {
+  return request('/statistics/game-kinds');
 }
 
 /** Per-round score aggregation (total/average of its points). */
@@ -568,7 +554,7 @@ export function getPointScoreStatistics(params?: StatisticsQuery): Promise<Score
   return request(`/statistics/points/summary${statisticsQueryString(params)}`);
 }
 
-/** Filters for /statistics/ranking: a metric, a period, an event (bow type / distance), an organization and/or a region. */
+/** Filters for /public/ranking: a metric, a period, an event (bow type / distance), an organization and/or a region. */
 export interface RankingQuery {
   metric?: RankingMetric;
   start?: string;
@@ -631,7 +617,7 @@ export function listUserRanking(params?: RankingQuery): Promise<UserRanking[]> {
   }
   if (params?.regionId !== undefined) query.set('region_id', String(params.regionId));
   const qs = query.toString();
-  return request(`/statistics/ranking${qs ? `?${qs}` : ''}`);
+  return request(`/public/ranking${qs ? `?${qs}` : ''}`);
 }
 
 /** 自分の日記。新しい順。year は日本時間の年。limit を省くと全部。 */
@@ -695,4 +681,27 @@ export function resolveErrorReport(errorReportId: number): Promise<AdminErrorRep
 
 export function getPendingCounts(): Promise<AdminPendingCounts> {
   return request('/admin/pending-counts');
+}
+
+/** 本人が発行したトークン(Claude Code などに渡す)。期限の切れたものも含む。新しい順。 */
+export function listAccessTokens(): Promise<AccessTokenRead[]> {
+  return request('/access-tokens');
+}
+
+/** トークンを発行する。平文(token)はこの応答にしか載らない。 */
+export function createAccessToken(token: AccessTokenCreate): Promise<AccessTokenCreated> {
+  return request(
+    '/access-tokens',
+    {
+      method: 'POST',
+      body: JSON.stringify(token),
+    },
+    // 発行できる数を越えたら 409。画面で知らせて、古いものを消させる
+    { stayOnPageStatuses: [409] },
+  );
+}
+
+/** トークンを失効させる。 */
+export function deleteAccessToken(accessTokenId: number): Promise<void> {
+  return request(`/access-tokens/${accessTokenId}`, { method: 'DELETE' });
 }

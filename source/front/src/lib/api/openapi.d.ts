@@ -21,17 +21,20 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users/find-or-create": {
+    "/api/v1/guide": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Agent Guide
+         * @description AI 向けの、この API の使い方(Markdown)。
+         */
+        get: operations["get_agent_guide_api_v1_guide_get"];
         put?: never;
-        /** Find Or Create User */
-        post: operations["find_or_create_user_api_v1_users_find_or_create_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -60,18 +63,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users": {
+    "/api/v1/public/users/{user_id}/profile": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List Users */
-        get: operations["list_users_api_v1_users_get"];
+        /**
+         * Get User Profile
+         * @description プロフィールの公開範囲が見る人に見せる利用者の、基本情報と直近の集計。
+         *
+         *     見せないなら 403(画面が「非公開」と出す)。
+         *     スコア・日記は、それぞれの公開範囲が見せないとき null。
+         */
+        get: operations["get_user_profile_api_v1_public_users__user_id__profile_get"];
         put?: never;
-        /** Create User */
-        post: operations["create_user_api_v1_users_post"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/ranking": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Ranking
+         * @description Users ranked by total score, average round score or average point
+         *     score, high to low, optionally filtered by bow type, distance,
+         *     organization, region, and/or period. ランキングを見る人に公開している人だけを載せる。
+         */
+        get: operations["list_user_ranking_api_v1_public_ranking_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -113,42 +143,8 @@ export interface paths {
         delete: operations["delete_my_user_api_v1_users_me_delete"];
         options?: never;
         head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get User */
-        get: operations["get_user_api_v1_users__user_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Update User */
-        patch: operations["update_user_api_v1_users__user_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/users/{user_id}/profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get User Profile */
-        get: operations["get_user_profile_api_v1_users__user_id__profile_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
+        /** Update My User */
+        patch: operations["update_my_user_api_v1_users_me_patch"];
         trace?: never;
     };
     "/api/v1/organizations": {
@@ -250,6 +246,29 @@ export interface paths {
          * @description ゲームのある年。新しい年が先
          */
         get: operations["list_game_years_api_v1_games_years_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/games/sheets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Game Sheets
+         * @description ゲームの記録(ラウンド・エンド・矢・コメント)を丸ごと、新しい順に limit 件。
+         *
+         *     recorded_on でその日のゲーム、until でその日までのゲームに絞る。AI(Claude Code など)が、
+         *     その日のスコアと直近のスコアを比べるために読む。
+         */
+        get: operations["list_game_sheets_api_v1_games_sheets_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -597,6 +616,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/games/{game_id}/ai-comment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Game Ai Comment
+         * @description AI(Claude Code など)が、本人のトークンでゲームに指摘・改善点を書く。あれば上書きする。
+         */
+        put: operations["save_game_ai_comment_api_v1_games__game_id__ai_comment_put"];
+        post?: never;
+        /**
+         * Delete Game Ai Comment
+         * @description 本人が画面から AI コメントを消す。
+         */
+        delete: operations["delete_game_ai_comment_api_v1_games__game_id__ai_comment_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/import": {
         parameters: {
             query?: never;
@@ -669,7 +712,7 @@ export interface paths {
         /**
          * List Round Scores
          * @description Per-round score aggregation (total/average of its points), optionally
-         *     filtered to a period and/or a user.
+         *     filtered to a period.
          */
         get: operations["list_round_scores_api_v1_statistics_rounds_get"];
         put?: never;
@@ -710,7 +753,7 @@ export interface paths {
         /**
          * List End Scores
          * @description Per-end score aggregation (total/average of its points), optionally
-         *     filtered to a period and/or a user.
+         *     filtered to a period.
          */
         get: operations["list_end_scores_api_v1_statistics_ends_get"];
         put?: never;
@@ -753,28 +796,6 @@ export interface paths {
          * @description Min/max/average/median of individual point (arrow) scores within a period.
          */
         get: operations["get_point_score_statistics_api_v1_statistics_points_summary_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/statistics/ranking": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List User Ranking
-         * @description Users ranked by total score, average round score or average point
-         *     score, high to low, optionally filtered by bow type, distance,
-         *     organization, region, and/or period. ランキングを本人に公開している人だけを載せる。
-         */
-        get: operations["list_user_ranking_api_v1_statistics_ranking_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -961,6 +982,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/access-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Access Tokens
+         * @description 本人のトークン。期限の切れたものも含む。新しい順。
+         */
+        get: operations["list_access_tokens_api_v1_access_tokens_get"];
+        put?: never;
+        /**
+         * Create Access Token
+         * @description トークンを発行する。平文(token)はこの応答にしか載らない。
+         */
+        post: operations["create_access_token_api_v1_access_tokens_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/access-tokens/{access_token_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Access Token
+         * @description トークンを失効させる(行ごと消す)。
+         */
+        delete: operations["delete_access_token_api_v1_access_tokens__access_token_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Handle Mcp
+         * @description MCP の Streamable HTTP。JSON-RPC のメッセージを一つ受け、JSON で答える(通知には 202)。
+         *
+         *     SSE の流し(GET)とセッションは持たない。
+         */
+        post: operations["handle_mcp_api_v1_mcp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -982,6 +1069,59 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccessTokenCreate */
+        AccessTokenCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Expires In Days
+             * @default 90
+             */
+            expires_in_days: number;
+        };
+        /**
+         * AccessTokenCreated
+         * @description 発行したときだけ返す。token(平文)は二度と読めない。
+         */
+        AccessTokenCreated: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Token Prefix */
+            token_prefix: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Token */
+            token: string;
+        };
+        /** AccessTokenRead */
+        AccessTokenRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Token Prefix */
+            token_prefix: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
         /**
          * AdminErrorReportRead
          * @description 管理者が見るエラー。登録の前の利用者からのものは利用者の欄が空。
@@ -1048,6 +1188,28 @@ export interface components {
             unanswered_feedbacks: number;
             /** Unresolved Error Reports */
             unresolved_error_reports: number;
+        };
+        /**
+         * AiCommentRead
+         * @description AI がゲームに付けた指摘・改善点。author は書いたトークンの名前。
+         */
+        AiCommentRead: {
+            /** Game Id */
+            game_id: number;
+            /** Body */
+            body: string;
+            /** Author */
+            author: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** AiCommentWrite */
+        AiCommentWrite: {
+            /** Body */
+            body: string;
         };
         /** AnnouncementRead */
         AnnouncementRead: {
@@ -1279,7 +1441,10 @@ export interface components {
              */
             ends: components["schemas"]["EndCommentRead"][];
         };
-        /** GameCreate */
+        /**
+         * GameCreate
+         * @description 持ち主は受けず、ログインした本人にする。
+         */
         GameCreate: {
             /**
              * Recorded At
@@ -1302,8 +1467,6 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
-            /** User Id */
-            user_id: number;
         };
         /**
          * GameKindOptions
@@ -1392,6 +1555,7 @@ export interface components {
             backfilled: boolean;
             /** Comment */
             comment: string | null;
+            ai_comment: components["schemas"]["AiCommentRead"] | null;
             /** Rounds */
             rounds: components["schemas"]["RoundSheetRead"][];
         };
@@ -1432,8 +1596,6 @@ export interface components {
         };
         /** GameUpdate */
         GameUpdate: {
-            /** User Id */
-            user_id?: number | null;
             /** Recorded At */
             recorded_at?: string | null;
             /** Game Size */
@@ -1470,7 +1632,9 @@ export interface components {
         ImportSource: "android_mytargets" | "archieves";
         /**
          * MeRead
-         * @description 本人の行。管理者かどうか・公開範囲は本人にだけ返し、他人の行(UserRead)には載せない。
+         * @description 本人の行。sub・管理者かどうか・公開範囲は本人にだけ返す。
+         *
+         *     他人に見せる形は schemas/profile.py の PublicUserRead。
          */
         MeRead: {
             /** Name */
@@ -1612,6 +1776,19 @@ export interface components {
             recorded_at?: string | null;
             /** Shot At */
             shot_at?: string | null;
+        };
+        /**
+         * PublicUserRead
+         * @description 他人に見せる利用者。Cognito の sub・公開範囲・管理者かどうかは載せない。
+         */
+        PublicUserRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Nickname */
+            nickname: string | null;
+            organization: components["schemas"]["OrganizationSummary"] | null;
         };
         /**
          * RankedUser
@@ -1825,27 +2002,16 @@ export interface components {
             /** Region Id */
             region_id?: number | null;
         };
-        /** UserFindOrCreate */
-        UserFindOrCreate: {
-            /** Name */
-            name: string;
-            /** Nickname */
-            nickname?: string | null;
-            /** Organization Id */
-            organization_id?: number | null;
-            /** Region Id */
-            region_id?: number | null;
-            /** Sub */
-            sub: string;
-        };
         /**
          * UserProfile
-         * @description 利用者のプロフィール。基本情報と、直近のゲームの集計・スコア・日記。
+         * @description 利用者のプロフィール(GET /public/users/{user_id}/profile)。
+         *
+         *     基本情報と、直近のゲームの集計・スコア・日記。
          *
          *     recent_game_ids・recent_diaries は、持ち主のスコア・日記の公開範囲が見る人に見せないとき None。
          */
         UserProfile: {
-            user: components["schemas"]["UserRead"];
+            user: components["schemas"]["PublicUserRead"];
             /** Game Count */
             game_count: number;
             /** Period Start */
@@ -1874,21 +2040,6 @@ export interface components {
             round_count: number;
             /** Arrow Count */
             arrow_count: number;
-        };
-        /** UserRead */
-        UserRead: {
-            /** Name */
-            name: string;
-            /** Nickname */
-            nickname: string | null;
-            /** Organization Id */
-            organization_id: number | null;
-            /** Region Id */
-            region_id: number | null;
-            /** Id */
-            id: number;
-            /** Sub */
-            sub: string | null;
         };
         /** UserUpdate */
         UserUpdate: {
@@ -1951,18 +2102,14 @@ export interface operations {
             };
         };
     };
-    find_or_create_user_api_v1_users_find_or_create_post: {
+    get_agent_guide_api_v1_guide_get: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserFindOrCreate"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -1970,16 +2117,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
                 };
             };
         };
@@ -2015,9 +2153,47 @@ export interface operations {
             };
         };
     };
-    list_users_api_v1_users_get: {
+    get_user_profile_api_v1_public_users__user_id__profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfile"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_user_ranking_api_v1_public_ranking_get: {
         parameters: {
             query?: {
+                metric?: components["schemas"]["RankingMetric"];
+                organization_id?: number | null;
+                region_id?: number | null;
+                bow_type?: components["schemas"]["BowType"] | null;
+                distance_m?: number | null;
+                start?: string | null;
+                end?: string | null;
                 skip?: number;
                 limit?: number;
             };
@@ -2033,40 +2209,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_user_api_v1_users_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserRead"];
+                    "application/json": components["schemas"]["UserRanking"][];
                 };
             };
             /** @description Validation Error */
@@ -2151,44 +2294,11 @@ export interface operations {
             };
         };
     };
-    get_user_api_v1_users__user_id__get: {
+    update_my_user_api_v1_users_me_patch: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_user_api_v1_users__user_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
@@ -2204,37 +2314,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_user_profile_api_v1_users__user_id__profile_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserProfile"];
                 };
             };
             /** @description Validation Error */
@@ -2414,7 +2493,6 @@ export interface operations {
             query?: {
                 skip?: number;
                 limit?: number;
-                user_id?: number | null;
                 year?: number | null;
             };
             header?: never;
@@ -2478,9 +2556,7 @@ export interface operations {
     };
     list_game_years_api_v1_games_years_get: {
         parameters: {
-            query?: {
-                user_id?: number | null;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -2494,6 +2570,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": number[];
+                };
+            };
+        };
+    };
+    list_game_sheets_api_v1_games_sheets_get: {
+        parameters: {
+            query?: {
+                recorded_on?: string | null;
+                until?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameSheetRead"][];
                 };
             };
             /** @description Validation Error */
@@ -2511,7 +2611,6 @@ export interface operations {
         parameters: {
             query: {
                 year: number;
-                user_id?: number | null;
             };
             header?: never;
             path?: never;
@@ -2703,7 +2802,6 @@ export interface operations {
             query?: {
                 skip?: number;
                 limit?: number;
-                user_id?: number | null;
             };
             header?: never;
             path?: never;
@@ -2932,7 +3030,6 @@ export interface operations {
                 skip?: number;
                 limit?: number;
                 game_id?: number | null;
-                user_id?: number | null;
             };
             header?: never;
             path?: never;
@@ -3635,6 +3732,70 @@ export interface operations {
             };
         };
     };
+    save_game_ai_comment_api_v1_games__game_id__ai_comment_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiCommentWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiCommentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_game_ai_comment_api_v1_games__game_id__ai_comment_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     import_export_file_api_v1_import_post: {
         parameters: {
             query?: never;
@@ -3690,9 +3851,7 @@ export interface operations {
     };
     get_game_kind_options_api_v1_statistics_game_kinds_get: {
         parameters: {
-            query?: {
-                user_id?: number | null;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -3708,15 +3867,6 @@ export interface operations {
                     "application/json": components["schemas"]["GameKindOptions"];
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     list_round_scores_api_v1_statistics_rounds_get: {
@@ -3724,7 +3874,6 @@ export interface operations {
             query?: {
                 start?: string | null;
                 end?: string | null;
-                user_id?: number | null;
                 bow_type?: string | null;
                 distance_m?: number | null;
                 target_type?: string | null;
@@ -3763,7 +3912,6 @@ export interface operations {
             query?: {
                 start?: string | null;
                 end?: string | null;
-                user_id?: number | null;
                 bow_type?: string | null;
                 distance_m?: number | null;
                 target_type?: string | null;
@@ -3802,7 +3950,6 @@ export interface operations {
             query?: {
                 start?: string | null;
                 end?: string | null;
-                user_id?: number | null;
                 bow_type?: string | null;
                 distance_m?: number | null;
                 target_type?: string | null;
@@ -3841,7 +3988,6 @@ export interface operations {
             query?: {
                 start?: string | null;
                 end?: string | null;
-                user_id?: number | null;
                 bow_type?: string | null;
                 distance_m?: number | null;
                 target_type?: string | null;
@@ -3880,7 +4026,6 @@ export interface operations {
             query?: {
                 start?: string | null;
                 end?: string | null;
-                user_id?: number | null;
                 bow_type?: string | null;
                 distance_m?: number | null;
                 target_type?: string | null;
@@ -3901,45 +4046,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScoreStatistics"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_user_ranking_api_v1_statistics_ranking_get: {
-        parameters: {
-            query?: {
-                metric?: components["schemas"]["RankingMetric"];
-                organization_id?: number | null;
-                region_id?: number | null;
-                bow_type?: components["schemas"]["BowType"] | null;
-                distance_m?: number | null;
-                start?: string | null;
-                end?: string | null;
-                skip?: number;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserRanking"][];
                 };
             };
             /** @description Validation Error */
@@ -4264,6 +4370,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": number[];
+                };
+            };
+        };
+    };
+    list_access_tokens_api_v1_access_tokens_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessTokenRead"][];
+                };
+            };
+        };
+    };
+    create_access_token_api_v1_access_tokens_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccessTokenCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessTokenCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_access_token_api_v1_access_tokens__access_token_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                access_token_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    handle_mcp_api_v1_mcp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

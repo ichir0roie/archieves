@@ -51,3 +51,36 @@ for (const lost of [false, true]) {
     await expect(row.getByText("10", { exact: true })).toHaveCount(6);
   });
 }
+
+test("finishing covers the screen until the score view opens", async ({ page }) => {
+  await startGame(page, { endSize: 6, roundSize: 6, gameSize: 1 });
+  await shoot(page, "10", 6);
+
+  // 保存の応答を止めておき、送っている間の画面を見る
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(
+    SHEET,
+    async (route) => {
+      await held;
+      await route.continue();
+    },
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "終了" }).click();
+
+  const overlay = page.locator(".FinishingOverlay");
+  await expect(overlay).toBeVisible();
+  await expect(overlay.locator(".spinner")).toBeVisible();
+  // 覆いの下の ✕ を押しても届かず、入力の画面に留まる
+  const home = await page.getByRole("button", { name: "ホームへ戻る" }).boundingBox();
+  if (!home) throw new Error("home button not laid out");
+  await page.mouse.click(home.x + home.width / 2, home.y + home.height / 2);
+  await expect(page).toHaveURL(/\/game\/score-card$/);
+
+  release();
+  await expect(page).toHaveURL(/\/score-view\/?\?gameId=\d+$/, { timeout: ROUTE_TIMEOUT });
+  await expect(page.locator("table tbody tr")).toHaveCount(1);
+});

@@ -44,6 +44,8 @@
 
 - 上の表に無い状態(409 など)を返すときだけ `HTTPException` を使う。crud・services からは `HTTPException` を投げない
 - 要求の形の検証(型・必須)は FastAPI が 422 で返す。モデルの `Field`・`field_validator` に書く
+- db や SQL に届くと 500 になる値は、要求の形で 422 にする。文字の欄の長さは db の列と同じ定数(`app/core/names.py` など)を `Field(max_length=...)` に使う。検証は要求の形(`XCreate`・`XUpdate`)にだけ付け、応答の形には付けない(今ある行が合わずに読めなくなる)
+- 一覧の `skip`・`limit` は `app/api/pagination.py` の `Skip`・`Limit` を使う(負の値・大きすぎる値を弾く)
 
 ## スキーマ
 
@@ -63,30 +65,36 @@ cd source/front && npm run types
 
 ## 認証
 
-- `AUTH_MODE=cognito`(既定)は、`authenticated_router` の下のすべてに Cognito の ID トークンを求める(`app/core/security.py`)。`mock` は `MOCK_USER_*` の利用者として通す。どちらにするかは import した時に決まる
-- エンドポイントは「本人のみ」「本人以外も」「管理者のみ」「ログインなしも」に分ける。「ログインなしも」のほかは Cognito の ID トークンが通っていること(上の `authenticated_router`)が前提で、「本人のみ」はさらに行の持ち主が本人であることを求める
+- `AUTH_MODE=cognito`(既定)は、画面からのログインに Cognito の ID トークンを求める(`app/core/security.py`)。`mock` は `MOCK_USER_*` の利用者として通す(`Bearer mock-token-<sub>` なら、その sub の利用者。E2E が他人の行を作るため)。どちらにするかは import した時に決まる
+- 利用者が発行するトークン(`arc_...`。Claude Code などに渡す)は、どの `AUTH_MODE` でも `x-archieves-access-token` ヘッダーで受け、API が db(`access_tokens` の sha256)で確かめる。フロントの route handler が `Authorization: Bearer arc_...` をこのヘッダーに載せ替える。トークンは本人の記録を読む GET と、AI コメントを書く口(`PUT /games/{game_id}/ai-comment`)だけに通す
+- `authenticated_router` の入り口(`deps.authenticate`)は、ログインかトークンのどちらかがあることだけを求める。どちらを通すかは、エンドポイントごとに次の依存で決める(`app/api/deps.py`)。新しいエンドポイントには必ずどれかを付ける(`tests/test_ownership.py` の `test_every_endpoint_declares_who_it_lets_in` が付け忘れを落とす)
 
-| 区分 | 対象 | 見るもの |
+| 依存 | 通すもの | 使うところ |
 | --- | --- | --- |
-| 本人のみ | `games`(`PUT /games/sheet`・`GET /games/{game_id}/sheet` を含む)・`rounds`・`ends`・`points`・コメントの読み書き全部、`trash/*`、`PATCH /users/{user_id}`、`/users/me`・`/users/me/ensure`・`/import`・`/export/records.db`、`/feedbacks`、`/diaries` | トークンの `sub` の利用者の行(`deps.get_me`)と、行の `user_id` が同じこと |
-| 本人以外も | `/statistics/*`(ランキング含む)、`GET /users`・`GET /users/{user_id}`、`GET /users/{user_id}/profile`、`/organizations/*`、`/announcements` | トークンが通っていること。利用者の行・プロフィール・他人の統計は、下の「公開範囲」も当てる |
-| ログインなしも | `/public/*`(スコアの公開ページ `GET /public/scores`) | `authenticated_router` の外に置く。`deps.get_optional_me` で見る人を引き(ログインしていない・行が無いなら None)、持ち主の `score_visibility` が見る人に見せる分だけを返す。見せないものは、無いものと区別せずに外す |
-| 管理者のみ | `/admin/*`(全員の意見 `GET /admin/feedbacks`、返信 `PUT /admin/feedbacks/{feedback_id}/reply`、エラーの一覧 `GET /admin/error-reports`、対応済み `PUT /admin/error-reports/{error_report_id}/resolve`、未回答・未対応の件数 `GET /admin/pending-counts`) | 本人の行の `users.is_admin` が true であること(`deps.get_admin`。違えば 403) |
+| `deps.get_reader` | 画面からログインした本人と、本人が発行したトークン | 本人の記録を読む GET: `games`(`/games/{game_id}/sheet`・`/games/sheets` を含む)・`rounds`・`ends`・`points`・コメント・`trash/*`・`/statistics/*`・`/diaries`・`GET /users/me`・`/export/records.db`。`tests/test_ownership.py` の `TOKEN_READABLE_ROUTES` に並べる |
+| `deps.require_access_token` | 本人が発行したトークンだけ(画面からのログインは 401) | `POST /mcp`。`tests/test_ownership.py` の `TOKEN_ONLY_ROUTES` に並べる |
+| `deps.get_ai_commenter` | 本人が発行したトークンだけ(画面からのログインは 403)。トークンの名前を書いた人として残す | `PUT /games/{game_id}/ai-comment`。`tests/test_ownership.py` の `TOKEN_WRITABLE_ROUTES` に並べる |
+| `deps.get_me` | 画面からログインした本人(トークンは 403) | 上の書き込み全部、`PATCH/DELETE /users/me`、`/import`、`/feedbacks`、`/access-tokens` |
+| `deps.get_admin` | 画面からログインした管理者(`users.is_admin`。違えば 403) | `/admin/*` |
+| `deps.get_browser_claims` | 画面からのログイン(利用者の行が無くてもよい) | `/users/me/ensure`、`POST /error-reports`、`/organizations/*`、`/announcements` |
+| `deps.get_optional_me` | ログインしていない人も。トークンは 403 | `/public/*`(`authenticated_router` の外) |
 
-- 「本人のみ」の書き方: 引数に `me: User = Depends(deps.get_me)` を足す。行を引くところは `deps.get_or_404` ではなく `deps.get_own_or_404(me, ...)`(持ち主が違えば 403)。`user_id` を要求で受けるところは `deps.require_self(me, user_id)`、絞り込みの `user_id`(省略可)は `deps.resolve_user_id(me, user_id)`(省略したら本人、他人なら 403)
-- 利用者の行がまだ無いトークンは、「本人のみ」と `GET /users/me` で 404(`Current user not registered`。`app/core/errors.py` の `CURRENT_USER_NOT_REGISTERED`)になる。他人の行が無いときの `User not found` と分け、フロントはこれを受けると登録の画面へ送る。先に `/users/me/ensure` で作る
-- 「本人以外も」に game 配下(`games`〜`points`・コメント)の読み取りは入れない。他人に見せる範囲を広げるときは、この表も直す
-- `GET/POST /users` は持ち主のいない操作なので、どちらにも分けず、トークンが通れば使える(フロントは使っていない)
-- `POST /error-reports`(フロントで起きたエラーの集積)も、登録の前のエラーも受けるので、どちらにも分けずトークンが通れば使える。利用者の行があれば `user_id` を付ける
-- 新しいエンドポイントを足したら、どの区分かを決めて `tests/test_ownership.py` に足す
-- 公開範囲: `users.profile_visibility`・`users.ranking_visibility`・`users.score_visibility`・`users.diary_visibility`(`private` / `organization` / `public`、既定は `private`。`app/core/visibility.py`)。`organization` は同じ `organization_id` の利用者にだけ見せる(所属の無い人どうしは見えない)
-  - プロフィール: `GET /users`・`GET /users/{user_id}`・`GET /users/{user_id}/profile`・`/statistics/*` の他人の `user_id` は、本人か、`profile_visibility` が見せる相手だけ(`deps.require_profile_visible`。違えば 403)
-  - ランキング: `ranking_visibility` が見せる相手の分だけを数える(`crud/user.py` の `visible_condition`)。本人も例外にしない(非公開なら本人のランキングにも載らない)
-  - スコア: `GET /public/scores` は、本人のゲームと、`score_visibility` が見せる相手のゲームだけを返す(`crud/game.py` の `list_shared_game_sheets`)。ログインしていない人には `public` の分だけ
-  - プロフィールの中身: `GET /users/{user_id}/profile` は、基本情報と直近 100 ゲームの集計をプロフィールが見える相手に返す。直近 10 ゲームの id(まとめてスコアの公開ページで開く)は `score_visibility`、直近 10 件の日記は `diary_visibility` が見せる相手(と本人)にだけ載せ、ほかは null にする(`crud/profile.py`)
-  - 公開範囲は本人の行(`MeRead`)にだけ載せる
-- 管理者は画面からは決めない。db の行を直に書き換える(`UPDATE users SET is_admin = true WHERE sub = '<Cognito の sub>';`)。`is_admin` は本人の行(`GET /users/me`・`/users/me/ensure` の `MeRead`)にだけ載せ、他人の行(`UserRead`)には出さない
-- テストの `client` は `current_user`(`TEST_CLAIMS` の `sub` の利用者)がいる状態。他人の行は `factories` で作る。利用者の行が無い状態は `unregistered_client`、ログインしていない人(「ログインなしも」用)は `anonymous_client`
+- 本人の行(持ち主)は要求で受けない。`user_id` をクエリ・パス・本文に置かず、上の依存が返す本人(`me`)を使う。行を引くところは `deps.get_own_or_404(me, ...)`(持ち主が違えば 403)
+- 他人を見る画面は `/public/*` に置く。利用者の行とジョインし、持ち主の公開範囲が見る人(ログインしていなければ None)に見せる分だけを返す。他人の利用者は `PublicUserRead`(sub・公開範囲・`is_admin` を載せない)で返す
+  - `GET /public/scores`: スコアの公開ページ。本人のゲームと、`score_visibility` が見せる相手のゲームだけ(`crud/game.py` の `list_shared_game_sheets`)。見せないものは、無いものと区別せずに外す
+  - `GET /public/users/{user_id}/profile`: プロフィール。`profile_visibility` が見せないなら 403(`deps.require_profile_visible`)。基本情報・所属の組織と直近 100 ゲームの集計を返し、直近 10 ゲームの id は `score_visibility`、直近 10 件の日記は `diary_visibility` が見せる相手(と本人)にだけ載せ、ほかは null にする(`crud/profile.py`)
+  - `GET /public/ranking`: `ranking_visibility` が見せる相手の分だけを数える(`crud/user.py` の `visible_condition`)。本人も例外にしない(非公開なら本人のランキングにも載らない)
+- 公開範囲: `users.profile_visibility`・`users.ranking_visibility`・`users.score_visibility`・`users.diary_visibility`(`private` / `organization` / `public`、既定は `private`。`app/core/visibility.py`)。`organization` は同じ `organization_id` の利用者にだけ見せる(所属の無い人どうし・ログインしていない人には見えない)。公開範囲は本人の行(`MeRead`)にだけ載せる
+- 利用者の行がまだ無いログインは、`get_me`・`get_reader` で 404(`Current user not registered`。`app/core/errors.py` の `CURRENT_USER_NOT_REGISTERED`)になる。他人の行が無いときの `User not found` と分け、フロントはこれを受けると登録の画面へ送る。先に `/users/me/ensure` で作る
+- トークン(`/access-tokens`): 発行・一覧・失効は画面からログインした本人だけ。平文は発行の応答にだけ載せ、db には sha256 と見分け用の頭だけを置く。期限は 1〜365 日(既定 90)、一人 10 本まで(越えたら 409)。失効は行ごと消す
+- AI コメント(`game_ai_comments`): Claude Code などが本人のトークンで、ゲームに一つ書く指摘・改善点(書き直すと上書き)。読むのは `GameSheetRead.ai_comment`、消すのは本人の画面から(`DELETE /games/{game_id}/ai-comment`)。スコアの公開ページには載せない。Claude Code は `GET /games/sheets`(`recorded_on` でその日、`until`・`limit` で直近 N 件の記録を丸ごと)を読んで書く。画面では読む・消すだけにする
+- AI から使う口: 利用者がリポジトリも Skill も持たずに、AI に繋いで頼むだけで動くようにする。使い方は API の側が渡す(`app/agent/`)
+  - MCP(`POST /api/v1/mcp`、`app/agent/mcp.py`): Streamable HTTP の POST に JSON で答える(SSE・セッションは持たない)。トークンだけで通す(`deps.require_access_token`)。ツールはこの API の REST を中から呼び直すので、トークンで通る範囲も検証も REST と同じ。使い方は initialize の `instructions`(`mcp.md`+`records.md`)とツールの説明で渡す。ツールを足すときは `TOOLS` に足す
+  - ヘッダーを付けられないコネクタ(claude.ai・ChatGPT)向けに、フロントの route handler が `/api/v1/mcp/<トークン>` も受け、トークンをヘッダーに載せ替えて `/api/v1/mcp` へ流す(API のログに URL のトークンを残さない)
+  - REST の案内(`GET /api/v1/guide`、`rest.md`+`records.md`。ログイン不要。本番ではフロントの route handler を通すので、トークンかログインは要る)。MCP を使わない AI(Claude Code on the web など)向け。環境変数 `ARCHIEVES_API_URL=https://<サイト>/api/v1` と network secret(種類 Bearer、ホストはサイト、ヘッダー Authorization、値はトークン)を入れ、頼むときに案内を読ませる
+  - 記録の読み方・AI コメントの書き方は `records.md` に一つだけ書き、MCP と REST の両方に入れる。エンドポイントや記録の形を変えたら、ここも直す
+- 管理者は画面からは決めない。db の行を直に書き換える(`UPDATE users SET is_admin = true WHERE sub = '<Cognito の sub>';`)。`is_admin` は本人の行(`GET /users/me`・`/users/me/ensure` の `MeRead`)にだけ載せる
+- テストの `client` は `current_user`(`TEST_CLAIMS` の `sub` の利用者)がいる状態。他人の行は `factories` で作る。利用者の行が無い状態は `unregistered_client`、ログインしていない人は `anonymous_client`、`current_user` が発行したトークンで来る Claude Code は `token_client`
 
 ## モデルとマイグレーション
 
@@ -115,3 +123,25 @@ export DATABASE_URL=$(../../infra_local/postgres.sh)
 - `.build/Dockerfile` が Lambda(Lambda Web Adapter)の image。`requirements.txt`(ハッシュ付き)を入れる。起動する ASGI アプリは CMD で決まり、マイグレーションの Lambda は同じ image で `app.migration_app:app` に差し替える
 - 本番の Lambda は NAT のない VPC の中にあるので、Cognito の公開鍵を取りに行けない。`AUTH_MODE=proxy` で、フロントの route handler が確かめた利用者を `x-archieves-user-*` ヘッダーで受ける(`API_KEYS` が必須)。db へは `DB_IAM_AUTH=true` の IAM データベース認証で繋ぐ
 - `infra/`(CDK)が ECR・Lambda・CI のロールを持ち、GitHub Actions(`.github/workflows/deploy-api.yml`)が image の差し替えとマイグレーションを行う
+
+### 環境
+
+本番(prod)と develop 環境(dev)を持つ。名前は `infra/lib/config.ts` の `stageConfig` が決める。
+
+| | 本番 | develop 環境 |
+| --- | --- | --- |
+| デプロイのきっかけ | `main` への push | `develop` への push |
+| CDK のスタック | `ArchievesApi` | `ArchievesApiDev` |
+| Lambda | `archieves-api`・`archieves-migrate` | `archieves-api-dev`・`archieves-migrate-dev` |
+| ECR の tag(関数が指す先) | `main` | `develop` |
+| db(同じ RDS のインスタンス) | `archieves` | `archieves-dev` |
+| db のロール | `archieves_app`・`archieves_migrator` | `archieves_dev_app`・`archieves_dev_migrator` |
+| SSM | `/archieves/...` | `/archieves/dev/...` |
+| GitHub Actions のロール・変数 | `github-archieves-deploy`、`LAMBDA_FUNCTION_NAME` など | `github-archieves-deploy-dev`、頭に `DEV_` を付けたもの |
+| 画面(Amplify のブランチ) | `main` | `develop`(ブランチの環境変数で dev の API を向く。Cognito もブランチごとに別) |
+| Amplify のコンピュートロール | アプリの単位に付けた `ArchievesApi` のロール | 同じロールを使う。dev の関数のリソースポリシーが、関数 URL 越しの呼び出しを許す |
+
+- db のロールを環境ごとに分け、db の PUBLIC の CONNECT を外してあるので、ある環境の Lambda はほかの環境の db に入れない(`infra/sql/archieves_roles.sql`)
+- ECR の image は二つの環境で一つのリポジトリを使う。ライフサイクルは `main`・`develop` の tag の image を先に拾い、ほかを新しい 30 個まで残す
+- develop 環境を初めて建てる順: SSM に合言葉(`/archieves/dev/api-keys/web`、SecureString)を置く → 踏み台越しにマスターで `archieves_roles.sql` を dev の変数で流す → `cdk deploy ArchievesCi` → ECR に `develop` の tag の image を置く(`infra/lambda/push-image.sh develop`、または `main` の image に tag を足す)→ `cdk deploy ArchievesApiDev` → `archieves-migrate-dev` を呼ぶ → GitHub の `DEV_*` の変数・秘密を置く → Amplify に `develop` のブランチを足し、環境変数(`ARCHIEVES_API_URL`・`ARCHIEVES_API_KEY`)をブランチに付ける
+- Amplify のブランチにはコンピュートロールを付けない。Amplify Gen 2 がブランチにバックエンドを結び付ける処理(BranchLinker)が、ブランチの単位のロールの `iam:PassRole` を持たずに落ちる(`infra/lib/config.ts` の `amplifyComputeRole`)

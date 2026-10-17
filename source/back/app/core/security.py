@@ -8,6 +8,9 @@
   呼び出しだけが届くので、ヘッダーをそのまま信じる
 - mock: 確かめず、MOCK_USER_* の利用者として通す。手元・テスト
 
+利用者が発行したトークン(x-archieves-access-token。app/core/access_token.py)は、どの AUTH_MODE でも
+この API が db で確かめる(app/api/deps.py)。ここでは受け口だけを置く。
+
 JWKS の取得は import 時でなく初回に行い、キャッシュする(Cognito 無しでも app を起こせる)。
 """
 
@@ -19,7 +22,7 @@ from typing import Annotated
 from urllib.parse import unquote
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwk, jwt
 from jose.utils import base64url_decode
 from pydantic import BaseModel
@@ -29,6 +32,11 @@ from app.core.config import debug_settings, settings
 bearer_scheme = HTTPBearer()
 # ログインしていなくても通すエンドポイント用。Authorization が無ければ None にする
 optional_bearer_scheme = HTTPBearer(auto_error=False)
+
+# 利用者が発行したトークン。フロントの route handler が、Authorization: Bearer arc_... で来た要求を
+# このヘッダーに載せ替えて流す(本番では Authorization を SigV4 の署名が使うため)
+ACCESS_TOKEN_HEADER = "x-archieves-access-token"
+access_token_scheme = APIKeyHeader(name=ACCESS_TOKEN_HEADER, auto_error=False)
 
 # AUTH_MODE=proxy で利用者を受けるヘッダー(値は URL エンコード)
 USER_SUB_HEADER = "x-archieves-user-sub"
@@ -116,10 +124,22 @@ def proxied_user(request: Request) -> Claims:
     )
 
 
+# mock でフロントが送るトークン(`mock-token-<sub>`)の頭
+MOCK_TOKEN_PREFIX = "mock-token-"
+
+
 def mock_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
 ) -> Claims:
-    # 本物の要求と同じ形になるよう Authorization ヘッダーがあることだけは求め、値は見ない
+    # 本物の要求と同じ形になるよう Authorization ヘッダーがあることは求める。
+    # `mock-token-<sub>` なら、その sub の利用者にする(E2E が他人の行を作るため)。ほかは MOCK_USER_*
+    sub = credentials.credentials.removeprefix(MOCK_TOKEN_PREFIX)
+    if (
+        credentials.credentials.startswith(MOCK_TOKEN_PREFIX)
+        and sub
+        and sub != debug_settings.MOCK_USER_SUB
+    ):
+        return Claims(sub=sub, username=sub)
     return Claims(
         sub=debug_settings.MOCK_USER_SUB,
         username=debug_settings.MOCK_USER_USERNAME,

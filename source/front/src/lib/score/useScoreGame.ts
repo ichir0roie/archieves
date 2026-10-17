@@ -20,8 +20,10 @@ export interface ScoreComments {
  * 点数の入力の画面の、ゲーム・ラウンド・エンド・矢の流れ。記録は手元のキャッシュにだけ書き
  * (ScoreManager)、API には保存・終了のときに一度に送る。キャッシュが無ければ(ゲームを始めずに
  * 開いた)ホームへ戻す。
+ *
+ * beforeLeave は、終了の保存が済んで画面を離れる直前に呼ぶ(離れるときの確認を外す)。
  */
-export function useScoreGame() {
+export function useScoreGame(beforeLeave: () => void) {
   const router = useRouter();
   const [manager, setManager] = useState<ScoreManager | null>(null);
   const [mirrorPoints, setMirrorPoints] = useState<Array<SheetPoint>>([]);
@@ -34,6 +36,8 @@ export function useScoreGame() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [error, setError] = useState<ErrorDetails | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // 終了の送信から画面を離れるまで覆いを出す。送れたあとも、スコアの画面に替わるまでは残す
+  const [isFinishing, setIsFinishing] = useState(false);
   // isSaving は画面用。閉じ込められた古い値を見て二つ目の保存が通ることがあるので、
   // 重なりの防止はこちらで判定する
   const inFlight = useRef(false);
@@ -73,6 +77,11 @@ export function useScoreGame() {
     // 開いたときに一度だけキャッシュから読む
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 終了の保存が済んだら待たずにスコアの画面へ替われるよう、先に読んでおく
+  useEffect(() => {
+    router.prefetch("/score-view");
+  }, [router]);
 
   /** 手元だけで済む操作。保存の途中は記録を変えない(応答の id を同じ位置に当てるため) */
   function act(action: (scoreManager: ScoreManager) => void) {
@@ -134,16 +143,20 @@ export function useScoreGame() {
 
   // 保存が失敗したら画面に残る(キャッシュも残るので、もう一度押せる)
   async function finish() {
-    await sendToApi(async (scoreManager) => {
+    if (!manager || inFlight.current) return;
+    setIsFinishing(true);
+    const sent = await sendToApi(async (scoreManager) => {
       const gameId = await scoreManager.finish();
+      beforeLeave();
       if (gameId === null) {
         router.replace("/");
         return;
       }
       const params = new URLSearchParams();
       params.set("gameId", String(gameId));
-      router.push(`/score-view/?${params.toString()}`);
+      router.push(`/score-view?${params.toString()}`);
     });
+    if (!sent) setIsFinishing(false);
   }
 
   return {
@@ -163,5 +176,6 @@ export function useScoreGame() {
     finish,
     error,
     isSaving,
+    isFinishing,
   };
 }

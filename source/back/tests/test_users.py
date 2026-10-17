@@ -4,72 +4,68 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.crud import access_token as access_token_crud
 from app.crud import user as user_crud
-from app.db import Diary, ErrorReport, Feedback, Game, GameComment, Point, User
+from app.db import AccessToken, Diary, ErrorReport, Feedback, Game, GameComment, Point, User
 from app.schemas.user import UserCreate
 
 
-def test_create_and_get_user(client: TestClient, s: Session) -> None:
-    payload = {
-        "name": "Yumi",
-        "nickname": "Yu",
-    }
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("get", "/users"),
+        ("post", "/users"),
+        ("post", "/users/find-or-create"),
+        ("get", "/users/{other}"),
+        ("patch", "/users/{other}"),
+        ("get", "/users/{other}/profile"),
+    ],
+)
+def test_users_are_not_addressed_by_id_or_sub(
+    client: TestClient, factories, method: str, path: str
+) -> None:
+    """本人の行はログインから引き、他人のプロフィールは /public で読む。
 
-    create_res = client.post("/api/v1/users", json=payload)
-    assert create_res.status_code == 201
-    user = create_res.json()
-    assert user["name"] == "Yumi"
-    assert user["nickname"] == "Yu"
+    id や sub で指す口は置かない。
+    """
+    other = factories.UserFactory(profile_visibility="public")
 
-    # 作った行は本人ではないので、プロフィールを公開してから読む
-    created = s.get(User, user["id"])
-    assert created is not None
-    created.profile_visibility = "public"
-    get_res = client.get(f"/api/v1/users/{user['id']}")
-    assert get_res.status_code == 200
-    assert get_res.json() == user
+    response = client.request(
+        method,
+        "/api/v1" + path.format(other=other.id),
+        json={"name": "x", "sub": "someone-else"},
+    )
+
+    assert response.status_code in (404, 405)
 
 
-def test_list_users_shows_only_self_and_visible_profiles(
-    client: TestClient, current_user, factories
+def test_ensure_current_user_with_organization(
+    unregistered_client: TestClient, factories
 ) -> None:
     organization = factories.OrganizationFactory()
-    current_user.organization_id = organization.id
-    public = factories.UserFactory(profile_visibility="public")
-    same_organization = factories.UserFactory(
-        profile_visibility="organization", organization_id=organization.id
+
+    response = unregistered_client.post(
+        "/api/v1/users/me/ensure",
+        json={"name": "Kenta", "organization_id": organization.id},
     )
-    other_organization = factories.UserFactory(profile_visibility="organization")
-    private = factories.UserFactory()
-
-    response = client.get("/api/v1/users", params={"limit": 1000})
     assert response.status_code == 200
-    ids = {user["id"] for user in response.json()}
-    assert {current_user.id, public.id, same_organization.id} <= ids
-    assert other_organization.id not in ids
-    assert private.id not in ids
+    assert response.json()["organization_id"] == organization.id
 
 
-def test_create_user_with_organization(client: TestClient) -> None:
-    org_res = client.post("/api/v1/organizations", json={"name": "Tokyo Archery Club"})
-    organization_id = org_res.json()["id"]
-
-    payload = {"name": "Kenta", "organization_id": organization_id}
-    response = client.post("/api/v1/users", json=payload)
-    assert response.status_code == 201
-    assert response.json()["organization_id"] == organization_id
-
-
-def test_create_user_with_missing_organization_returns_404(client: TestClient) -> None:
-    payload = {"name": "Kenta", "organization_id": 999}
-    response = client.post("/api/v1/users", json=payload)
+def test_ensure_current_user_with_missing_organization_returns_404(
+    unregistered_client: TestClient,
+) -> None:
+    response = unregistered_client.post(
+        "/api/v1/users/me/ensure",
+        json={"name": "Kenta", "organization_id": 999999999},
+    )
     assert response.status_code == 404
 
 
-def test_birth_date_from_an_old_client_is_ignored(client: TestClient, current_user) -> None:
+def test_birth_date_from_an_old_client_is_ignored(client: TestClient) -> None:
     # 生年月日は持たない。古い画面が送ってきても弾かず、捨てる
     response = client.patch(
-        f"/api/v1/users/{current_user.id}",
+        "/api/v1/users/me",
         json={"nickname": "Yu-chan", "birth_date": "1995-12-31"},
     )
     assert response.status_code == 200
@@ -79,54 +75,27 @@ def test_birth_date_from_an_old_client_is_ignored(client: TestClient, current_us
     assert "age" not in body
 
 
-def test_get_missing_user_returns_404(client: TestClient) -> None:
-    response = client.get("/api/v1/users/999")
-    assert response.status_code == 404
-
-
-def test_update_user_basic_info(client: TestClient, current_user) -> None:
-    user_id = current_user.id
-
+def test_update_my_basic_info(client: TestClient, current_user) -> None:
     patch_res = client.patch(
-        f"/api/v1/users/{user_id}",
+        "/api/v1/users/me",
         json={"nickname": "Yu-chan"},
     )
     assert patch_res.status_code == 200
     body = patch_res.json()
+    assert body["id"] == current_user.id
     assert body["name"] == "Yumi"
     assert body["nickname"] == "Yu-chan"
 
 
-def test_update_user_with_missing_organization_returns_404(
-    client: TestClient, current_user
-) -> None:
-    user_id = current_user.id
-
-    response = client.patch(f"/api/v1/users/{user_id}", json={"organization_id": 999})
+def test_update_me_with_missing_organization_returns_404(client: TestClient) -> None:
+    response = client.patch("/api/v1/users/me", json={"organization_id": 999999999})
     assert response.status_code == 404
 
 
-def test_update_another_user_is_forbidden(client: TestClient, factories) -> None:
-    other = factories.UserFactory(name="Kenta")
-
-    response = client.patch(f"/api/v1/users/{other.id}", json={"nickname": "x"})
-    assert response.status_code == 403
-
-
-def test_get_another_user_with_a_public_profile_is_allowed(client: TestClient, factories) -> None:
-    other = factories.UserFactory(name="Kenta", profile_visibility="public")
-
-    response = client.get(f"/api/v1/users/{other.id}")
-    assert response.status_code == 200
-    assert response.json()["name"] == "Kenta"
-
-
-def test_get_another_user_with_a_private_profile_is_forbidden(
-    client: TestClient, factories
-) -> None:
-    other = factories.UserFactory()
-
-    assert client.get(f"/api/v1/users/{other.id}").status_code == 403
+def test_update_me_returns_404_when_not_registered(unregistered_client: TestClient) -> None:
+    response = unregistered_client.patch("/api/v1/users/me", json={"nickname": "x"})
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Current user not registered"
 
 
 def test_visibility_defaults_to_private(client: TestClient) -> None:
@@ -137,10 +106,8 @@ def test_visibility_defaults_to_private(client: TestClient) -> None:
 
 
 def test_update_visibility(client: TestClient) -> None:
-    me = client.get("/api/v1/users/me").json()
-
     response = client.patch(
-        f"/api/v1/users/{me['id']}",
+        "/api/v1/users/me",
         json={
             "profile_visibility": "organization",
             "ranking_visibility": "public",
@@ -164,29 +131,7 @@ def test_update_visibility(client: TestClient) -> None:
     ],
 )
 def test_update_rejects_an_unknown_or_null_visibility(client: TestClient, payload: dict) -> None:
-    me = client.get("/api/v1/users/me").json()
-
-    assert client.patch(f"/api/v1/users/{me['id']}", json=payload).status_code == 422
-
-
-def test_update_missing_user_returns_404(client: TestClient) -> None:
-    response = client.patch("/api/v1/users/999", json={"nickname": "x"})
-    assert response.status_code == 404
-
-
-def test_find_or_create_user_creates_then_reuses(client: TestClient) -> None:
-    payload = {"name": "Yumi", "sub": "some-sub"}
-
-    first = client.post("/api/v1/users/find-or-create", json=payload)
-    assert first.status_code == 200
-    created = first.json()
-
-    second = client.post(
-        "/api/v1/users/find-or-create",
-        json={"name": "Someone Else", "sub": "some-sub"},
-    )
-    assert second.status_code == 200
-    assert second.json() == created
+    assert client.patch("/api/v1/users/me", json=payload).status_code == 422
 
 
 def test_ensure_current_user_creates_then_reuses(client: TestClient) -> None:
@@ -239,6 +184,7 @@ def test_delete_me_removes_my_row_and_everything_i_recorded(
     factories.DiaryFactory(user=current_user)
     factories.FeedbackFactory(user=current_user)
     factories.ErrorReportFactory(user=current_user)
+    access_token_crud.create_access_token(s, current_user.id, "Claude Code", 30)
     others_point = factories.PointFactory()
 
     response = client.delete("/api/v1/users/me")
@@ -246,7 +192,7 @@ def test_delete_me_removes_my_row_and_everything_i_recorded(
     assert response.status_code == 204
     s.expire_all()
     assert s.get(User, my_id) is None
-    for model in (Game, Point, GameComment, Diary, Feedback, ErrorReport):
+    for model in (Game, Point, GameComment, Diary, Feedback, ErrorReport, AccessToken):
         assert _count_owned_by(s, model, my_id) == 0, model.__name__
     # 他人の記録は残す
     assert s.get(Point, others_point.id) is not None
@@ -270,4 +216,8 @@ def test_is_admin_is_returned_only_for_myself(
     other = factories.UserFactory(is_admin=True)
 
     assert client.get("/api/v1/users/me").json()["is_admin"] is True
-    assert "is_admin" not in client.get(f"/api/v1/users/{other.id}").json()
+    other.profile_visibility = "public"
+    shown = client.get(f"/api/v1/public/users/{other.id}/profile").json()["user"]
+    assert "is_admin" not in shown
+    assert "sub" not in shown
+    assert "profile_visibility" not in shown

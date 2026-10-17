@@ -5,6 +5,15 @@ from typing import TYPE_CHECKING
 from sqlalchemy import BigInteger, Boolean, ForeignKey, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.names import (
+    MAX_NICKNAME_LENGTH,
+    MAX_ORGANIZATION_DESCRIPTION_LENGTH,
+    MAX_ORGANIZATION_FORMAL_NAME_LENGTH,
+    MAX_ORGANIZATION_LOCATION_LENGTH,
+    MAX_ORGANIZATION_NAME_LENGTH,
+    MAX_URL_LENGTH,
+    MAX_USER_NAME_LENGTH,
+)
 from app.core.visibility import VISIBILITY_MAX_LENGTH, Visibility
 from app.db.base_class import Base, TimestampMixin
 
@@ -17,11 +26,17 @@ class Organization(TimestampMixin, Base):
 
     __tablename__ = "organizations"
 
-    name: Mapped[str] = mapped_column(String(100))
-    formal_name: Mapped[str | None] = mapped_column(String(200), default=None)
-    description: Mapped[str | None] = mapped_column(String(500), default=None)
-    homepage_url: Mapped[str | None] = mapped_column(String(500), default=None)
-    location: Mapped[str | None] = mapped_column(String(200), default=None)
+    name: Mapped[str] = mapped_column(String(MAX_ORGANIZATION_NAME_LENGTH))
+    formal_name: Mapped[str | None] = mapped_column(
+        String(MAX_ORGANIZATION_FORMAL_NAME_LENGTH), default=None
+    )
+    description: Mapped[str | None] = mapped_column(
+        String(MAX_ORGANIZATION_DESCRIPTION_LENGTH), default=None
+    )
+    homepage_url: Mapped[str | None] = mapped_column(String(MAX_URL_LENGTH), default=None)
+    location: Mapped[str | None] = mapped_column(
+        String(MAX_ORGANIZATION_LOCATION_LENGTH), default=None
+    )
 
     parent_organization_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("organizations.id", ondelete="SET NULL"), index=True, default=None
@@ -50,8 +65,8 @@ class User(TimestampMixin, Base):
     __tablename__ = "users"
 
     sub: Mapped[str | None] = mapped_column(String(100), unique=True, index=True, default=None)
-    name: Mapped[str] = mapped_column(String(50))
-    nickname: Mapped[str | None] = mapped_column(String(100), default=None)
+    name: Mapped[str] = mapped_column(String(MAX_USER_NAME_LENGTH))
+    nickname: Mapped[str | None] = mapped_column(String(MAX_NICKNAME_LENGTH), default=None)
 
     organization_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("organizations.id", ondelete="SET NULL"), index=True, default=None

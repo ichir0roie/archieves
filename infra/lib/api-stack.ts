@@ -7,11 +7,12 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as ssm from "aws-cdk-lib/aws-ssm";
 import type { Construct } from "constructs";
-import { api, appDatabaseUser, type ExistingDb, migration, migrationDatabaseUser, parameterPrefix } from "./config.js";
+import { type ExistingDb, repositoryName, type StageConfig } from "./config.js";
 import { grantInvokeViaFunctionUrl } from "./lambda-url.js";
 
 interface ArchievesApiStackProps extends StackProps {
-  db: ExistingDb & { name: string };
+  stage: StageConfig;
+  db: ExistingDb;
   // 置くサブネット。省けば RDS の DB サブネットグループのもの
   functionSubnetIds?: string[];
 }
@@ -23,20 +24,21 @@ interface ArchievesApiStackProps extends StackProps {
 export class ArchievesApiStack extends Stack {
   constructor(scope: Construct, id: string, props: ArchievesApiStackProps) {
     super(scope, id, props);
-    const { db } = props;
+    const { db, stage } = props;
+    const { api, migration, parameterPrefix } = stage;
 
     const vpc = ec2.Vpc.fromLookup(this, "Vpc", { vpcId: db.vpcId });
     const functionSecurityGroup = new ec2.SecurityGroup(this, "FunctionSecurityGroup", {
       vpc,
-      description: "archieves-api Lambda",
+      description: `${api.functionName} Lambda`,
       allowAllOutbound: true,
     });
     const dbSecurityGroup = ec2.SecurityGroup.fromSecurityGroupId(this, "DbSecurityGroup", db.securityGroupId, {
       mutable: true,
     });
-    dbSecurityGroup.addIngressRule(functionSecurityGroup, ec2.Port.tcp(db.port), "archieves-api Lambda");
+    dbSecurityGroup.addIngressRule(functionSecurityGroup, ec2.Port.tcp(db.port), `${api.functionName} Lambda`);
 
-    const repository = ecr.Repository.fromRepositoryName(this, "ApiRepository", api.repositoryName);
+    const repository = ecr.Repository.fromRepositoryName(this, "ApiRepository", repositoryName);
     const subnetIds = props.functionSubnetIds ?? db.subnetIds;
     const vpcSubnets: ec2.SubnetSelection = {
       subnets: subnetIds.map((subnetId, i) => ec2.Subnet.fromSubnetId(this, `Subnet${i}`, subnetId)),
@@ -46,7 +48,7 @@ export class ArchievesApiStack extends Stack {
       DB_HOST: db.endpoint,
       DB_PORT: String(db.port),
       DB_USER: user,
-      DB_NAME: db.name,
+      DB_NAME: stage.dbName,
       DB_IAM_AUTH: "true",
     });
     const dbRole = (user: string) => {
@@ -74,28 +76,46 @@ export class ArchievesApiStack extends Stack {
       memorySize: api.memorySize,
       timeout: Duration.seconds(30),
       reservedConcurrentExecutions: api.reservedConcurrentExecutions,
-      role: dbRole(appDatabaseUser),
+      role: dbRole(stage.appDatabaseUser),
       logGroup: logGroup("FunctionLogGroup"),
       vpc,
       vpcSubnets,
       securityGroups: [functionSecurityGroup],
       environment: {
-        ...connection(appDatabaseUser),
-        ENV: "prod",
+        ...connection(stage.appDatabaseUser),
+        ENV: stage.stage,
         AUTH_MODE: "proxy",
         DB_POOL_SIZE: String(api.dbPoolSize),
-        API_KEYS: `web=${readApiKey("web")}`,
+        API_KEYS: `web=${readApiKey(parameterPrefix, "web")}`,
       },
     });
     // 署名の無い要求は関数が起きる前に Lambda が弾くので、URL を叩かれ続けても料金もログも生まれない。
     // 署名の上に合言葉(x-archieves-api-key。app/core/api_keys.py)も要るので、ロールを持つ別のものが呼んでも通らない
     const url = fn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.AWS_IAM });
-    // Amplify のアプリは CDK の外にあるので、このロールは aws amplify update-app --compute-role-arn で付ける
-    const amplifyComputeRole = new iam.Role(this, "AmplifyComputeRole", {
-      assumedBy: new iam.ServicePrincipal("amplify.amazonaws.com"),
-      description: "Amplify SSR (source/front) calls archieves-api function URL",
-    });
-    grantInvokeViaFunctionUrl(amplifyComputeRole, fn.functionArn);
+    let amplifyComputeRoleArn: string;
+    if (stage.amplifyComputeRole === "own") {
+      // Amplify のアプリは CDK の外にあるので、このロールは aws amplify update-app --compute-role-arn で付ける
+      const amplifyComputeRole = new iam.Role(this, "AmplifyComputeRole", {
+        assumedBy: new iam.ServicePrincipal("amplify.amazonaws.com"),
+        description: `Amplify SSR (source/front) calls ${api.functionName} function URL`,
+      });
+      grantInvokeViaFunctionUrl(amplifyComputeRole, fn.functionArn);
+      amplifyComputeRoleArn = amplifyComputeRole.roleArn;
+    } else {
+      // ほかのスタックのロールは変えず、関数の側(リソースポリシー)で、そのロールに関数 URL 越しの呼び出しだけを許す
+      amplifyComputeRoleArn = ssm.StringParameter.valueForStringParameter(this, stage.amplifyComputeRole.parameterName);
+      const principal = new iam.ArnPrincipal(amplifyComputeRoleArn);
+      fn.addPermission("AmplifyInvokeFunctionUrl", {
+        principal,
+        action: "lambda:InvokeFunctionUrl",
+        functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
+      });
+      fn.addPermission("AmplifyInvokeViaFunctionUrl", {
+        principal,
+        action: "lambda:InvokeFunction",
+        invokedViaFunctionUrl: true,
+      });
+    }
 
     // マイグレーションだけを流す関数。表の持ち主のロール(archieves_migrator)で IAM データベース認証で繋ぐ。
     // URL は持たせず、CI(.github/workflows/deploy-api.yml)が直に invoke する
@@ -107,14 +127,14 @@ export class ArchievesApiStack extends Stack {
       timeout: Duration.minutes(15),
       // 二つのマイグレーションが同時に流れないようにする
       reservedConcurrentExecutions: 1,
-      role: dbRole(migrationDatabaseUser),
+      role: dbRole(stage.migrationDatabaseUser),
       logGroup: logGroup("MigrationFunctionLogGroup"),
       vpc,
       vpcSubnets,
       securityGroups: [functionSecurityGroup],
       environment: {
-        ...connection(migrationDatabaseUser),
-        ENV: "prod",
+        ...connection(stage.migrationDatabaseUser),
+        ENV: stage.stage,
       },
     });
 
@@ -125,17 +145,17 @@ export class ArchievesApiStack extends Stack {
     });
     new ssm.StringParameter(this, "AmplifyComputeRoleParameter", {
       parameterName: `${parameterPrefix}/amplify/compute-role-arn`,
-      stringValue: amplifyComputeRole.roleArn,
+      stringValue: amplifyComputeRoleArn,
     });
     new CfnOutput(this, "FunctionUrl", { value: url.url });
-    new CfnOutput(this, "AmplifyComputeRoleArn", { value: amplifyComputeRole.roleArn });
+    new CfnOutput(this, "AmplifyComputeRoleArn", { value: amplifyComputeRoleArn });
     new CfnOutput(this, "MigrationFunctionName", { value: migrationFunction.functionName });
   }
 }
 
 // 合言葉の値は SSM の SecureString に置き、git には入れない。deploy のときに読んで Lambda の環境変数に渡す
 // (VPC の中の Lambda は、エンドポイント無しでは SSM を読めないため)
-function readApiKey(caller: "web"): string {
+function readApiKey(parameterPrefix: string, caller: "web"): string {
   return execFileSync("aws", [
     "ssm", "get-parameter", "--name", `${parameterPrefix}/api-keys/${caller}`, "--with-decryption",
     "--query", "Parameter.Value", "--output", "text",

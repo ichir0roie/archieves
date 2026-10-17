@@ -18,6 +18,7 @@ from app.core.target_types import check_target_type
 from app.crud import comment as comment_crud
 from app.crud import game as game_crud
 from app.db import End, Game, Point, Round, User
+from app.schemas.comment import AiCommentRead
 from app.schemas.game import GameFields, PointRead
 from app.schemas.game_sheet import (
     EndSheetRead,
@@ -169,6 +170,7 @@ def read_game_sheet(game: Game) -> GameSheetRead:
         all_in=game.all_in,
         backfilled=game.backfilled,
         comment=game.comment.body if game.comment else None,
+        ai_comment=AiCommentRead.model_validate(game.ai_comment) if game.ai_comment else None,
         rounds=[
             RoundSheetRead(
                 id=round_.id,

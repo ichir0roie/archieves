@@ -59,6 +59,7 @@ export const game = {
     pointCaption: t.arrow,
     endCaption: t.end,
     finish: "終了",
+    finishing: `${t.score}を保存しています…`,
     aimSettings: "ズームと感度の設定",
     gameSettings: `${t.game}設定`,
     gameSettingsHint: `変えた項目は、この${t.game}のすべての${t.round}に当てます。${t.arrow}・${t.end}・${t.round}の数は、記録した数より少なくできません。的を変えても、記録済みの${t.arrow}の点数は変わりません`,

@@ -6,3 +6,6 @@ a game/round/end without having to pick one.
 """
 
 MAX_COMMENT_LENGTH = 1000
+
+# AI(Claude Code など)が本人のトークンで書く、ゲームへの指摘・改善点(game_ai_comments)
+MAX_AI_COMMENT_LENGTH = 4000

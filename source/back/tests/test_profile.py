@@ -17,7 +17,7 @@ def _create_user(client: TestClient) -> dict:
 def test_get_user_profile_returns_basic_info(client: TestClient) -> None:
     user = _create_user(client)
 
-    res = client.get(f"/api/v1/users/{user['id']}/profile")
+    res = client.get(f"/api/v1/public/users/{user['id']}/profile")
     assert res.status_code == 200
     body = res.json()
     assert body["user"]["id"] == user["id"]
@@ -26,7 +26,7 @@ def test_get_user_profile_returns_basic_info(client: TestClient) -> None:
 
 
 def test_get_missing_user_profile_returns_404(client: TestClient) -> None:
-    response = client.get("/api/v1/users/999999/profile")
+    response = client.get("/api/v1/public/users/999999/profile")
     assert response.status_code == 404
     assert response.json() == {"detail": "User not found"}
 
@@ -37,12 +37,62 @@ def test_get_other_users_profile_is_viewable(client: TestClient, s: Session) -> 
     s.add(other)
     s.commit()
 
-    response = client.get(f"/api/v1/users/{other.id}/profile")
+    response = client.get(f"/api/v1/public/users/{other.id}/profile")
     assert response.status_code == 200
     body = response.json()
-    assert body["user"]["id"] == other.id
-    assert body["user"]["name"] == "Kenta"
-    assert body["user"]["sub"] == "someone-elses-sub"
+    assert body["user"] == {
+        "id": other.id,
+        "name": "Kenta",
+        "nickname": None,
+        "organization": None,
+    }
+
+
+def test_profile_joins_the_organization(client: TestClient, factories) -> None:
+    organization = factories.OrganizationFactory(name="Tokyo Archery Club")
+    other = factories.UserFactory(profile_visibility="public", organization=organization)
+
+    body = client.get(f"/api/v1/public/users/{other.id}/profile").json()
+    assert body["user"]["organization"] == {
+        "id": organization.id,
+        "name": "Tokyo Archery Club",
+    }
+
+
+@pytest.mark.parametrize(
+    ("visibility", "status"),
+    [
+        ("private", 403),
+        ("organization", 403),
+        ("public", 200),
+    ],
+)
+def test_profile_without_signing_in_follows_its_visibility(
+    anonymous_client: TestClient, factories, visibility: str, status: int
+) -> None:
+    organization = factories.OrganizationFactory()
+    other = factories.UserFactory(profile_visibility=visibility, organization=organization)
+
+    response = anonymous_client.get(f"/api/v1/public/users/{other.id}/profile")
+    assert response.status_code == status
+
+
+def test_profile_without_signing_in_shows_only_public_scores_and_diaries(
+    anonymous_client: TestClient, factories
+) -> None:
+    organization = factories.OrganizationFactory()
+    other = factories.UserFactory(
+        profile_visibility="public",
+        score_visibility="public",
+        diary_visibility="organization",
+        organization=organization,
+    )
+    game = factories.GameFactory(user=other)
+    factories.DiaryFactory(user=other)
+
+    body = anonymous_client.get(f"/api/v1/public/users/{other.id}/profile").json()
+    assert body["recent_game_ids"] == [game.id]
+    assert body["recent_diaries"] is None
 
 
 def test_user_profile_summarizes_the_latest_100_games(
@@ -63,7 +113,7 @@ def test_user_profile_summarizes_the_latest_100_games(
     # 消したゲームは数えない
     factories.GameFactory(user=current_user, recorded_at=today, deleted_at=datetime.now(UTC))
 
-    body = client.get(f"/api/v1/users/{current_user.id}/profile").json()
+    body = client.get(f"/api/v1/public/users/{current_user.id}/profile").json()
     assert body["game_count"] == 2
     assert body["period_start"] == (today - timedelta(days=2)).isoformat()
     assert body["period_end"] == (today - timedelta(days=1)).isoformat()
@@ -73,7 +123,7 @@ def test_user_profile_summarizes_the_latest_100_games(
 
 
 def test_user_profile_without_games(client: TestClient, current_user) -> None:
-    body = client.get(f"/api/v1/users/{current_user.id}/profile").json()
+    body = client.get(f"/api/v1/public/users/{current_user.id}/profile").json()
     assert body["game_count"] == 0
     assert body["period_start"] is None
     assert body["period_end"] is None
@@ -92,7 +142,7 @@ def test_user_profile_lists_the_latest_10_games(
     # 消したゲームは外す
     factories.GameFactory(user=current_user, recorded_at=today, deleted_at=datetime.now(UTC))
 
-    body = client.get(f"/api/v1/users/{current_user.id}/profile").json()
+    body = client.get(f"/api/v1/public/users/{current_user.id}/profile").json()
     assert body["recent_game_ids"] == [game.id for game in games[:10]]
 
 
@@ -102,7 +152,7 @@ def test_user_profile_lists_the_latest_10_diaries(
     diaries = [factories.DiaryFactory(user=current_user) for _ in range(12)]
     factories.DiaryFactory(user=current_user, deleted_at=datetime.now(UTC))
 
-    recent = client.get(f"/api/v1/users/{current_user.id}/profile").json()["recent_diaries"]
+    recent = client.get(f"/api/v1/public/users/{current_user.id}/profile").json()["recent_diaries"]
     assert [diary["id"] for diary in recent] == [diary.id for diary in reversed(diaries[2:])]
     assert recent[0]["body"] == diaries[-1].body
 
@@ -139,7 +189,7 @@ def test_other_users_scores_and_diaries_follow_their_visibility(
     game = factories.GameFactory(user=other)
     diary = factories.DiaryFactory(user=other)
 
-    body = client.get(f"/api/v1/users/{other.id}/profile").json()
+    body = client.get(f"/api/v1/public/users/{other.id}/profile").json()
     if shows_games:
         assert body["recent_game_ids"] == [game.id]
     else:
@@ -160,7 +210,7 @@ def test_own_private_scores_and_diaries_are_shown_to_me(
     game = factories.GameFactory(user=current_user)
     diary = factories.DiaryFactory(user=current_user)
 
-    body = client.get(f"/api/v1/users/{current_user.id}/profile").json()
+    body = client.get(f"/api/v1/public/users/{current_user.id}/profile").json()
     assert body["recent_game_ids"] == [game.id]
     assert [d["id"] for d in body["recent_diaries"]] == [diary.id]
 
@@ -191,7 +241,7 @@ def test_other_users_profile_follows_its_visibility(
         organization_id=other_organization.id,
     )
 
-    assert client.get(f"/api/v1/users/{other.id}/profile").status_code == status
+    assert client.get(f"/api/v1/public/users/{other.id}/profile").status_code == status
 
 
 def test_organization_visibility_needs_an_organization_on_both_sides(
@@ -200,10 +250,10 @@ def test_organization_visibility_needs_an_organization_on_both_sides(
     # 組織に入っていない利用者どうしは、組織公開でも見えない
     other = factories.UserFactory(sub="other-sub", profile_visibility="organization")
 
-    assert client.get(f"/api/v1/users/{other.id}/profile").status_code == 403
+    assert client.get(f"/api/v1/public/users/{other.id}/profile").status_code == 403
 
 
 def test_own_private_profile_is_viewable(client: TestClient, current_user) -> None:
     assert current_user.profile_visibility == "private"
 
-    assert client.get(f"/api/v1/users/{current_user.id}/profile").status_code == 200
+    assert client.get(f"/api/v1/public/users/{current_user.id}/profile").status_code == 200

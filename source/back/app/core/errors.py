@@ -21,6 +21,13 @@ class NotFoundError(LookupError):
 CURRENT_USER_NOT_REGISTERED = "Current user not registered"
 
 
+# 利用者が発行したトークン(Claude Code など)で、本人の記録を読む・AI コメントを書く他の
+# エンドポイントを叩いたときの 403 の detail
+ACCESS_TOKEN_NOT_ALLOWED = "Access tokens can only read the owner's records and write AI comments"
+# AI コメントを、トークンでなく画面からのログインで書こうとしたときの 403 の detail
+AI_COMMENT_NEEDS_ACCESS_TOKEN = "AI comments are written with an access token"
+
+
 class ForbiddenError(PermissionError):
     """認証は通っているが、他人の行を読み書きしようとした。"""
 

@@ -23,7 +23,7 @@ router = APIRouter()
 def create_feedback(
     feedback_in: FeedbackCreate,
     me: User = Depends(deps.get_me),
-    claims: deps.Claims = Depends(deps.get_current_user),
+    claims: deps.Claims = Depends(deps.get_browser_claims),
     s: Session = Depends(deps.get_session),
 ) -> FeedbackRead:
     email = feedback_in.email or claims.email
@@ -86,7 +86,11 @@ def reply_to_feedback(
     return _to_admin_read(feedback, user)
 
 
-@router.get("/announcements", response_model=list[AnnouncementRead])
+@router.get(
+    "/announcements",
+    response_model=list[AnnouncementRead],
+    dependencies=[Depends(deps.get_browser_claims)],
+)
 def list_announcements(
     s: Session = Depends(deps.get_session),
 ) -> list[AnnouncementRead]:
@@ -96,7 +100,7 @@ def list_announcements(
 @router.post("/error-reports", status_code=204)
 def create_error_report(
     report_in: ErrorReportCreate,
-    claims: deps.Claims = Depends(deps.get_current_user),
+    claims: deps.Claims = Depends(deps.get_browser_claims),
     s: Session = Depends(deps.get_session),
 ) -> Response:
     # 登録の前(利用者の行が無い)に起きたエラーも受けるので、get_me でなく sub から引く

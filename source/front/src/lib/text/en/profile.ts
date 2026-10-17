@@ -65,6 +65,7 @@ export const profile: typeof ja = {
     noScores: "This game has no scores yet",
     round: t.roundN,
     date: (date: string) => `Date ${date}`,
+    gameId: (id: number) => `Game ID ${id}`,
     roundComment: "Round comment",
     roundTitle: t.roundN,
     endTitle: t.endN,
@@ -80,6 +81,11 @@ export const profile: typeof ja = {
     deleteGame: "Delete this game",
     deleteConfirmTitle: "Delete game",
     deleteConfirm: "This game will be deleted. You can restore it from the trash.",
+    ai: {
+      title: "AI comment",
+      author: (author: string, date: string) => `${author} · ${date}`,
+      delete: "Delete the AI comment",
+    },
   },
   scoreLog: {
     title: t.scoreLog,
@@ -100,6 +106,7 @@ export const profile: typeof ja = {
     month: (month: string) =>
       new Date(2000, Number(month) - 1, 1).toLocaleString("en-US", { month: "short" }),
     day: (day: string) => `${Number(day)}`,
+    gameIdShort: (id: number) => `#${id}`,
     total: "Total",
     endAverage: "End avg",
     pointAverage: "Arrow avg",

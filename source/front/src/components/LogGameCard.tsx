@@ -9,7 +9,7 @@ type Props = {
   summary: GameScoreSummary | undefined;
 };
 
-/** スコアの一行(日・合計点・エンド平均・ポイント平均)。押すとそのゲームの点数表(score-view)へ移る。 */
+/** スコアの一行(日とゲームの id・合計点・エンド平均・ポイント平均)。押すとそのゲームの点数表(score-view)へ移る。 */
 export default function LogGameCard({ game, day, summary }: Props) {
   const T = useT();
   const router = useRouter();
@@ -23,7 +23,10 @@ export default function LogGameCard({ game, day, summary }: Props) {
       data-game-id={game.id}
       onClick={() => router.push(`/score-view/?gameId=${game.id}`)}
     >
-      <span className="log-cell log-day">{T.profile.scoreLog.day(day)}</span>
+      <span className="log-cell log-day">
+        {T.profile.scoreLog.day(day)}
+        <span className="LogGameId muted small">{T.profile.scoreLog.gameIdShort(game.id)}</span>
+      </span>
       <span className="log-cell">
         <span className="muted small">{T.profile.scoreLog.total}</span>
         <b>{summary?.total_score ?? T.none}</b>

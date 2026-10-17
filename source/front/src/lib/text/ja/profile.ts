@@ -64,6 +64,7 @@ export const profile = {
     noScores: `この${t.game}にはまだ${t.score}がありません`,
     round: t.roundN,
     date: (date: string) => `日付 ${date}`,
+    gameId: (id: number) => `Game ID ${id}`,
     roundComment: `${t.round}の${t.comment}`,
     roundTitle: t.roundN,
     endTitle: t.endN,
@@ -79,6 +80,11 @@ export const profile = {
     deleteGame: `この${t.game}を削除`,
     deleteConfirmTitle: `${t.game}の削除`,
     deleteConfirm: `この${t.game}を削除します。削除した${t.game}はゴミ箱から戻せます。`,
+    ai: {
+      title: "AIコメント",
+      author: (author: string, date: string) => `${author} · ${date}`,
+      delete: "AIコメントを削除",
+    },
   },
   scoreLog: {
     title: t.scoreLog,
@@ -98,6 +104,7 @@ export const profile = {
     year: (year: string) => `${year}年`,
     month: (month: string) => `${Number(month)}月`,
     day: (day: string) => `${Number(day)}日`,
+    gameIdShort: (id: number) => `#${id}`,
     total: `${t.total}${t.unit.point}`,
     endAverage: `${t.end}${t.average}`,
     pointAverage: `${t.arrow}${t.average}`,

@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db import End, EndComment, Game, GameComment, Round, RoundComment
+from app.db import End, EndComment, Game, GameAiComment, GameComment, Round, RoundComment
 
 
 def get_game_comment(s: Session, game_id: int) -> GameComment | None:
@@ -73,5 +73,28 @@ def save_comment(
 
 
 def delete_comment(s: Session, comment: Comment) -> None:
+    s.delete(comment)
+    s.flush()
+
+
+def get_game_ai_comment(s: Session, game_id: int) -> GameAiComment | None:
+    return s.scalar(select(GameAiComment).where(GameAiComment.game_id == game_id))
+
+
+def save_game_ai_comment(s: Session, game: Game, body: str, author: str) -> GameAiComment:
+    """game の AI コメントを body にする(あれば上書き)。author は書いたトークンの名前。"""
+    comment = get_game_ai_comment(s, game.id) or GameAiComment(
+        game_id=game.id,
+        user_id=game.user_id,
+    )
+    comment.body = body
+    comment.author = author
+    s.add(comment)
+    s.flush()
+    s.refresh(comment)
+    return comment
+
+
+def delete_game_ai_comment(s: Session, comment: GameAiComment) -> None:
     s.delete(comment)
     s.flush()

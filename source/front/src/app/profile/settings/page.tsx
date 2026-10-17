@@ -16,7 +16,7 @@ import {
   getOrganization,
   searchOrganizations,
   toErrorDetails,
-  updateUser,
+  updateMyUser,
   type ErrorDetails,
 } from "@/lib/api";
 import {
@@ -118,9 +118,10 @@ export default function Page() {
     setSaving(true);
     setError(null);
     try {
-      const id = userId ?? (await getCurrentAppUser()).id;
+      // 読み込みに失敗していたら、ここで登録(行が無ければ作る)してから書く
+      if (userId === null) setUserId((await getCurrentAppUser()).id);
       const resolvedOrganizationId = await resolveOrganizationId();
-      const updated = await updateUser(id, {
+      const updated = await updateMyUser({
         name,
         nickname: nickname || null,
         organization_id: resolvedOrganizationId,
@@ -129,7 +130,6 @@ export default function Page() {
         score_visibility: scoreVisibility,
         diary_visibility: diaryVisibility,
       });
-      setUserId(id);
       applyUser(updated);
       await updateCachedAppUser(updated);
       setOrganizationId(resolvedOrganizationId);

@@ -28,7 +28,7 @@ router = APIRouter()
     },
 )
 def export_records(
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> Response:
     """本人の記録を SQLite のファイルで返す。
