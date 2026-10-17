@@ -81,7 +81,6 @@ export const profile = {
     deleteConfirm: `この${t.game}を削除します。削除した${t.game}はゴミ箱から戻せます。`,
     ai: {
       title: "AIコメント",
-      empty: `まだありません。Claude Code に頼むと、この日の${t.score}と直近の${t.game}を見て、指摘と改善点をここに書きます。`,
       author: (author: string, date: string) => `${author} · ${date}`,
       delete: "AIコメントを削除",
     },

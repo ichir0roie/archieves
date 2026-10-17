@@ -320,7 +320,7 @@ function ScoreViewContent() {
               onEdit={editGame}
             />
           )}
-          {loaded.data && (
+          {loaded.data?.aiComment && (
             <AiCommentPanel
               aiComment={loaded.data.aiComment}
               onDelete={onDeleteAiComment}

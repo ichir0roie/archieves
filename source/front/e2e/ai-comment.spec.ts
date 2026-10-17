@@ -6,7 +6,7 @@ import { recordGame } from "./recordGame";
 // 残るので、この spec のトークンは終わりに消す(落ちて残ったものは次の回の初めに消す)
 const TOKEN_NAME = "E2E AIコメント";
 
-test("Claude Code がトークンで書いた AIコメントをスコアの最後に出し、消せる", async ({ page, request }) => {
+test("Claude Code がトークンで書いた AIコメントをスコアの最後に出し、消すと枠ごと消える", async ({ page, request }) => {
   await ensureRegistered(page);
   for (const token of await (await page.request.get("/api/v1/access-tokens")).json()) {
     if (token.name === TOKEN_NAME) await page.request.delete(`/api/v1/access-tokens/${token.id}`);
@@ -16,6 +16,12 @@ test("Claude Code がトークンで書いた AIコメントをスコアの最�
   const auth = { Authorization: `Bearer ${issued.token}` };
 
   try {
+    const panel = page.locator(".AiComment");
+    // 書く前は、AIコメントの枠を出さない(機能があることも見せない)
+    await page.goto(`/score-view?gameId=${game.id}`);
+    await expect(page.locator(".GameSummary")).toBeVisible();
+    await expect(panel).toHaveCount(0);
+
     // Claude Code がする読み書き(ブラウザのログインを持たない request で、トークンだけを付ける)
     const sheets = await request.get("/api/v1/games/sheets?limit=30", { headers: auth });
     expect(sheets.status()).toBe(200);
@@ -28,13 +34,12 @@ test("Claude Code がトークンで書いた AIコメントをスコアの最�
     expect(written.status()).toBe(200);
 
     await page.goto(`/score-view?gameId=${game.id}`);
-    const panel = page.locator(".AiComment");
     await expect(panel.locator(".AiCommentText")).toHaveText(body);
     await expect(panel).toContainText(TOKEN_NAME);
 
     await panel.getByRole("button", { name: "AIコメントを削除" }).click();
-    await expect(panel.locator(".AiCommentText")).toHaveCount(0);
-    await expect(panel).toContainText("まだありません");
+    // 無いときは枠ごと出さない
+    await expect(panel).toHaveCount(0);
   } finally {
     await page.request.delete(`/api/v1/access-tokens/${issued.id}`);
   }
