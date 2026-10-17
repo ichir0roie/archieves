@@ -68,7 +68,7 @@ type Props = {
 export default function ScoreEntryShell({ renderInput }: Props) {
   const T = useT();
   const router = useRouter();
-  useGuardScoreEntry();
+  const releaseGuard = useGuardScoreEntry();
   const {
     manager,
     mirrorPoints,
@@ -85,7 +85,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
     error,
     isSaving,
     isFinishing,
-  } = useScoreGame();
+  } = useScoreGame(releaseGuard);
   const [aimSettings, setAimSettings] = useState(DEFAULT_AIM_SETTINGS);
   const [aimSettingsOpen, setAimSettingsOpen] = useState(false);
   const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
@@ -104,7 +104,10 @@ export default function ScoreEntryShell({ renderInput }: Props) {
         <button
           type="button"
           className="ghost icon"
-          onClick={() => router.push("/")}
+          onClick={() => {
+            releaseGuard();
+            router.push("/");
+          }}
           aria-label={T.game.entry.home}
         >
           ✕
