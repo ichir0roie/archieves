@@ -6,17 +6,8 @@ from fastapi.testclient import TestClient
 RECORDED_AT = "2026-01-01T00:00:00Z"
 
 
-def _create_user(client: TestClient, name: str = "Yumi") -> dict:
-    res = client.get("/api/v1/users/me")
-    assert res.status_code == 200
-    return res.json()
-
-
-def _create_game(client: TestClient, *, user_id: int | None = None) -> dict:
-    if user_id is None:
-        user_id = _create_user(client)["id"]
-    payload = {"recorded_at": RECORDED_AT, "user_id": user_id}
-    res = client.post("/api/v1/games", json=payload)
+def _create_game(client: TestClient) -> dict:
+    res = client.post("/api/v1/games", json={"recorded_at": RECORDED_AT})
     assert res.status_code == 201
     return res.json()
 
@@ -48,9 +39,20 @@ def _create_point(client: TestClient, end_id: int) -> dict:
     return res.json()
 
 
-def test_creating_game_without_user_id_returns_422(client: TestClient) -> None:
-    res = client.post("/api/v1/games", json={"recorded_at": RECORDED_AT})
+def test_creating_game_without_recorded_at_returns_422(client: TestClient) -> None:
+    res = client.post("/api/v1/games", json={})
     assert res.status_code == 422
+
+
+def test_a_created_game_belongs_to_me_whatever_user_id_is_sent(
+    client: TestClient, current_user, factories
+) -> None:
+    other = factories.UserFactory()
+
+    res = client.post("/api/v1/games", json={"recorded_at": RECORDED_AT, "user_id": other.id})
+
+    assert res.status_code == 201
+    assert res.json()["user_id"] == current_user.id
 
 
 def test_create_and_get_game(client: TestClient) -> None:
@@ -67,11 +69,11 @@ def test_get_missing_game_returns_404(client: TestClient) -> None:
 
 
 def test_list_games_returns_only_my_games(client: TestClient, factories) -> None:
-    user_id = _create_user(client)["id"]
     own_game = _create_game(client)
-    factories.GameFactory()
+    other = factories.GameFactory().user
 
-    for url in ["/api/v1/games", f"/api/v1/games?user_id={user_id}"]:
+    # 持ち主は要求で受けない。他人の user_id を付けても本人の分だけ
+    for url in ["/api/v1/games", f"/api/v1/games?user_id={other.id}"]:
         response = client.get(url)
         assert response.status_code == 200
         assert [g["id"] for g in response.json()] == [own_game["id"]]
@@ -113,12 +115,6 @@ def test_list_games_by_year(client: TestClient, current_user, factories) -> None
     assert [g["id"] for g in client.get("/api/v1/games?year=2024").json()] == [old.id]
     assert [g["id"] for g in client.get("/api/v1/games?year=2026").json()] == [new.id]
     assert client.get("/api/v1/games?year=2025").json() == []
-
-
-def test_list_games_of_another_user_is_forbidden(client: TestClient, factories) -> None:
-    other = factories.GameFactory().user
-
-    assert client.get(f"/api/v1/games?user_id={other.id}").status_code == 403
 
 
 def test_update_and_delete_game(client: TestClient) -> None:
@@ -289,16 +285,10 @@ def test_restoring_missing_round_returns_404(client: TestClient) -> None:
     assert client.post("/api/v1/rounds/999/restore").status_code == 404
 
 
-def test_list_deleted_rounds_filters_by_game_id_and_user_id(
+def test_list_deleted_rounds_lists_only_mine_and_filters_by_game_id(
     client: TestClient, factories
 ) -> None:
-    user_res = client.get("/api/v1/users/me")
-    user_id = user_res.json()["id"]
-
-    own_game_res = client.post(
-        "/api/v1/games", json={"recorded_at": RECORDED_AT, "user_id": user_id}
-    )
-    own_game = own_game_res.json()
+    own_game = _create_game(client)
     own_round = _create_round(client, own_game["id"])
 
     other_round = factories.RoundFactory(deleted_at=date(2026, 1, 2))
@@ -310,15 +300,11 @@ def test_list_deleted_rounds_filters_by_game_id_and_user_id(
     assert by_game.status_code == 200
     assert [r["id"] for r in by_game.json()] == [own_round["id"]]
 
-    by_user = client.get(f"/api/v1/trash/rounds?user_id={user_id}")
-    assert by_user.status_code == 200
-    assert [r["id"] for r in by_user.json()] == [own_round["id"]]
-
     by_default = client.get("/api/v1/trash/rounds")
     assert [r["id"] for r in by_default.json()] == [own_round["id"]]
 
-    forbidden = client.get(f"/api/v1/trash/rounds?user_id={other_round.user_id}")
-    assert forbidden.status_code == 403
+    with_other_user_id = client.get(f"/api/v1/trash/rounds?user_id={other_round.user_id}")
+    assert with_other_user_id.json() == by_default.json()
 
 
 def test_list_ends_under_missing_round_returns_404(client: TestClient) -> None:
@@ -471,18 +457,15 @@ def test_delete_missing_point_returns_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_trash_games_filters_by_user(client: TestClient, factories) -> None:
-    own = _create_user(client, name="Yumi")
-    own_game = _create_game(client, user_id=own["id"])
+def test_trash_games_lists_only_mine(client: TestClient, factories) -> None:
+    own_game = _create_game(client)
     other_game = factories.GameFactory(deleted_at=date(2026, 1, 2))
     client.delete(f"/api/v1/games/{own_game['id']}")
 
-    res = client.get(f"/api/v1/trash/games?user_id={own['id']}")
+    res = client.get("/api/v1/trash/games")
     assert res.status_code == 200
     assert [g["id"] for g in res.json()] == [own_game["id"]]
-
-    assert client.get("/api/v1/trash/games").json() == res.json()
-    assert client.get(f"/api/v1/trash/games?user_id={other_game.user_id}").status_code == 403
+    assert client.get(f"/api/v1/trash/games?user_id={other_game.user_id}").json() == res.json()
 
 
 @pytest.mark.parametrize(

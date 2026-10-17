@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 
 /** 画面の操作が API の絞り込みに渡ることを、送った要求で確かめる */
 function rankingRequest(page: import("@playwright/test").Page) {
-  return page.waitForRequest((request) => request.url().includes("/statistics/ranking"));
+  return page.waitForRequest((request) => request.url().includes("/public/ranking"));
 }
 
 test("the ranking starts on this month's total score", async ({ page }) => {

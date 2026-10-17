@@ -17,6 +17,7 @@ if debug_settings.AUTH_MODE == "proxy" and not api_keys:
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
+    description="Claude などの AI は、まず `GET /api/v1/guide` で使い方を読む。",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
 

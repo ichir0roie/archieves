@@ -84,6 +84,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
     applySetup,
     error,
     isSaving,
+    isFinishing,
   } = useScoreGame();
   const [aimSettings, setAimSettings] = useState(DEFAULT_AIM_SETTINGS);
   const [aimSettingsOpen, setAimSettingsOpen] = useState(false);
@@ -281,6 +282,19 @@ export default function ScoreEntryShell({ renderInput }: Props) {
             })}
           </div>
         </>
+      )}
+      {/* ✕ や設定も押せないよう、画面ごと覆う */}
+      {isFinishing && (
+        <div
+          className="FinishingOverlay busy-overlay"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="busy-card">
+            <div className="spinner" />
+            <span>{T.game.entry.finishing}</span>
+          </div>
+        </div>
       )}
     </div>
   );

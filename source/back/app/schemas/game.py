@@ -55,11 +55,10 @@ class GameBase(GameFields):
 
 
 class GameCreate(GameWriteFields):
-    user_id: int
+    """持ち主は受けず、ログインした本人にする。"""
 
 
 class GameUpdate(BaseModel):
-    user_id: int | None = None
     recorded_at: date | None = None
     game_size: int | None = Field(default=None, ge=1, le=MAX_GAME_SIZE)
     bow_type: str | None = Field(default=None, min_length=1, max_length=BOW_TYPE_MAX_LENGTH)
@@ -70,7 +69,6 @@ class GameUpdate(BaseModel):
     backfilled: bool | None = None
 
     _reject_null = field_validator(
-        "user_id",
         "recorded_at",
         "all_in",
         "backfilled",

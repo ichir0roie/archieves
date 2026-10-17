@@ -4,31 +4,19 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api import deps
-from app.core.bow_types import BowType
 from app.crud import statistics as statistics_crud
-from app.crud import user as user_crud
 from app.crud.statistics import GameKindFilter
 from app.db import User
 from app.schemas.statistics import (
     EndScoreSummary,
     GameKindOptions,
-    RankingMetric,
     RoundScoreSummary,
     ScoreStatistics,
-    UserRanking,
 )
 
+# 本人の記録の集計。他人の集計はプロフィール(GET /public/users/{user_id}/profile)、
+# ランキングは GET /public/ranking が返す
 router = APIRouter()
-
-
-def _target_user_id(s: Session, me: User, user_id: int | None) -> int:
-    # 他人の統計は、プロフィールを本人に公開している人のものだけ読める(プロフィールで見せる)。
-    # 省略したときだけ本人に絞り、全員分の集計は返さない
-    if user_id is None or user_id == me.id:
-        return me.id
-    user = deps.get_or_404(user_crud.get_user, s, user_id, detail="User not found")
-    deps.require_profile_visible(me, user)
-    return user_id
 
 
 def _game_kind(
@@ -51,27 +39,25 @@ def _game_kind(
 
 @router.get("/game-kinds", response_model=GameKindOptions)
 def get_game_kind_options(
-    user_id: int | None = None,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> GameKindOptions:
     """統計の絞り込みに選べる種別の値。"""
-    return statistics_crud.game_kind_options(s, user_id=_target_user_id(s, me, user_id))
+    return statistics_crud.game_kind_options(s, user_id=me.id)
 
 
 @router.get("/rounds", response_model=list[RoundScoreSummary])
 def list_round_scores(
     start: date | None = None,
     end: date | None = None,
-    user_id: int | None = None,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     kind: GameKindFilter = Depends(_game_kind),
     s: Session = Depends(deps.get_session),
 ) -> list[RoundScoreSummary]:
     """Per-round score aggregation (total/average of its points), optionally
-    filtered to a period and/or a user."""
+    filtered to a period."""
     return statistics_crud.list_round_scores(
-        s, start=start, end=end, user_id=_target_user_id(s, me, user_id), kind=kind
+        s, start=start, end=end, user_id=me.id, kind=kind
     )
 
 
@@ -79,14 +65,13 @@ def list_round_scores(
 def get_round_score_statistics(
     start: date | None = None,
     end: date | None = None,
-    user_id: int | None = None,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     kind: GameKindFilter = Depends(_game_kind),
     s: Session = Depends(deps.get_session),
 ) -> ScoreStatistics:
     """Min/max/average/median of round totals within a period."""
     return statistics_crud.round_score_statistics(
-        s, start=start, end=end, user_id=_target_user_id(s, me, user_id), kind=kind
+        s, start=start, end=end, user_id=me.id, kind=kind
     )
 
 
@@ -94,15 +79,14 @@ def get_round_score_statistics(
 def list_end_scores(
     start: date | None = None,
     end: date | None = None,
-    user_id: int | None = None,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     kind: GameKindFilter = Depends(_game_kind),
     s: Session = Depends(deps.get_session),
 ) -> list[EndScoreSummary]:
     """Per-end score aggregation (total/average of its points), optionally
-    filtered to a period and/or a user."""
+    filtered to a period."""
     return statistics_crud.list_end_scores(
-        s, start=start, end=end, user_id=_target_user_id(s, me, user_id), kind=kind
+        s, start=start, end=end, user_id=me.id, kind=kind
     )
 
 
@@ -110,14 +94,13 @@ def list_end_scores(
 def get_end_score_statistics(
     start: date | None = None,
     end: date | None = None,
-    user_id: int | None = None,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     kind: GameKindFilter = Depends(_game_kind),
     s: Session = Depends(deps.get_session),
 ) -> ScoreStatistics:
     """Min/max/average/median of end totals within a period."""
     return statistics_crud.end_score_statistics(
-        s, start=start, end=end, user_id=_target_user_id(s, me, user_id), kind=kind
+        s, start=start, end=end, user_id=me.id, kind=kind
     )
 
 
@@ -125,44 +108,11 @@ def get_end_score_statistics(
 def get_point_score_statistics(
     start: date | None = None,
     end: date | None = None,
-    user_id: int | None = None,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     kind: GameKindFilter = Depends(_game_kind),
     s: Session = Depends(deps.get_session),
 ) -> ScoreStatistics:
     """Min/max/average/median of individual point (arrow) scores within a period."""
     return statistics_crud.point_score_statistics(
-        s, start=start, end=end, user_id=_target_user_id(s, me, user_id), kind=kind
-    )
-
-
-@router.get("/ranking", response_model=list[UserRanking])
-def list_user_ranking(
-    metric: RankingMetric = RankingMetric.TOTAL_SCORE,
-    organization_id: int | None = None,
-    region_id: int | None = None,
-    bow_type: BowType | None = None,
-    distance_m: int | None = None,
-    start: date | None = None,
-    end: date | None = None,
-    skip: int = 0,
-    limit: int = 100,
-    me: User = Depends(deps.get_me),
-    s: Session = Depends(deps.get_session),
-) -> list[UserRanking]:
-    """Users ranked by total score, average round score or average point
-    score, high to low, optionally filtered by bow type, distance,
-    organization, region, and/or period. ランキングを本人に公開している人だけを載せる。"""
-    return statistics_crud.list_user_ranking(
-        s,
-        viewer=me,
-        metric=metric,
-        organization_id=organization_id,
-        region_id=region_id,
-        bow_type=bow_type,
-        distance_m=distance_m,
-        start=start,
-        end=end,
-        skip=skip,
-        limit=limit,
+        s, start=start, end=end, user_id=me.id, kind=kind
     )

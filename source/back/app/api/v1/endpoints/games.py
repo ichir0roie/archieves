@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from datetime import date
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -22,46 +24,72 @@ from app.schemas.game import (
 from app.schemas.game_sheet import GameSheetRead, GameSheetWrite
 from app.services import game_sheet as game_sheet_service
 
+# ゲーム・ラウンド・エンド・ポイントは本人のものだけを読み書きする。
+# 持ち主は要求で受けず、ログインから引く。
+# 読む(GET)ものは、本人が発行したトークン(Claude Code など)でも通す(deps.get_reader)
 router = APIRouter()
+
+# GET /games/sheets で一度に読めるゲームの数
+MAX_GAME_SHEETS = 100
 
 
 @router.get("/games", response_model=list[GameRead])
 def list_games(
     skip: int = 0,
     limit: int = 100,
-    user_id: int | None = None,
     year: int | None = None,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[GameRead]:
     return game_crud.list_games(
         s,
         skip=skip,
         limit=limit,
-        user_id=deps.resolve_user_id(me, user_id),
+        user_id=me.id,
         year=year,
     )
 
 
 @router.get("/games/years", response_model=list[int])
 def list_game_years(
-    user_id: int | None = None,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[int]:
     """ゲームのある年。新しい年が先"""
-    return game_crud.list_game_years(s, user_id=deps.resolve_user_id(me, user_id))
+    return game_crud.list_game_years(s, user_id=me.id)
+
+
+@router.get("/games/sheets", response_model=list[GameSheetRead])
+def list_game_sheets(
+    recorded_on: date | None = None,
+    until: date | None = None,
+    limit: int = Query(default=30, ge=1, le=MAX_GAME_SHEETS),
+    me: User = Depends(deps.get_reader),
+    s: Session = Depends(deps.get_session),
+) -> list[GameSheetRead]:
+    """ゲームの記録(ラウンド・エンド・矢・コメント)を丸ごと、新しい順に limit 件。
+
+    recorded_on でその日のゲーム、until でその日までのゲームに絞る。AI(Claude Code など)が、
+    その日のスコアと直近のスコアを比べるために読む。
+    """
+    games = game_crud.list_game_sheets(
+        s,
+        me.id,
+        recorded_on=recorded_on,
+        until=until,
+        limit=limit,
+    )
+    return [game_sheet_service.read_game_sheet(game) for game in games]
 
 
 @router.get("/games/scores", response_model=list[GameScoreSummary])
 def list_game_scores(
     year: int,
-    user_id: int | None = None,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[GameScoreSummary]:
     """年内のゲームごとの合計点・エンド平均・ポイント平均(スコア一覧用)"""
-    return game_crud.list_game_scores(s, user_id=deps.resolve_user_id(me, user_id), year=year)
+    return game_crud.list_game_scores(s, user_id=me.id, year=year)
 
 
 @router.post("/games", response_model=GameRead, status_code=201)
@@ -70,8 +98,7 @@ def create_game(
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
 ) -> GameRead:
-    deps.require_self(me, game_in.user_id)
-    result = game_crud.create_game(s, game_in)
+    result = game_crud.create_game(s, me.id, game_in)
     s.commit()
     return result
 
@@ -107,7 +134,7 @@ def save_game_sheet(
 @router.get("/games/{game_id}/sheet", response_model=GameSheetRead)
 def get_game_sheet(
     game_id: int,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> GameSheetRead:
     """ゲームの記録(ラウンド・エンド・矢・コメント)を丸ごと。入力の画面で編集を始めるときに読む。"""
@@ -118,7 +145,7 @@ def get_game_sheet(
 @router.get("/games/{game_id}", response_model=GameRead)
 def get_game(
     game_id: int,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> GameRead:
     return deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
@@ -132,8 +159,6 @@ def update_game(
     s: Session = Depends(deps.get_session),
 ) -> GameRead:
     game = deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
-    if game_in.user_id is not None:
-        deps.require_self(me, game_in.user_id)
     result = game_crud.update_game(s, game, game_in)
     s.commit()
     return result
@@ -154,15 +179,14 @@ def delete_game(
 def list_deleted_games(
     skip: int = 0,
     limit: int = 100,
-    user_id: int | None = None,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[GameRead]:
     return game_crud.list_deleted_games(
         s,
         skip=skip,
         limit=limit,
-        user_id=deps.resolve_user_id(me, user_id),
+        user_id=me.id,
     )
 
 
@@ -185,7 +209,7 @@ def list_rounds(
     game_id: int,
     skip: int = 0,
     limit: int = 100,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[RoundRead]:
     deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
@@ -208,7 +232,7 @@ def create_round(
 @router.get("/rounds/{round_id}", response_model=RoundRead)
 def get_round(
     round_id: int,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> RoundRead:
     return deps.get_own_or_404(me, game_crud.get_round, s, round_id, detail="Round not found")
@@ -243,8 +267,7 @@ def list_deleted_rounds(
     skip: int = 0,
     limit: int = 100,
     game_id: int | None = None,
-    user_id: int | None = None,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[RoundRead]:
     return game_crud.list_deleted_rounds(
@@ -252,7 +275,7 @@ def list_deleted_rounds(
         skip=skip,
         limit=limit,
         game_id=game_id,
-        user_id=deps.resolve_user_id(me, user_id),
+        user_id=me.id,
     )
 
 
@@ -275,7 +298,7 @@ def list_ends(
     round_id: int,
     skip: int = 0,
     limit: int = 100,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[EndRead]:
     deps.get_own_or_404(me, game_crud.get_round, s, round_id, detail="Round not found")
@@ -298,7 +321,7 @@ def create_end(
 @router.get("/ends/{end_id}", response_model=EndRead)
 def get_end(
     end_id: int,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> EndRead:
     return deps.get_own_or_404(me, game_crud.get_end, s, end_id, detail="End not found")
@@ -333,7 +356,7 @@ def list_points(
     end_id: int,
     skip: int = 0,
     limit: int = 100,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[PointRead]:
     deps.get_own_or_404(me, game_crud.get_end, s, end_id, detail="End not found")
@@ -356,7 +379,7 @@ def create_point(
 @router.get("/points/{point_id}", response_model=PointRead)
 def get_point(
     point_id: int,
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> PointRead:
     return deps.get_own_or_404(me, game_crud.get_point, s, point_id, detail="Point not found")

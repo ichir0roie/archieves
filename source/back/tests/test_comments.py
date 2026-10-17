@@ -3,17 +3,8 @@ from fastapi.testclient import TestClient
 RECORDED_AT = "2026-01-01"
 
 
-def _create_user(client: TestClient, name: str = "Yumi") -> dict:
-    res = client.get("/api/v1/users/me")
-    assert res.status_code == 200
-    return res.json()
-
-
 def _create_game(client: TestClient) -> dict:
-    user = _create_user(client)
-    res = client.post(
-        "/api/v1/games", json={"user_id": user["id"], "recorded_at": RECORDED_AT}
-    )
+    res = client.post("/api/v1/games", json={"recorded_at": RECORDED_AT})
     assert res.status_code == 201
     return res.json()
 

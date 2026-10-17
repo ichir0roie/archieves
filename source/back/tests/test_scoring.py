@@ -17,9 +17,7 @@ RECORDED_AT = "2026-01-01T00:00:00Z"
 
 
 def _create_game(client: TestClient) -> dict:
-    user_res = client.get("/api/v1/users/me")
-    payload = {"recorded_at": RECORDED_AT, "user_id": user_res.json()["id"]}
-    res = client.post("/api/v1/games", json=payload)
+    res = client.post("/api/v1/games", json={"recorded_at": RECORDED_AT})
     assert res.status_code == 201
     return res.json()
 
@@ -101,7 +99,7 @@ def test_an_x_is_worth_ten_in_the_ranking(client: TestClient, current_user) -> N
     current_user.ranking_visibility = "public"
     _end_of_scores(client, [X_SCORE] * 6)
 
-    body = client.get("/api/v1/statistics/ranking").json()
+    body = client.get("/api/v1/public/ranking").json()
     assert body[0]["value"] == 60.0
 
 
@@ -175,10 +173,9 @@ def test_a_non_finite_position_is_rejected(value: float) -> None:
 
 
 def test_a_game_of_zero_rounds_is_rejected(client: TestClient) -> None:
-    user_res = client.get("/api/v1/users/me")
     res = client.post(
         "/api/v1/games",
-        json={"recorded_at": RECORDED_AT, "user_id": user_res.json()["id"], "game_size": 0},
+        json={"recorded_at": RECORDED_AT, "game_size": 0},
     )
     assert res.status_code == 422
 

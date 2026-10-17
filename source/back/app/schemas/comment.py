@@ -1,6 +1,8 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
-from app.core.comments import MAX_COMMENT_LENGTH
+from app.core.comments import MAX_AI_COMMENT_LENGTH, MAX_COMMENT_LENGTH
 from app.schemas.base import ResponseModel
 
 
@@ -38,3 +40,16 @@ class GameComments(ResponseModel):
     game: GameCommentRead | None = None
     rounds: list[RoundCommentRead] = []
     ends: list[EndCommentRead] = []
+
+
+class AiCommentWrite(BaseModel):
+    body: str = Field(min_length=1, max_length=MAX_AI_COMMENT_LENGTH)
+
+
+class AiCommentRead(ResponseModel):
+    """AI がゲームに付けた指摘・改善点。author は書いたトークンの名前。"""
+
+    game_id: int
+    body: str
+    author: str
+    updated_at: datetime

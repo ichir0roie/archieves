@@ -58,6 +58,7 @@ export const game: typeof ja = {
     pointCaption: t.arrow,
     endCaption: t.end,
     finish: "Finish",
+    finishing: "Saving scores…",
     aimSettings: "Zoom and sensitivity",
     gameSettings: "Game setup",
     gameSettingsHint: "Changes apply to every round of this game. The numbers of arrows, ends and rounds cannot be lower than what is already recorded. Changing the target face does not rescore arrows already recorded.",

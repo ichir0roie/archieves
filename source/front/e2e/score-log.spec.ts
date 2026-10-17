@@ -70,7 +70,7 @@ test("the statistics dashboard summarises the recorded scores", async ({ page })
 
 test("the ranking shows an empty state when nobody matches the filters", async ({ page }) => {
   // 共有の db に誰の記録があるかに依らないよう、応答を空にして画面の出し分けだけを確かめる
-  await page.route("**/statistics/ranking?*", (route) => route.fulfill({ json: [] }));
+  await page.route("**/public/ranking?*", (route) => route.fulfill({ json: [] }));
   await page.goto("/ranking");
 
   await expect(page.getByText("該当するデータがありません")).toBeVisible();

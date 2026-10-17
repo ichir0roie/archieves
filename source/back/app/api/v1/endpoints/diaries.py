@@ -24,7 +24,7 @@ def create_diary(
 def list_diaries(
     year: int | None = None,
     limit: int | None = Query(default=None, ge=1),
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[DiaryRead]:
     """新しい順。year は日本時間の年。limit を省くと全部を返す"""
@@ -33,7 +33,7 @@ def list_diaries(
 
 @router.get("/diaries/years", response_model=list[int])
 def list_diary_years(
-    me: User = Depends(deps.get_me),
+    me: User = Depends(deps.get_reader),
     s: Session = Depends(deps.get_session),
 ) -> list[int]:
     """日記のある年(日本時間)。新しい年が先"""

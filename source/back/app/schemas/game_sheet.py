@@ -15,6 +15,7 @@ from app.core.scoring import (
 )
 from app.core.target_types import TARGET_TYPE_MAX_LENGTH
 from app.schemas.base import ResponseModel
+from app.schemas.comment import AiCommentRead
 from app.schemas.game import GameWriteFields, PointRead, RoundWriteFields
 
 # 取り込んだ古い記録は、画面で作れる数(MAX_*)より多いラウンド・エンド・矢を持つことがある。
@@ -106,4 +107,7 @@ class GameSheetRead(ResponseModel):
     all_in: bool
     backfilled: bool
     comment: str | None
+    # AI(Claude Code など)の指摘・改善点。本人にだけ返し、
+    # スコアの公開ページ(SharedGameRead)には載せない
+    ai_comment: AiCommentRead | None
     rounds: list[RoundSheetRead]

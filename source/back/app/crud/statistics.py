@@ -270,7 +270,7 @@ def game_kind_options(s: Session, *, user_id: int) -> GameKindOptions:
 def list_user_ranking(
     s: Session,
     *,
-    viewer: User,
+    viewer: User | None,
     metric: RankingMetric = RankingMetric.TOTAL_SCORE,
     organization_id: int | None = None,
     region_id: int | None = None,
@@ -284,7 +284,8 @@ def list_user_ranking(
     """期間・種目(弓の種類・距離)・組織・地域の中で、metric の値が高い順の利用者。
 
     ランキングを viewer に公開している利用者(全体公開か、同じ組織への公開)だけを載せる。
-    非公開なら viewer 本人も載らない。矢が一本も無いラウンドは、どの metric にも数えない。
+    viewer が None(ログインしていない)なら全体公開の人だけ。非公開なら viewer 本人も載らない。
+    矢が一本も無いラウンドは、どの metric にも数えない。
     """
     round_scores = (
         select(

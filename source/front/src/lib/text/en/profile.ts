@@ -80,6 +80,12 @@ export const profile: typeof ja = {
     deleteGame: "Delete this game",
     deleteConfirmTitle: "Delete game",
     deleteConfirm: "This game will be deleted. You can restore it from the trash.",
+    ai: {
+      title: "AI comment",
+      empty: "None yet. Ask Claude Code and it reads this day's scores and your recent games, then writes what it noticed and how to improve here.",
+      author: (author: string, date: string) => `${author} · ${date}`,
+      delete: "Delete the AI comment",
+    },
   },
   scoreLog: {
     title: t.scoreLog,

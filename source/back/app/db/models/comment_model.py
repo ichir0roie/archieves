@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy import BigInteger, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.comments import MAX_COMMENT_LENGTH
+from app.core.access_token import MAX_NAME_LENGTH
+from app.core.comments import MAX_AI_COMMENT_LENGTH, MAX_COMMENT_LENGTH
 from app.db.base_class import Base, TimestampMixin
 
 if TYPE_CHECKING:
@@ -60,3 +61,25 @@ class EndComment(CommentMixin, Base):
     )
 
     end: Mapped[End] = relationship(back_populates="comment", lazy="noload")
+
+
+class GameAiComment(TimestampMixin, Base):
+    """AI(Claude Code など)がゲームに付けた指摘・改善点。ゲームごとに一つ。
+
+    本人のトークンでだけ書く(書き直すと上書き)。本人のコメント(GameComment)とは分けて持ち、
+    スコアの公開ページには載せない。
+    """
+
+    __tablename__ = "game_ai_comments"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    game_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("games.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    body: Mapped[str] = mapped_column(String(MAX_AI_COMMENT_LENGTH))
+    # 書いたトークンの名前(access_tokens.name)。トークンを失効させても残す
+    author: Mapped[str] = mapped_column(String(MAX_NAME_LENGTH))
+
+    game: Mapped[Game] = relationship(back_populates="ai_comment", lazy="noload")

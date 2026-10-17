@@ -13,7 +13,6 @@ import ShareUrlButton from "@/components/ShareUrlButton";
 import YearSwitcher from "@/components/YearSwitcher";
 import { getMyUser, listGameScoresOfYear, listGameYears, listGamesOfYear } from "@/lib/api";
 import { useLoad } from "@/hooks/useLoad";
-import { getCurrentAppUser } from "@/lib/auth/currentUser";
 import { BACKFILL_DATE_PARAM, isBackfillDate } from "@/lib/score/backfill";
 import { groupGamesByDate } from "@/lib/scoreLogGroups";
 import { loadScoreLogCollapsed, saveScoreLogCollapsed } from "@/lib/storage";
@@ -26,16 +25,15 @@ export default function Page() {
   // null のあいだは、ゲームのある一番新しい年を出す
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const { data, loading, error } = useLoad(async () => {
-    const { id: userId } = await getCurrentAppUser();
     // 公開 URL のボタンは、スコアを全体公開している人にだけ出す
-    const [me, years] = await Promise.all([getMyUser(), listGameYears(userId)]);
+    const [me, years] = await Promise.all([getMyUser(), listGameYears()]);
     const year = selectedYear ?? years[0] ?? null;
     const [games, scores] =
       year === null
         ? [[], []]
         : await Promise.all([
-            listGamesOfYear(userId, year),
-            listGameScoresOfYear(userId, year),
+            listGamesOfYear(year),
+            listGameScoresOfYear(year),
           ]);
     return { canShare: me.score_visibility === "public", years, year, games, scores };
   }, [selectedYear]);

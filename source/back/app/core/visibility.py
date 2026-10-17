@@ -24,26 +24,32 @@ class _Profiled(_Member, Protocol):
     profile_visibility: str
 
 
-def is_visible(viewer: _Member, owner: _Member, visibility: str) -> bool:
-    """owner が visibility で公開しているものが、viewer に見えるか。
+def is_visible(viewer: _Member | None, owner: _Member, visibility: str) -> bool:
+    """owner が visibility で公開しているものが、viewer(ログインしていなければ None)に見えるか。
 
     本人も他人と同じに扱う(非公開のランキングには本人も載らない)。本人のプロフィールのように
     本人にはいつも見せるものは、呼ぶ側で本人を先に通す。
     組織に入っていない利用者どうしは「同じ組織」とみなさない(組織公開でも見えない)。
+    ログインしていない人には全体公開の分だけを見せる。
     crud/user.py の visible_condition() が、同じ決まりを SQL で書いたもの。
     """
     if visibility == Visibility.PUBLIC:
         return True
     return (
-        visibility == Visibility.ORGANIZATION
+        viewer is not None
+        and visibility == Visibility.ORGANIZATION
         and owner.organization_id is not None
         and owner.organization_id == viewer.organization_id
     )
 
 
-def can_view_profile(viewer: _Member, owner: _Profiled) -> bool:
-    """viewer に owner のプロフィールが見えるか。
+def is_self(viewer: _Member | None, owner: _Member) -> bool:
+    return viewer is not None and viewer.id == owner.id
+
+
+def can_view_profile(viewer: _Member | None, owner: _Profiled) -> bool:
+    """viewer(ログインしていなければ None)に owner のプロフィールが見えるか。
 
     本人のプロフィールは、公開範囲に依らず本人に見せる。
     """
-    return owner.id == viewer.id or is_visible(viewer, owner, owner.profile_visibility)
+    return is_self(viewer, owner) or is_visible(viewer, owner, owner.profile_visibility)

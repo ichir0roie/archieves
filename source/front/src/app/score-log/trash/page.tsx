@@ -12,16 +12,12 @@ import {
   type GameRead,
 } from "@/lib/api";
 import { useLoad } from "@/hooks/useLoad";
-import { getCurrentAppUser } from "@/lib/auth/currentUser";
 import { useT } from "@/lib/text";
 
 /** 削除したゲームの一覧。戻したゲームは一覧から外し、スコアの一覧に出る。 */
 export default function Page() {
   const T = useT();
-  const { data, loading, error } = useLoad(async () => {
-    const { id: userId } = await getCurrentAppUser();
-    return listDeletedGames(userId);
-  }, []);
+  const { data, loading, error } = useLoad(() => listDeletedGames(), []);
   const [restoredIds, setRestoredIds] = useState<Array<number>>([]);
   const [restoringId, setRestoringId] = useState<number | null>(null);
   const [restoreError, setRestoreError] = useState<ErrorDetails | null>(null);

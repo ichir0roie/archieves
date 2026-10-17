@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
+import { createOtherUser } from "./otherUser";
 import { recordGame } from "./recordGame";
 
 // どのテストも同じモックの利用者のプロフィールを丸ごと保存する。並べて走らせると、
@@ -139,14 +140,8 @@ test("my profile page has no visibility settings and links to the profile settin
 test("another user's profile page has no link to the profile settings", async ({ page }) => {
   await ensureRegistered(page);
   // モックのログインでは他人としてログインできないので、他人の行は API で作る(既定は非公開)
-  const created = await page.request.post("/api/v1/users/find-or-create", {
-    data: {
-      sub: `e2e-other-${Date.now()}`,
-      name: "他人",
-    },
-  });
-  expect(created.ok()).toBeTruthy();
-  await page.goto(`/profile/${(await created.json()).id}`);
+  const other = await createOtherUser(page.request, "他人");
+  await page.goto(`/profile/${other.id}`);
   await expect(page.getByText("このプロフィールは公開されていません")).toBeVisible();
   await expect(page.locator(".ProfileSettingsLink")).toHaveCount(0);
 });

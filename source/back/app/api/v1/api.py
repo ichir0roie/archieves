@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends
 
 from app.api import deps
 from app.api.v1.endpoints import (
+    access_tokens,
     comments,
     diaries,
     exports,
     games,
+    guide,
     health,
     imports,
     organizations,
@@ -17,18 +19,16 @@ from app.api.v1.endpoints import (
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
-
-# find-or-create runs before the client holds a verified session (it is what
-# establishes the account row for a sub), so it stays outside the
-# authenticated router even though the rest of /users requires a token.
-api_router.include_router(users.public_router, prefix="/users", tags=["users"])
+api_router.include_router(guide.router, tags=["guide"])
 
 # ログインしていなくても読める。見る人の公開範囲に入る分だけを返す(endpoints/public.py)
 api_router.include_router(public.router, prefix="/public", tags=["public"])
 
-# ここから下は、確かめた利用者(AUTH_MODE ごとの get_current_user。app/core/security.py)が要る。
+# ここから下は、画面からのログイン(AUTH_MODE ごとの get_current_user。app/core/security.py)か、
+# 本人が発行したトークンが要る。どちらを通すかは、エンドポイントごとの依存
+# (app/api/deps.py)が決める。
 # mock でも Authorization ヘッダーは求めるので、本物と同じ形の要求で試せる
-authenticated_router = APIRouter(dependencies=[Depends(deps.get_current_user)])
+authenticated_router = APIRouter(dependencies=[Depends(deps.authenticate)])
 
 authenticated_router.include_router(users.router, prefix="/users", tags=["users"])
 authenticated_router.include_router(
@@ -43,4 +43,5 @@ authenticated_router.include_router(
 )
 authenticated_router.include_router(support.router, tags=["support"])
 authenticated_router.include_router(diaries.router, tags=["diaries"])
+authenticated_router.include_router(access_tokens.router, tags=["access-tokens"])
 api_router.include_router(authenticated_router)
