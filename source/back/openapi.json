@@ -37,7 +37,7 @@
           "guide"
         ],
         "summary": "Get Agent Guide",
-        "description": "Claude などの AI 向けの、この API の使い方(Markdown)。",
+        "description": "AI 向けの、この API の使い方(Markdown)。",
         "operationId": "get_agent_guide_api_v1_guide_get",
         "responses": {
           "200": {
@@ -4630,6 +4630,34 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/mcp": {
+      "post": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Handle Mcp",
+        "description": "MCP の Streamable HTTP。JSON-RPC のメッセージを一つ受け、JSON で答える(通知には 202)。\n\nSSE の流し(GET)とセッションは持たない。",
+        "operationId": "handle_mcp_api_v1_mcp_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/": {

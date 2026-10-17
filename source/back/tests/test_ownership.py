@@ -279,6 +279,8 @@ TOKEN_READABLE_ROUTES = {
 }
 # トークンで書ける口(AI コメント)。画面からのログインでは書けない
 TOKEN_WRITABLE_ROUTES = {("PUT", "/api/v1/games/{game_id}/ai-comment")}
+# トークンだけで繋ぐ口(MCP)。中で REST を呼び直し、どこまで通すかはそちらが決める
+TOKEN_ONLY_ROUTES = {("POST", "/api/v1/mcp")}
 UNAUTHENTICATED_ROUTES = {
     "/api/v1/health",
     "/api/v1/guide",
@@ -316,6 +318,9 @@ def test_every_endpoint_declares_who_it_lets_in(method: str, route: APIRoute) ->
     elif route.path.startswith("/api/v1/public/"):
         assert deps.get_optional_me in calls
         assert deps.authenticate not in calls
+    elif (method, route.path) in TOKEN_ONLY_ROUTES:
+        assert {deps.authenticate, deps.require_access_token} <= calls
+        assert deps.get_browser_claims not in calls
     elif (method, route.path) in TOKEN_WRITABLE_ROUTES:
         assert {deps.authenticate, deps.get_ai_commenter} <= calls
         assert deps.get_browser_claims not in calls
@@ -378,14 +383,14 @@ def test_a_token_cannot_read_another_users_records(
         (method, route)
         for method, route in _api_routes()
         if route.path not in UNAUTHENTICATED_ROUTES
-        and (method, route.path) not in TOKEN_WRITABLE_ROUTES
+        and (method, route.path) not in TOKEN_WRITABLE_ROUTES | TOKEN_ONLY_ROUTES
         and not (method == "GET" and route.path in TOKEN_READABLE_ROUTES)
     ],
     ids=[
         f"{method} {route.path}"
         for method, route in _api_routes()
         if route.path not in UNAUTHENTICATED_ROUTES
-        and (method, route.path) not in TOKEN_WRITABLE_ROUTES
+        and (method, route.path) not in TOKEN_WRITABLE_ROUTES | TOKEN_ONLY_ROUTES
         and not (method == "GET" and route.path in TOKEN_READABLE_ROUTES)
     ],
 )

@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     guide,
     health,
     imports,
+    mcp,
     organizations,
     public,
     statistics,
@@ -44,4 +45,5 @@ authenticated_router.include_router(
 authenticated_router.include_router(support.router, tags=["support"])
 authenticated_router.include_router(diaries.router, tags=["diaries"])
 authenticated_router.include_router(access_tokens.router, tags=["access-tokens"])
+authenticated_router.include_router(mcp.router, tags=["mcp"])
 api_router.include_router(authenticated_router)

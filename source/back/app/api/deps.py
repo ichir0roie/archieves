@@ -3,6 +3,8 @@
 - get_me: 画面からログインした本人。書き込み・設定・トークンの発行など
 - get_reader: get_me に加え、本人が発行したトークン(Claude Code など)。本人の記録を読む GET だけ
 - get_ai_commenter: 本人が発行したトークンだけ。AI コメントを書く口
+- require_access_token: 本人が発行したトークンだけ。MCP の口
+  (中で REST を呼び直し、そちらが改めて確かめる)
 - get_admin: 画面からログインした管理者
 - get_browser_claims: 画面からのログイン(利用者の行が無くてもよいもの)
 - get_optional_me: ログインしていなくても通す /public。トークンでは通さない
@@ -43,6 +45,7 @@ __all__ = [
     "get_reader",
     "get_session",
     "get_token_user",
+    "require_access_token",
     "require_profile_visible",
     "require_self",
 ]
@@ -98,6 +101,15 @@ def get_token_user(
 ) -> User | None:
     """利用者が発行したトークンで来たなら、その持ち主。トークンが無ければ None。"""
     return None if found is None else found[1]
+
+
+def require_access_token(
+    found: tuple[AccessToken, User] | None = Depends(get_access_token),
+) -> tuple[AccessToken, User]:
+    """本人が発行したトークンで来た要求だけを通す(MCP)。画面からのログインだけなら 401。"""
+    if found is None:
+        raise _unauthenticated("Access token required")
+    return found
 
 
 def get_ai_commenter(

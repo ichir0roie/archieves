@@ -16,8 +16,9 @@ import outputs from "../../../../../amplify_outputs.json";
 // ここで署名を確かめる(本番の API は VPC の中にいて Cognito の公開鍵を取りに行けないため)。
 //   本番(Lambda の関数 URL): 確かめた利用者を x-archieves-user-* で渡し(API は AUTH_MODE=proxy)、要求に SigV4 の署名を付ける
 //   手元の API: ID トークンをそのまま Authorization に載せる(API の AUTH_MODE=cognito がもう一度確かめる)
-// 本人が発行したトークン(Claude Code など)で Authorization: Bearer arc_... と来た要求は、クッキーを見ずに
-// トークンを x-archieves-access-token に載せ替えて流し、API が db で確かめる(本番では Authorization を SigV4 が使う)
+// 本人が発行したトークン(Claude Code など AI)で Authorization: Bearer arc_... と来た要求(と、URL にトークンを入れた
+// MCP の /api/v1/mcp/arc_...)は、クッキーを見ずにトークンを x-archieves-access-token に載せ替えて流し、API が db で
+// 確かめる(本番では Authorization を SigV4 が使う)
 export const dynamic = "force-dynamic";
 
 const API_URL = (process.env.ARCHIEVES_API_URL ?? "http://127.0.0.1:8000").replace(/\/+$/, "");
@@ -132,7 +133,10 @@ async function sign(target: URL, method: string, headers: Headers, body: Uint8Ar
 
 async function forward(request: NextRequest, context: Context): Promise<Response> {
   const { path } = await context.params;
-  const joined = path.map(encodeURIComponent).join("/");
+  // ヘッダーを付けられない MCP のクライアント(claude.ai・ChatGPT のコネクタ)向けに、トークンを URL に入れた
+  // mcp/<トークン> も受ける。API へはトークンを URL でなくヘッダーで渡す(API のログに残さない)
+  const pathToken = path.length === 2 && path[0] === "mcp" && path[1].startsWith(ACCESS_TOKEN_PREFIX) ? path[1] : null;
+  const joined = (pathToken === null ? path : ["mcp"]).map(encodeURIComponent).join("/");
   // ブラウザのヘッダーは写さず組み直す(利用者や合言葉のヘッダーを外から差し込ませない)
   const headers = new Headers();
   for (const name of FORWARDED_REQUEST_HEADERS) {
@@ -141,7 +145,7 @@ async function forward(request: NextRequest, context: Context): Promise<Response
   }
   if (API_KEY) headers.set(API_KEY_HEADER, API_KEY);
 
-  const token = accessToken(request);
+  const token = pathToken ?? accessToken(request);
   // トークンで来た要求は、ブラウザのログインに格上げしない(どこまで通すかは API が決める)
   const user = PUBLIC_PATHS.has(joined) || token !== null ? null : await verifiedUser();
   if (token !== null) {
