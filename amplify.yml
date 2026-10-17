@@ -1,6 +1,9 @@
 # AWS Amplify Hosting のビルド設定。画面(source/front、Next.js)をモノレポの一つのアプリとして建てる。
 # Amplify のアプリの環境変数に AMPLIFY_MONOREPO_APP_ROOT=source/front、ARCHIEVES_API_URL(API の Lambda の関数 URL。末尾の / は付けても外してもよい)、
 # ARCHIEVES_API_KEY(API の API_KEYS のうちの一つの鍵)を置く。NEXT_PUBLIC_AUTH_MODE は置かない(既定の cognito)。
+# develop のブランチ(develop 環境)は、ARCHIEVES_API_URL・ARCHIEVES_API_KEY をブランチの環境変数で dev の API のものに上書きする
+# (.claude/docs/backend.md の「環境」)。Cognito(amplify/)はブランチごとに別に建つ。コンピュートロールはアプリの単位のものを使い、
+# ブランチには付けない(付けると Amplify Gen 2 のバックエンドの結び付けが iam:PassRole で落ちる)。
 version: 1
 applications:
   - appRoot: source/front
