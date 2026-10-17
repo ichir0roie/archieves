@@ -70,6 +70,7 @@ def _with_sheet(stmt: Select[tuple[Game]]) -> Select[tuple[Game]]:
     """
     return stmt.options(
         joinedload(Game.comment),
+        joinedload(Game.ai_comment),
         joinedload(Game.rounds.and_(Round.deleted_at.is_(None))).options(
             joinedload(Round.comment),
             joinedload(Round.ends).options(
@@ -83,6 +84,35 @@ def _with_sheet(stmt: Select[tuple[Game]]) -> Select[tuple[Game]]:
 def get_game_sheet(s: Session, game_id: int) -> Game | None:
     """見えるゲームを、記録を丸ごと読み込んだ形で。"""
     return s.scalars(_with_sheet(_visible_games().where(Game.id == game_id))).unique().one_or_none()
+
+
+def list_game_sheets(
+    s: Session,
+    user_id: int,
+    *,
+    recorded_on: date | None = None,
+    until: date | None = None,
+    limit: int,
+) -> list[Game]:
+    """利用者の見えるゲームを、記録を丸ごと読み込んだ形で新しい順に limit 件。
+
+    recorded_on はその日のゲームだけ、until はその日まで(その日を含む)のゲームに絞る。
+    """
+    game_ids = (
+        select(Game.id)
+        .where(Game.user_id == user_id, Game.deleted_at.is_(None))
+        .order_by(Game.recorded_at.desc(), Game.id.desc())
+        .limit(limit)
+    )
+    if recorded_on is not None:
+        game_ids = game_ids.where(Game.recorded_at == recorded_on)
+    if until is not None:
+        game_ids = game_ids.where(Game.recorded_at <= until)
+    # 子を joinedload で付けると行が矢の数だけ増えるので、件数はゲームの id の方で絞る
+    stmt = _with_sheet(select(Game).where(Game.id.in_(game_ids))).order_by(
+        Game.recorded_at.desc(), Game.id.desc()
+    )
+    return list(s.scalars(stmt).unique())
 
 
 def list_shared_game_sheets(s: Session, viewer: User | None, game_ids: list[int]) -> list[Game]:
@@ -171,14 +201,18 @@ def get_or_create_game_by_client_key(
 
 def list_games(
     s: Session,
+    user_id: int,
     skip: int = 0,
     limit: int = 100,
-    user_id: int | None = None,
     year: int | None = None,
 ) -> list[Game]:
-    stmt = _visible_games().order_by(Game.id).offset(skip).limit(limit)
-    if user_id is not None:
-        stmt = stmt.where(Game.user_id == user_id)
+    stmt = (
+        _visible_games()
+        .where(Game.user_id == user_id)
+        .order_by(Game.id)
+        .offset(skip)
+        .limit(limit)
+    )
     if year is not None:
         stmt = stmt.where(
             Game.recorded_at >= date(year, 1, 1),
@@ -250,22 +284,23 @@ def list_game_years(s: Session, user_id: int) -> list[int]:
 
 
 def list_deleted_games(
-    s: Session, skip: int = 0, limit: int = 100, user_id: int | None = None
+    s: Session,
+    user_id: int,
+    skip: int = 0,
+    limit: int = 100,
 ) -> list[Game]:
     stmt = (
         select(Game)
-        .where(Game.deleted_at.is_not(None))
+        .where(Game.user_id == user_id, Game.deleted_at.is_not(None))
         .order_by(Game.deleted_at.desc())
         .offset(skip)
         .limit(limit)
     )
-    if user_id is not None:
-        stmt = stmt.where(Game.user_id == user_id)
     return list(s.scalars(stmt))
 
 
-def create_game(s: Session, game_in: GameCreate) -> Game:
-    game = Game(**game_in.model_dump())
+def create_game(s: Session, user_id: int, game_in: GameCreate) -> Game:
+    game = Game(user_id=user_id, **game_in.model_dump())
     s.add(game)
     s.flush()
     return game
@@ -313,23 +348,25 @@ def list_rounds_for_game(
 
 def list_deleted_rounds(
     s: Session,
+    user_id: int,
     skip: int = 0,
     limit: int = 100,
     game_id: int | None = None,
-    user_id: int | None = None,
 ) -> list[Round]:
     stmt = (
         select(Round)
         .join(Game, Game.id == Round.game_id)
-        .where(Round.deleted_at.is_not(None), Game.deleted_at.is_(None))
+        .where(
+            Game.user_id == user_id,
+            Round.deleted_at.is_not(None),
+            Game.deleted_at.is_(None),
+        )
         .order_by(Round.deleted_at.desc())
         .offset(skip)
         .limit(limit)
     )
     if game_id is not None:
         stmt = stmt.where(Round.game_id == game_id)
-    if user_id is not None:
-        stmt = stmt.where(Game.user_id == user_id)
     return list(s.scalars(stmt))
 
 

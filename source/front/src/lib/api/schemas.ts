@@ -7,6 +7,9 @@ import type { components } from './openapi';
 
 type Schemas = components['schemas'];
 
+export type AccessTokenCreate = Schemas['AccessTokenCreate'];
+export type AccessTokenCreated = Schemas['AccessTokenCreated'];
+export type AccessTokenRead = Schemas['AccessTokenRead'];
 export type CommentWrite = Schemas['CommentWrite'];
 export type EndCommentRead = Schemas['EndCommentRead'];
 export type EndCreate = Schemas['EndCreate'];
@@ -15,6 +18,7 @@ export type EndScoreSummary = Schemas['EndScoreSummary'];
 export type EndUpdate = Schemas['EndUpdate'];
 export type DiaryCreate = Schemas['DiaryCreate'];
 export type DiaryRead = Schemas['DiaryRead'];
+export type AiCommentRead = Schemas['AiCommentRead'];
 export type AdminErrorReportRead = Schemas['AdminErrorReportRead'];
 export type AdminFeedbackRead = Schemas['AdminFeedbackRead'];
 export type AdminPendingCounts = Schemas['AdminPendingCounts'];
@@ -50,7 +54,7 @@ export type UserCreate = Schemas['UserCreate'];
 export type MeRead = Schemas['MeRead'];
 export type UserProfile = Schemas['UserProfile'];
 export type UserRanking = Schemas['UserRanking'];
-export type UserRead = Schemas['UserRead'];
+export type PublicUserRead = Schemas['PublicUserRead'];
 export type Visibility = Schemas['Visibility'];
 export type GameSheetRead = Schemas['GameSheetRead'];
 export type SharedGameRead = Schemas['SharedGameRead'];

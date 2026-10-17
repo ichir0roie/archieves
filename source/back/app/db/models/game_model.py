@@ -21,7 +21,12 @@ from app.core.target_types import TARGET_TYPE_MAX_LENGTH
 from app.db.base_class import Base, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.db.models.comment_model import EndComment, GameComment, RoundComment
+    from app.db.models.comment_model import (
+        EndComment,
+        GameAiComment,
+        GameComment,
+        RoundComment,
+    )
     from app.db.models.system_model import User
 
 
@@ -65,6 +70,9 @@ class Game(TimestampMixin, Base):
         order_by=lambda: [Round.number, Round.id],
     )
     comment: Mapped[GameComment | None] = relationship(
+        back_populates="game", cascade="all, delete-orphan", uselist=False, lazy="noload"
+    )
+    ai_comment: Mapped[GameAiComment | None] = relationship(
         back_populates="game", cascade="all, delete-orphan", uselist=False, lazy="noload"
     )
 

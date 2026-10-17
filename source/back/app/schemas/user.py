@@ -15,10 +15,6 @@ class UserCreate(UserBase):
     pass
 
 
-class UserFindOrCreate(UserBase):
-    sub: str
-
-
 class UserUpdate(BaseModel):
     name: str | None = None
     nickname: str | None = None
@@ -43,14 +39,14 @@ class UserUpdate(BaseModel):
         return value
 
 
-class UserRead(UserBase, ResponseModel):
+class MeRead(UserBase, ResponseModel):
+    """本人の行。sub・管理者かどうか・公開範囲は本人にだけ返す。
+
+    他人に見せる形は schemas/profile.py の PublicUserRead。
+    """
+
     id: int
     sub: str | None = None
-
-
-class MeRead(UserRead):
-    """本人の行。管理者かどうか・公開範囲は本人にだけ返し、他人の行(UserRead)には載せない。"""
-
     is_admin: bool
     profile_visibility: Visibility
     ranking_visibility: Visibility

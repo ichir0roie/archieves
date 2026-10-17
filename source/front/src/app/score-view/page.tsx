@@ -2,6 +2,7 @@
 
 import { Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import AiCommentPanel from "@/components/AiCommentPanel";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import ArrowMap, { hasPosition } from "@/components/ArrowMap";
 import CommentField from "@/components/CommentField";
@@ -12,6 +13,7 @@ import RoundScoreSheet from "@/components/RoundScoreSheet";
 import {
   deleteEndComment,
   deleteGame,
+  deleteGameAiComment,
   deleteGameComment,
   deleteRoundComment,
   getGameSheet,
@@ -107,6 +109,7 @@ function ScoreViewContent() {
   const [actionError, setActionError] = useState<ErrorDetails | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deletingAiComment, setDeletingAiComment] = useState(false);
   // 上げると読み直す(画面に戻ったとき・再試行)
   const [reloadKey, setReloadKey] = useState(0);
   const searchParams = useSearchParams();
@@ -123,6 +126,7 @@ function ScoreViewContent() {
     const sheet = await getGameSheet(Number(requestedId));
     return {
       gameId: sheet.id,
+      aiComment: sheet.ai_comment,
       rounds: sheet.rounds.map((round) => ({
         round,
         ends: round.ends.map((end) => ({
@@ -242,6 +246,20 @@ function ScoreViewContent() {
     }
   }
 
+  async function onDeleteAiComment() {
+    if (gameId === null) return;
+    setActionError(null);
+    setDeletingAiComment(true);
+    try {
+      await deleteGameAiComment(gameId);
+      reload();
+    } catch (e) {
+      setActionError(toErrorDetails(e));
+    } finally {
+      setDeletingAiComment(false);
+    }
+  }
+
   async function onDeleteGame() {
     if (gameId === null) return;
     setActionError(null);
@@ -300,6 +318,13 @@ function ScoreViewContent() {
               comment={comments.game}
               onSaveComment={onSaveGameComment}
               onEdit={editGame}
+            />
+          )}
+          {loaded.data && (
+            <AiCommentPanel
+              aiComment={loaded.data.aiComment}
+              onDelete={onDeleteAiComment}
+              deleting={deletingAiComment}
             />
           )}
           <button

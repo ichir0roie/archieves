@@ -16,6 +16,8 @@ import outputs from "../../../../../amplify_outputs.json";
 // ここで署名を確かめる(本番の API は VPC の中にいて Cognito の公開鍵を取りに行けないため)。
 //   本番(Lambda の関数 URL): 確かめた利用者を x-archieves-user-* で渡し(API は AUTH_MODE=proxy)、要求に SigV4 の署名を付ける
 //   手元の API: ID トークンをそのまま Authorization に載せる(API の AUTH_MODE=cognito がもう一度確かめる)
+// 本人が発行したトークン(Claude Code など)で Authorization: Bearer arc_... と来た要求は、クッキーを見ずに
+// トークンを x-archieves-access-token に載せ替えて流し、API が db で確かめる(本番では Authorization を SigV4 が使う)
 export const dynamic = "force-dynamic";
 
 const API_URL = (process.env.ARCHIEVES_API_URL ?? "http://127.0.0.1:8000").replace(/\/+$/, "");
@@ -27,6 +29,9 @@ const USER_HEADERS = {
   username: "x-archieves-user-username",
   email: "x-archieves-user-email",
 } as const;
+// API の app/core/security.py の ACCESS_TOKEN_HEADER と、app/core/access_token.py の TOKEN_PREFIX と同じ
+const ACCESS_TOKEN_HEADER = "x-archieves-access-token";
+const ACCESS_TOKEN_PREFIX = "arc_";
 // ログインの前に叩かれるもの(死活の確かめ)
 const PUBLIC_PATHS = new Set(["health"]);
 // ログインしていなくても通す API(スコアの公開ページ)。ログインしていれば利用者を渡し、API が公開範囲を当てる
@@ -94,6 +99,12 @@ async function verifiedUser(): Promise<VerifiedUser | null> {
   }
 }
 
+/** Authorization: Bearer arc_... で来たなら、そのトークン。Cognito の ID トークンなどは null */
+function accessToken(request: NextRequest): string | null {
+  const token = /^Bearer\s+(\S+)$/i.exec(request.headers.get("authorization") ?? "")?.[1];
+  return token?.startsWith(ACCESS_TOKEN_PREFIX) ? token : null;
+}
+
 // 署名は問い合わせを RFC 3986 で符号化し直した形で計算するので、送る方も同じ形に揃える(`+` と `%20` の食い違いで署名が外れる)
 function encodeQuery(params: URLSearchParams): string {
   const rfc3986 = (value: string) =>
@@ -130,8 +141,12 @@ async function forward(request: NextRequest, context: Context): Promise<Response
   }
   if (API_KEY) headers.set(API_KEY_HEADER, API_KEY);
 
-  const user = PUBLIC_PATHS.has(joined) ? null : await verifiedUser();
-  if (user === null && !PUBLIC_PATHS.has(joined) && !joined.startsWith(OPTIONAL_USER_PREFIX)) {
+  const token = accessToken(request);
+  // トークンで来た要求は、ブラウザのログインに格上げしない(どこまで通すかは API が決める)
+  const user = PUBLIC_PATHS.has(joined) || token !== null ? null : await verifiedUser();
+  if (token !== null) {
+    headers.set(ACCESS_TOKEN_HEADER, token);
+  } else if (user === null && !PUBLIC_PATHS.has(joined) && !joined.startsWith(OPTIONAL_USER_PREFIX)) {
     return Response.json({ detail: T.api.signInRequired }, { status: 401 });
   }
   if (user !== null) {

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import AccessTokens from "@/components/AccessTokens";
 import AccountDeletion from "@/components/AccountDeletion";
 import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
@@ -87,6 +88,8 @@ export default function Page() {
       <ExportFileImport />
 
       <RecordsExport />
+
+      <AccessTokens />
 
       <AccountDeletion />
       <BackButton />

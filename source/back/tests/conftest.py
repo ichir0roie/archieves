@@ -15,7 +15,8 @@ from sqlalchemy import event  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 
 from app.api import deps  # noqa: E402
-from app.core.security import Claims  # noqa: E402
+from app.core.security import ACCESS_TOKEN_HEADER, Claims  # noqa: E402
+from app.crud import access_token as access_token_crud  # noqa: E402
 from app.db.session import engine  # noqa: E402
 from app.main import app  # noqa: E402
 from mods import factory_db  # noqa: E402
@@ -87,7 +88,7 @@ def unregistered_client(s: Session) -> Generator[TestClient]:
         assert not s.info["uncommitted"], "書き込んだのにコミットせずに応答した"
 
     app.dependency_overrides[deps.get_session] = _get_session_override
-    app.dependency_overrides[deps.get_current_user] = lambda: TEST_CLAIMS
+    # ログインはどれも get_optional_current_user を通る(app/api/deps.py)
     app.dependency_overrides[deps.get_optional_current_user] = lambda: TEST_CLAIMS
     with TestClient(app) as test_client:
         yield test_client
@@ -102,12 +103,23 @@ def client(unregistered_client: TestClient, current_user) -> TestClient:
 
 @pytest.fixture()
 def anonymous_client(client: TestClient) -> TestClient:
-    """ログインしていない人の client。ログインしていなくても通すエンドポイント(/public)用。
-
-    「本人のみ」などは deps.get_current_user を差し替えたままなので、ここでは試さない。
-    """
+    """ログインしていない人の client。"""
     app.dependency_overrides[deps.get_optional_current_user] = lambda: None
     return client
+
+
+@pytest.fixture()
+def access_token(s: Session, current_user) -> str:
+    """`current_user` が発行したトークンの平文。"""
+    _, token = access_token_crud.create_access_token(s, current_user.id, "Claude Code", 30)
+    return token
+
+
+@pytest.fixture()
+def token_client(anonymous_client: TestClient, access_token: str) -> TestClient:
+    """`current_user` が発行したトークンで来る client(Claude Code)。画面からのログインは無い。"""
+    anonymous_client.headers[ACCESS_TOKEN_HEADER] = access_token
+    return anonymous_client
 
 
 @pytest.fixture()

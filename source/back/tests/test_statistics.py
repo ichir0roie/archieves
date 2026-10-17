@@ -34,8 +34,7 @@ def _create_game(
 
 
 def _create_own_game_via_api(client: TestClient, *, bow_type: str | None = None) -> dict:
-    user_id = client.get("/api/v1/users/me").json()["id"]
-    payload = {"recorded_at": GAME_RECORDED_AT, "user_id": user_id, "bow_type": bow_type}
+    payload = {"recorded_at": GAME_RECORDED_AT, "bow_type": bow_type}
     res = client.post("/api/v1/games", json=payload)
     assert res.status_code == 201
     return res.json()
@@ -149,14 +148,18 @@ def test_score_summary_filters_by_both_period_bounds(client: TestClient, kind: s
     assert body["total"] == 8
 
 
-def test_round_score_summary_filters_by_user(client: TestClient) -> None:
-    game_a = _create_game(client, user_id=None)
-    _build_round(client, game_a["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10])
-
+def test_statistics_read_only_my_records_even_with_a_user_id(client: TestClient) -> None:
+    """他人の集計はプロフィール(/public)で読む。user_id を付けても本人の分だけを返す。"""
+    my_game = _create_game(client)
+    _build_round(client, my_game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10])
     other = factory_db.UserFactory(profile_visibility="public")
+    others_game = _create_game(client, user_id=other.id)
+    _build_round(client, others_game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[1, 2])
+
     res = client.get("/api/v1/statistics/rounds/summary", params={"user_id": other.id})
     assert res.status_code == 200
-    assert res.json()["count"] == 0
+    assert res.json()["count"] == 1
+    assert res.json()["total"] == 10
 
 
 def test_end_score_summary(client: TestClient) -> None:
@@ -233,7 +236,7 @@ def test_ranking_orders_users_by_total_score_desc_by_default(client: TestClient)
     low_game = _create_game(client, user_id=low["id"])
     _build_round(client, low_game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[1, 1])
 
-    res = client.get("/api/v1/statistics/ranking")
+    res = client.get("/api/v1/public/ranking")
     assert res.status_code == 200
     body = res.json()
     assert [row["user"]["name"] for row in body] == ["high", "low"]
@@ -251,7 +254,7 @@ def test_ranking_sums_multiple_games_per_user(client: TestClient) -> None:
     game_b = _create_game(client, user_id=user["id"])
     _build_round(client, game_b["id"], recorded_at="2026-01-02T00:00:00Z", scores=[4])
 
-    res = client.get("/api/v1/statistics/ranking")
+    res = client.get("/api/v1/public/ranking")
     assert res.status_code == 200
     body = res.json()
     assert len(body) == 1
@@ -269,7 +272,7 @@ def test_ranking_filters_by_organization(client: TestClient) -> None:
     game_b = _create_game(client, user_id=user_b["id"])
     _build_round(client, game_b["id"], recorded_at="2026-01-01T00:00:00Z", scores=[3])
 
-    res = client.get("/api/v1/statistics/ranking", params={"organization_id": org_a["id"]})
+    res = client.get("/api/v1/public/ranking", params={"organization_id": org_a["id"]})
     assert res.status_code == 200
     body = res.json()
     assert [row["user"]["name"] for row in body] == ["member_a"]
@@ -289,7 +292,7 @@ def test_ranking_filters_by_region(client: TestClient, s: Session) -> None:
     osaka_game = _create_game(client, user_id=osaka["id"])
     _build_round(client, osaka_game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[3])
 
-    res = client.get("/api/v1/statistics/ranking", params={"region_id": region_tokyo.id})
+    res = client.get("/api/v1/public/ranking", params={"region_id": region_tokyo.id})
     assert res.status_code == 200
     body = res.json()
     assert [row["user"]["name"] for row in body] == ["tokyo_user"]
@@ -302,7 +305,7 @@ def test_ranking_filters_by_period(client: TestClient) -> None:
     _build_round(client, early_game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10])
     _build_round(client, late_game["id"], recorded_at="2026-02-01T00:00:00Z", scores=[2])
 
-    res = client.get("/api/v1/statistics/ranking", params={"start": "2026-01-15T00:00:00Z"})
+    res = client.get("/api/v1/public/ranking", params={"start": "2026-01-15T00:00:00Z"})
     assert res.status_code == 200
     body = res.json()
     assert len(body) == 1
@@ -313,7 +316,7 @@ def test_ranking_filters_by_period(client: TestClient) -> None:
 def test_ranking_excludes_users_without_games(client: TestClient) -> None:
     _create_user(client, name="no_games")
 
-    res = client.get("/api/v1/statistics/ranking")
+    res = client.get("/api/v1/public/ranking")
     assert res.status_code == 200
     assert res.json() == []
 
@@ -339,7 +342,7 @@ def test_ranking_filters_by_period_end(client: TestClient) -> None:
     _build_round(client, early_game["id"], recorded_at="2026-01-01T00:00:00Z", scores=[10])
     _build_round(client, late_game["id"], recorded_at="2026-02-01T00:00:00Z", scores=[2])
 
-    res = client.get("/api/v1/statistics/ranking", params={"end": "2026-01-15T00:00:00Z"})
+    res = client.get("/api/v1/public/ranking", params={"end": "2026-01-15T00:00:00Z"})
     assert res.status_code == 200
     body = res.json()
     assert len(body) == 1
@@ -358,7 +361,7 @@ def test_ranking_filters_by_both_period_bounds(client: TestClient) -> None:
         _build_round(client, game["id"], recorded_at=recorded_at, scores=[score])
 
     res = client.get(
-        "/api/v1/statistics/ranking",
+        "/api/v1/public/ranking",
         params={"start": "2026-01-15T00:00:00Z", "end": "2026-02-15T00:00:00Z"},
     )
     assert res.status_code == 200
@@ -369,7 +372,7 @@ def test_ranking_filters_by_both_period_bounds(client: TestClient) -> None:
 
 
 def _ranking(client: TestClient, **params: str | int) -> list[dict]:
-    res = client.get("/api/v1/statistics/ranking", params=params)
+    res = client.get("/api/v1/public/ranking", params=params)
     assert res.status_code == 200
     return res.json()
 
@@ -420,7 +423,7 @@ def test_ranking_counts_x_as_ten_and_miss_as_zero(client: TestClient) -> None:
 
 
 def test_ranking_rejects_an_unknown_metric(client: TestClient) -> None:
-    res = client.get("/api/v1/statistics/ranking", params={"metric": "median"})
+    res = client.get("/api/v1/public/ranking", params={"metric": "median"})
     assert res.status_code == 422
 
 
@@ -447,7 +450,7 @@ def test_ranking_filters_by_bow_type(client: TestClient) -> None:
 
 
 def test_ranking_rejects_an_unknown_bow_type(client: TestClient) -> None:
-    res = client.get("/api/v1/statistics/ranking", params={"bow_type": "crossbow"})
+    res = client.get("/api/v1/public/ranking", params={"bow_type": "crossbow"})
     assert res.status_code == 422
 
 
@@ -698,3 +701,27 @@ def test_ranking_shows_only_the_name_and_links_only_visible_profiles(
         "name": "shown_profile",
         "profile_visible": True,
     }
+
+
+def test_ranking_without_signing_in_lists_public_users_only(
+    anonymous_client: TestClient, factories
+) -> None:
+    organization = factories.OrganizationFactory()
+    _user_with_a_round(anonymous_client, "public", ranking_visibility="public")
+    _user_with_a_round(
+        anonymous_client,
+        "organization",
+        ranking_visibility="organization",
+        organization_id=organization.id,
+    )
+    profile_hidden = factory_db.UserFactory(name="public_ranking", ranking_visibility="public")
+    _build_round(
+        anonymous_client,
+        _create_game(anonymous_client, user_id=profile_hidden.id)["id"],
+        recorded_at=GAME_RECORDED_AT,
+        scores=[5],
+    )
+
+    users = {row["user"]["name"]: row["user"] for row in _ranking(anonymous_client)}
+    assert sorted(users) == ["public", "public_ranking"]
+    assert users["public_ranking"]["profile_visible"] is False

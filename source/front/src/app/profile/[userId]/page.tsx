@@ -8,10 +8,7 @@ import DiaryCell from "@/components/DiaryCell";
 import PageHeader from "@/components/PageHeader";
 import StatSummaryCard from "@/components/StatSummaryCard";
 import { useLoad } from "@/hooks/useLoad";
-import {
-  getOrganization,
-  getUserProfile,
-} from "@/lib/api";
+import { getUserProfile } from "@/lib/api";
 import { getCurrentAppUser } from "@/lib/auth/currentUser";
 import { formatDateTime } from "@/lib/formatDateTime";
 import { scoreSharePath } from "@/lib/scoreShare";
@@ -33,20 +30,13 @@ export default function Page() {
   const currentUser = useLoad(() => getCurrentAppUser(), []);
   const isMe = currentUser.data?.id === userId;
 
-  const loaded = useLoad(async () => {
-    const profile = await getUserProfile(userId);
-    const organization =
-      profile.user.organization_id === null
-        ? null
-        : await getOrganization(profile.user.organization_id);
-    return { profile, organization };
-  }, [userId]);
+  const loaded = useLoad(() => getUserProfile(userId), [userId]);
   // 本人に公開されていないプロフィールは API が 403 を返す。壊れたのではないので、エラーにせず知らせる
   const isPrivate = loaded.error?.status === 403;
   const error = isPrivate ? null : loaded.error;
   // 別の人のプロフィールへ移って読み直している間・読めなかったときは、前の人のものを出さない
-  const profile = loaded.loading || loaded.error ? null : loaded.data?.profile ?? null;
-  const organization = loaded.data?.organization ?? null;
+  const profile = loaded.loading || loaded.error ? null : loaded.data ?? null;
+  const organization = profile?.user.organization ?? null;
   const recentGameIds = profile?.recent_game_ids ?? null;
 
   return (

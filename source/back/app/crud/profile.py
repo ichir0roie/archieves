@@ -1,13 +1,12 @@
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
-from app.core.visibility import is_visible
+from app.core.visibility import is_self, is_visible
 from app.crud import diary as diary_crud
 from app.crud import statistics as statistics_crud
 from app.db import Game, User
 from app.schemas.diary import DiaryRead
-from app.schemas.profile import UserProfile
-from app.schemas.user import UserRead
+from app.schemas.profile import PublicUserRead, UserProfile
 
 # 集計に入れる直近のゲームの数
 SUMMARY_GAME_COUNT = 100
@@ -26,9 +25,11 @@ def _recent_game_ids(user_id: int, limit: int) -> Select[tuple[int]]:
     )
 
 
-def get_user_profile(s: Session, viewer: User, user: User) -> UserProfile:
+def get_user_profile(s: Session, viewer: User | None, user: User) -> UserProfile:
     """プロフィールを見せてよいかは呼ぶ側が確かめる。スコア・日記はここで公開範囲を当てる。
 
+    viewer はログインしていなければ None。user は所属の組織を読み込んだ行
+    (crud/user.py の get_user_with_organization)。
     本人には、公開範囲に依らずスコア・日記を見せる。
     """
     user_id = user.id
@@ -41,7 +42,7 @@ def get_user_profile(s: Session, viewer: User, user: User) -> UserProfile:
         ).where(Game.id.in_(game_ids))
     ).one()
 
-    is_me = viewer.id == user.id
+    is_me = is_self(viewer, user)
     recent_game_ids = (
         list(s.scalars(_recent_game_ids(user_id, RECENT_GAME_COUNT)))
         if is_me or is_visible(viewer, user, user.score_visibility)
@@ -57,7 +58,7 @@ def get_user_profile(s: Session, viewer: User, user: User) -> UserProfile:
     )
 
     return UserProfile(
-        user=UserRead.model_validate(user),
+        user=PublicUserRead.model_validate(user),
         game_count=game_count,
         period_start=period_start,
         period_end=period_end,

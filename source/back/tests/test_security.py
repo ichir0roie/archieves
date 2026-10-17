@@ -175,6 +175,23 @@ def test_mock_user_returns_the_configured_claims(
     assert claims.email == "mock@example.com"
 
 
+@pytest.mark.parametrize(
+    ("token", "sub"),
+    [
+        ("mock-token-e2e-other", "e2e-other"),
+        ("mock-token-mock-sub", "mock-sub"),
+        ("mock-token-", "mock-sub"),
+    ],
+)
+def test_mock_user_takes_the_sub_from_a_mock_token(
+    monkeypatch: pytest.MonkeyPatch, token: str, sub: str
+) -> None:
+    # E2E が他人の行を作るため。sub が無ければ MOCK_USER_* にする
+    monkeypatch.setattr(debug_settings, "MOCK_USER_SUB", "mock-sub")
+
+    assert security.mock_user(_credentials(token)).sub == sub
+
+
 def test_proxied_user_reads_the_verified_user_from_headers() -> None:
     request = _request(
         x_archieves_user_sub="proxy-sub",
