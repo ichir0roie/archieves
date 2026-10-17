@@ -49,7 +49,8 @@ test("発行したトークンで本人の記録を読め、書き込み・他�
   await expect(panel.locator(".AccessTokenItem", { hasText: name })).toBeVisible();
 
   // request はブラウザのログインを持たない。トークンだけで route handler を通る
-  const games = await request.get("/api/v1/games?limit=100000", {
+  // E2E の db は回をまたいで残るので、記録した今年のゲームに絞る(limit の上限は 10000)
+  const games = await request.get(`/api/v1/games?year=${new Date().getFullYear()}&limit=10000`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(games.status()).toBe(200);

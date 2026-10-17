@@ -38,6 +38,8 @@ export const common: typeof ja = {
   unit: t.unit,
   api: {
     signInRequired: "Please sign in",
+    crossSite: "Writes from other sites are not accepted",
+    notFound: "Not found",
     unreachable: (reason: string) => `Cannot reach the API: ${reason}`,
     failed: "The request failed. Please try again.",
     status: (status: number) => `status: ${status}`,
