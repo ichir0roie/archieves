@@ -427,7 +427,8 @@ table.list.view-sheet { table-layout: fixed; }
 .log-table .ScoreLogGame + .ScoreLogGame { border-top: 1px solid var(--line); }
 .log-table .ScoreLogGame:hover { background: color-mix(in srgb, var(--accent) 6%, var(--panel)); }
 .log-cell { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.log-cell.log-day { flex: 0 0 2.5rem; font-weight: 700; white-space: nowrap; }
+.log-cell.log-day { flex: 0 0 3rem; font-weight: 700; white-space: nowrap; }
+.log-day .LogGameId { font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
 .log-game-go { color: var(--muted); }
 
 /* 設定画面で選んだ隅(未設定なら上の既定)。狭い画面の指定より強くするため nav[data-pos] を付ける */

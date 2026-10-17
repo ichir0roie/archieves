@@ -284,7 +284,14 @@ function ScoreViewContent() {
 
   return (
     <div className="page wide">
-      <PageHeader title={T.profile.scoreView.title} />
+      <PageHeader
+        title={T.profile.scoreView.title}
+        actions={
+          gameId !== null && (
+            <span className="ScoreViewGameId muted small">{T.profile.scoreView.gameId(gameId)}</span>
+          )
+        }
+      />
       {error && <ApiErrorAlert error={error} />}
       {loaded.error && rounds === null && (
         <button
