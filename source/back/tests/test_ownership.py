@@ -207,10 +207,14 @@ def test_admin_endpoints_are_forbidden_for_non_admins(client: TestClient, factor
 
     assert client.get("/api/v1/admin/feedbacks").status_code == 403
     assert client.get("/api/v1/admin/error-reports").status_code == 403
-    assert client.put(f"/api/v1/admin/error-reports/{error_report.id}/resolve").status_code == 403
+    assert (
+        client.put(f"/api/v1/admin/error-reports/{error_report.id}/resolve").status_code == 403
+    )
     assert client.get("/api/v1/admin/pending-counts").status_code == 403
     assert (
-        client.put(f"/api/v1/admin/feedbacks/{feedback.id}/reply", json={"reply": "x"}).status_code
+        client.put(
+            f"/api/v1/admin/feedbacks/{feedback.id}/reply", json={"reply": "x"}
+        ).status_code
         == 403
     )
 
