@@ -962,6 +962,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/diaries/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Diaries
+         * @description AI(Claude など)が、本人のトークンで別の所の日記を書いた日時ごと取り込む。
+         */
+        post: operations["import_diaries_api_v1_diaries_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/diaries/years": {
         parameters: {
             query?: never;
@@ -1247,6 +1267,28 @@ export interface components {
         DiaryCreate: {
             /** Body */
             body: string;
+        };
+        /** DiaryImport */
+        DiaryImport: {
+            /** Diaries */
+            diaries: components["schemas"]["DiaryImportItem"][];
+        };
+        /** DiaryImportItem */
+        DiaryImportItem: {
+            /** Body */
+            body: string;
+            /**
+             * Written At
+             * Format: date-time
+             */
+            written_at: string;
+        };
+        /** DiaryImportResult */
+        DiaryImportResult: {
+            /** Imported */
+            imported: components["schemas"]["DiaryRead"][];
+            /** Skipped */
+            skipped: number;
         };
         /** DiaryRead */
         DiaryRead: {
@@ -4341,6 +4383,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DiaryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_diaries_api_v1_diaries_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiaryImport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiaryImportResult"];
                 };
             };
             /** @description Validation Error */

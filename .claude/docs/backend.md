@@ -66,7 +66,7 @@ cd source/front && npm run types
 ## 認証
 
 - `AUTH_MODE=cognito`(既定)は、画面からのログインに Cognito の ID トークンを求める(`app/core/security.py`)。`mock` は `MOCK_USER_*` の利用者として通す(`Bearer mock-token-<sub>` なら、その sub の利用者。E2E が他人の行を作るため)。どちらにするかは import した時に決まる
-- 利用者が発行するトークン(`arc_...`。Claude Code などに渡す)は、どの `AUTH_MODE` でも `x-archieves-access-token` ヘッダーで受け、API が db(`access_tokens` の sha256)で確かめる。フロントの route handler が `Authorization: Bearer arc_...` をこのヘッダーに載せ替える。トークンは本人の記録を読む GET と、AI コメントを書く口(`PUT /games/{game_id}/ai-comment`)だけに通す
+- 利用者が発行するトークン(`arc_...`。Claude Code などに渡す)は、どの `AUTH_MODE` でも `x-archieves-access-token` ヘッダーで受け、API が db(`access_tokens` の sha256)で確かめる。フロントの route handler が `Authorization: Bearer arc_...` をこのヘッダーに載せ替える。トークンは本人の記録を読む GET と、AI コメントを書く口(`PUT /games/{game_id}/ai-comment`)・日記を取り込む口(`POST /diaries/import`)だけに通す
 - `authenticated_router` の入り口(`deps.authenticate`)は、ログインかトークンのどちらかがあることだけを求める。どちらを通すかは、エンドポイントごとに次の依存で決める(`app/api/deps.py`)。新しいエンドポイントには必ずどれかを付ける(`tests/test_ownership.py` の `test_every_endpoint_declares_who_it_lets_in` が付け忘れを落とす)
 
 | 依存 | 通すもの | 使うところ |
@@ -74,6 +74,7 @@ cd source/front && npm run types
 | `deps.get_reader` | 画面からログインした本人と、本人が発行したトークン | 本人の記録を読む GET: `games`(`/games/{game_id}/sheet`・`/games/sheets` を含む)・`rounds`・`ends`・`points`・コメント・`trash/*`・`/statistics/*`・`/diaries`・`GET /users/me`・`/export/records.db`。`tests/test_ownership.py` の `TOKEN_READABLE_ROUTES` に並べる |
 | `deps.require_access_token` | 本人が発行したトークンだけ(画面からのログインは 401) | `POST /mcp`。`tests/test_ownership.py` の `TOKEN_ONLY_ROUTES` に並べる |
 | `deps.get_ai_commenter` | 本人が発行したトークンだけ(画面からのログインは 403)。トークンの名前を書いた人として残す | `PUT /games/{game_id}/ai-comment`。`tests/test_ownership.py` の `TOKEN_WRITABLE_ROUTES` に並べる |
+| `deps.get_diary_importer` | 本人が発行したトークンだけ(画面からのログインは 403) | `POST /diaries/import`(AI が別の所の日記を書いた日時ごと取り込む。同じ本文・日時は飛ばす)。`TOKEN_WRITABLE_ROUTES` に並べる |
 | `deps.get_me` | 画面からログインした本人(トークンは 403) | 上の書き込み全部、`PATCH/DELETE /users/me`、`/import`、`/feedbacks`、`/access-tokens` |
 | `deps.get_admin` | 画面からログインした管理者(`users.is_admin`。違えば 403) | `/admin/*` |
 | `deps.get_browser_claims` | 画面からのログイン(利用者の行が無くてもよい) | `/users/me/ensure`、`POST /error-reports`、`/organizations/*`、`/announcements` |

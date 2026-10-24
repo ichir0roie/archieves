@@ -7,7 +7,7 @@ from app.api import deps
 from app.api.pagination import MAX_LIMIT
 from app.crud import diary as diary_crud
 from app.db import User
-from app.schemas.diary import DiaryCreate, DiaryRead
+from app.schemas.diary import DiaryCreate, DiaryImport, DiaryImportResult, DiaryRead
 
 router = APIRouter()
 
@@ -21,6 +21,22 @@ def create_diary(
     result = diary_crud.create_diary(s, me.id, diary_in.body)
     s.commit()
     return result
+
+
+@router.post("/diaries/import", response_model=DiaryImportResult, status_code=201)
+def import_diaries(
+    diary_import: DiaryImport,
+    me: User = Depends(deps.get_diary_importer),
+    s: Session = Depends(deps.get_session),
+) -> DiaryImportResult:
+    """AI(Claude など)が、本人のトークンで別の所の日記を書いた日時ごと取り込む。"""
+    imported, skipped = diary_crud.import_diaries(
+        s,
+        me.id,
+        [(item.body, item.written_at) for item in diary_import.diaries],
+    )
+    s.commit()
+    return DiaryImportResult(imported=imported, skipped=skipped)
 
 
 @router.get("/diaries", response_model=list[DiaryRead])

@@ -4499,6 +4499,56 @@
         }
       }
     },
+    "/api/v1/diaries/import": {
+      "post": {
+        "tags": [
+          "diaries"
+        ],
+        "summary": "Import Diaries",
+        "description": "AI(Claude など)が、本人のトークンで別の所の日記を書いた日時ごと取り込む。",
+        "operationId": "import_diaries_api_v1_diaries_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiaryImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiaryImportResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/diaries/years": {
       "get": {
         "tags": [
@@ -5149,6 +5199,66 @@
           "body"
         ],
         "title": "DiaryCreate"
+      },
+      "DiaryImport": {
+        "properties": {
+          "diaries": {
+            "items": {
+              "$ref": "#/components/schemas/DiaryImportItem"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Diaries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "diaries"
+        ],
+        "title": "DiaryImport"
+      },
+      "DiaryImportItem": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Body"
+          },
+          "written_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Written At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body",
+          "written_at"
+        ],
+        "title": "DiaryImportItem"
+      },
+      "DiaryImportResult": {
+        "properties": {
+          "imported": {
+            "items": {
+              "$ref": "#/components/schemas/DiaryRead"
+            },
+            "type": "array",
+            "title": "Imported"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "imported",
+          "skipped"
+        ],
+        "title": "DiaryImportResult"
       },
       "DiaryRead": {
         "properties": {

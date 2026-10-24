@@ -28,5 +28,6 @@ archieves はアーチェリーのスコアを記録するアプリです。こ�
 | 年内のゲームごとの合計点・平均 | `GET /games/scores?year=YYYY` |
 | 期間の集計(最小・最大・平均・中央値) | `GET /statistics/rounds/summary?start=YYYY-MM-DD&end=YYYY-MM-DD`(`/ends/summary`・`/points/summary` も) |
 | 日記 | `GET /diaries?year=YYYY&limit=N` |
+| 日記を取り込む | `POST /diaries/import`、`Content-Type: application/json`、本文 `{"diaries": [{"body": "...", "written_at": "YYYY-MM-DDTHH:MM:SS"}]}`(100 件まで) |
 | AIコメントを書く | `PUT /games/{game_id}/ai-comment`、`Content-Type: application/json`、本文 `{"body": "..."}` |
 
