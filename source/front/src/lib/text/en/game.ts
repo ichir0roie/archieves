@@ -24,7 +24,6 @@ export const game: typeof ja = {
     gameSizeHint: "Number of rounds in this game",
     summary: (total: number, endSize: string, roundSize: string, gameSize: string) =>
       `Total ${total} arrows (${endSize} arrows × ${roundSize} ends × ${gameSize} rounds)`,
-    start: "Start game",
     discardUnsaved: "You have unsaved scores. Discard them and start a new game?",
     arrowDiameter: "Arrow diameter (mm)",
     arrowDiameterHint: (px: number | null) =>
@@ -43,6 +42,16 @@ export const game: typeof ja = {
       "Shows the sight where the zoom appears even while you are not pressing. Once you are used to it, keeping your eyes on the sight at the top and pressing by feel makes scoring easier.",
     innerTenHint: "Compound uses the inner 10: only the X ring scores 10, and the rest of the 10 ring scores 9.",
     sightPreview: "Scoring sight (actual size)",
+    start: "Start game",
+    numberPad: "Enter numbers only",
+    numberPadHint:
+      "Enter scores with number buttons instead of tapping the target (arrow positions are not recorded). Your choice is kept for the next game. You cannot switch during a game.",
+    padSpread: "Button distance (%)",
+    padSpreadHint: "How far the number buttons sit from the base of your thumb. Smaller values pull them closer.",
+    handedness: "Dominant hand",
+    handednessRight: "Right",
+    handednessLeft: "Left",
+    handednessHint: "The number buttons fan out from the base of your dominant thumb.",
     backfill: (date: string) => `Entering later: scores of ${date}`,
   },
   entry: {
@@ -59,7 +68,7 @@ export const game: typeof ja = {
     endCaption: t.end,
     finish: "Finish",
     finishing: "Saving scores…",
-    aimSettings: "Zoom and sensitivity",
+    aimSettings: "Input settings",
     gameSettings: "Game setup",
     gameSettingsHint: "Changes apply to every round of this game. The numbers of arrows, ends and rounds cannot be lower than what is already recorded. Changing the target face does not rescore arrows already recorded.",
     ringLabel: (point: number) => `${point}${t.unit.point}`,

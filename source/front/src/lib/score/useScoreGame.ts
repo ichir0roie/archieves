@@ -108,7 +108,7 @@ export function useScoreGame(beforeLeave: () => void) {
     }
   }
 
-  function next(point: number, x: number = 0, y: number = 0) {
+  function next(point: number, x: number | null, y: number | null) {
     act((scoreManager) => scoreManager.addPoint(point, x, y));
   }
 

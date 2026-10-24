@@ -1763,9 +1763,9 @@ export interface components {
             /** Score */
             score: number;
             /** X */
-            x: number;
+            x: number | null;
             /** Y */
-            y: number;
+            y: number | null;
             /**
              * Recorded At
              * Format: date
@@ -1793,9 +1793,9 @@ export interface components {
             /** Score */
             score: number;
             /** X */
-            x: number;
+            x?: number | null;
             /** Y */
-            y: number;
+            y?: number | null;
             /**
              * Recorded At
              * Format: date
