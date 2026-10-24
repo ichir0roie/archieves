@@ -26,6 +26,7 @@ CURRENT_USER_NOT_REGISTERED = "Current user not registered"
 ACCESS_TOKEN_NOT_ALLOWED = "Access tokens can only read the owner's records and write AI comments"
 # AI コメントを、トークンでなく画面からのログインで書こうとしたときの 403 の detail
 AI_COMMENT_NEEDS_ACCESS_TOKEN = "AI comments are written with an access token"
+DIARY_IMPORT_NEEDS_ACCESS_TOKEN = "Diaries are imported with an access token"
 
 
 class ForbiddenError(PermissionError):

@@ -18,6 +18,41 @@ def create_diary(s: Session, user_id: int, body: str) -> Diary:
     return diary
 
 
+def import_diaries(
+    s: Session,
+    user_id: int,
+    items: list[tuple[str, datetime]],
+) -> tuple[list[Diary], int]:
+    """(本文, 書いた日時) を created_at にして入れる。同じ本文・日時の日記が既にあれば飛ばす。
+
+    AI が取り込みをやり直しても二重にならないようにするため。返すのは入れた行と飛ばした件数。
+    """
+    existing = set(
+        s.execute(
+            select(Diary.body, Diary.created_at).where(
+                Diary.user_id == user_id,
+                Diary.deleted_at.is_(None),
+                Diary.created_at.in_([written_at for _, written_at in items]),
+            )
+        )
+    )
+    imported: list[Diary] = []
+    skipped = 0
+    for body, written_at in items:
+        key = (body, written_at)
+        if key in existing:
+            skipped += 1
+            continue
+        existing.add(key)
+        diary = Diary(user_id=user_id, body=body, created_at=written_at)
+        s.add(diary)
+        imported.append(diary)
+    s.flush()
+    for diary in imported:
+        s.refresh(diary)
+    return imported, skipped
+
+
 def list_diaries(
     s: Session,
     user_id: int,
