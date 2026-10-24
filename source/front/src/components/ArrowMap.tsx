@@ -11,9 +11,11 @@ const SIZE = 100;
 
 /**
  * 記録したすべての矢の位置を、一枚の的に重ねて描く。
- * (0, 0) は位置の無い矢(かつて点数だけを入力した記録)の値なので描かない。
+ * (0, 0) は位置の無い矢(かつて点数だけを入力した記録)の値、null は数字だけの入力の矢なので描かない。
  */
-export function hasPosition(point: Pick<PointRead, "x" | "y">): boolean {
+export function hasPosition<P extends Pick<PointRead, "x" | "y">>(
+  point: P,
+): point is P & { x: number; y: number } {
   return point.x != null && point.y != null && !(point.x === 0 && point.y === 0);
 }
 

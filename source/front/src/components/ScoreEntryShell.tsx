@@ -26,7 +26,8 @@ export type ScoreInputProps = {
   points: Array<SheetPoint>;
   /** エンド・ラウンド・ゲームのコメントの行。点数のすぐ下に来るよう、置く場所は入力の側が決める */
   commentBar: ReactNode;
-  next: (point: number, x?: number, y?: number) => void;
+  /** x・y は的に対する割合。数字だけの入力は位置を持たないので null */
+  next: (point: number, x: number | null, y: number | null) => void;
   /** 今のエンドの最後の矢を消す / 消した矢を入れ直す */
   backPoint: () => void;
   forwardPoint: () => void;

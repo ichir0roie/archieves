@@ -558,7 +558,7 @@ export class ScoreManager {
    * 矢を一本記録する。記録した時刻も持つ(あとから入力なら、その日の 0 時)。エンドが満ちていれば
    * 何もしない
    */
-  addPoint(score: number, x: number = 0, y: number = 0) {
+  addPoint(score: number, x: number | null, y: number | null) {
     if (this.isEndFull || !this.currentEnd) return;
 
     // 新しく撃った矢で、このエンドの履歴が分かれる

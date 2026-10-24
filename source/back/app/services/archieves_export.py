@@ -31,7 +31,8 @@ FORMAT_NAME = "archieves-export"
 # 4: games.backfilled を足した(3 までのファイルは 0 として読む)。
 # 5: games.arrow_diameter_px を arrow_diameter_mm に替えた(4 までのファイルは NULL として読む。px は
 # 端末ごとに mm との比が違うので直せない)
-FORMAT_VERSION = 5
+# 6: points.x・y を NULL にできるようにした(数字だけの入力。5 までのファイルはそのまま読める)
+FORMAT_VERSION = 6
 
 
 @dataclass(frozen=True)
@@ -219,14 +220,14 @@ TABLES: tuple[Table, ...] = (
             ),
             Column(
                 "x",
-                "REAL NOT NULL",
+                "REAL",
                 "的の幅に対する割合(0〜1)",
                 "当たった位置の横。的の左上が 0、右下が 1、中心が 0.5。"
-                "x と y が両方 0 なら位置を記録していない",
+                "x と y が両方 0、または NULL(数字だけの入力)なら位置を記録していない",
             ),
             Column(
                 "y",
-                "REAL NOT NULL",
+                "REAL",
                 "的の高さに対する割合(0〜1)",
                 "当たった位置の縦。下が大きい。x と同じ決まり",
             ),

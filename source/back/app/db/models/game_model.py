@@ -148,8 +148,9 @@ class Point(TimestampMixin, Base):
     number: Mapped[int] = mapped_column(Integer)
     score: Mapped[int] = mapped_column(Integer)
     # Hit position relative to the target center, e.g. in millimeters.
-    x: Mapped[float] = mapped_column(Float)
-    y: Mapped[float] = mapped_column(Float)
+    # 数字だけの入力(位置を付けない)の矢は null
+    x: Mapped[float | None] = mapped_column(Float, nullable=True)
+    y: Mapped[float | None] = mapped_column(Float, nullable=True)
     # x/y converted to real-world centimeters using the round's target_type
     # size at save time; null when the target size couldn't be resolved or
     # x/y carry no real position (see app.core.target_types).

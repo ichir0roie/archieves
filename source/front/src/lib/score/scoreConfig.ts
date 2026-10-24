@@ -223,11 +223,17 @@ export function isValidRoundSetup(setup: RoundSetup): boolean {
  * 記入画面で押しているあいだのズームの倍率と、狙う点の動き(指の動きの 1/aimDivisor)。記録でなく
  * 端末ごとの好みなので RoundSetup とは分けて持つ(storage.ts の loadAimSettings)
  */
+export type Handedness = "right" | "left";
+
 export interface AimSettings {
   lensZoom: number;
   aimDivisor: number;
   /** ズームの直径。記入画面の横幅に対する % */
   lensSizePercent: number;
+  /** 的を押さず、数字のボタンで点数だけを入れる(位置は null)。あとから入力するとき向け */
+  numberPad: boolean;
+  /** 数字のボタンを寄せる利き手の側 */
+  handedness: Handedness;
   /** 押していないあいだも、ズームの中央の位置にサイトを出しておく */
   alwaysShowSight: boolean;
 }
@@ -250,6 +256,8 @@ export const DEFAULT_AIM_SETTINGS: AimSettings = {
   aimDivisor: 3,
   lensSizePercent: 50,
   alwaysShowSight: false,
+  numberPad: false,
+  handedness: "right",
 };
 
 export function isValidAimSettings(settings: AimSettings): boolean {
@@ -257,6 +265,8 @@ export function isValidAimSettings(settings: AimSettings): boolean {
     isWithin(settings.lensZoom, MIN_LENS_ZOOM, MAX_LENS_ZOOM) &&
     isWithin(settings.aimDivisor, MIN_AIM_DIVISOR, MAX_AIM_DIVISOR) &&
     isWithin(settings.lensSizePercent, MIN_LENS_SIZE_PERCENT, MAX_LENS_SIZE_PERCENT) &&
-    typeof settings.alwaysShowSight === "boolean"
+    typeof settings.alwaysShowSight === "boolean" &&
+    typeof settings.numberPad === "boolean" &&
+    (settings.handedness === "right" || settings.handedness === "left")
   );
 }

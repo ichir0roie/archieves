@@ -6728,11 +6728,25 @@
             "title": "Score"
           },
           "x": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "X"
           },
           "y": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Y"
           },
           "recorded_at": {
@@ -6828,11 +6842,25 @@
             "title": "Score"
           },
           "x": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "X"
           },
           "y": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Y"
           },
           "recorded_at": {
@@ -6857,8 +6885,6 @@
         "required": [
           "number",
           "score",
-          "x",
-          "y",
           "recorded_at"
         ],
         "title": "PointSheetWrite"

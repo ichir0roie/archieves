@@ -12,8 +12,9 @@ export interface SheetPoint {
   id: number | null;
   number: number;
   score: number;
-  x: number;
-  y: number;
+  /** 数字だけの入力(NumberPadInput)の矢は位置を持たないので null */
+  x: number | null;
+  y: number | null;
   /** 矢を記録した日(手元の日付)と時刻。保存のときにそのまま送る */
   recorded_at: string;
   shot_at: string | null;

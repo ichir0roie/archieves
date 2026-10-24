@@ -11,6 +11,7 @@ import {
   MIN_LENS_SIZE_PERCENT,
   MIN_LENS_ZOOM,
   type AimSettings,
+  type Handedness,
 } from "@/lib/score/scoreConfig";
 import { saveAimSettings } from "@/lib/storage";
 import { useT } from "@/lib/text";
@@ -87,6 +88,33 @@ export default function AimSettingsModal(props: Props) {
       }
     >
       <div className="stack">
+        <div className="field">
+          <label className="NumberPadField check-field">
+            <input
+              type="checkbox"
+              checked={settings.numberPad}
+              onChange={(e) => setSettings({ ...settings, numberPad: e.target.checked })}
+            />
+            {T.game.setup.numberPad}
+          </label>
+          <span className="hint">{T.game.setup.numberPadHint}</span>
+        </div>
+        <Field
+          label={T.game.setup.handedness}
+          hint={T.game.setup.handednessHint}
+        >
+          {(id) => (
+            <select
+              id={id}
+              className="HandednessField"
+              value={settings.handedness}
+              onChange={(e) => setSettings({ ...settings, handedness: e.target.value as Handedness })}
+            >
+              <option value="right">{T.game.setup.handednessRight}</option>
+              <option value="left">{T.game.setup.handednessLeft}</option>
+            </select>
+          )}
+        </Field>
         <RangeField
           label={T.game.setup.lensZoom}
           value={settings.lensZoom}

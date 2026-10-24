@@ -44,6 +44,12 @@ export const game = {
     alwaysShowSight: "上部にサイトを常に出す",
     alwaysShowSightHint:
       "押していないあいだも、ズームが出る所にサイトを出しておきます。慣れてきたら、常に上のサイトを見ながら感覚でボタンを押すと楽になります",
+    numberPad: "数字だけで入力する",
+    numberPadHint: `的を押さず、数字のボタンで点数だけを入れます(${t.arrow}の位置は記録しません)。あとから入力するとき向けです`,
+    handedness: "利き手",
+    handednessRight: "右",
+    handednessLeft: "左",
+    handednessHint: "数字のボタンを、利き手の親指の付け根から扇形に並べます",
     backfill: (date: string) => `あとから入力: ${date} の${t.record}`,
   },
   entry: {
@@ -60,7 +66,7 @@ export const game = {
     endCaption: t.end,
     finish: "終了",
     finishing: `${t.score}を保存しています…`,
-    aimSettings: "ズームと感度の設定",
+    aimSettings: "入力の設定",
     gameSettings: `${t.game}設定`,
     gameSettingsHint: `変えた項目は、この${t.game}のすべての${t.round}に当てます。${t.arrow}・${t.end}・${t.round}の数は、記録した数より少なくできません。的を変えても、記録済みの${t.arrow}の点数は変わりません`,
     ringLabel: (point: number) => `${point}${t.unit.point}`,
