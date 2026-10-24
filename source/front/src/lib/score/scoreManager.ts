@@ -124,6 +124,8 @@ export class ScoreManager {
   private roundIndex: number;
   private endIndex: number;
   private dirty: boolean;
+  /** 点だけ入力のゲーム。始めるときに決め、途中では変えない */
+  readonly numberPad: boolean;
 
   /**
    * 「1矢戻る」で外した矢の控え。キーは `ラウンドの位置:エンドの位置`。キャッシュには持たない
@@ -138,6 +140,7 @@ export class ScoreManager {
     this.roundIndex = cache.roundIndex;
     this.endIndex = cache.endIndex;
     this.dirty = cache.dirty;
+    this.numberPad = cache.numberPad;
     if (this.sheet.rounds.length === 0) this.openNextRound();
     this.clampPosition();
   }
@@ -152,6 +155,7 @@ export class ScoreManager {
     sub: string,
     setup: RoundSetup,
     backfillDate: string | null = null,
+    numberPad: boolean = false,
   ): ScoreManager {
     const manager = new ScoreManager({
       sub,
@@ -171,6 +175,7 @@ export class ScoreManager {
       roundIndex: 0,
       endIndex: 0,
       dirty: false,
+      numberPad,
     });
     manager.persist();
     return manager;
@@ -187,6 +192,8 @@ export class ScoreManager {
       roundIndex,
       endIndex: Math.max((sheet.rounds[roundIndex]?.ends.length ?? 0) - 1, 0),
       dirty: false,
+      // 保存したゲームの編集は的で入れる(記録に入れ方を持たないため)
+      numberPad: false,
     });
     if (manager.ends.length === 0) {
       manager.pushEnd();
@@ -217,6 +224,7 @@ export class ScoreManager {
       roundIndex: this.roundIndex,
       endIndex: this.endIndex,
       dirty: this.dirty,
+      numberPad: this.numberPad,
     });
   }
 

@@ -230,8 +230,6 @@ export interface AimSettings {
   aimDivisor: number;
   /** ズームの直径。記入画面の横幅に対する % */
   lensSizePercent: number;
-  /** 的を押さず、数字のボタンで点数だけを入れる(位置は null)。あとから入力するとき向け */
-  numberPad: boolean;
   /** 数字のボタンを寄せる利き手の側 */
   handedness: Handedness;
   /** 押していないあいだも、ズームの中央の位置にサイトを出しておく */
@@ -256,7 +254,6 @@ export const DEFAULT_AIM_SETTINGS: AimSettings = {
   aimDivisor: 3,
   lensSizePercent: 50,
   alwaysShowSight: false,
-  numberPad: false,
   handedness: "right",
 };
 
@@ -266,7 +263,6 @@ export function isValidAimSettings(settings: AimSettings): boolean {
     isWithin(settings.aimDivisor, MIN_AIM_DIVISOR, MAX_AIM_DIVISOR) &&
     isWithin(settings.lensSizePercent, MIN_LENS_SIZE_PERCENT, MAX_LENS_SIZE_PERCENT) &&
     typeof settings.alwaysShowSight === "boolean" &&
-    typeof settings.numberPad === "boolean" &&
     (settings.handedness === "right" || settings.handedness === "left")
   );
 }

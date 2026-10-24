@@ -72,6 +72,8 @@ export interface ScoreSheetCache {
   endIndex: number;
   /** 保存していない変更がある */
   dirty: boolean;
+  /** 点だけ入力(数字のボタン)のゲーム。始めるときに決め、途中では変えない */
+  numberPad: boolean;
 }
 
 /**

@@ -51,6 +51,8 @@ export type ScoreInputProps = {
   innerTen: boolean;
   /** ズームの倍率・大きさと感度。記入画面の右上の設定から変えられる */
   aimSettings: AimSettings;
+  /** 点だけ入力のゲーム。的の代わりに数字のボタンを出す */
+  numberPad: boolean;
   /** このエンドの矢がすべて入った。残る操作は 次へ / 終了 だけ */
   isEndFull: boolean;
   /** ゲームの矢がすべて入った。次のエンドは無い */
@@ -280,6 +282,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
               allIn: manager.allIn,
               innerTen: isInnerTenBow(manager.bowType),
               aimSettings,
+              numberPad: manager.numberPad,
               isEndFull: progress?.isEndFull ?? false,
               isGameComplete: progress?.isGameComplete ?? false,
               disabled: isSaving,

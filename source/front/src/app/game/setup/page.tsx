@@ -11,9 +11,19 @@ import { useEffect, useRef, useState } from "react";
 import { DEFAULT_ROUND_SETUP } from "@/lib/score/scoreConfig";
 import { BACKFILL_DATE_PARAM, isBackfillDate } from "@/lib/score/backfill";
 import { getCurrentUser } from "@/lib/auth/currentUser";
-import { SCORE_CARD_PATH } from "@/lib/destinations";
+import {
+  INPUT_MODE_PARAM,
+  NUMBER_PAD_INPUT,
+  SCORE_CARD_PATH,
+  TARGET_INPUT,
+} from "@/lib/destinations";
 import { ScoreManager } from "@/lib/score/scoreManager";
-import { loadRoundSetup, saveRoundSetup } from "@/lib/storage";
+import {
+  loadLastNumberPad,
+  loadRoundSetup,
+  saveLastNumberPad,
+  saveRoundSetup,
+} from "@/lib/storage";
 import { useT } from "@/lib/text";
 
 export default function Page() {
@@ -22,6 +32,8 @@ export default function Page() {
   const [draft, setDraft] = useState(() => toGameSetupDraft(DEFAULT_ROUND_SETUP));
   // あとから入力の日付。スコアの一覧から ?date=yyyy-mm-dd で来る。無い・読めない日付なら今の日時で付ける
   const [backfillDate, setBackfillDate] = useState<string | null>(null);
+  // 点だけ入力(数字のボタン)にするか。ホームの入り口から ?input= で来る。無ければ前回の入れ方
+  const [numberPad, setNumberPad] = useState(false);
 
   // サーバーでの描画中は localStorage を読めないので、前回の設定は画面に載ってから当てる
   useEffect(() => {
@@ -33,6 +45,9 @@ export default function Page() {
   useEffect(() => {
     const date = new URLSearchParams(window.location.search).get(BACKFILL_DATE_PARAM);
     if (isBackfillDate(date)) setBackfillDate(date);
+    const input = new URLSearchParams(window.location.search).get(INPUT_MODE_PARAM);
+    if (input === NUMBER_PAD_INPUT) setNumberPad(true);
+    else if (input !== TARGET_INPUT) setNumberPad(loadLastNumberPad());
   }, []);
 
   // 読めない欄があれば null。開始もここで止める
@@ -50,8 +65,9 @@ export default function Page() {
         return;
       }
       saveRoundSetup(setup);
+      saveLastNumberPad(numberPad);
       // この画面からは必ず新しいゲームを始める(手元のキャッシュを作り直す)。続きはこの画面を通らない
-      ScoreManager.startNewGame(userId, setup, backfillDate);
+      ScoreManager.startNewGame(userId, setup, backfillDate, numberPad);
       router.push(SCORE_CARD_PATH);
     } finally {
       starting.current = false;
@@ -72,6 +88,17 @@ export default function Page() {
           draft={draft}
           onChange={setDraft}
         />
+        <div className="field">
+          <label className="NumberPadSetupField check-field">
+            <input
+              type="checkbox"
+              checked={numberPad}
+              onChange={(e) => setNumberPad(e.target.checked)}
+            />
+            {T.game.setup.numberPad}
+          </label>
+          <span className="hint">{T.game.setup.numberPadHint}</span>
+        </div>
       </div>
       {/* 設定の欄が長いので、開始はどこまで送っても押せるよう画面の下に留める */}
       <div className="SetupStart setup-start">

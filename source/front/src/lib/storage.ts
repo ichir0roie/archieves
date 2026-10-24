@@ -148,6 +148,25 @@ export function subscribeCachedAppUser(onChange: () => void): () => void {
   };
 }
 
+const NUMBER_PAD_KEY = "numberPadInput";
+
+/** 前回のゲームを点だけ入力で始めたか。入り口を通らずに設定の画面を開いたときの既定にする */
+export function saveLastNumberPad(numberPad: boolean) {
+  try {
+    localStorage.setItem(NUMBER_PAD_KEY, JSON.stringify(numberPad));
+  } catch {
+    // 保存できなければ、次は的で入れる既定になるだけ
+  }
+}
+
+export function loadLastNumberPad(): boolean {
+  try {
+    return JSON.parse(localStorage.getItem(NUMBER_PAD_KEY) ?? "false") === true;
+  } catch {
+    return false;
+  }
+}
+
 const AIM_SETTINGS_KEY = "aimSettings";
 
 export function saveAimSettings(settings: AimSettings) {
@@ -203,7 +222,9 @@ function scoreSheetKey(sub: string) {
 const LEGACY_SCORE_SHEET_KEY = "scoreSheet";
 
 /** localStorage に残っているかもしれない、古い形も含めたキャッシュ */
-type StoredScoreSheetCache = Omit<ScoreSheetCache, "sub" | "sheet"> & {
+type StoredScoreSheetCache = Omit<ScoreSheetCache, "sub" | "sheet" | "numberPad"> & {
+  /** 点だけ入力を足す前のキャッシュには無い(的で入れていたもの) */
+  numberPad?: boolean;
   sheet: Omit<Sheet, "arrow_diameter_mm" | "all_in" | "backfilled"> & {
     /** 矢の直径を px で持っていたころのキャッシュには無い */
     arrow_diameter_mm?: number | null;
@@ -242,6 +263,7 @@ export function loadScoreSheetCache(sub: string): ScoreSheetCache | null {
   return {
     ...stored,
     sub,
+    numberPad: stored.numberPad ?? false,
     sheet: {
       ...sheet,
       arrow_diameter_mm: sheet.arrow_diameter_mm ?? null,

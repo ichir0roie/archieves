@@ -8,7 +8,7 @@ export default function Page() {
   return (
     <ScoreEntryShell
       renderInput={(props) =>
-        props.aimSettings.numberPad ? <NumberPadInput {...props} /> : <TargetCircleInput {...props} />
+        props.numberPad ? <NumberPadInput {...props} /> : <TargetCircleInput {...props} />
       }
     />
   );
