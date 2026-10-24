@@ -148,25 +148,6 @@ export function subscribeCachedAppUser(onChange: () => void): () => void {
   };
 }
 
-const NUMBER_PAD_KEY = "numberPadInput";
-
-/** 前回のゲームを点だけ入力で始めたか。入り口を通らずに設定の画面を開いたときの既定にする */
-export function saveLastNumberPad(numberPad: boolean) {
-  try {
-    localStorage.setItem(NUMBER_PAD_KEY, JSON.stringify(numberPad));
-  } catch {
-    // 保存できなければ、次は的で入れる既定になるだけ
-  }
-}
-
-export function loadLastNumberPad(): boolean {
-  try {
-    return JSON.parse(localStorage.getItem(NUMBER_PAD_KEY) ?? "false") === true;
-  } catch {
-    return false;
-  }
-}
-
 const AIM_SETTINGS_KEY = "aimSettings";
 
 export function saveAimSettings(settings: AimSettings) {

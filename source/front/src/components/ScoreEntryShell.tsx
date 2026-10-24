@@ -208,6 +208,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
       {aimSettingsOpen && (
         <AimSettingsModal
           settings={aimSettings}
+          numberPad={manager?.numberPad ?? false}
           onClose={() => setAimSettingsOpen(false)}
           onSave={(settings) => {
             setAimSettings(settings);

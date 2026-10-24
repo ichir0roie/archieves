@@ -291,7 +291,7 @@ test("finishing a game with nothing recorded goes home", async ({ page }) => {
 // 数は 1〜100 の整数だけを受け、読めない間は始められない
 test("a game shape always has at least one arrow, end and round", async ({ page }) => {
   await page.goto("/game/setup");
-  const start = page.getByRole("button", { name: "ゲーム開始" });
+  const start = page.getByRole("button", { name: "的で入力" });
   await expect(start).toBeEnabled();
 
   for (const label of ["1エンドの矢数", "エンド数", "ラウンド数"]) {
@@ -414,11 +414,11 @@ test("starting a new game over unsaved scores asks first", async ({ page }) => {
   // 断ると設定の画面にとどまる
   await page.goto("/game/setup");
   page.once("dialog", (dialog) => dialog.dismiss());
-  await page.getByRole("button", { name: "ゲーム開始" }).click();
+  await page.getByRole("button", { name: "的で入力" }).click();
   await expect(page).toHaveURL(/\/game\/setup$/);
 
   page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "ゲーム開始" }).click();
+  await page.getByRole("button", { name: "的で入力" }).click();
   await expect(page).toHaveURL(/\/game\/score-card$/, { timeout: ROUTE_TIMEOUT });
   await expect(recordedArrows(page)).toHaveCount(0);
 });

@@ -42,7 +42,7 @@ export async function startGame(page: Page, setup: GameSetup = {}) {
     await page.getByLabel("矢の直径").fill(String(setup.arrowDiameterMm));
   }
 
-  await page.getByRole("button", { name: "ゲーム開始" }).click();
+  await page.getByRole("button", { name: "的で入力" }).click();
   await expect(page).toHaveURL(/\/game\/score-card$/, { timeout: ROUTE_TIMEOUT });
   await expect(page.locator(".ScoreProgress")).toBeVisible({ timeout: ROUTE_TIMEOUT });
   await expect(page.locator(".TargetCircleInput .TargetFace")).toBeVisible({

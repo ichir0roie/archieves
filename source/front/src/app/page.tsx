@@ -7,14 +7,7 @@ import { useCachedAppUser } from "@/hooks/useCachedAppUser";
 import { useLoad } from "@/hooks/useLoad";
 import { getPendingCounts, type AdminPendingCounts } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/currentUser";
-import {
-  INPUT_MODE_PARAM,
-  NUMBER_PAD_INPUT,
-  SCORE_CARD_PATH,
-  START_GAME,
-  TARGET_INPUT,
-  destinationsFor,
-} from "@/lib/destinations";
+import { SCORE_CARD_PATH, START_GAME, destinationsFor } from "@/lib/destinations";
 import { loadScoreSheetCache } from "@/lib/storage";
 import { useT } from "@/lib/text";
 
@@ -109,22 +102,12 @@ export default function Page() {
             {T.nav.resumeGame}
           </Link>
         )}
-        <div className="start-row">
-          <Link
-            href={`${START_GAME.href}?${INPUT_MODE_PARAM}=${TARGET_INPUT}`}
-            className="StartTarget start"
-          >
-            <span className="small">{T.nav[START_GAME.label]}</span>
-            {T.home.startTarget}
-          </Link>
-          <Link
-            href={`${START_GAME.href}?${INPUT_MODE_PARAM}=${NUMBER_PAD_INPUT}`}
-            className="StartNumberPad start"
-          >
-            <span className="small">{T.nav[START_GAME.label]}</span>
-            {T.home.startNumberPad}
-          </Link>
-        </div>
+        <Link
+          href={START_GAME.href}
+          className="start"
+        >
+          {T.nav[START_GAME.label]}
+        </Link>
       </div>
     </div>
   );

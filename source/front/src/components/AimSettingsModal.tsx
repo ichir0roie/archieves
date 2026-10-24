@@ -7,9 +7,11 @@ import {
   MAX_AIM_DIVISOR,
   MAX_LENS_SIZE_PERCENT,
   MAX_LENS_ZOOM,
+  MAX_PAD_SPREAD_PERCENT,
   MIN_AIM_DIVISOR,
   MIN_LENS_SIZE_PERCENT,
   MIN_LENS_ZOOM,
+  MIN_PAD_SPREAD_PERCENT,
   type AimSettings,
   type Handedness,
 } from "@/lib/score/scoreConfig";
@@ -28,10 +30,7 @@ type RangeFieldProps = {
 /** 整数のスライダーの欄。今の値を見出しの右に出す */
 function RangeField(props: RangeFieldProps) {
   return (
-    <Field
-      label={props.label}
-      hint={props.hint}
-    >
+    <Field label={props.label} hint={props.hint}>
       {(id) => (
         <div className="RangeField row">
           <input
@@ -44,10 +43,7 @@ function RangeField(props: RangeFieldProps) {
             value={props.value}
             onChange={(e) => props.onChange(Number(e.target.value))}
           />
-          <output
-            htmlFor={id}
-            className="range-value"
-          >
+          <output htmlFor={id} className="range-value">
             {props.value}
           </output>
         </div>
@@ -58,12 +54,14 @@ function RangeField(props: RangeFieldProps) {
 
 type Props = {
   settings: AimSettings;
+  /** 点だけ入力のゲーム。数字のボタンの設定だけを出し、的の設定(ズーム・感度)は出さない */
+  numberPad: boolean;
   onClose: () => void;
   /** 決定を押したとき。端末に保存したあとで呼ぶ */
   onSave: (settings: AimSettings) => void;
 };
 
-/** 記入画面から開く、ズームの倍率・大きさ・感度のモーダル。決定を押すまで当てない */
+/** 記入画面から開く入力の設定。的ならズームの倍率・大きさ・感度、点だけ入力なら利き手とボタンの距離。決定を押すまで当てない */
 export default function AimSettingsModal(props: Props) {
   const T = useT();
   const [settings, setSettings] = useState(props.settings);
@@ -78,68 +76,91 @@ export default function AimSettingsModal(props: Props) {
       title={T.game.entry.aimSettings}
       onClose={props.onClose}
       actions={
-        <button
-          type="button"
-          className="primary"
-          onClick={submit}
-        >
+        <button type="button" className="primary" onClick={submit}>
           {T.game.setup.ok}
         </button>
       }
     >
-      <div className="stack">
-        <Field
-          label={T.game.setup.handedness}
-          hint={T.game.setup.handednessHint}
-        >
-          {(id) => (
-            <select
-              id={id}
-              className="HandednessField"
-              value={settings.handedness}
-              onChange={(e) => setSettings({ ...settings, handedness: e.target.value as Handedness })}
-            >
-              <option value="right">{T.game.setup.handednessRight}</option>
-              <option value="left">{T.game.setup.handednessLeft}</option>
-            </select>
-          )}
-        </Field>
-        <RangeField
-          label={T.game.setup.lensZoom}
-          value={settings.lensZoom}
-          onChange={(lensZoom) => setSettings({ ...settings, lensZoom })}
-          min={MIN_LENS_ZOOM}
-          max={MAX_LENS_ZOOM}
-          hint={T.game.setup.lensZoomHint}
-        />
-        <RangeField
-          label={T.game.setup.lensSize}
-          value={settings.lensSizePercent}
-          onChange={(lensSizePercent) => setSettings({ ...settings, lensSizePercent })}
-          min={MIN_LENS_SIZE_PERCENT}
-          max={MAX_LENS_SIZE_PERCENT}
-          hint={T.game.setup.lensSizeHint}
-        />
-        <RangeField
-          label={T.game.setup.aimDivisor}
-          value={settings.aimDivisor}
-          onChange={(aimDivisor) => setSettings({ ...settings, aimDivisor })}
-          min={MIN_AIM_DIVISOR}
-          max={MAX_AIM_DIVISOR}
-          hint={T.game.setup.aimDivisorHint(settings.aimDivisor)}
-        />
-        <div className="field">
-          <label className="AlwaysShowSightField check-field">
-            <input
-              type="checkbox"
-              checked={settings.alwaysShowSight}
-              onChange={(e) => setSettings({ ...settings, alwaysShowSight: e.target.checked })}
-            />
-            {T.game.setup.alwaysShowSight}
-          </label>
-          <span className="hint">{T.game.setup.alwaysShowSightHint}</span>
+      {props.numberPad ? (
+        <div className="stack">
+          <Field
+            label={T.game.setup.handedness}
+            hint={T.game.setup.handednessHint}
+          >
+            {(id) => (
+              <select
+                id={id}
+                className="HandednessField"
+                value={settings.handedness}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    handedness: e.target.value as Handedness,
+                  })
+                }
+              >
+                <option value="right">{T.game.setup.handednessRight}</option>
+                <option value="left">{T.game.setup.handednessLeft}</option>
+              </select>
+            )}
+          </Field>
+          <RangeField
+            label={T.game.setup.padSpread}
+            value={settings.padSpreadPercent}
+            onChange={(padSpreadPercent) =>
+              setSettings({ ...settings, padSpreadPercent })
+            }
+            min={MIN_PAD_SPREAD_PERCENT}
+            max={MAX_PAD_SPREAD_PERCENT}
+            hint={T.game.setup.padSpreadHint}
+          />
         </div>
-      </div>
+      ) : (
+        <div className="stack">
+          <RangeField
+            label={T.game.setup.lensZoom}
+            value={settings.lensZoom}
+            onChange={(lensZoom) => setSettings({ ...settings, lensZoom })}
+            min={MIN_LENS_ZOOM}
+            max={MAX_LENS_ZOOM}
+            hint={T.game.setup.lensZoomHint}
+          />
+          <RangeField
+            label={T.game.setup.lensSize}
+            value={settings.lensSizePercent}
+            onChange={(lensSizePercent) =>
+              setSettings({ ...settings, lensSizePercent })
+            }
+            min={MIN_LENS_SIZE_PERCENT}
+            max={MAX_LENS_SIZE_PERCENT}
+            hint={T.game.setup.lensSizeHint}
+          />
+          <RangeField
+            label={T.game.setup.aimDivisor}
+            value={settings.aimDivisor}
+            onChange={(aimDivisor) => setSettings({ ...settings, aimDivisor })}
+            min={MIN_AIM_DIVISOR}
+            max={MAX_AIM_DIVISOR}
+            hint={T.game.setup.aimDivisorHint(settings.aimDivisor)}
+          />
+          <div className="field">
+            <label className="AlwaysShowSightField check-field">
+              <input
+                type="checkbox"
+                checked={settings.alwaysShowSight}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    alwaysShowSight: e.target.checked,
+                  })
+                }
+              />
+              {T.game.setup.alwaysShowSight}
+            </label>
+            <span className="hint">{T.game.setup.alwaysShowSightHint}</span>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

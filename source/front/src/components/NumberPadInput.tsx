@@ -35,6 +35,7 @@ const MAX_ANGLE = 82;
 export default function NumberPadInput(props: ScoreInputProps) {
   const isLocked = props.disabled || props.isEndFull;
   const rightHanded = props.aimSettings.handedness === "right";
+  const spread = props.aimSettings.padSpreadPercent / 100;
 
   return (
     <div className="NumberPadInput target-input">
@@ -47,8 +48,8 @@ export default function NumberPadInput(props: ScoreInputProps) {
               const angle =
                 MAX_ANGLE - ((MAX_ANGLE - MIN_ANGLE) * index) / Math.max(scores.length - 1, 1);
               const rad = (angle * Math.PI) / 180;
-              const fromCorner = radius * Math.cos(rad) * 100;
-              const fromBottom = radius * Math.sin(rad) * 100;
+              const fromCorner = radius * spread * Math.cos(rad) * 100;
+              const fromBottom = radius * spread * Math.sin(rad) * 100;
               return (
                 <button
                   key={score}

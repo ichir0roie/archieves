@@ -25,7 +25,6 @@ export const game = {
     gameSizeHint: `この${t.game}に含める${t.round}数`,
     summary: (total: number, endSize: string, roundSize: string, gameSize: string) =>
       `合計 ${total}本 (${endSize}本 × ${roundSize}${t.end} × ${gameSize}${t.round})`,
-    start: `${t.game}開始`,
     discardUnsaved: `保存していない${t.record}があります。捨てて新しい${t.game}を始めますか?`,
     arrowDiameter: `${t.arrow}の直径 (mm)`,
     arrowDiameterHint: (px: number | null) =>
@@ -44,8 +43,12 @@ export const game = {
     alwaysShowSight: "上部にサイトを常に出す",
     alwaysShowSightHint:
       "押していないあいだも、ズームが出る所にサイトを出しておきます。慣れてきたら、常に上のサイトを見ながら感覚でボタンを押すと楽になります",
-    numberPad: "数字だけで入力する",
-    numberPadHint: `的を押さず、数字のボタンで点数だけを入れます(${t.arrow}の位置は記録しません)。あとから入力するとき向けです`,
+    startTarget: "的で入力",
+    startNumberPad: "点だけ入力",
+    numberPadHint:
+      "「点だけ入力」は、的を押さず数字のボタンで点数だけを入れます(矢の位置は記録しません)。入れ方はゲームの途中では変えられません",
+    padSpread: "ボタンの距離 (%)",
+    padSpreadHint: "親指の付け根から数字のボタンまでの距離。小さいほど付け根に寄せます",
     handedness: "利き手",
     handednessRight: "右",
     handednessLeft: "左",

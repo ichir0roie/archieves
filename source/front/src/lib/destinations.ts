@@ -14,11 +14,6 @@ export interface Destination {
 /** ホームでは大きなボタンにし、ほかの行き先と分けて出す */
 export const START_GAME: Destination = { href: "/game/setup", label: "startGame" };
 
-/** 設定の画面へ、入れ方(的 / 点だけ)を渡す URL の引数。無ければ前回の入れ方 */
-export const INPUT_MODE_PARAM = "input";
-export const NUMBER_PAD_INPUT = "numbers";
-export const TARGET_INPUT = "target";
-
 /** メニュー(Nav)とホームのボタンに並べる行き先。この順に並べる */
 export const DESTINATIONS: ReadonlyArray<Destination> = [
   START_GAME,
