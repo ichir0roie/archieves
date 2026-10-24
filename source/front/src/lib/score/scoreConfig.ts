@@ -223,11 +223,17 @@ export function isValidRoundSetup(setup: RoundSetup): boolean {
  * 記入画面で押しているあいだのズームの倍率と、狙う点の動き(指の動きの 1/aimDivisor)。記録でなく
  * 端末ごとの好みなので RoundSetup とは分けて持つ(storage.ts の loadAimSettings)
  */
+export type Handedness = "right" | "left";
+
 export interface AimSettings {
   lensZoom: number;
   aimDivisor: number;
   /** ズームの直径。記入画面の横幅に対する % */
   lensSizePercent: number;
+  /** 数字のボタンを寄せる利き手の側 */
+  handedness: Handedness;
+  /** 数字のボタンの、親指の付け根からの距離。既定の並びに対する % */
+  padSpreadPercent: number;
   /** 押していないあいだも、ズームの中央の位置にサイトを出しておく */
   alwaysShowSight: boolean;
 }
@@ -236,6 +242,8 @@ export const MIN_LENS_ZOOM = 1;
 export const MAX_LENS_ZOOM = 10;
 export const MIN_AIM_DIVISOR = 1;
 export const MAX_AIM_DIVISOR = 10;
+export const MIN_PAD_SPREAD_PERCENT = 50;
+export const MAX_PAD_SPREAD_PERCENT = 115;
 export const MIN_LENS_SIZE_PERCENT = 10;
 export const MAX_LENS_SIZE_PERCENT = 90;
 
@@ -250,6 +258,8 @@ export const DEFAULT_AIM_SETTINGS: AimSettings = {
   aimDivisor: 3,
   lensSizePercent: 50,
   alwaysShowSight: false,
+  handedness: "right",
+  padSpreadPercent: 100,
 };
 
 export function isValidAimSettings(settings: AimSettings): boolean {
@@ -257,6 +267,8 @@ export function isValidAimSettings(settings: AimSettings): boolean {
     isWithin(settings.lensZoom, MIN_LENS_ZOOM, MAX_LENS_ZOOM) &&
     isWithin(settings.aimDivisor, MIN_AIM_DIVISOR, MAX_AIM_DIVISOR) &&
     isWithin(settings.lensSizePercent, MIN_LENS_SIZE_PERCENT, MAX_LENS_SIZE_PERCENT) &&
-    typeof settings.alwaysShowSight === "boolean"
+    typeof settings.alwaysShowSight === "boolean" &&
+    (settings.handedness === "right" || settings.handedness === "left") &&
+    isWithin(settings.padSpreadPercent, MIN_PAD_SPREAD_PERCENT, MAX_PAD_SPREAD_PERCENT)
   );
 }

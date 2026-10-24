@@ -28,9 +28,9 @@ class PointSheetWrite(BaseModel):
     number: int = Field(ge=1)
     score: int = Field(ge=MISS_SCORE, le=X_SCORE)
     # 的に対する割合(左上が原点、0〜1 が的の外接する正方形)。的の外の外れは 0〜1 の外になる。
-    # (0, 0) は位置なし
-    x: float = Field(allow_inf_nan=False)
-    y: float = Field(allow_inf_nan=False)
+    # (0, 0) と null は位置なし。null は数字だけの入力で付ける
+    x: float | None = Field(default=None, allow_inf_nan=False)
+    y: float | None = Field(default=None, allow_inf_nan=False)
     recorded_at: date
     shot_at: datetime | None = None
 

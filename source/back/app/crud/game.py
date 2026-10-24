@@ -425,13 +425,17 @@ def delete_end(s: Session, end: End) -> None:
     s.flush()
 
 
-def point_cm(round_: Round | None, x: float, y: float) -> tuple[float | None, float | None]:
+def point_cm(
+    round_: Round | None,
+    x: float | None,
+    y: float | None,
+) -> tuple[float | None, float | None]:
     """x/y are the fraction (top-left origin; 0-1 spans the target face,
     misses outside it go beyond) of the target face, so (0.5, 0.5) is its center and the offset from
     there scales directly by the face's real size. (0, 0) is what the
     score-only input mode sends when no tap ever happened, so it carries no
-    position at all."""
-    if round_ is None or (x == 0 and y == 0):
+    position at all. null is what the number-only input sends."""
+    if round_ is None or x is None or y is None or (x == 0 and y == 0):
         return None, None
     size_cm = resolve_target_size_cm(round_.target_type)
     if size_cm is None:

@@ -311,6 +311,12 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 /* 的をタッチする入力。帯は内側ほど上に重ね、押した所を覆ういちばん小さい帯に当たるようにする */
 .target-input { height: 100%; display: flex; flex-direction: column; }
 /* 印・ズームの z-index を枠の中に閉じ込める。でないと body に出したモーダルより上に描かれる */
+/* 数字だけの入力。ボタンは正方形の枠の中に、下の角を中心にした割合の位置で置く(NumberPadInput) */
+.number-pad-area { flex: 1; min-height: 0; display: flex; align-items: flex-end; padding: 0 16px 8px; }
+.number-pad { position: relative; width: 100%; max-width: 420px; max-height: 100%; aspect-ratio: 1; margin-inline: auto; }
+.number-pad-key { position: absolute; transform: translate(-50%, -50%); width: 17%; aspect-ratio: 1; min-width: 48px; border-radius: 999px; background: var(--ring); color: var(--ring-ink); border: 1px solid #6a7080; padding: 0; font-size: 1.4rem; font-weight: 700; }
+/* エンドが満ちて押せない間は、満ちたことが分かるよう薄くする */
+.number-pad-key:disabled { opacity: 0.4; }
 .target-face { position: relative; flex: 1; min-height: 0; isolation: isolate; }
 /* エンドが満ちて押せない間も、的は見やすいよう薄くしない(button:disabled の opacity を打ち消す) */
 .target-face .target-ring:disabled,

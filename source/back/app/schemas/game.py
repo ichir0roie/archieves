@@ -173,8 +173,9 @@ class EndRead(EndBase, ResponseModel):
 class PointBase(BaseModel):
     number: int
     score: int
-    x: float
-    y: float
+    # 数字だけの入力の矢は null
+    x: float | None
+    y: float | None
     recorded_at: date
     # 矢を記録した時刻(入力の画面で付ける)。無い記録は null
     shot_at: datetime | None = None

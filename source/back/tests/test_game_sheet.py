@@ -95,6 +95,18 @@ def test_a_sheet_without_an_id_creates_the_whole_game(client: TestClient, curren
     assert client.get(f"/api/v1/games/{saved['id']}/sheet").json() == saved
 
 
+def test_a_point_from_the_number_only_input_keeps_a_null_position(client: TestClient) -> None:
+    saved = _save(
+        client,
+        _sheet([_round(1, [_end(1, [_point(1, 9, x=None, y=None)])])]),
+    )
+
+    [point] = saved["rounds"][0]["ends"][0]["points"]
+    assert (point["x"], point["y"]) == (None, None)
+    assert (point["x_cm"], point["y_cm"]) == (None, None)
+    assert client.get(f"/api/v1/games/{saved['id']}/sheet").json() == saved
+
+
 def test_resending_a_new_sheet_with_the_same_client_key_does_not_duplicate_the_game(
     client: TestClient, s: Session, current_user
 ) -> None:

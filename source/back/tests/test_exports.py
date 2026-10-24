@@ -65,7 +65,7 @@ def test_export_describes_its_tables_and_units(client: TestClient, current_user,
 
     about = dict(conn.execute("SELECT key, value FROM _about").fetchall())
     assert about["format"] == "archieves-export"
-    assert about["format_version"] == "5"
+    assert about["format_version"] == "6"
     assert "relations" in about
     assert conn.execute(
         "SELECT unit FROM _columns WHERE table_name = 'rounds' AND column_name = 'distance_m'"
