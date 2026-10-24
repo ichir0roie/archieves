@@ -13,7 +13,12 @@ import { BACKFILL_DATE_PARAM, isBackfillDate } from "@/lib/score/backfill";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { SCORE_CARD_PATH } from "@/lib/destinations";
 import { ScoreManager } from "@/lib/score/scoreManager";
-import { loadRoundSetup, saveRoundSetup } from "@/lib/storage";
+import {
+  loadLastNumberPad,
+  loadRoundSetup,
+  saveLastNumberPad,
+  saveRoundSetup,
+} from "@/lib/storage";
 import { useT } from "@/lib/text";
 
 export default function Page() {
@@ -22,11 +27,14 @@ export default function Page() {
   const [draft, setDraft] = useState(() => toGameSetupDraft(DEFAULT_ROUND_SETUP));
   // あとから入力の日付。スコアの一覧から ?date=yyyy-mm-dd で来る。無い・読めない日付なら今の日時で付ける
   const [backfillDate, setBackfillDate] = useState<string | null>(null);
+  // 点だけ入力(数字のボタン)で始めるか。前回の選び方を覚えておき、普段は触らずに始められるようにする
+  const [numberPad, setNumberPad] = useState(false);
 
   // サーバーでの描画中は localStorage を読めないので、前回の設定は画面に載ってから当てる
   useEffect(() => {
     const saved = loadRoundSetup();
     if (saved) setDraft(toGameSetupDraft(saved));
+    setNumberPad(loadLastNumberPad());
   }, []);
 
   // useSearchParams は Suspense で包まないとビルドの事前描画で落ちるので、画面に載ってから URL を読む
@@ -40,8 +48,7 @@ export default function Page() {
   // 開始は sub を引いてから進むので、二度押しで二つ始めないようにする
   const starting = useRef(false);
 
-  /** numberPad: 点だけ入力(数字のボタン)で始める。入れ方はゲームの途中では変えない */
-  async function start(numberPad: boolean) {
+  async function start() {
     if (setup === null || starting.current) return;
     starting.current = true;
     try {
@@ -51,6 +58,7 @@ export default function Page() {
         return;
       }
       saveRoundSetup(setup);
+      saveLastNumberPad(numberPad);
       // この画面からは必ず新しいゲームを始める(手元のキャッシュを作り直す)。続きはこの画面を通らない
       ScoreManager.startNewGame(userId, setup, backfillDate, numberPad);
       router.push(SCORE_CARD_PATH);
@@ -73,28 +81,28 @@ export default function Page() {
           draft={draft}
           onChange={setDraft}
         />
+        <div className="field">
+          <label className="NumberPadSetupField check-field">
+            <input
+              type="checkbox"
+              checked={numberPad}
+              onChange={(e) => setNumberPad(e.target.checked)}
+            />
+            {T.game.setup.numberPad}
+          </label>
+          <span className="hint">{T.game.setup.numberPadHint}</span>
+        </div>
       </div>
       {/* 設定の欄が長いので、開始はどこまで送っても押せるよう画面の下に留める */}
       <div className="SetupStart setup-start">
-        <span className="hint">{T.game.setup.numberPadHint}</span>
-        <div className="row">
-          <button
-            type="button"
-            className="StartTarget primary large grow"
-            disabled={setup === null}
-            onClick={() => start(false)}
-          >
-            {T.game.setup.startTarget}
-          </button>
-          <button
-            type="button"
-            className="StartNumberPad primary large grow"
-            disabled={setup === null}
-            onClick={() => start(true)}
-          >
-            {T.game.setup.startNumberPad}
-          </button>
-        </div>
+        <button
+          type="button"
+          className="primary large block"
+          disabled={setup === null}
+          onClick={start}
+        >
+          {T.game.setup.start}
+        </button>
       </div>
       <BackButton />
     </div>

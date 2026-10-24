@@ -42,10 +42,10 @@ export const game: typeof ja = {
       "Shows the sight where the zoom appears even while you are not pressing. Once you are used to it, keeping your eyes on the sight at the top and pressing by feel makes scoring easier.",
     innerTenHint: "Compound uses the inner 10: only the X ring scores 10, and the rest of the 10 ring scores 9.",
     sightPreview: "Scoring sight (actual size)",
-    startTarget: "On the target",
-    startNumberPad: "Scores only",
+    start: "Start game",
+    numberPad: "Enter numbers only",
     numberPadHint:
-      `"Scores only" uses number buttons instead of the target (arrow positions are not recorded). You cannot switch during the game.`,
+      "Enter scores with number buttons instead of tapping the target (arrow positions are not recorded). Your choice is kept for the next game. You cannot switch during a game.",
     padSpread: "Button distance (%)",
     padSpreadHint: "How far the number buttons sit from the base of your thumb. Smaller values pull them closer.",
     handedness: "Dominant hand",
