@@ -207,14 +207,10 @@ def test_admin_endpoints_are_forbidden_for_non_admins(client: TestClient, factor
 
     assert client.get("/api/v1/admin/feedbacks").status_code == 403
     assert client.get("/api/v1/admin/error-reports").status_code == 403
-    assert (
-        client.put(f"/api/v1/admin/error-reports/{error_report.id}/resolve").status_code == 403
-    )
+    assert client.put(f"/api/v1/admin/error-reports/{error_report.id}/resolve").status_code == 403
     assert client.get("/api/v1/admin/pending-counts").status_code == 403
     assert (
-        client.put(
-            f"/api/v1/admin/feedbacks/{feedback.id}/reply", json={"reply": "x"}
-        ).status_code
+        client.put(f"/api/v1/admin/feedbacks/{feedback.id}/reply", json={"reply": "x"}).status_code
         == 403
     )
 
@@ -278,7 +274,10 @@ TOKEN_READABLE_ROUTES = {
     "/api/v1/diaries/years",
 }
 # トークンで書ける口(AI コメント)。画面からのログインでは書けない
-TOKEN_WRITABLE_ROUTES = {("PUT", "/api/v1/games/{game_id}/ai-comment")}
+TOKEN_WRITABLE_ROUTES = {
+    ("PUT", "/api/v1/games/{game_id}/ai-comment"),
+    ("POST", "/api/v1/diaries/import"),
+}
 # トークンだけで繋ぐ口(MCP)。中で REST を呼び直し、どこまで通すかはそちらが決める
 TOKEN_ONLY_ROUTES = {("POST", "/api/v1/mcp")}
 UNAUTHENTICATED_ROUTES = {
@@ -322,7 +321,8 @@ def test_every_endpoint_declares_who_it_lets_in(method: str, route: APIRoute) ->
         assert {deps.authenticate, deps.require_access_token} <= calls
         assert deps.get_browser_claims not in calls
     elif (method, route.path) in TOKEN_WRITABLE_ROUTES:
-        assert {deps.authenticate, deps.get_ai_commenter} <= calls
+        assert deps.authenticate in calls
+        assert calls & {deps.get_ai_commenter, deps.get_diary_importer}
         assert deps.get_browser_claims not in calls
     elif method == "GET" and route.path in TOKEN_READABLE_ROUTES:
         assert {deps.authenticate, deps.get_reader} <= calls

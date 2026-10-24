@@ -15,6 +15,7 @@ from urllib.parse import urlencode
 
 from app.agent.guide import mcp_instructions
 from app.core.comments import MAX_AI_COMMENT_LENGTH
+from app.core.diary import MAX_DIARY_IMPORT_COUNT, MAX_DIARY_LENGTH
 
 # 新しい順。クライアントが言うバージョンがこの中にあればそれで、無ければ先頭で答える
 PROTOCOL_VERSIONS = (
@@ -200,6 +201,47 @@ TOOLS = [
             }
         ),
         to_request=lambda args: ApiRequest("GET", "/diaries", _optional(args, "year", "limit")),
+    ),
+    Tool(
+        name="import_diaries",
+        title="日記を取り込む",
+        description=(
+            "別の所(メモ・ノート・他のアプリ)の日記を、書いた日時ごと本人の日記に取り込む。"
+            f"一度に {MAX_DIARY_IMPORT_COUNT} 件まで。written_at は書いた日時(ISO 8601。"
+            "タイムゾーンが無ければ日本時間、時刻が分からなければ T00:00:00)。"
+            "同じ本文・同じ日時の日記が既にあれば飛ばすので、やり直しても二重にならない。"
+        ),
+        input_schema=_object(
+            {
+                "diaries": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": MAX_DIARY_IMPORT_COUNT,
+                    "items": _object(
+                        {
+                            "body": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": MAX_DIARY_LENGTH,
+                            },
+                            "written_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "description": "YYYY-MM-DDTHH:MM:SS(日本時間)",
+                            },
+                        },
+                        ["body", "written_at"],
+                    ),
+                },
+            },
+            ["diaries"],
+        ),
+        to_request=lambda args: ApiRequest(
+            "POST",
+            "/diaries/import",
+            body={"diaries": args.get("diaries")},
+        ),
+        read_only=False,
     ),
     Tool(
         name="write_ai_comment",

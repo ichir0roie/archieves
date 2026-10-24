@@ -118,3 +118,40 @@ def test_list_diary_years_returns_years_in_jst_newest_first(
 
 def test_list_diary_years_is_empty_at_first(client: TestClient) -> None:
     assert client.get("/api/v1/diaries/years").json() == []
+
+
+def test_import_diaries_needs_a_token(client: TestClient) -> None:
+    payload = {"diaries": [{"body": "x", "written_at": "2026-05-01T00:00:00"}]}
+    assert client.post("/api/v1/diaries/import", json=payload).status_code == 403
+
+
+def test_import_diaries_skips_the_same_body_and_date(token_client: TestClient) -> None:
+    payload = {
+        "diaries": [
+            {"body": "同じ", "written_at": "2026-05-01T09:00:00"},
+            {"body": "同じ", "written_at": "2026-05-01T09:00:00"},
+            {"body": "同じ", "written_at": "2026-05-02T09:00:00"},
+        ]
+    }
+    response = token_client.post("/api/v1/diaries/import", json=payload)
+
+    assert response.status_code == 201
+    body = response.json()
+    assert [d["created_at"] for d in body["imported"]] == [
+        "2026-05-01T00:00:00Z",
+        "2026-05-02T00:00:00Z",
+    ]
+    assert body["skipped"] == 1
+
+
+def test_import_diaries_rejects_empty_and_too_many(token_client: TestClient) -> None:
+    url = "/api/v1/diaries/import"
+    assert token_client.post(url, json={"diaries": []}).status_code == 422
+    too_many = [{"body": "x", "written_at": f"2026-01-01T00:{i % 60:02d}:00"} for i in range(101)]
+    assert token_client.post(url, json={"diaries": too_many}).status_code == 422
+    assert (
+        token_client.post(
+            url, json={"diaries": [{"body": "", "written_at": "2026-01-01"}]}
+        ).status_code
+        == 422
+    )

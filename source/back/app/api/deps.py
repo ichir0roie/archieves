@@ -3,6 +3,7 @@
 - get_me: 画面からログインした本人。書き込み・設定・トークンの発行など
 - get_reader: get_me に加え、本人が発行したトークン(Claude Code など)。本人の記録を読む GET だけ
 - get_ai_commenter: 本人が発行したトークンだけ。AI コメントを書く口
+- get_diary_importer: 本人が発行したトークンだけ。日記を取り込む口
 - require_access_token: 本人が発行したトークンだけ。MCP の口
   (中で REST を呼び直し、そちらが改めて確かめる)
 - get_admin: 画面からログインした管理者
@@ -20,6 +21,7 @@ from app.core.errors import (
     ACCESS_TOKEN_NOT_ALLOWED,
     AI_COMMENT_NEEDS_ACCESS_TOKEN,
     CURRENT_USER_NOT_REGISTERED,
+    DIARY_IMPORT_NEEDS_ACCESS_TOKEN,
     ForbiddenError,
     NotFoundError,
 )
@@ -37,6 +39,7 @@ __all__ = [
     "get_admin",
     "get_ai_commenter",
     "get_browser_claims",
+    "get_diary_importer",
     "get_me",
     "get_optional_current_user",
     "get_optional_me",
@@ -117,11 +120,20 @@ def get_ai_commenter(
 ) -> tuple[AccessToken, User]:
     """AI コメントを書く、トークンとその持ち主。トークンで書く口なので、画面からのログインは 403。
 
-    トークンで書けるのはここだけ(AI コメント)。
+    トークンで書けるのは、ここと get_diary_importer(日記の取り込み)だけ。
     """
     if found is None:
         raise ForbiddenError(AI_COMMENT_NEEDS_ACCESS_TOKEN)
     return found
+
+
+def get_diary_importer(
+    found: tuple[AccessToken, User] | None = Depends(get_access_token),
+) -> User:
+    """日記を取り込む、トークンの持ち主。AI が別の所の日記を移す口なので、ログインは 403。"""
+    if found is None:
+        raise ForbiddenError(DIARY_IMPORT_NEEDS_ACCESS_TOKEN)
+    return found[1]
 
 
 def authenticate(

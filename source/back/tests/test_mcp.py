@@ -72,7 +72,7 @@ def test_ping_and_tools_list(token_client: TestClient) -> None:
 
     assert {tool["name"] for tool in tools} == set(mcp.TOOLS_BY_NAME)
     writes = [tool["name"] for tool in tools if not tool["annotations"]["readOnlyHint"]]
-    assert writes == ["write_ai_comment"]
+    assert writes == ["import_diaries", "write_ai_comment"]
 
 
 def test_game_sheets_of_a_day_are_mine_only(
@@ -231,9 +231,7 @@ def test_call_asgi_reads_a_body_that_is_not_json(
 ) -> None:
     headers = {ACCESS_TOKEN_HEADER: access_token}
 
-    guide = asyncio.run(
-        mcp.call_asgi(app, mcp.ApiRequest("GET", "/guide"), headers, "/api/v1")
-    )
+    guide = asyncio.run(mcp.call_asgi(app, mcp.ApiRequest("GET", "/guide"), headers, "/api/v1"))
 
     assert guide.status == 200
     assert isinstance(guide.data, str)
@@ -261,3 +259,25 @@ def test_tools_pass_the_token_and_the_api_key_on(
 
     assert response.json()["result"]["isError"] is False
     assert sent == [{ACCESS_TOKEN_HEADER: access_token, API_KEY_HEADER: "web-key"}]
+
+
+def test_import_diaries_adds_them_with_their_dates(token_client: TestClient) -> None:
+    arguments = {
+        "diaries": [
+            {"body": "風が強かった", "written_at": "2026-05-01T00:00:00"},
+            {"body": "70m で 600 点", "written_at": "2026-05-02T21:30:00+09:00"},
+        ]
+    }
+    result = _call(token_client, "import_diaries", arguments)
+
+    assert result["isError"] is False
+    assert "風が強かった" in result["content"][0]["text"]
+    diaries = token_client.get("/api/v1/diaries", params={"year": 2026}).json()
+    assert [(d["body"], d["created_at"]) for d in diaries] == [
+        ("70m で 600 点", "2026-05-02T12:30:00Z"),
+        ("風が強かった", "2026-04-30T15:00:00Z"),
+    ]
+    # やり直しても二重にならない
+    again = _call(token_client, "import_diaries", arguments)
+    assert '"skipped": 2' in again["content"][0]["text"]
+    assert len(token_client.get("/api/v1/diaries").json()) == 2
