@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     statistics,
     support,
     users,
+    warm_up,
 )
 
 api_router = APIRouter()
@@ -46,4 +47,5 @@ authenticated_router.include_router(support.router, tags=["support"])
 authenticated_router.include_router(diaries.router, tags=["diaries"])
 authenticated_router.include_router(access_tokens.router, tags=["access-tokens"])
 authenticated_router.include_router(mcp.router, tags=["mcp"])
+authenticated_router.include_router(warm_up.router, tags=["warm-up"])
 api_router.include_router(authenticated_router)

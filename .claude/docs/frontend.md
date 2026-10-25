@@ -23,6 +23,7 @@ Next.js(App Router)・React 19。スマホで使う前提の画面が多い。
 - 失敗は `ApiError` になる。画面には `toErrorDetails()` を `ApiErrorAlert` に渡して出す
 - `client.ts` の `handleApiError` が、API のエラーをエラーの集積(`POST /error-reports`)に送り、ホームへ戻す(`ApiErrorRedirect`)。入力の不備(422)・重なり(409)は画面に残す。ログインの切れ(401)と登録の前の 404 は AuthGate に任せ、どちらもしない。画面が受けて扱うステータス(他人のプロフィールの 403 など)は、`request` に `expectedStatuses` を渡して外す
 - 無いページ(`src/app/not-found.tsx`)も集積に送ってホームへ戻す
+- 画面が見えている間は、`ApiWarmUp.tsx` が 1 分ごとに `GET /warm-up` を叩き、API(Lambda)の実行環境と db の接続を温めておく。点数の入力は保存まで API を叩かないので、温めないと保存が冷えた API に当たって数秒かかる
 - 型は手で書かない。`src/lib/api/openapi.d.ts` は API の OpenAPI から `npm run types` で作り、`schemas.ts` は名前を付け直すだけにする(`export type GameRead = Schemas['GameRead']`)。API を変えたら作り直す(`.claude/docs/backend.md` の「OpenAPI とフロントの型」)
 - 応答に無い欄が要る画面の状態は、生成した型を広げた型を画面の側で作る。`schemas.ts` に手書きの型を戻さない
 - 向け先は `NEXT_PUBLIC_API_BASE_URL`(既定 `http://localhost:8000/api/v1`)

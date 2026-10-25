@@ -4737,6 +4737,29 @@
         ]
       }
     },
+    "/api/v1/warm-up": {
+      "get": {
+        "tags": [
+          "warm-up"
+        ],
+        "summary": "Warm Up",
+        "description": "画面が開いている間、フロントが 1 分ごとに叩く(components/ApiWarmUp.tsx)。\n\n点数の入力は手元にだけ書くので、保存までの間 API が叩かれず、Lambda の実行環境が落ちる(5 分ほど\n空くと冷える)。冷えた所への保存は、起動と db への初めての接続(IAM 認証)で数秒かかる。\n実行環境と db の接続を残しておくため、db まで一往復する。/health は db に触らないので\n代わりにならない。",
+        "operationId": "warm_up_api_v1_warm_up_get",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/": {
       "get": {
         "tags": [

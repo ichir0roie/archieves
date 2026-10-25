@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import "@aws-amplify/ui-react/styles.css";
 import "./globals.css";
 import ApiErrorRedirect from "@/components/ApiErrorRedirect";
+import ApiWarmUp from "@/components/ApiWarmUp";
 import AuthGate from "@/components/AuthGate";
 import Nav from "@/components/Nav";
 import { T } from "@/lib/text/server";
@@ -52,6 +53,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <AuthGate>
           <ApiErrorRedirect />
+          <ApiWarmUp />
           <Nav />
           {/* useSearchParams を読む画面(score-view)があるので、Suspense で包む */}
           <main>

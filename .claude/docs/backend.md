@@ -77,7 +77,7 @@ cd source/front && npm run types
 | `deps.get_diary_importer` | 本人が発行したトークンだけ(画面からのログインは 403) | `POST /diaries/import`(AI が別の所の日記を書いた日時ごと取り込む。同じ本文・日時は飛ばす)。`TOKEN_WRITABLE_ROUTES` に並べる |
 | `deps.get_me` | 画面からログインした本人(トークンは 403) | 上の書き込み全部、`PATCH/DELETE /users/me`、`/import`、`/feedbacks`、`/access-tokens` |
 | `deps.get_admin` | 画面からログインした管理者(`users.is_admin`。違えば 403) | `/admin/*` |
-| `deps.get_browser_claims` | 画面からのログイン(利用者の行が無くてもよい) | `/users/me/ensure`、`POST /error-reports`、`/organizations/*`、`/announcements` |
+| `deps.get_browser_claims` | 画面からのログイン(利用者の行が無くてもよい) | `/users/me/ensure`、`POST /error-reports`、`/organizations/*`、`/announcements`、`/warm-up` |
 | `deps.get_optional_me` | ログインしていない人も。トークンは 403 | `/public/*`(`authenticated_router` の外) |
 
 - 本人の行(持ち主)は要求で受けない。`user_id` をクエリ・パス・本文に置かず、上の依存が返す本人(`me`)を使う。行を引くところは `deps.get_own_or_404(me, ...)`(持ち主が違えば 403)

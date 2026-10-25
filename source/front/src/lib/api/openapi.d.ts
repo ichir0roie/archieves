@@ -1068,6 +1068,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/warm-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Warm Up
+         * @description 画面が開いている間、フロントが 1 分ごとに叩く(components/ApiWarmUp.tsx)。
+         *
+         *     点数の入力は手元にだけ書くので、保存までの間 API が叩かれず、Lambda の実行環境が落ちる(5 分ほど
+         *     空くと冷える)。冷えた所への保存は、起動と db への初めての接続(IAM 認証)で数秒かかる。
+         *     実行環境と db の接続を残しておくため、db まで一往復する。/health は db に触らないので
+         *     代わりにならない。
+         */
+        get: operations["warm_up_api_v1_warm_up_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -4548,6 +4573,24 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                 };
+            };
+        };
+    };
+    warm_up_api_v1_warm_up_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
