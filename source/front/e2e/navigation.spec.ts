@@ -60,6 +60,12 @@ test("menu navigates to each primary destination", async ({ page }) => {
   await expect(page.locator("header")).toContainText("ランキング");
 
   await page.goto("/");
+  await openMenuAndGo(page, "使い方");
+  await expect(page).toHaveURL(/\/guide$/, { timeout: ROUTE_TIMEOUT });
+  await expect(page.locator("header")).toContainText("使い方");
+  await expect(page.getByRole("heading", { name: "ホーム画面に追加(インストール)" })).toBeVisible();
+
+  await page.goto("/");
   await openMenuAndGo(page, "意見箱");
   await expect(page).toHaveURL(/\/feedback$/, { timeout: ROUTE_TIMEOUT });
   await expect(page.locator("header")).toContainText("意見箱");

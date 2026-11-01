@@ -1,5 +1,6 @@
 "use client";
 
+import { useSignedIn } from "@/components/AuthGate";
 import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
@@ -72,7 +73,10 @@ export default function Page() {
   const [bowType, setBowType] = useState(ALL);
   const [distance, setDistance] = useState(ALL);
   const [organizationId, setOrganizationId] = useState(ALL);
-  const organizations = useLoad(listOrganizations, []).data ?? [];
+  const signedIn = useSignedIn();
+  // 組織の一覧はログインが要るので、ログインしていなければ組織では絞らせない
+  const organizations =
+    useLoad(() => (signedIn ? listOrganizations() : Promise.resolve([])), [signedIn]).data ?? [];
   const { data, loading, error } = useLoad(() => {
     const query: RankingQuery = {
       metric,
@@ -129,25 +133,27 @@ export default function Page() {
               />
             )}
           </Field>
-          <Field label={T.stats.ranking.organization}>
-            {(id) => (
-              <Picker
-                id={id}
-                title={T.stats.ranking.organization}
-                options={organizations.map((org) => ({
-                  value: String(org.id),
-                  label: org.name,
-                }))}
-                value={organizationId}
-                onChange={setOrganizationId}
-                emptyLabel={T.all}
-              />
-            )}
-          </Field>
+          {signedIn && (
+            <Field label={T.stats.ranking.organization}>
+              {(id) => (
+                <Picker
+                  id={id}
+                  title={T.stats.ranking.organization}
+                  options={organizations.map((org) => ({
+                    value: String(org.id),
+                    label: org.name,
+                  }))}
+                  value={organizationId}
+                  onChange={setOrganizationId}
+                  emptyLabel={T.all}
+                />
+              )}
+            </Field>
+          )}
         </div>
       </div>
 
-      <p className="muted small">{T.stats.ranking.visibilityNote}</p>
+      <p className="muted small">{signedIn ? T.stats.ranking.visibilityNote : T.anonymous.rankingNote}</p>
 
       {error && <ApiErrorAlert error={error} />}
 

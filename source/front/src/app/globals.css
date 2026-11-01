@@ -16,6 +16,11 @@
   --chip: #eceef2;
   --font: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
   --mono: "SFMono-Regular", Menlo, Consolas, monospace;
+  /* iPhone のノッチ・角の丸み・ホームバーの幅(layout.tsx の viewportFit: "cover" で効く)。無い端末は 0 */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -44,6 +49,8 @@ body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 button, a { -webkit-touch-callout: none; }
 /* スマホではアドレスバーの出入りで 100% が実際の表示より高くなり、下端(入力のボタンなど)が隠れるので、見えている高さに合わせる */
 body { height: 100dvh; }
+/* 画面の端を iPhone のノッチ・ホームバーに掛けない。画面いっぱいに描く(viewportFit: "cover")ので、中身はその内側に置く */
+body { padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left); }
 body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.6; display: flex; }
 /* ログインの画面(components/AuthGate.tsx)。Authenticator が全体を div で包むので、箱を作らせず body の flex をそのまま効かせる */
 [data-amplify-theme] { display: contents; }
@@ -174,14 +181,14 @@ table.list th { color: var(--muted); font-weight: 600; background: var(--chip); 
 /* ---- メニュー(components/Nav.tsx) ----
    画面の隅に浮かべた丸いボタンを押したときだけ開く。デスクトップは左上、スマホは親指の届く右下 */
 .nav-fab {
-  position: fixed; top: 10px; left: 10px; z-index: 31;
+  position: fixed; top: calc(10px + var(--safe-top)); left: calc(10px + var(--safe-left)); z-index: 31;
   width: 42px; height: 42px; padding: 0; border-radius: 999px;
   display: flex; align-items: center; justify-content: center;
   background: var(--panel); color: var(--muted); border: 1px solid var(--line); box-shadow: 0 2px 8px rgb(0 0 0 / 0.18);
 }
 .nav-fab:hover, .nav-fab.open { color: var(--accent); border-color: var(--accent); }
 .nav-panel {
-  position: fixed; top: 60px; left: 10px; z-index: 30; min-width: 14rem; padding: 0.6rem;
+  position: fixed; top: calc(60px + var(--safe-top)); left: calc(10px + var(--safe-left)); z-index: 30; min-width: 14rem; padding: 0.6rem;
   display: flex; flex-direction: column; gap: 0.15rem;
   background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgb(0 0 0 / 0.25);
 }
@@ -193,7 +200,8 @@ table.list th { color: var(--muted); font-weight: 600; background: var(--chip); 
 .nav-panel hr { border: 0; border-top: 1px solid var(--line); margin: 0.3rem 0; width: 100%; }
 
 /* ---- モーダル(components/Modal.tsx) ---- */
-.modal-backdrop { position: fixed; inset: 0; z-index: 50; background: rgb(0 0 0 / 0.4); display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 50; background: rgb(0 0 0 / 0.4); display: flex; align-items: center; justify-content: center;
+  padding: calc(1rem + var(--safe-top)) calc(1rem + var(--safe-right)) calc(1rem + var(--safe-bottom)) calc(1rem + var(--safe-left)); }
 .modal { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; width: 100%; max-width: 34rem; max-height: 90dvh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgb(0 0 0 / 0.25); }
 .modal.wide { max-width: min(96vw, 60rem); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 0.7rem 1rem; border-bottom: 1px solid var(--line); }
@@ -225,7 +233,7 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior
 .HomeMenu { display: flex; flex-direction: column; gap: 0.75rem; }
 .HomeMenu a { display: flex; align-items: center; justify-content: center; min-height: 3.5rem; padding: 0.7rem 0.8rem; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); font-weight: 600; text-align: center; }
 .HomeMenu a:hover { border-color: var(--accent); text-decoration: none; }
-.HomeStart { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 5; width: min(20rem, calc(100% - 160px)); display: flex; flex-direction: column; gap: 0.6rem; }
+.HomeStart { position: fixed; left: 50%; bottom: calc(16px + var(--safe-bottom)); transform: translateX(-50%); z-index: 5; width: min(20rem, calc(100% - 160px)); display: flex; flex-direction: column; gap: 0.6rem; }
 .HomeStart a { display: flex; align-items: center; justify-content: center; padding: 0.7rem 0.8rem; border-radius: 999px; font-weight: 700; text-align: center; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); }
 .HomeStart a:hover { text-decoration: none; filter: brightness(1.05); }
 .HomeStart a.start { min-height: 4.5rem; font-size: 1.15rem; background: var(--accent); color: var(--accent-ink); }
@@ -263,6 +271,8 @@ main { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior
 /* ---- 点数の入力(/game/score-card) ----
    画面全体を使い、main の余白もメニューのボタンも出さない(components/Nav.tsx) */
 main:has(> .score-entry) { padding: 0; overflow: hidden; }
+/* ホームバー・ノッチの下(body の --safe-* の余白)も、入力の画面と同じ色で埋める */
+body:has(.score-entry) { background: var(--panel); }
 .score-entry { height: 100%; display: flex; flex-direction: column; background: var(--panel); }
 .score-entry > .grow { flex: 1; min-height: 0; }
 .score-top { display: flex; align-items: center; gap: 0.75rem; padding: 0.35rem 0.75rem; border-bottom: 1px solid var(--line); flex-shrink: 0; }
@@ -283,7 +293,7 @@ main:has(> .score-entry) { padding: 0; overflow: hidden; }
 .round-totals .end .value { font-size: 0.9rem; font-weight: 700; }
 .round-totals .end.current { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); }
 .score-loading { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 1.5rem; }
-.score-entry > .status.error.floating { position: fixed; top: 3.5rem; left: 0.75rem; right: 0.75rem; z-index: 10; max-height: 60vh; overflow: auto; }
+.score-entry > .status.error.floating { position: fixed; top: calc(3.5rem + var(--safe-top)); left: calc(0.75rem + var(--safe-left)); right: calc(0.75rem + var(--safe-right)); z-index: 10; max-height: 60vh; overflow: auto; }
 
 /* 今のエンドの矢(一本ずつの丸)と合計 */
 .end-view { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1rem; max-width: 28rem; width: 100%; margin: 0 auto; flex-shrink: 0; }
@@ -390,6 +400,15 @@ table.list.view-sheet { table-layout: fixed; }
 .view-sheet .end-col { width: 2.5rem; }
 .view-sheet .sum-col { width: 3.5rem; }
 .view-sheet .icon-col { width: 2.5rem; padding: 0; }
+/* エンドの行は押すとそのエンドの的を開く(RoundScoreSheet)。番号のボタンは文字のように見せる */
+.view-sheet .end-row { cursor: pointer; }
+.view-sheet .end-row:hover td { background: color-mix(in srgb, var(--accent) 6%, var(--panel)); }
+.view-sheet .end-map-button { width: 100%; padding: 0.2rem 0; border: 0; border-radius: 6px; background: none; font-weight: 600; color: var(--accent); }
+/* 一エンドの的のモーダル。点数を帯の色の丸で並べ、右に小計 */
+.end-map-scores { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.arrow-chip { min-width: 2.2rem; padding: 0.15rem 0.5rem; border-radius: 999px; text-align: center; font-weight: 700; background: var(--ring); color: var(--ring-ink); border: 1px solid #6a7080; }
+.end-map-total { margin-left: auto; }
+.end-map-total b { font-size: 1.2rem; }
 .view-sheet .comment-row td { text-align: left; font-weight: 400; font-size: 0.8rem; padding-top: 0; white-space: pre-wrap; }
 
 /* スコアの公開ページ(/score-share)。合計は一行まるまる使い、その下にラウンドごとの点数表と
@@ -439,21 +458,21 @@ table.list.view-sheet { table-layout: fixed; }
 
 /* 設定画面で選んだ隅(未設定なら上の既定)。狭い画面の指定より強くするため nav[data-pos] を付ける */
 nav[data-pos] .nav-fab { width: 42px; height: 42px; }
-nav[data-pos^="top"] .nav-fab { top: 10px; bottom: auto; }
-nav[data-pos^="bottom"] .nav-fab { top: auto; bottom: 16px; }
-nav[data-pos$="left"] .nav-fab { left: 10px; right: auto; }
-nav[data-pos$="right"] .nav-fab { left: auto; right: 16px; }
-nav[data-pos^="top"] .nav-panel { top: 60px; bottom: auto; }
-nav[data-pos^="bottom"] .nav-panel { top: auto; bottom: 70px; }
-nav[data-pos$="left"] .nav-panel { left: 10px; right: auto; }
-nav[data-pos$="right"] .nav-panel { left: auto; right: 16px; }
+nav[data-pos^="top"] .nav-fab { top: calc(10px + var(--safe-top)); bottom: auto; }
+nav[data-pos^="bottom"] .nav-fab { top: auto; bottom: calc(16px + var(--safe-bottom)); }
+nav[data-pos$="left"] .nav-fab { left: calc(10px + var(--safe-left)); right: auto; }
+nav[data-pos$="right"] .nav-fab { left: auto; right: calc(16px + var(--safe-right)); }
+nav[data-pos^="top"] .nav-panel { top: calc(60px + var(--safe-top)); bottom: auto; }
+nav[data-pos^="bottom"] .nav-panel { top: auto; bottom: calc(70px + var(--safe-bottom)); }
+nav[data-pos$="left"] .nav-panel { left: calc(10px + var(--safe-left)); right: auto; }
+nav[data-pos$="right"] .nav-panel { left: auto; right: calc(16px + var(--safe-right)); }
 
 /* ---- 狭い画面 ---- */
 @media (max-width: 640px) {
-  .nav-fab { top: auto; left: auto; bottom: 16px; right: 16px; width: 52px; height: 52px; }
-  .nav-panel { top: auto; left: auto; bottom: 80px; right: 16px; }
+  .nav-fab { top: auto; left: auto; bottom: calc(16px + var(--safe-bottom)); right: calc(16px + var(--safe-right)); width: 52px; height: 52px; }
+  .nav-panel { top: auto; left: auto; bottom: calc(80px + var(--safe-bottom)); right: calc(16px + var(--safe-right)); }
   .page-header { padding-left: 0; }
-  .modal-backdrop { padding: 0.5rem; }
+  .modal-backdrop { padding: calc(0.5rem + var(--safe-top)) calc(0.5rem + var(--safe-right)) calc(0.5rem + var(--safe-bottom)) calc(0.5rem + var(--safe-left)); }
   .modal { max-height: 95dvh; }
 }
 
@@ -471,3 +490,7 @@ nav[data-pos$="right"] .nav-panel { left: auto; right: 16px; }
 .DiaryCell + .DiaryCell { border-top: 1px solid var(--line); }
 .DiaryCell-date { color: var(--muted); font-size: 0.85rem; }
 .Announcements li + li { border-top: 1px solid var(--line); padding-top: 0.6rem; }
+
+/* ---- 使い方(app/guide) ---- */
+.guide-items { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.home-intro-lead { margin: 0; font-weight: 600; }

@@ -2,6 +2,7 @@ import type { Texts } from "..";
 import { common } from "./common";
 import { diary } from "./diary";
 import { game } from "./game";
+import { guide } from "./guide";
 import { home } from "./home";
 import { legal } from "./legal";
 import { profile } from "./profile";
@@ -14,6 +15,7 @@ export const texts: Texts = {
   home,
   stats,
   game,
+  guide,
   profile,
   settings,
   support,

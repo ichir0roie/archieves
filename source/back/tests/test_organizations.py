@@ -116,3 +116,144 @@ def test_find_or_create_organization_creates_then_reuses(client: TestClient) -> 
     second = client.post("/api/v1/organizations/find-or-create", json=payload)
     assert second.status_code == 200
     assert second.json() == created
+
+
+def test_admin_lists_organizations_with_their_user_counts(
+    client: TestClient, current_user, factories
+) -> None:
+    current_user.is_admin = True
+    club = factories.OrganizationFactory(name="一覧の部")
+    empty = factories.OrganizationFactory(name="空の部")
+    factories.UserFactory.create_batch(2, organization=club)
+
+    response = client.get("/api/v1/admin/organizations")
+    assert response.status_code == 200
+    counts = {org["id"]: org["user_count"] for org in response.json()}
+    assert counts[club.id] == 2
+    assert counts[empty.id] == 0
+
+
+def test_admin_updates_an_organization(client: TestClient, current_user, factories) -> None:
+    current_user.is_admin = True
+    parent = factories.OrganizationFactory(name="全日本アーチェリー連盟")
+    club = factories.OrganizationFactory(name="直す前の部", location="大阪")
+    factories.UserFactory(organization=club)
+
+    response = client.patch(
+        f"/api/v1/admin/organizations/{club.id}",
+        json={
+            "name": "直した部",
+            "homepage_url": "https://example.com/club",
+            "parent_organization_id": parent.id,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "直した部"
+    assert body["homepage_url"] == "https://example.com/club"
+    # 送らなかった欄は残る
+    assert body["location"] == "大阪"
+    assert body["parent_organization"] == {"id": parent.id, "name": parent.name}
+    assert body["user_count"] == 1
+    assert client.get(f"/api/v1/organizations/{club.id}").json()["name"] == "直した部"
+
+
+def test_admin_clears_fields_with_null(client: TestClient, current_user, factories) -> None:
+    current_user.is_admin = True
+    parent = factories.OrganizationFactory(name="上の会")
+    club = factories.OrganizationFactory(
+        name="消す部",
+        location="京都",
+        homepage_url="https://example.com",
+        parent_organization=parent,
+    )
+
+    response = client.patch(
+        f"/api/v1/admin/organizations/{club.id}",
+        json={"location": None, "homepage_url": None, "parent_organization_id": None},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["location"] is None
+    assert body["homepage_url"] is None
+    assert body["parent_organization"] is None
+    assert body["name"] == "消す部"
+
+
+def test_admin_update_keeps_its_own_name(client: TestClient, current_user, factories) -> None:
+    current_user.is_admin = True
+    club = factories.OrganizationFactory(name="同じ名前の部")
+
+    response = client.patch(
+        f"/api/v1/admin/organizations/{club.id}",
+        json={"name": "同じ名前の部", "location": "神戸"},
+    )
+    assert response.status_code == 200
+    assert response.json()["location"] == "神戸"
+
+
+def test_admin_update_rejects_a_taken_name(client: TestClient, current_user, factories) -> None:
+    current_user.is_admin = True
+    factories.OrganizationFactory(name="先にある部")
+    club = factories.OrganizationFactory(name="後の部")
+
+    response = client.patch(
+        f"/api/v1/admin/organizations/{club.id}", json={"name": "先にある部"}
+    )
+    assert response.status_code == 409
+
+
+def test_admin_update_rejects_bad_values(client: TestClient, current_user, factories) -> None:
+    current_user.is_admin = True
+    club = factories.OrganizationFactory(name="弾く部")
+    path = f"/api/v1/admin/organizations/{club.id}"
+
+    assert client.patch(path, json={"name": None}).status_code == 422
+    assert client.patch(path, json={"name": ""}).status_code == 422
+    assert client.patch(path, json={"name": "x" * 1000}).status_code == 422
+    assert client.patch(path, json={"homepage_url": "javascript:alert(1)"}).status_code == 422
+    assert client.get(f"/api/v1/organizations/{club.id}").json()["name"] == "弾く部"
+
+
+def test_admin_update_rejects_a_parent_that_makes_a_loop(
+    client: TestClient, current_user, factories
+) -> None:
+    current_user.is_admin = True
+    top = factories.OrganizationFactory(name="上")
+    middle = factories.OrganizationFactory(name="中", parent_organization=top)
+    bottom = factories.OrganizationFactory(name="下", parent_organization=middle)
+    path = f"/api/v1/admin/organizations/{top.id}"
+
+    assert client.patch(path, json={"parent_organization_id": top.id}).status_code == 422
+    assert client.patch(path, json={"parent_organization_id": bottom.id}).status_code == 422
+    assert client.get(f"/api/v1/organizations/{top.id}").json()["parent_organization"] is None
+
+
+def test_admin_update_of_missing_rows_is_not_found(
+    client: TestClient, current_user, factories
+) -> None:
+    current_user.is_admin = True
+    club = factories.OrganizationFactory(name="ある部")
+
+    assert (
+        client.patch("/api/v1/admin/organizations/999999999", json={"name": "x"}).status_code
+        == 404
+    )
+    assert (
+        client.patch(
+            f"/api/v1/admin/organizations/{club.id}",
+            json={"parent_organization_id": 999999999},
+        ).status_code
+        == 404
+    )
+
+
+def test_admin_organizations_are_forbidden_for_non_admins(
+    client: TestClient, factories
+) -> None:
+    club = factories.OrganizationFactory(name="触れない部")
+
+    assert client.get("/api/v1/admin/organizations").status_code == 403
+    response = client.patch(f"/api/v1/admin/organizations/{club.id}", json={"name": "x"})
+    assert response.status_code == 403
+    assert client.get(f"/api/v1/organizations/{club.id}").json()["name"] == "触れない部"

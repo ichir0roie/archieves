@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 import { isMockAuth } from "@/lib/auth/config";
 import { MOCK_USER } from "@/lib/auth/mockUser";
+import { MOCK_SIGNED_OUT_COOKIE } from "@/lib/auth/openPaths";
 import { runWithAmplifyServerContext } from "@/lib/auth/server";
 import { T } from "@/lib/text/server";
 import outputs from "../../../../../amplify_outputs.json";
@@ -74,6 +75,8 @@ type VerifiedUser = {
 
 async function verifiedUser(): Promise<VerifiedUser | null> {
   if (verifier === null) {
+    // ログインしていない人を真似るクッキー(E2E でログインなしの画面を確かめる)があれば、ログインなしにする
+    if ((await cookies()).has(MOCK_SIGNED_OUT_COOKIE)) return null;
     // API の AUTH_MODE=mock はトークンの中身を見ず、ヘッダーがあることだけを求める
     return { token: `mock-token-${MOCK_USER.sub}`, ...MOCK_USER };
   }

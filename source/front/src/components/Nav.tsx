@@ -3,10 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useSignOut } from "@/components/AuthGate";
+import { useSignOut, useSignedIn } from "@/components/AuthGate";
 import { useCachedAppUser } from "@/hooks/useCachedAppUser";
 import { isMockAuth } from "@/lib/auth/config";
-import { DESTINATIONS, SCORE_CARD_PATH, type Destination } from "@/lib/destinations";
+import { SIGN_IN_PATH } from "@/lib/auth/openPaths";
+import {
+  DESTINATIONS,
+  SCORE_CARD_PATH,
+  SIGNED_OUT_DESTINATIONS,
+  type Destination,
+} from "@/lib/destinations";
 import { useMenuPosition } from "@/lib/menuPosition";
 import { isPublicPath } from "@/lib/scoreShare";
 import { useT } from "@/lib/text";
@@ -20,6 +26,7 @@ export default function Nav() {
   const T = useT();
   const pathname = usePathname();
   const signOut = useSignOut();
+  const signedIn = useSignedIn();
   const position = useMenuPosition();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLElement>(null);
@@ -101,14 +108,20 @@ export default function Nav() {
           >
             {T.appName}
           </Link>
-          {DESTINATIONS.filter((item) => !item.adminOnly).map(link)}
-          {me?.isAdmin && (
+          {signedIn ? DESTINATIONS.filter((item) => !item.adminOnly).map(link) : SIGNED_OUT_DESTINATIONS.map(link)}
+          {!signedIn && (
+            <>
+              <hr />
+              <Link href={SIGN_IN_PATH}>{T.anonymous.signIn}</Link>
+            </>
+          )}
+          {signedIn && me?.isAdmin && (
             <>
               <hr />
               {DESTINATIONS.filter((item) => item.adminOnly).map(link)}
             </>
           )}
-          {!isMockAuth() && (
+          {signedIn && !isMockAuth() && (
             <>
               <hr />
               <button

@@ -3,6 +3,8 @@ from datetime import UTC, date, datetime
 
 from fastapi.testclient import TestClient
 
+from app.services.archieves_export import FORMAT_VERSION
+
 PATH = "/api/v1/export/records.db"
 SHOT_AT = datetime(2026, 5, 1, 0, 1, tzinfo=UTC)
 
@@ -213,6 +215,79 @@ def test_import_rejects_a_sqlite_file_that_is_not_an_archieves_export(
     )
 
     assert res.status_code == 400
+
+
+def test_import_rejects_a_file_of_another_format(
+    client: TestClient, current_user, factories, tmp_path
+) -> None:
+    _my_game(factories, current_user)
+    path = tmp_path / "other-format.db"
+    path.write_bytes(client.get(PATH).content)
+    with sqlite3.connect(path) as conn:
+        conn.execute("UPDATE _about SET value = 'other-export' WHERE key = 'format'")
+
+    res = client.post(
+        "/api/v1/import",
+        data={"source": "archieves"},
+        files={"file": ("archieves-records.db", path.read_bytes(), "application/vnd.sqlite3")},
+    )
+
+    assert res.status_code == 400
+    assert res.json()["detail"] == "Not an archieves export file"
+
+
+def test_import_rejects_a_file_from_a_newer_format_version(
+    client: TestClient, current_user, factories, tmp_path
+) -> None:
+    _my_game(factories, current_user)
+    path = tmp_path / "newer.db"
+    path.write_bytes(client.get(PATH).content)
+    newer = FORMAT_VERSION + 1
+    with sqlite3.connect(path) as conn:
+        conn.execute(f"UPDATE _about SET value = '{newer}' WHERE key = 'format_version'")
+
+    res = client.post(
+        "/api/v1/import",
+        data={"source": "archieves"},
+        files={"file": ("archieves-records.db", path.read_bytes(), "application/vnd.sqlite3")},
+    )
+
+    assert res.status_code == 400
+    assert res.json()["detail"] == f"Unsupported export format version: {newer}"
+
+
+def test_import_rejects_rows_that_point_to_a_missing_parent_and_keeps_nothing(
+    client: TestClient, current_user, factories, tmp_path
+) -> None:
+    _my_game(factories, current_user)
+    path = tmp_path / "broken.db"
+    path.write_bytes(client.get(PATH).content)
+    # 矢が、ファイルに無いエンドを指す
+    with sqlite3.connect(path) as conn:
+        conn.execute("UPDATE points SET end_id = 9999")
+    games_before = client.get("/api/v1/games").json()
+
+    res = client.post(
+        "/api/v1/import",
+        data={"source": "archieves"},
+        files={"file": ("archieves-records.db", path.read_bytes(), "application/vnd.sqlite3")},
+    )
+
+    assert res.status_code == 400
+    assert res.json()["detail"].startswith("Malformed archieves export file: ")
+    # 途中まで足したゲーム・ラウンド・エンドも残さない
+    assert client.get("/api/v1/games").json() == games_before
+
+
+def test_import_rejects_an_archieves_file_that_is_not_sqlite(client: TestClient) -> None:
+    res = client.post(
+        "/api/v1/import",
+        data={"source": "archieves"},
+        files={"file": ("archieves-records.db", b"not a database", "application/vnd.sqlite3")},
+    )
+
+    assert res.status_code == 400
+    assert res.json()["detail"] == "Not a valid SQLite file"
 
 
 def test_export_without_a_registered_user_is_not_found(unregistered_client: TestClient) -> None:

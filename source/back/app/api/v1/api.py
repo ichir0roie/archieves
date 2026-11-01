@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     statistics,
     support,
     users,
+    warm_up,
 )
 
 api_router = APIRouter()
@@ -35,6 +36,9 @@ authenticated_router.include_router(users.router, prefix="/users", tags=["users"
 authenticated_router.include_router(
     organizations.router, prefix="/organizations", tags=["organizations"]
 )
+authenticated_router.include_router(
+    organizations.admin_router, prefix="/admin/organizations", tags=["organizations"]
+)
 authenticated_router.include_router(games.router, tags=["games"])
 authenticated_router.include_router(comments.router, tags=["comments"])
 authenticated_router.include_router(imports.router, tags=["imports"])
@@ -46,4 +50,5 @@ authenticated_router.include_router(support.router, tags=["support"])
 authenticated_router.include_router(diaries.router, tags=["diaries"])
 authenticated_router.include_router(access_tokens.router, tags=["access-tokens"])
 authenticated_router.include_router(mcp.router, tags=["mcp"])
+authenticated_router.include_router(warm_up.router, tags=["warm-up"])
 api_router.include_router(authenticated_router)

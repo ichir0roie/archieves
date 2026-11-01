@@ -1,12 +1,23 @@
 "use client";
 
-import { createContext, useContext, useEffect, type ReactNode } from "react";
-import { Authenticator, translations } from "@aws-amplify/ui-react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import { Authenticator, translations, useAuthenticator } from "@aws-amplify/ui-react";
 import { Amplify } from "aws-amplify";
 import { I18n } from "aws-amplify/utils";
 import { usePathname, useRouter } from "next/navigation";
 import outputs from "../../amplify_outputs.json";
 import { isMockAuth } from "@/lib/auth/config";
+import {
+  MOCK_SIGNED_OUT_COOKIE,
+  hasMockSignedOutCookie,
+  isOpenPath,
+} from "@/lib/auth/openPaths";
 import { isCurrentAppUserRegistered } from "@/lib/auth/currentUser";
 import {
   clearCachedAppUser,
@@ -43,6 +54,20 @@ const SignOutContext = createContext<() => void>(() => {});
 /** ログアウトする関数。モックのログインでは何もしない。 */
 export function useSignOut(): () => void {
   return useContext(SignOutContext);
+}
+
+const SignedInContext = createContext(true);
+
+/**
+ * ログインしているか。ログインしていなくても開ける画面(lib/auth/openPaths.ts)でだけ false になる。
+ * それ以外の画面は、ログインの門を通ったあとにしか描かないので、いつも true
+ */
+export function useSignedIn(): boolean {
+  return useContext(SignedInContext);
+}
+
+function SignedOut({ children }: { children: ReactNode }) {
+  return <SignedInContext.Provider value={false}>{children}</SignedInContext.Provider>;
 }
 
 /** API に行の無い利用者(初めてログインした人)を、プロフィールの登録へ送る。登録が済んでキャッシュにあれば API は叩かない。 */
@@ -84,16 +109,51 @@ function AgreementFooter() {
 
 const AUTHENTICATOR_COMPONENTS = { Footer: AgreementFooter };
 
-/** 画面全体を一度だけ包む(app/layout.tsx)。ログインしていなければ Amplify のログインの画面を出す(公開の画面を除く)。 */
-export default function AuthGate({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  // ログインしていなくても見せる画面(スコアの公開ページ)。ログインの画面も登録の確かめも挟まない。
-  // ログインしていればクッキーのトークンを route handler が読み、API が公開範囲を当てる
-  if (isPublicPath(pathname)) {
-    return <>{children}</>;
-  }
-  if (isMockAuth()) {
-    return <RegistrationGate>{children}</RegistrationGate>;
+function subscribeNothing() {
+  return () => {};
+}
+
+/** モックのログインで、ログインしていない人を真似ているか。サーバーで描くときは分からないので null */
+function useMockSignedOut(): boolean | null {
+  return useSyncExternalStore(
+    subscribeNothing,
+    () => hasMockSignedOutCookie(document.cookie),
+    () => null,
+  );
+}
+
+/** モックのログインの門。ログインなしを真似ているときは、開ける画面だけを出し、ほかはサインインのボタンを出す */
+function MockGate({ pathname, children }: { pathname: string; children: ReactNode }) {
+  const T = useT();
+  const signedOut = useMockSignedOut();
+  if (signedOut === null) return null;
+  if (!signedOut) return <RegistrationGate>{children}</RegistrationGate>;
+  if (isOpenPath(pathname)) return <SignedOut>{children}</SignedOut>;
+  return (
+    // layout.tsx の main の代わりに描くので、余白のために main で包む
+    <main>
+      <div className="page">
+        <p className="status empty">{T.anonymous.signInRequired}</p>
+        <button
+          type="button"
+          className="primary large"
+          onClick={() => {
+            document.cookie = `${MOCK_SIGNED_OUT_COOKIE}=; path=/; max-age=0`;
+            window.location.reload();
+          }}
+        >
+          {T.anonymous.signIn}
+        </button>
+      </div>
+    </main>
+  );
+}
+
+/** Cognito のログインの門。ログインしていなければ、開ける画面はそのまま出し、ほかは Amplify のログインの画面を出す */
+function CognitoGate({ pathname, children }: { pathname: string; children: ReactNode }) {
+  const { authStatus } = useAuthenticator((context) => [context.authStatus]);
+  if (authStatus === "unauthenticated" && isOpenPath(pathname)) {
+    return <SignedOut>{children}</SignedOut>;
   }
   return (
     <Authenticator components={AUTHENTICATOR_COMPONENTS}>
@@ -108,5 +168,26 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         </SignOutContext.Provider>
       )}
     </Authenticator>
+  );
+}
+
+/**
+ * 画面全体を一度だけ包む(app/layout.tsx)。ログインしていなければ Amplify のログインの画面を出す。
+ * ただし、ログインしていなくても開ける画面(ホーム・使い方・ランキング・プロフィール)は、公開の分だけで出す
+ */
+export default function AuthGate({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  // スコアの公開ページ。ログインの画面も登録の確かめも挟まない。
+  // ログインしていればクッキーのトークンを route handler が読み、API が公開範囲を当てる
+  if (isPublicPath(pathname)) {
+    return <>{children}</>;
+  }
+  if (isMockAuth()) {
+    return <MockGate pathname={pathname}>{children}</MockGate>;
+  }
+  return (
+    <Authenticator.Provider>
+      <CognitoGate pathname={pathname}>{children}</CognitoGate>
+    </Authenticator.Provider>
   );
 }

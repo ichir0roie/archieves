@@ -216,6 +216,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admin Organizations */
+        get: operations["list_admin_organizations_api_v1_admin_organizations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/organizations/{organization_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Organization */
+        patch: operations["update_organization_api_v1_admin_organizations__organization_id__patch"];
+        trace?: never;
+    };
     "/api/v1/games": {
         parameters: {
             query?: never;
@@ -1068,6 +1102,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/warm-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Warm Up
+         * @description 画面が開いている間、フロントが 1 分ごとに叩く(components/ApiWarmUp.tsx)。
+         *
+         *     点数の入力は手元にだけ書くので、保存までの間 API が叩かれず、Lambda の実行環境が落ちる(5 分ほど
+         *     空くと冷える)。冷えた所への保存は、起動と db への初めての接続(IAM 認証)で数秒かかる。
+         *     実行環境と db の接続を残しておくため、db まで一往復する。/health は db に触らないので
+         *     代わりにならない。
+         */
+        get: operations["warm_up_api_v1_warm_up_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -1198,6 +1257,29 @@ export interface components {
             user_name: string;
             /** User Nickname */
             user_nickname: string | null;
+        };
+        /**
+         * AdminOrganizationRead
+         * @description 管理者の一覧の組織。所属している利用者の数を足す
+         */
+        AdminOrganizationRead: {
+            /** Name */
+            name: string;
+            /** Formal Name */
+            formal_name: string | null;
+            /** Description */
+            description: string | null;
+            /** Homepage Url */
+            homepage_url: string | null;
+            /** Location */
+            location: string | null;
+            /** Parent Organization Id */
+            parent_organization_id: number | null;
+            /** Id */
+            id: number;
+            parent_organization: components["schemas"]["OrganizationSummary"] | null;
+            /** User Count */
+            user_count: number;
         };
         /**
          * AdminPendingCounts
@@ -1737,6 +1819,24 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+        };
+        /**
+         * OrganizationUpdate
+         * @description 管理者が組織を直す。送った欄だけを書き、null は空にする(名前は空にできない)
+         */
+        OrganizationUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Formal Name */
+            formal_name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Homepage Url */
+            homepage_url?: string | null;
+            /** Location */
+            location?: string | null;
+            /** Parent Organization Id */
+            parent_organization_id?: number | null;
         };
         /** PointCreate */
         PointCreate: {
@@ -2517,6 +2617,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrganizationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_admin_organizations_api_v1_admin_organizations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminOrganizationRead"][];
+                };
+            };
+        };
+    };
+    update_organization_api_v1_admin_organizations__organization_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminOrganizationRead"];
                 };
             };
             /** @description Validation Error */
@@ -4548,6 +4703,24 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                 };
+            };
+        };
+    };
+    warm_up_api_v1_warm_up_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

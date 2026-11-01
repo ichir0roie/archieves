@@ -10,6 +10,7 @@ import type {
   AccessTokenRead,
   AdminErrorReportRead,
   AdminFeedbackRead,
+  AdminOrganizationRead,
   AdminPendingCounts,
   AnnouncementRead,
   BowType,
@@ -31,6 +32,7 @@ import type {
   OrganizationCreate,
   OrganizationRead,
   OrganizationSummary,
+  OrganizationUpdate,
   PointRead,
   RankingMetric,
   RoundCommentRead,
@@ -218,6 +220,19 @@ export function healthCheck(): Promise<{ status: string }> {
   return request('/health');
 }
 
+/**
+ * API の実行環境と db の接続を温める(components/ApiWarmUp.tsx が 1 分ごとに呼ぶ)。
+ * 画面の操作ではないので、失敗しても何もしない。request を通すと、エラーを集積に送ってホームへ戻してしまう
+ */
+export async function warmUpApi(): Promise<void> {
+  await refreshSession();
+  try {
+    await fetch(`${API_BASE_URL}/warm-up`);
+  } catch {
+    // 電波の無い所などで届かなくても、次の回に任せる
+  }
+}
+
 /** Finds or creates the signed-in user's row, keyed off their Cognito sub. */
 export function ensureCurrentUser(user: UserCreate): Promise<MeRead> {
   return request('/users/me/ensure', {
@@ -289,6 +304,22 @@ export function findOrCreateOrganization(
 
 export function getOrganization(organizationId: number): Promise<OrganizationRead> {
   return request(`/organizations/${organizationId}`);
+}
+
+/** 管理者の組織の一覧。所属している利用者の数が付く */
+export function listAdminOrganizations(): Promise<AdminOrganizationRead[]> {
+  return request('/admin/organizations');
+}
+
+/** 管理者が組織を直す。送った欄だけを書き、null は空にする */
+export function updateOrganization(
+  organizationId: number,
+  organization: OrganizationUpdate,
+): Promise<AdminOrganizationRead> {
+  return request(`/admin/organizations/${organizationId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(organization),
+  });
 }
 
 export function createGame(
