@@ -28,6 +28,7 @@ export const DESTINATIONS: ReadonlyArray<Destination> = [
   { href: "/settings", label: "settings" },
   { href: "/admin/feedbacks", label: "adminFeedback", adminOnly: true },
   { href: "/admin/error-reports", label: "adminErrorReports", adminOnly: true },
+  { href: "/admin/organizations", label: "adminOrganizations", adminOnly: true },
 ];
 
 /** isAdmin でない人には adminOnly の行き先を除く */

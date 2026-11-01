@@ -61,6 +61,7 @@ export const common = {
     feedback: t.feedback,
     guide: "使い方",
     adminFeedback: `${t.feedback}の確認`,
+    adminOrganizations: `${t.organization}の管理`,
     adminErrorReports: "エラーの確認",
     signOut: "サインアウト",
   },

@@ -36,6 +36,9 @@ authenticated_router.include_router(users.router, prefix="/users", tags=["users"
 authenticated_router.include_router(
     organizations.router, prefix="/organizations", tags=["organizations"]
 )
+authenticated_router.include_router(
+    organizations.admin_router, prefix="/admin/organizations", tags=["organizations"]
+)
 authenticated_router.include_router(games.router, tags=["games"])
 authenticated_router.include_router(comments.router, tags=["comments"])
 authenticated_router.include_router(imports.router, tags=["imports"])

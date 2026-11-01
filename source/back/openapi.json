@@ -766,6 +766,99 @@
         }
       }
     },
+    "/api/v1/admin/organizations": {
+      "get": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "List Admin Organizations",
+        "operationId": "list_admin_organizations_api_v1_admin_organizations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminOrganizationRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Admin Organizations Api V1 Admin Organizations Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/organizations/{organization_id}": {
+      "patch": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Update Organization",
+        "operationId": "update_organization_api_v1_admin_organizations__organization_id__patch",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organization Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOrganizationRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/games": {
       "get": {
         "tags": [
@@ -5077,6 +5170,101 @@
         "title": "AdminFeedbackRead",
         "description": "管理者が見る意見。誰が送ったかを添える。"
       },
+      "AdminOrganizationRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "formal_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formal Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "homepage_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage Url"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "parent_organization_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Organization Id"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "parent_organization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user_count": {
+            "type": "integer",
+            "title": "User Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "formal_name",
+          "description",
+          "homepage_url",
+          "location",
+          "parent_organization_id",
+          "id",
+          "parent_organization",
+          "user_count"
+        ],
+        "title": "AdminOrganizationRead",
+        "description": "管理者の一覧の組織。所属している利用者の数を足す"
+      },
       "AdminPendingCounts": {
         "properties": {
           "unanswered_feedbacks": {
@@ -6690,6 +6878,85 @@
           "name"
         ],
         "title": "OrganizationSummary"
+      },
+      "OrganizationUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "formal_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formal Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "homepage_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage Url"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "parent_organization_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Organization Id"
+          }
+        },
+        "type": "object",
+        "title": "OrganizationUpdate",
+        "description": "管理者が組織を直す。送った欄だけを書き、null は空にする(名前は空にできない)"
       },
       "PointCreate": {
         "properties": {

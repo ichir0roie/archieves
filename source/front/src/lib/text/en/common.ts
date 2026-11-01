@@ -59,6 +59,7 @@ export const common: typeof ja = {
     feedback: t.feedback,
     guide: "How to use",
     adminFeedback: "Review feedback",
+    adminOrganizations: "Manage organizations",
     adminErrorReports: "Review errors",
     signOut: "Sign out",
   },
