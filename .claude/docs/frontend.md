@@ -36,6 +36,8 @@ Next.js(App Router)・React 19。スマホで使う前提の画面が多い。
 - 本人の記録の API は利用者の id を送らない(API がログインから本人を引く)。他人を見る画面(プロフィール・ランキング・スコアの公開ページ)は `/public/*` を読む
 - route handler の守り: クッキーのログインでの書き込みは、`Sec-Fetch-Site` がよそのサイトなら 403(CSRF)。`.`・`..` のパスは流さない。応答に `cache-control` が無ければ `no-store` を付ける(本人のデータを CDN に溜めさせない)
 - スコアの公開ページ(`/score-share`。`src/lib/scoreShare.ts` の `isPublicPath`)はログインしていなくても開ける。`AuthGate` の `Authenticator` と登録の確かめ、メニュー(`Nav`)、エラーでホームへ戻すこと(`ApiErrorRedirect`)を外す。route handler は `public/*` の API を、ログインしていなければ利用者なしで流す
+- ホーム・使い方・ランキング・プロフィール(`src/lib/auth/openPaths.ts` の `isOpenPath`)は、ログインしていなくても開ける。ログインしていればいつもの画面、していなければ `useSignedIn()` が false になり、公開の分だけを出す(ホームは紹介とサインインのボタン、メニューはランキング・使い方・サインイン、ランキングは全体公開の人だけで組織では絞らない、プロフィールは `/public/*` が見せる分だけ)。サインインのボタンは `/signin`(門を通ったらホームへ戻す)へ行く
+- モックのログインでは、クッキー `archieves-mock-signed-out` があると、画面も route handler もログインしていない扱いにする(E2E の `e2e/signed-out.spec.ts`)
 - `AuthGate.tsx` は `amplify_outputs.json` を import するので、`predev`・`pretypecheck`・`pretest:e2e` が `amplify_outputs.example.json` から写す(`scripts/ensure-amplify-outputs.mjs`)。本物は `npx ampx sandbox` が書く(git には入れない)
 
 ## 状態

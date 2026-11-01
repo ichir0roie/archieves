@@ -10,6 +10,7 @@ import type {
   AccessTokenRead,
   AdminErrorReportRead,
   AdminFeedbackRead,
+  AdminOrganizationRead,
   AdminPendingCounts,
   AnnouncementRead,
   BowType,
@@ -31,6 +32,7 @@ import type {
   OrganizationCreate,
   OrganizationRead,
   OrganizationSummary,
+  OrganizationUpdate,
   PointRead,
   RankingMetric,
   RoundCommentRead,
@@ -302,6 +304,22 @@ export function findOrCreateOrganization(
 
 export function getOrganization(organizationId: number): Promise<OrganizationRead> {
   return request(`/organizations/${organizationId}`);
+}
+
+/** 管理者の組織の一覧。所属している利用者の数が付く */
+export function listAdminOrganizations(): Promise<AdminOrganizationRead[]> {
+  return request('/admin/organizations');
+}
+
+/** 管理者が組織を直す。送った欄だけを書き、null は空にする */
+export function updateOrganization(
+  organizationId: number,
+  organization: OrganizationUpdate,
+): Promise<AdminOrganizationRead> {
+  return request(`/admin/organizations/${organizationId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(organization),
+  });
 }
 
 export function createGame(

@@ -40,6 +40,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // iPhone で画面の端(ノッチ・角・ホームバーの下)まで描く。中身は globals.css の --safe-* で内側に寄せる
+  viewportFit: "cover",
   // globals.css の --bg に揃える
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f4f5f7" },

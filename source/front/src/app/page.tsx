@@ -3,11 +3,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useSignedIn } from "@/components/AuthGate";
 import { useCachedAppUser } from "@/hooks/useCachedAppUser";
 import { useLoad } from "@/hooks/useLoad";
 import { getPendingCounts, type AdminPendingCounts } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/currentUser";
-import { SCORE_CARD_PATH, START_GAME, destinationsFor } from "@/lib/destinations";
+import { SIGN_IN_PATH } from "@/lib/auth/openPaths";
+import {
+  SCORE_CARD_PATH,
+  SIGNED_OUT_DESTINATIONS,
+  START_GAME,
+  destinationsFor,
+} from "@/lib/destinations";
 import { loadScoreSheetCache } from "@/lib/storage";
 import { useT } from "@/lib/text";
 
@@ -19,11 +26,75 @@ function pendingCountFor(href: string, counts: AdminPendingCounts | null): numbe
   return 0;
 }
 
+/** ホーム。ログインしていない人には、アプリの紹介とサインインのボタンを出す */
+export default function Page() {
+  const signedIn = useSignedIn();
+  return signedIn ? <SignedInHome /> : <SignedOutHome />;
+}
+
+/** アプリのアイコンと名前の見出し */
+function Hero({ subtitle }: { subtitle: string }) {
+  const T = useT();
+  return (
+    <div className="hero">
+      {/* アプリのアイコン(src/app/icon.svg)をそのまま出す */}
+      <Image
+        className="logo"
+        src="/icon.svg"
+        alt=""
+        width={56}
+        height={56}
+        priority
+      />
+      <h1>{T.appName}</h1>
+      <p className="muted small">{subtitle}</p>
+    </div>
+  );
+}
+
+/** ログインしていない人のホーム。できることの紹介と、ログインなしで見られる行き先、サインインのボタン */
+function SignedOutHome() {
+  const T = useT();
+  return (
+    <div className="SignedOutHome page">
+      <Hero subtitle={T.home.tagline} />
+      <section className="HomeIntro panel stack tight">
+        <p className="home-intro-lead">{T.home.signedOut.lead}</p>
+        <ul className="guide-items">
+          {T.home.signedOut.features.map((feature) => (
+            <li key={feature}>{feature}</li>
+          ))}
+        </ul>
+      </section>
+      <div className="HomeMenu">
+        <div className="grid">
+          {SIGNED_OUT_DESTINATIONS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+            >
+              {T.nav[item.label]}
+            </Link>
+          ))}
+        </div>
+      </div>
+      <div className="HomeStart">
+        <Link
+          href={SIGN_IN_PATH}
+          className="start"
+        >
+          {T.anonymous.signIn}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 /**
- * ホーム。開いただけで API を叩かないよう、行き先のボタンだけを並べ、名前はキャッシュから出す。
+ * ログインしている人のホーム。開いただけで API を叩かないよう、行き先のボタンだけを並べ、名前はキャッシュから出す。
  * 管理者だけは例外で、未回答の意見・未対応のエラーの件数を読んで、管理者の行き先のボタンに出す
  */
-export default function Page() {
+function SignedInHome() {
   const T = useT();
   const currentUser = useCachedAppUser();
   const isAdmin = currentUser?.isAdmin ?? false;
@@ -54,19 +125,7 @@ export default function Page() {
 
   return (
     <div className="page">
-      <div className="hero">
-        {/* アプリのアイコン(src/app/icon.svg)をそのまま出す */}
-        <Image
-          className="logo"
-          src="/icon.svg"
-          alt=""
-          width={56}
-          height={56}
-          priority
-        />
-        <h1>{T.appName}</h1>
-        <p className="muted small">{currentUser ? T.home.welcome(currentUser.name) : T.home.tagline}</p>
-      </div>
+      <Hero subtitle={currentUser ? T.home.welcome(currentUser.name) : T.home.tagline} />
 
       <div className="HomeMenu">
         <div className="grid">

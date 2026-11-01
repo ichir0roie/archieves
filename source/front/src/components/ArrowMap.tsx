@@ -1,9 +1,12 @@
 import type { PointRead } from "@/lib/api";
 import { X_SCORE } from "@/lib/score/scoreConfig";
 import { ringClass, zoneRadiusRatio } from "@/lib/score/scoreFunctions";
+import { useT } from "@/lib/text";
 
 type Props = {
   points: Array<Pick<PointRead, "x" | "y">>;
+  /** 読み上げの名前。既定はゲーム・ラウンドの「すべての矢の位置」 */
+  label?: string;
 };
 
 /** 辺を 100 とした枠の中心。座標は的の入力と同じく、枠に対する 0〜1 の割合(0.5 が中心) */
@@ -19,7 +22,8 @@ export function hasPosition<P extends Pick<PointRead, "x" | "y">>(
   return point.x != null && point.y != null && !(point.x === 0 && point.y === 0);
 }
 
-export default function ArrowMap({ points }: Props) {
+export default function ArrowMap({ points, label }: Props) {
+  const T = useT();
   const placed = points.filter(hasPosition);
   // 外側の帯から順に重ねる
   const scores = Array.from({ length: X_SCORE }, (_, index) => index + 1);
@@ -29,7 +33,7 @@ export default function ArrowMap({ points }: Props) {
       className="ArrowMap arrow-map"
       viewBox={`0 0 ${SIZE} ${SIZE}`}
       role="img"
-      aria-label="すべての矢の位置"
+      aria-label={label ?? T.profile.scoreView.arrowMapLabel}
     >
       {scores.map((score) => (
         <circle
