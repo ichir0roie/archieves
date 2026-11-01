@@ -44,6 +44,11 @@ export const common: typeof ja = {
     failed: "The request failed. Please try again.",
     status: (status: number) => `status: ${status}`,
   },
+  anonymous: {
+    signIn: "Sign in / Sign up",
+    signInRequired: "Sign in to use this screen",
+    rankingNote: "While signed out, only people who made their ranking public are shown.",
+  },
   nav: {
     menu: "Menu",
     home: t.home,

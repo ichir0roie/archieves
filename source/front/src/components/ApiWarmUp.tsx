@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { useSignedIn } from "@/components/AuthGate";
 import { warmUpApi } from "@/lib/api";
 import { isPublicPath } from "@/lib/scoreShare";
 
@@ -13,11 +14,12 @@ const WARM_UP_INTERVAL_MS = 60_000;
  * 点数の入力は保存まで API を叩かないので、温めないと保存が冷えた API に当たって数秒かかる。
  * 裏に回すと止め、見えるようになったら(スマホの画面を点けた、別のアプリから戻った)すぐ一度叩いてから続ける。
  * 開いた直後は、画面の読み込みが API を叩くので、1 分後から叩く。
- * ログインしていない人も開ける公開の画面では叩かない(route handler が 401 を返すだけになる)
+ * ログインしていない人には叩かない(route handler が 401 を返すだけになる)
  */
 export default function ApiWarmUp() {
   const pathname = usePathname();
-  const isPublic = isPublicPath(pathname);
+  const signedIn = useSignedIn();
+  const isPublic = isPublicPath(pathname) || !signedIn;
 
   useEffect(() => {
     if (isPublic) return;

@@ -493,3 +493,4 @@ nav[data-pos$="right"] .nav-panel { left: auto; right: calc(16px + var(--safe-ri
 
 /* ---- 使い方(app/guide) ---- */
 .guide-items { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.home-intro-lead { margin: 0; font-weight: 600; }

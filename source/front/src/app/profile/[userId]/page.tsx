@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { notFound, useParams, useRouter } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
+import { useSignedIn } from "@/components/AuthGate";
 import BackButton from "@/components/BackButton";
 import DiaryCell from "@/components/DiaryCell";
 import PageHeader from "@/components/PageHeader";
@@ -27,7 +28,11 @@ export default function Page() {
   const userId = Number(params.userId);
   // 前は sub を URL にしていた。そのころのブックマークなど、数でない URL は無いページにする
   if (!Number.isSafeInteger(userId)) notFound();
-  const currentUser = useLoad(() => getCurrentAppUser(), []);
+  const signedIn = useSignedIn();
+  const currentUser = useLoad(
+    () => (signedIn ? getCurrentAppUser() : Promise.resolve(null)),
+    [signedIn],
+  );
   const isMe = currentUser.data?.id === userId;
 
   const loaded = useLoad(() => getUserProfile(userId), [userId]);
@@ -57,7 +62,13 @@ export default function Page() {
                 <span className="muted small">{T.profile.view.nickname(profile.user.nickname)}</span>
               )}
             </div>
-            {organization && <Link href={`/organization/${organization.id}`}>{organization.name}</Link>}
+            {/* 組織の画面はログインが要るので、ログインしていなければ名前だけを出す */}
+            {organization &&
+              (signedIn ? (
+                <Link href={`/organization/${organization.id}`}>{organization.name}</Link>
+              ) : (
+                <span className="ProfileOrganization">{organization.name}</span>
+              ))}
             <span className="muted small">
               {profile.period_start && profile.period_end
                 ? T.profile.view.period(

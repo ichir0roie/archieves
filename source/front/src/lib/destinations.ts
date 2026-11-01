@@ -31,6 +31,11 @@ export const DESTINATIONS: ReadonlyArray<Destination> = [
   { href: "/admin/organizations", label: "adminOrganizations", adminOnly: true },
 ];
 
+/** ログインしていない人のメニューに並べる行き先(lib/auth/openPaths.ts の、ログインなしで開ける画面) */
+export const SIGNED_OUT_DESTINATIONS: ReadonlyArray<Destination> = DESTINATIONS.filter((destination) =>
+  ["/ranking", "/guide"].includes(destination.href),
+);
+
 /** isAdmin でない人には adminOnly の行き先を除く */
 export function destinationsFor(isAdmin: boolean): Array<Destination> {
   return DESTINATIONS.filter((destination) => isAdmin || !destination.adminOnly);

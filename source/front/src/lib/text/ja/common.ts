@@ -46,6 +46,12 @@ export const common = {
     failed: "通信に失敗しました。もう一度お試しください。",
     status: (status: number) => `status: ${status}`,
   },
+  /** ログインしていない人に出す文言 */
+  anonymous: {
+    signIn: "サインイン・新規登録",
+    signInRequired: "この画面はサインインすると使えます",
+    rankingNote: `サインインしていないときは、${t.ranking}を全体公開にしている人だけを出します。`,
+  },
   nav: {
     menu: "メニュー",
     home: t.home,
