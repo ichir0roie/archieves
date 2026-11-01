@@ -23,6 +23,7 @@ export const DESTINATIONS: ReadonlyArray<Destination> = [
   { href: "/profile/me", label: "profile" },
   { href: "/ranking", label: "ranking" },
   { href: "/announcements", label: "announcements" },
+  { href: "/guide", label: "guide" },
   { href: "/feedback", label: "feedback" },
   { href: "/settings", label: "settings" },
   { href: "/admin/feedbacks", label: "adminFeedback", adminOnly: true },

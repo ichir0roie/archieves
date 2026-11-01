@@ -59,6 +59,7 @@ export const common = {
     settings: t.settings,
     diary: t.diary,
     feedback: t.feedback,
+    guide: "使い方",
     adminFeedback: `${t.feedback}の確認`,
     adminErrorReports: "エラーの確認",
     signOut: "サインアウト",
