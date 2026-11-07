@@ -11,4 +11,8 @@ export const diary = {
   submitting: "送信中...",
   recent: "直近の日記",
   empty: "まだ日記はありません",
+  edit: "編集",
+  editTitle: "日記を編集",
+  deleteConfirmTitle: "日記を削除",
+  deleteConfirm: "この日記を削除します。削除した日記は元に戻せません。",
 };

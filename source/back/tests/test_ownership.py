@@ -201,6 +201,18 @@ def test_diaries_of_another_user_are_not_listed(
     assert client.get("/api/v1/diaries/years").json() == [2026]
 
 
+def test_diaries_of_another_user_cannot_be_updated_or_deleted(
+    client: TestClient, factories
+) -> None:
+    others = factories.DiaryFactory(body="あの人の日記")
+    url = f"/api/v1/diaries/{others.id}"
+
+    assert client.patch(url, json={"body": "x"}).status_code == 403
+    assert client.delete(url).status_code == 403
+    assert others.body == "あの人の日記"
+    assert others.deleted_at is None
+
+
 def test_admin_endpoints_are_forbidden_for_non_admins(client: TestClient, factories) -> None:
     feedback = factories.FeedbackFactory()
     error_report = factories.ErrorReportFactory()

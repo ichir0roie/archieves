@@ -1036,6 +1036,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/diaries/{diary_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Diary */
+        delete: operations["delete_diary_api_v1_diaries__diary_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Diary */
+        patch: operations["update_diary_api_v1_diaries__diary_id__patch"];
+        trace?: never;
+    };
     "/api/v1/access-tokens": {
         parameters: {
             query?: never;
@@ -1385,6 +1403,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** DiaryUpdate */
+        DiaryUpdate: {
+            /** Body */
+            body: string;
         };
         /** EndCommentRead */
         EndCommentRead: {
@@ -4600,6 +4623,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": number[];
+                };
+            };
+        };
+    };
+    delete_diary_api_v1_diaries__diary_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                diary_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_diary_api_v1_diaries__diary_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                diary_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiaryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiaryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
