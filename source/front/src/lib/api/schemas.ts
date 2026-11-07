@@ -18,6 +18,7 @@ export type EndScoreSummary = Schemas['EndScoreSummary'];
 export type EndUpdate = Schemas['EndUpdate'];
 export type DiaryCreate = Schemas['DiaryCreate'];
 export type DiaryRead = Schemas['DiaryRead'];
+export type DiaryUpdate = Schemas['DiaryUpdate'];
 export type AiCommentRead = Schemas['AiCommentRead'];
 export type AdminErrorReportRead = Schemas['AdminErrorReportRead'];
 export type AdminFeedbackRead = Schemas['AdminFeedbackRead'];

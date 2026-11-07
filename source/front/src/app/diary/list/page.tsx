@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
 import DiaryCell from "@/components/DiaryCell";
+import DiaryEditModal from "@/components/DiaryEditModal";
 import LogGroup from "@/components/LogGroup";
 import PageHeader from "@/components/PageHeader";
 import YearSwitcher from "@/components/YearSwitcher";
 import { useLoad } from "@/hooks/useLoad";
-import { listDiaries, listDiaryYears } from "@/lib/api";
+import { listDiaries, listDiaryYears, type DiaryRead } from "@/lib/api";
 import { groupDiariesByMonth } from "@/lib/diary";
 import { loadDiaryLogCollapsed, saveDiaryLogCollapsed } from "@/lib/storage";
 import { useT } from "@/lib/text";
@@ -17,12 +18,17 @@ export default function Page() {
   const T = useT();
   // null のあいだは、日記のある一番新しい年を出す
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [editing, setEditing] = useState<DiaryRead | null>(null);
+  // 直した・消したあとに読み直すための鍵
+  const [version, setVersion] = useState(0);
   const { data, loading, error } = useLoad(async () => {
     const years = await listDiaryYears();
-    const year = selectedYear ?? years[0] ?? null;
+    // 選んでいた年の日記を全部消したら、その年はもう無いので一番新しい年に戻す
+    const year =
+      selectedYear !== null && years.includes(selectedYear) ? selectedYear : (years[0] ?? null);
     const diaries = year === null ? [] : await listDiaries({ year });
     return { years, year, diaries };
-  }, [selectedYear]);
+  }, [selectedYear, version]);
   const years = data?.years ?? [];
   const year = data?.year ?? null;
   const months = useMemo(() => groupDiariesByMonth(data?.diaries ?? []), [data]);
@@ -98,12 +104,23 @@ export default function Page() {
                     key={diary.id}
                     diary={diary}
                     date={formatDay(diary.created_at)}
+                    onEdit={setEditing}
                   />
                 ))}
               </div>
             </LogGroup>
           ))}
         </>
+      )}
+      {editing && (
+        <DiaryEditModal
+          diary={editing}
+          onClose={() => setEditing(null)}
+          onChanged={() => {
+            setEditing(null);
+            setVersion((v) => v + 1);
+          }}
+        />
       )}
       <BackButton />
     </div>

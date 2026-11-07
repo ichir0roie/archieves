@@ -16,6 +16,7 @@ import type {
   BowType,
   DiaryCreate,
   DiaryRead,
+  DiaryUpdate,
   EndCommentRead,
   EndRead,
   EndScoreSummary,
@@ -670,6 +671,18 @@ export function createDiary(diary: DiaryCreate): Promise<DiaryRead> {
     method: 'POST',
     body: JSON.stringify(diary),
   });
+}
+
+/** 日記の本文を書き換える。書いた日時は変わらない。 */
+export function updateDiary(diaryId: number, diary: DiaryUpdate): Promise<DiaryRead> {
+  return request(`/diaries/${diaryId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(diary),
+  });
+}
+
+export function deleteDiary(diaryId: number): Promise<void> {
+  return request(`/diaries/${diaryId}`, { method: 'DELETE' });
 }
 
 /** 自分が意見箱に送った内容と、その返信。新しい順。 */

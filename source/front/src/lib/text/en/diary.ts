@@ -11,4 +11,8 @@ export const diary: typeof ja = {
   submitting: "Sending...",
   recent: "Recent entries",
   empty: "No entries yet",
+  edit: "Edit",
+  editTitle: "Edit entry",
+  deleteConfirmTitle: "Delete entry",
+  deleteConfirm: "This entry will be deleted. Deleted entries cannot be restored.",
 };

@@ -208,6 +208,8 @@ table.list th { color: var(--muted); font-weight: 600; background: var(--chip); 
 .modal-head h2 { margin: 0; font-size: 1.05rem; }
 .modal-body { padding: 1rem; overflow: auto; }
 .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; padding: 0.7rem 1rem; border-top: 1px solid var(--line); }
+/* 削除など、ほかの操作と離して左に寄せるボタン */
+.modal-actions .modal-actions-start { margin-right: auto; }
 
 /* ---- 画面の枠 ---- */
 main { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 10px; }
@@ -488,7 +490,9 @@ nav[data-pos$="right"] .nav-panel { left: auto; right: calc(16px + var(--safe-ri
 .log-group .DiaryCells { border: 0; border-radius: 0; }
 .DiaryCell { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.5rem 0.8rem; }
 .DiaryCell + .DiaryCell { border-top: 1px solid var(--line); }
+.DiaryCell-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .DiaryCell-date { color: var(--muted); font-size: 0.85rem; }
+.DiaryCell-edit { padding: 0.15rem 0.5rem; font-size: 0.85rem; color: var(--muted); }
 .Announcements li + li { border-top: 1px solid var(--line); padding-top: 0.6rem; }
 
 /* ---- 使い方(app/guide) ---- */
