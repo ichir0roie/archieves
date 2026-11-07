@@ -1,3 +1,4 @@
+import secrets
 from datetime import UTC, datetime
 
 import factory
@@ -12,7 +13,8 @@ class MatchFactory(BaseFactory):
     class Meta:
         model = Match
 
-    id = factory.LazyFunction(new_match_id)
+    # テストの行は db の連番を使わない。番号を乱数にして、同じテストの中で重ならないようにする
+    id = factory.LazyFunction(lambda: new_match_id(datetime.now(UTC), 0, secrets.randbelow(10**9)))
     organizer = factory.SubFactory(UserFactory)
     held_at = factory.LazyFunction(lambda: datetime.now(UTC))
     game_size = 2

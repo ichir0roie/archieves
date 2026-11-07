@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
-from app.core.match_codes import MATCH_ID_ALPHABET, MATCH_ID_LENGTH
+from app.core.match_codes import MATCH_ID_ALPHABET, MATCH_ID_RANDOM_LENGTH
 from app.core.matches import MATCH_DESCRIPTION_MAX_LENGTH, MATCH_TITLE_MAX_LENGTH
 from app.core.scoring import X_SCORE
 from app.db import Game
@@ -38,8 +38,13 @@ def test_create_a_match_with_the_arrow_counts(client: TestClient, current_user) 
     assert response.status_code == 201
     body = response.json()
     assert {key: body[key] for key in SETTINGS} == SETTINGS
-    assert len(body["id"]) == MATCH_ID_LENGTH
-    assert set(body["id"]) <= set(MATCH_ID_ALPHABET)
+    # 開催日(日本時間)-作った人の id-試合の番号-ランダムな字
+    day, organizer_id, number, random_part = body["id"].split("-")
+    assert day == "20261107"
+    assert organizer_id == str(current_user.id)
+    assert number.isdigit()
+    assert len(random_part) == MATCH_ID_RANDOM_LENGTH
+    assert set(random_part) <= set(MATCH_ID_ALPHABET)
     assert datetime.fromisoformat(body["held_at"]) == datetime(2026, 11, 7, 1, tzinfo=UTC)
     assert body["organizer"] == {
         "id": current_user.id,
@@ -170,10 +175,22 @@ def test_a_sheet_for_a_deleted_match_is_saved_without_the_match(
     assert response.json()["match_id"] is None
 
 
-def test_each_match_gets_its_own_code(client: TestClient) -> None:
-    ids = {client.post(MATCHES_URL, json=SETTINGS).json()["id"] for _ in range(3)}
+def test_each_match_gets_its_own_number_in_the_code(client: TestClient) -> None:
+    ids = [client.post(MATCHES_URL, json=SETTINGS).json()["id"] for _ in range(3)]
 
-    assert len(ids) == 3
+    # 番号は連番なので、同じ日・同じ人の試合でも番号の所で必ず分かれる
+    numbers = [int(match_id.split("-")[2]) for match_id in ids]
+    assert numbers == sorted(numbers)
+    assert len(set(numbers)) == 3
+
+
+def test_the_code_uses_the_held_day_in_japan_time(client: TestClient) -> None:
+    # UTC では 11/6 の 15:30 だが、日本時間では 11/7 になる
+    body = client.post(
+        MATCHES_URL, json={**SETTINGS, "held_at": "2026-11-06T15:30:00+00:00"}
+    ).json()
+
+    assert body["id"].startswith("20261107-")
 
 
 def test_a_match_is_held_now_when_the_time_is_omitted(client: TestClient) -> None:

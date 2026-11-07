@@ -135,7 +135,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
                 className="MatchBadge progress-badge"
                 onClick={() => setMatchShareOpen(true)}
               >
-                {T.match.badge(manager.matchId)}
+                {T.match.title}
               </button>
             )}
           </div>

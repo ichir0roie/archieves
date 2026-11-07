@@ -18,6 +18,7 @@ import {
   SETUP_MATCH_PARAM,
   matchRecordedAt,
   parseMatchId,
+  matchTitle,
   withMatchSizes,
 } from "@/lib/score/match";
 import { BACKFILL_DATE_PARAM, isBackfillDate } from "@/lib/score/backfill";
@@ -140,7 +141,13 @@ export default function Page() {
 
   return (
     <div className="page">
-      <PageHeader title={joiningMatch && joinMatchId ? T.match.setup.title(joinMatchId) : T.game.setup.title} />
+      <PageHeader
+        title={
+          joiningMatch && joinMatchId
+            ? T.match.setup.title(joinMatch ? matchTitle(T, joinMatch) : T.match.title)
+            : T.game.setup.title
+        }
+      />
       {joiningMatch ? (
         <>
           <div className="section-label">{T.match.setup.matchSection}</div>

@@ -8,6 +8,7 @@ from app.core.match_codes import new_match_id
 from app.core.scoring import MAX_RING_SCORE, MISS_SCORE, X_SCORE, scored_value_column
 from app.core.visibility import can_view_profile
 from app.db import End, Game, Match, Point, Round, User
+from app.db.models.match_model import MATCH_NUMBER_SEQ
 from app.schemas.match import (
     MatchCreate,
     MatchDetail,
@@ -25,14 +26,14 @@ _DEVIATION_SCALE = 10
 
 
 def create_match(s: Session, organizer_id: int, match_in: MatchCreate) -> Match:
-    # コードは十分に広いので重なることはまず無いが、重なったら引き直す
-    match_id = new_match_id()
-    while s.get(Match, match_id) is not None:
-        match_id = new_match_id()
+    held_at = match_in.held_at or datetime.now(UTC)
+    # 番号は連番なので、コードは重ならない(引き直しは要らない)
+    number = s.scalar(select(MATCH_NUMBER_SEQ.next_value()))
+    assert number is not None
     match = Match(
-        id=match_id,
+        id=new_match_id(held_at, organizer_id, number),
         organizer_id=organizer_id,
-        held_at=match_in.held_at or datetime.now(UTC),
+        held_at=held_at,
         title=match_in.title,
         description=match_in.description,
         game_size=match_in.game_size,

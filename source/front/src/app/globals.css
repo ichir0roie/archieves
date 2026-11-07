@@ -536,7 +536,9 @@ a.match-card:active { background: color-mix(in srgb, var(--accent) 6%, var(--pan
 /* 試合の共有。QR は横に、コードとコピーのボタンを右に並べ、狭ければ縦に積む */
 .match-share { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
 .match-share img { width: 10rem; height: 10rem; border-radius: 8px; background: #fff; }
-.match-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.6rem; font-weight: 700; letter-spacing: 0.12em; }
+.match-share > .stack { flex: 1 1 12rem; min-width: 0; }
+/* コードは長い(日付・番号・ランダムな字)ので、等幅で詰め、枠に収まらなければ区切りで折り返す */
+.match-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em; overflow-wrap: anywhere; }
 .match-code-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.08em; text-transform: uppercase; }
 /* 記入画面の試合の印は、押すと QR を出すボタン。見た目は小さな印のまま、押せる範囲だけ周りへ広げる */
 .score-progress button.progress-badge { position: relative; border: none; min-height: 0; line-height: inherit; cursor: pointer; }

@@ -14,11 +14,13 @@ export const SETUP_MATCH_PARAM = "match";
 export const RANKING_MATCH_PARAM = "match";
 
 /**
- * 試合の id(参加のコード)の字と長さ。API の app/core/match_codes.py と揃える。
- * 見分けにくい字(0/O・1/I/L)は使わない
+ * 試合の id(参加のコード)。「開催日-作った人の id-試合の番号-ランダムな 8 字」(API の
+ * app/core/match_codes.py)。前に作った試合は 8 字だけのコードなので、英数字をハイフンでつないだもの
+ * なら受けて、あるかどうかは API に任せる
  */
-const MATCH_ID_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-const MATCH_ID_LENGTH = 8;
+const MATCH_ID_PATTERN = /^[0-9A-Z]+(?:-[0-9A-Z]+)*$/;
+const MATCH_ID_MIN_LENGTH = 8;
+const MATCH_ID_MAX_LENGTH = 64;
 
 /** 試合のタイトル・内容の長さ。API の app/core/matches.py と揃える */
 export const MATCH_TITLE_MAX_LENGTH = 100;
@@ -75,16 +77,16 @@ export function matchRecordedAt(match: MatchRead): string {
 
 /**
  * 打ち込まれた・URL に書かれた試合の id を読む。読めなければ null。
- * 打ち写しの揺れ(小文字・全角・空白やハイフンの区切り)は許す
+ * 打ち写しの揺れ(小文字・全角・空白)は許す。ハイフンはコードの区切りなので残す
  */
 export function parseMatchId(text: string | null): string | null {
   if (text === null) return null;
   const normalized = text
     .normalize("NFKC")
-    .replace(/[\s-]/g, "")
+    .replace(/\s/g, "")
     .toUpperCase();
-  if (normalized.length !== MATCH_ID_LENGTH) return null;
-  return [...normalized].every((c) => MATCH_ID_ALPHABET.includes(c)) ? normalized : null;
+  if (normalized.length < MATCH_ID_MIN_LENGTH || normalized.length > MATCH_ID_MAX_LENGTH) return null;
+  return MATCH_ID_PATTERN.test(normalized) ? normalized : null;
 }
 
 /**

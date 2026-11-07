@@ -17,7 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.match_codes import MATCH_ID_LENGTH
+from app.core.match_codes import MATCH_ID_MAX_LENGTH
 from app.core.target_types import TARGET_TYPE_MAX_LENGTH
 from app.db.base_class import Base, TimestampMixin
 
@@ -63,7 +63,7 @@ class Game(TimestampMixin, Base):
     backfilled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # 試合のゲームなら、その試合。試合のラウンド数・エンド数・矢数と日付で始めたゲーム
     match_id: Mapped[str | None] = mapped_column(
-        String(MATCH_ID_LENGTH),
+        String(MATCH_ID_MAX_LENGTH),
         ForeignKey("matches.id", ondelete="SET NULL"),
         index=True,
         default=None,

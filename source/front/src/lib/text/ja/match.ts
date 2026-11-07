@@ -16,7 +16,7 @@ export const match = {
   },
   find: {
     label: `${t.match}のコード`,
-    placeholder: "コード(8 字)",
+    placeholder: "コード",
     open: "開く",
   },
   detail: {
@@ -35,7 +35,7 @@ export const match = {
     unsupported: "この端末ではカメラを使えません。コードで開きます",
   },
   setup: {
-    title: (id: string) => `${t.match} ${id} に参加`,
+    title: (name: string) => `${name}に参加`,
     notFound: `その${t.match}はありません`,
     matchSection: `参加する${t.match}`,
     sizesSection: `${t.match}で揃える数`,

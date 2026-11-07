@@ -16,7 +16,7 @@ export const match = {
   },
   find: {
     label: "Match code",
-    placeholder: "Code (8 characters)",
+    placeholder: "Code",
     open: "Open",
   },
   detail: {
@@ -35,7 +35,7 @@ export const match = {
     unsupported: "The camera is not available on this device. Open with the code",
   },
   setup: {
-    title: (id: string) => `Joining ${t.match} ${id}`,
+    title: (name: string) => `Joining ${name}`,
     notFound: "That match does not exist",
     matchSection: "Match to join",
     sizesSection: "Counts shared in the match",

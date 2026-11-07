@@ -67,7 +67,7 @@ export default function MatchShareModal({ matchId, onClose }: Props) {
 
   return (
     <Modal
-      title={T.match.badge(matchId)}
+      title={T.match.share.open}
       onClose={onClose}
     >
       <div className="MatchShare match-share">

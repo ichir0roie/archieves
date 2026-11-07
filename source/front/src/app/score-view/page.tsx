@@ -301,7 +301,7 @@ function ScoreViewContent() {
           className="ScoreViewMatch"
           href={matchPath(matchId)}
         >
-          {T.match.badge(matchId)}: {T.match.result.title}
+          {T.match.title}: {T.match.result.title}
         </Link>
       )}
       {error && <ApiErrorAlert error={error} />}
