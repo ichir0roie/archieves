@@ -89,6 +89,7 @@ export const profile = {
       title: "AIコメント",
       author: (author: string, date: string) => `${author} · ${date}`,
       delete: "AIコメントを削除",
+      deleteConfirm: "AIコメントを削除します。元に戻せません。",
     },
   },
   scoreLog: {

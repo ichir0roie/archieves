@@ -184,7 +184,13 @@ export default function Page() {
         )}
       </div>
 
-      <p className="muted small">{signedIn ? T.stats.ranking.visibilityNote : T.anonymous.rankingNote}</p>
+      <p className="RankingNote muted small">
+        {matchId !== null
+          ? T.match.rankingNote
+          : signedIn
+            ? T.stats.ranking.visibilityNote
+            : T.anonymous.rankingNote}
+      </p>
 
       {error && <ApiErrorAlert error={error} />}
 

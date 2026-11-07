@@ -170,7 +170,7 @@
           "public"
         ],
         "summary": "List User Ranking",
-        "description": "Users ranked by total score, average round score or average point\nscore, high to low, optionally filtered by bow type, distance,\norganization, region, and/or period. ランキングを見る人に公開している人だけを載せる。\nmatch_id で、その試合のゲームだけを数える。",
+        "description": "Users ranked by total score, average round score or average point\nscore, high to low, optionally filtered by bow type, distance,\norganization, region, and/or period. ランキングを見る人に公開している人だけを載せる。\nmatch_id で、その試合のゲームだけを数える。そのときは公開範囲に依らず試合に出た人を全員載せる。",
         "operationId": "list_user_ranking_api_v1_public_ranking_get",
         "security": [
           {
@@ -2663,7 +2663,7 @@
           "matches"
         ],
         "summary": "Get Match",
-        "description": "試合の画面で読む一件(試合の設定と、見られる人には結果)。\n\n設定は id(推測されにくいコード)を知っていればだれでも読める。結果(全員の順位・偏差値と集計)は、\n作った人と、試合のゲームを持つ人にだけ付け、ほかの人には null にする。",
+        "description": "試合の画面で読む一件(試合の設定と結果)。\n\nid(推測されにくいコード)を知っていればだれでも読める。結果(全員の順位・偏差値と集計)は、\n参加した人のプロフィール・ランキングの公開範囲に依らず全員を載せる(試合に出た時点で、\nその試合の人たちに見せるものとする)。",
         "operationId": "get_match_api_v1_matches__match_id__get",
         "security": [
           {
@@ -7178,14 +7178,7 @@
             "title": "My Game Count"
           },
           "result": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MatchStanding"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/MatchStanding"
           }
         },
         "type": "object",
@@ -7204,7 +7197,7 @@
           "result"
         ],
         "title": "MatchDetail",
-        "description": "試合の画面で読む一件。結果は、作った人と参加した人(自分のゲームがある人)にだけ付け、\nほかの人には null にする(他人の名前と点が出るため)。"
+        "description": "試合の画面で読む一件。結果は、参加した人の公開範囲に依らず全員を載せる。"
       },
       "MatchEntry": {
         "properties": {

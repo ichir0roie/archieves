@@ -23,7 +23,6 @@ export const match = {
     join: "Join this match",
     notFound: "That match does not exist",
     toList: "Back to matches",
-    resultHidden: "Only the organizer and participants can see the result",
   },
   scan: {
     open: "Join with QR",
@@ -58,7 +57,6 @@ export const match = {
     descriptionPlaceholder: "Events, meeting time, and so on",
     edit: "Edit",
     editTitle: "Edit the match",
-    delete: "Delete",
     deleteTitle: "Delete the match",
     deleteConfirm: (title: string) =>
       `Delete "${title}"? Participants' games are kept outside the match. This cannot be undone`,
@@ -91,5 +89,6 @@ export const match = {
     ranking: `View in ${t.ranking}`,
   },
   rankingFilter: (id: string) => `${t.match} ${id} only`,
+  rankingNote: "When narrowed to a match, everyone who played in it is listed regardless of their sharing settings.",
   clearFilter: "Clear",
 };

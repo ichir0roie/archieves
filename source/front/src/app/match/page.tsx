@@ -4,14 +4,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
+import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import MatchShareModal from "@/components/MatchShareModal";
 import MatchStandingView from "@/components/MatchStandingView";
 import MatchSummary from "@/components/MatchSummary";
 import PageHeader from "@/components/PageHeader";
+import SettingsMenu from "@/components/SettingsMenu";
 import { useLoad } from "@/hooks/useLoad";
 import { useOnResume } from "@/hooks/useOnResume";
 import { useQueryParams } from "@/hooks/useQueryParams";
-import { getMatch } from "@/lib/api";
+import { deleteMatch, getMatch } from "@/lib/api";
 import { MATCH_LIST_PATH } from "@/lib/destinations";
 import {
   MATCH_ID_PARAM,
@@ -23,8 +25,8 @@ import {
 import { useT } from "@/lib/text";
 
 /**
- * 一つの試合の画面。概要・参加・QR と、作った人・参加した人には結果(順位と集計)を出す。
- * 共有の URL・QR はここを指す
+ * 一つの試合の画面。概要・参加・QR と、結果(順位と集計)を出す。
+ * 共有の URL・QR はここを指す。作った人には右上の設定から削除を出す
  */
 export default function Page() {
   const T = useT();
@@ -35,6 +37,7 @@ export default function Page() {
   const [reloadKey, setReloadKey] = useState(0);
   useOnResume(() => setReloadKey((key) => key + 1));
   const [sharing, setSharing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // 試合の id の無い・読めない URL は、試合を探す入口の一覧へ
   useEffect(() => {
@@ -49,7 +52,22 @@ export default function Page() {
 
   return (
     <div className="page">
-      <PageHeader title={match ? matchTitle(T, match) : T.match.title} />
+      <PageHeader
+        title={match ? matchTitle(T, match) : T.match.title}
+        actions={
+          match?.organized_by_me && (
+            <SettingsMenu
+              items={[
+                {
+                  label: T.match.info.deleteTitle,
+                  className: "MatchDelete",
+                  onSelect: () => setDeleting(true),
+                },
+              ]}
+            />
+          )
+        }
+      />
       {loaded.error?.status === 404 && (
         <div className="stack tight">
           <p className="MatchNotFound status error">{T.match.detail.notFound}</p>
@@ -71,7 +89,6 @@ export default function Page() {
             match={match}
             titleInHeader
             onUpdated={() => setReloadKey((key) => key + 1)}
-            onDeleted={() => router.push(MATCH_LIST_PATH)}
           />
           <button
             type="button"
@@ -88,26 +105,31 @@ export default function Page() {
             >
               {T.match.share.open}
             </button>
-            {match.result && (
-              <button
-                type="button"
-                className="MatchRankingOpen grow"
-                onClick={() => router.push(matchRankingPath(match.id))}
-              >
-                {T.match.result.ranking}
-              </button>
-            )}
+            <button
+              type="button"
+              className="MatchRankingOpen grow"
+              onClick={() => router.push(matchRankingPath(match.id))}
+            >
+              {T.match.result.ranking}
+            </button>
           </div>
           <div className="section-label">{T.match.result.title}</div>
-          {match.result ? (
-            <MatchStandingView standing={match.result} />
-          ) : (
-            <p className="MatchResultHidden muted small">{T.match.detail.resultHidden}</p>
-          )}
+          <MatchStandingView standing={match.result} />
           {sharing && (
             <MatchShareModal
               matchId={match.id}
               onClose={() => setSharing(false)}
+            />
+          )}
+          {deleting && (
+            <DeleteConfirmModal
+              title={T.match.info.deleteTitle}
+              message={T.match.info.deleteConfirm(matchTitle(T, match))}
+              onClose={() => setDeleting(false)}
+              onConfirm={async () => {
+                await deleteMatch(match.id);
+                router.push(MATCH_LIST_PATH);
+              }}
             />
           )}
         </>

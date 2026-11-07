@@ -90,6 +90,7 @@ export const profile: typeof ja = {
       title: "AI comment",
       author: (author: string, date: string) => `${author} · ${date}`,
       delete: "Delete the AI comment",
+      deleteConfirm: "The AI comment will be deleted. This cannot be undone.",
     },
   },
   scoreLog: {

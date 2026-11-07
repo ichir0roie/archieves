@@ -8,9 +8,10 @@ import ApiErrorAlert from "@/components/ApiErrorAlert";
 import ArrowMap, { hasPosition } from "@/components/ArrowMap";
 import CommentField from "@/components/CommentField";
 import BackButton from "@/components/BackButton";
-import Modal from "@/components/Modal";
+import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import PageHeader from "@/components/PageHeader";
 import RoundScoreSheet from "@/components/RoundScoreSheet";
+import SettingsMenu, { type SettingsMenuItem } from "@/components/SettingsMenu";
 import {
   deleteEndComment,
   deleteGame,
@@ -109,9 +110,10 @@ function ScoreViewContent() {
   const commentWrites = useRef(new Map<string, Promise<void>>());
   // 画面での操作(コメント・編集・削除)の失敗。読み込みの失敗は loaded.error
   const [actionError, setActionError] = useState<ErrorDetails | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // 右上の設定から選んだ削除の確かめ
+  const [confirming, setConfirming] = useState<"game" | "aiComment" | null>(null);
+  // ゲームを消して一覧へ移るまでの間。画面に戻っても読み直さない(消したゲームを読みに行く)
   const [deleting, setDeleting] = useState(false);
-  const [deletingAiComment, setDeletingAiComment] = useState(false);
   // 上げると読み直す(画面に戻ったとき・再試行)
   const [reloadKey, setReloadKey] = useState(0);
   const searchParams = useSearchParams();
@@ -252,31 +254,42 @@ function ScoreViewContent() {
 
   async function onDeleteAiComment() {
     if (gameId === null) return;
-    setActionError(null);
-    setDeletingAiComment(true);
-    try {
-      await deleteGameAiComment(gameId);
-      reload();
-    } catch (e) {
-      setActionError(toErrorDetails(e));
-    } finally {
-      setDeletingAiComment(false);
-    }
+    await deleteGameAiComment(gameId);
+    setConfirming(null);
+    reload();
   }
 
   async function onDeleteGame() {
     if (gameId === null) return;
-    setActionError(null);
     setDeleting(true);
     try {
       await deleteGame(gameId);
-      router.push("/score-log");
     } catch (e) {
-      setActionError(toErrorDetails(e));
-      setConfirmingDelete(false);
       setDeleting(false);
+      throw e;
     }
+    router.push("/score-log");
   }
+
+  const settingsItems: SettingsMenuItem[] =
+    gameId === null
+      ? []
+      : [
+          ...(loaded.data?.aiComment
+            ? [
+                {
+                  label: T.profile.scoreView.ai.delete,
+                  className: "AiCommentDelete",
+                  onSelect: () => setConfirming("aiComment"),
+                },
+              ]
+            : []),
+          {
+            label: T.profile.scoreView.deleteGame,
+            className: "DeleteGameButton",
+            onSelect: () => setConfirming("game"),
+          },
+        ];
 
   function endComment(endId: number): string | null {
     return comments.ends[endId] ?? null;
@@ -292,7 +305,10 @@ function ScoreViewContent() {
         title={T.profile.scoreView.title}
         actions={
           gameId !== null && (
-            <span className="ScoreViewGameId muted small">{T.profile.scoreView.gameId(gameId)}</span>
+            <>
+              <span className="ScoreViewGameId muted small">{T.profile.scoreView.gameId(gameId)}</span>
+              <SettingsMenu items={settingsItems} />
+            </>
           )
         }
       />
@@ -340,46 +356,25 @@ function ScoreViewContent() {
             />
           )}
           {loaded.data?.aiComment && (
-            <AiCommentPanel
-              aiComment={loaded.data.aiComment}
-              onDelete={onDeleteAiComment}
-              deleting={deletingAiComment}
-            />
+            <AiCommentPanel aiComment={loaded.data.aiComment} />
           )}
-          <button
-            type="button"
-            className="DeleteGameButton danger block"
-            onClick={() => setConfirmingDelete(true)}
-          >
-            {T.profile.scoreView.deleteGame}
-          </button>
         </>
       )}
-      {confirmingDelete && (
-        <Modal
+      {confirming === "game" && (
+        <DeleteConfirmModal
           title={T.profile.scoreView.deleteConfirmTitle}
-          onClose={() => setConfirmingDelete(false)}
-          actions={
-            <>
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(false)}
-              >
-                {T.cancel}
-              </button>
-              <button
-                type="button"
-                className="danger"
-                disabled={deleting}
-                onClick={onDeleteGame}
-              >
-                {T.delete}
-              </button>
-            </>
-          }
-        >
-          <p>{T.profile.scoreView.deleteConfirm}</p>
-        </Modal>
+          message={T.profile.scoreView.deleteConfirm}
+          onClose={() => setConfirming(null)}
+          onConfirm={onDeleteGame}
+        />
+      )}
+      {confirming === "aiComment" && (
+        <DeleteConfirmModal
+          title={T.profile.scoreView.ai.delete}
+          message={T.profile.scoreView.ai.deleteConfirm}
+          onClose={() => setConfirming(null)}
+          onConfirm={onDeleteAiComment}
+        />
       )}
       <BackButton />
     </div>

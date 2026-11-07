@@ -98,7 +98,7 @@ export interface paths {
          * @description Users ranked by total score, average round score or average point
          *     score, high to low, optionally filtered by bow type, distance,
          *     organization, region, and/or period. ランキングを見る人に公開している人だけを載せる。
-         *     match_id で、その試合のゲームだけを数える。
+         *     match_id で、その試合のゲームだけを数える。そのときは公開範囲に依らず試合に出た人を全員載せる。
          */
         get: operations["list_user_ranking_api_v1_public_ranking_get"];
         put?: never;
@@ -603,10 +603,11 @@ export interface paths {
         };
         /**
          * Get Match
-         * @description 試合の画面で読む一件(試合の設定と、見られる人には結果)。
+         * @description 試合の画面で読む一件(試合の設定と結果)。
          *
-         *     設定は id(推測されにくいコード)を知っていればだれでも読める。結果(全員の順位・偏差値と集計)は、
-         *     作った人と、試合のゲームを持つ人にだけ付け、ほかの人には null にする。
+         *     id(推測されにくいコード)を知っていればだれでも読める。結果(全員の順位・偏差値と集計)は、
+         *     参加した人のプロフィール・ランキングの公開範囲に依らず全員を載せる(試合に出た時点で、
+         *     その試合の人たちに見せるものとする)。
          */
         get: operations["get_match_api_v1_matches__match_id__get"];
         put?: never;
@@ -1853,8 +1854,7 @@ export interface components {
         };
         /**
          * MatchDetail
-         * @description 試合の画面で読む一件。結果は、作った人と参加した人(自分のゲームがある人)にだけ付け、
-         *     ほかの人には null にする(他人の名前と点が出るため)。
+         * @description 試合の画面で読む一件。結果は、参加した人の公開範囲に依らず全員を載せる。
          */
         MatchDetail: {
             /** Game Size */
@@ -1881,7 +1881,7 @@ export interface components {
             organized_by_me: boolean;
             /** My Game Count */
             my_game_count: number;
-            result: components["schemas"]["MatchStanding"] | null;
+            result: components["schemas"]["MatchStanding"];
         };
         /**
          * MatchEntry

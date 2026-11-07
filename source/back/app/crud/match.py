@@ -162,14 +162,13 @@ def list_my_matches(
 
 
 def get_match_detail(s: Session, viewer: User, match_id: str) -> MatchDetail | None:
-    """試合の画面で読む一件。結果は、作った人と、試合のゲーム(消したものは除く)を持つ人にだけ付ける。"""
+    """試合の画面で読む一件。結果は、試合を開けた人(コードを知る人)ならだれにでも付ける。"""
     match = read_match(s, viewer, match_id)
     if match is None:
         return None
-    can_view_result = match.organized_by_me or match.my_game_count > 0
     return MatchDetail(
         **match.model_dump(),
-        result=_standing(s, viewer, match_id) if can_view_result else None,
+        result=_standing(s, viewer, match_id),
     )
 
 
