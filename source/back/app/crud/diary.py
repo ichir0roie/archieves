@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import extract, func, select
 from sqlalchemy.orm import Session
@@ -16,6 +16,22 @@ def create_diary(s: Session, user_id: int, body: str) -> Diary:
     s.flush()
     s.refresh(diary)
     return diary
+
+
+def get_diary(s: Session, diary_id: int) -> Diary | None:
+    return s.scalar(select(Diary).where(Diary.id == diary_id, Diary.deleted_at.is_(None)))
+
+
+def update_diary(s: Session, diary: Diary, body: str) -> Diary:
+    """本文だけを書き換える。書いた日時(created_at)は変えない。"""
+    diary.body = body
+    s.flush()
+    return diary
+
+
+def delete_diary(s: Session, diary: Diary) -> None:
+    diary.deleted_at = date.today()
+    s.flush()
 
 
 def import_diaries(

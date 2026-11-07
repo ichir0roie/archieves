@@ -11,12 +11,21 @@ export interface Destination {
   adminOnly?: boolean;
 }
 
+/**
+ * 試合: 一覧(MATCH_LIST_PATH。コード・QR で探す入口もここ)、作る画面(MATCH_NEW_PATH。試合はここでだけ作る)、
+ * 一つの試合の画面(MATCH_PATH。?id=<試合の id>。概要・参加・QR・結果)
+ */
+export const MATCH_LIST_PATH = "/match/list";
+export const MATCH_NEW_PATH = "/match/new";
+export const MATCH_PATH = "/match";
+
 /** ホームでは大きなボタンにし、ほかの行き先と分けて出す */
 export const START_GAME: Destination = { href: "/game/setup", label: "startGame" };
 
 /** メニュー(Nav)とホームのボタンに並べる行き先。この順に並べる */
 export const DESTINATIONS: ReadonlyArray<Destination> = [
   START_GAME,
+  { href: MATCH_LIST_PATH, label: "match" },
   { href: "/score-log", label: "scoreLog" },
   { href: "/analysis", label: "analysis" },
   { href: "/diary", label: "diary" },

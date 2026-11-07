@@ -155,3 +155,79 @@ def test_import_diaries_rejects_empty_and_too_many(token_client: TestClient) -> 
         ).status_code
         == 422
     )
+
+
+def test_update_diary_rewrites_the_body_and_keeps_the_date(
+    client: TestClient, current_user, factories
+) -> None:
+    diary = factories.DiaryFactory(user=current_user, body="前の本文", created_at=_at(2026, 5, 1))
+
+    response = client.patch(f"/api/v1/diaries/{diary.id}", json={"body": "直した本文\n2 行目"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == diary.id
+    assert body["body"] == "直した本文\n2 行目"
+    assert body["created_at"] == "2026-05-01T03:00:00Z"
+    assert [d["body"] for d in client.get("/api/v1/diaries").json()] == ["直した本文\n2 行目"]
+
+
+def test_update_diary_rejects_empty_and_too_long_bodies(
+    client: TestClient, current_user, factories
+) -> None:
+    diary = factories.DiaryFactory(user=current_user)
+    url = f"/api/v1/diaries/{diary.id}"
+
+    assert client.patch(url, json={"body": ""}).status_code == 422
+    assert client.patch(url, json={}).status_code == 422
+    assert client.patch(url, json={"body": "a" * (MAX_DIARY_LENGTH + 1)}).status_code == 422
+    assert client.patch(url, json={"body": "a" * MAX_DIARY_LENGTH}).status_code == 200
+
+
+def test_delete_diary_hides_it_from_the_list_and_the_years(
+    client: TestClient, current_user, factories
+) -> None:
+    kept = factories.DiaryFactory(user=current_user, created_at=_at(2026, 5, 1))
+    deleted = factories.DiaryFactory(user=current_user, created_at=_at(2025, 5, 1))
+
+    response = client.delete(f"/api/v1/diaries/{deleted.id}")
+
+    assert response.status_code == 204
+    assert [d["id"] for d in client.get("/api/v1/diaries").json()] == [kept.id]
+    assert client.get("/api/v1/diaries/years").json() == [2026]
+
+
+def test_a_deleted_diary_cannot_be_updated_or_deleted_again(
+    client: TestClient, current_user, factories
+) -> None:
+    diary = factories.DiaryFactory(user=current_user, deleted_at=date(2026, 1, 1))
+    url = f"/api/v1/diaries/{diary.id}"
+
+    assert client.patch(url, json={"body": "x"}).status_code == 404
+    assert client.delete(url).status_code == 404
+
+
+def test_update_and_delete_a_missing_diary_are_404(client: TestClient, factories) -> None:
+    diary = factories.DiaryFactory()
+    missing = diary.id + 1000
+
+    assert client.patch(f"/api/v1/diaries/{missing}", json={"body": "x"}).status_code == 404
+    assert client.delete(f"/api/v1/diaries/{missing}").status_code == 404
+
+
+def test_reimporting_a_deleted_diary_brings_it_back(
+    token_client: TestClient, current_user, factories
+) -> None:
+    # 消した日記は取り込みの重なりに数えない(消したものを取り込み直せるように)
+    factories.DiaryFactory(
+        user=current_user,
+        body="消した日記",
+        created_at=_at(2026, 5, 1, hour=9),
+        deleted_at=date(2026, 6, 1),
+    )
+    payload = {"diaries": [{"body": "消した日記", "written_at": "2026-05-01T09:00:00"}]}
+
+    response = token_client.post("/api/v1/diaries/import", json=payload)
+
+    assert response.status_code == 201
+    assert response.json()["skipped"] == 0

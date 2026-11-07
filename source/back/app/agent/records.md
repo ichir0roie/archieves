@@ -6,7 +6,7 @@
 
 ゲームの記録は、ゲームごとに次の形をしている。
 
-- ゲーム: `id`・`recorded_at`(日付)・`bow_type`(弓の種類)・`arrow_diameter_mm`・`all_in`(インサイドアウト: 線にかかった矢を低い方の点にする)・`comment`(本人のメモ)・`ai_comment`(前に書いた AIコメント。無ければ null)・`rounds`
+- ゲーム: `id`・`recorded_at`(日付)・`bow_type`(弓の種類)・`arrow_diameter_mm`・`all_in`(インサイドアウト: 線にかかった矢を低い方の点にする)・`match_id`(試合のゲームならその試合の id。無ければ null)・`comment`(本人のメモ)・`ai_comment`(前に書いた AIコメント。無ければ null)・`rounds`
 - ラウンド: `number`・`distance_m`(距離)・`target_type`(的の種類。`122cm`・`80cm` など)・`end_size`(1 エンドの矢の数)・`comment`・`ends`
 - エンド: `number`・`comment`・`points`
 - 矢(points): `score` は 11 が X(10 点に数え、X の本数にも数える)、10〜1 はその点、0 が M(外れ)。`x_cm`・`y_cm` は的の中心からの位置(cm)で、右と下が正。null は位置を記録していない矢。`x`・`y` は的に対する割合(左上が 0、中心が 0.5)

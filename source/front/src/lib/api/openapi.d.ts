@@ -98,6 +98,7 @@ export interface paths {
          * @description Users ranked by total score, average round score or average point
          *     score, high to low, optionally filtered by bow type, distance,
          *     organization, region, and/or period. ランキングを見る人に公開している人だけを載せる。
+         *     match_id で、その試合のゲームだけを数える。
          */
         get: operations["list_user_ranking_api_v1_public_ranking_get"];
         put?: never;
@@ -572,6 +573,58 @@ export interface paths {
         patch: operations["update_point_api_v1_points__point_id__patch"];
         trace?: never;
     };
+    "/api/v1/matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Matches
+         * @description 自分が作った試合と、自分のゲームがある試合。開いた日時の新しい順。
+         */
+        get: operations["list_my_matches_api_v1_matches_get"];
+        put?: never;
+        /** Create Match */
+        post: operations["create_match_api_v1_matches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/matches/{match_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Match
+         * @description 試合の画面で読む一件(試合の設定と、見られる人には結果)。
+         *
+         *     設定は id(推測されにくいコード)を知っていればだれでも読める。結果(全員の順位・偏差値と集計)は、
+         *     作った人と、試合のゲームを持つ人にだけ付け、ほかの人には null にする。
+         */
+        get: operations["get_match_api_v1_matches__match_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Match
+         * @description 試合を消す。作った人だけ。参加した人のゲームは残り、試合から外れる。
+         */
+        delete: operations["delete_match_api_v1_matches__match_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Match
+         * @description 試合のタイトル・内容を直す。作った人だけ。
+         */
+        patch: operations["update_match_api_v1_matches__match_id__patch"];
+        trace?: never;
+    };
     "/api/v1/games/{game_id}/comments": {
         parameters: {
             query?: never;
@@ -1036,6 +1089,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/diaries/{diary_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Diary */
+        delete: operations["delete_diary_api_v1_diaries__diary_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Diary */
+        patch: operations["update_diary_api_v1_diaries__diary_id__patch"];
+        trace?: never;
+    };
     "/api/v1/access-tokens": {
         parameters: {
             query?: never;
@@ -1386,6 +1457,11 @@ export interface components {
              */
             created_at: string;
         };
+        /** DiaryUpdate */
+        DiaryUpdate: {
+            /** Body */
+            body: string;
+        };
         /** EndCommentRead */
         EndCommentRead: {
             /** Body */
@@ -1637,6 +1713,8 @@ export interface components {
             user_id: number;
             /** Id */
             id: number;
+            /** Match Id */
+            match_id: string | null;
             /** Deleted At */
             deleted_at: string | null;
         };
@@ -1677,6 +1755,8 @@ export interface components {
             all_in: boolean;
             /** Backfilled */
             backfilled: boolean;
+            /** Match Id */
+            match_id: string | null;
             /** Comment */
             comment: string | null;
             ai_comment: components["schemas"]["AiCommentRead"] | null;
@@ -1710,6 +1790,8 @@ export interface components {
             id?: number | null;
             /** Client Key */
             client_key?: string | null;
+            /** Match Id */
+            match_id?: string | null;
             /** Comment */
             comment?: string | null;
             /**
@@ -1754,6 +1836,146 @@ export interface components {
          * @enum {string}
          */
         ImportSource: "android_mytargets" | "archieves";
+        /** MatchCreate */
+        MatchCreate: {
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Game Size */
+            game_size: number;
+            /** Round Size */
+            round_size: number;
+            /** End Size */
+            end_size: number;
+            /** Held At */
+            held_at?: string | null;
+        };
+        /**
+         * MatchDetail
+         * @description 試合の画面で読む一件。結果は、作った人と参加した人(自分のゲームがある人)にだけ付け、
+         *     ほかの人には null にする(他人の名前と点が出るため)。
+         */
+        MatchDetail: {
+            /** Game Size */
+            game_size: number;
+            /** Round Size */
+            round_size: number;
+            /** End Size */
+            end_size: number;
+            /** Id */
+            id: string;
+            /**
+             * Held At
+             * Format: date-time
+             */
+            held_at: string;
+            /** Title */
+            title: string | null;
+            /** Description */
+            description: string | null;
+            organizer: components["schemas"]["RankedUser"] | null;
+            /** Game Count */
+            game_count: number;
+            /** Organized By Me */
+            organized_by_me: boolean;
+            /** My Game Count */
+            my_game_count: number;
+            result: components["schemas"]["MatchStanding"] | null;
+        };
+        /**
+         * MatchEntry
+         * @description 試合の結果の一行。ゲームごと(同じ人が二つ記録すれば二行)。
+         */
+        MatchEntry: {
+            /** Rank */
+            rank: number;
+            /** Game Id */
+            game_id: number;
+            user: components["schemas"]["RankedUser"];
+            /** Bow Type */
+            bow_type: string | null;
+            /** Distance M */
+            distance_m: number;
+            /** Total Score */
+            total_score: number;
+            /** Arrow Count */
+            arrow_count: number;
+            /** X Count */
+            x_count: number;
+            /** Ten Count */
+            ten_count: number;
+            /** Miss Count */
+            miss_count: number;
+            /** Point Average */
+            point_average: number;
+            /** Deviation Score */
+            deviation_score: number;
+        };
+        /** MatchRead */
+        MatchRead: {
+            /** Game Size */
+            game_size: number;
+            /** Round Size */
+            round_size: number;
+            /** End Size */
+            end_size: number;
+            /** Id */
+            id: string;
+            /**
+             * Held At
+             * Format: date-time
+             */
+            held_at: string;
+            /** Title */
+            title: string | null;
+            /** Description */
+            description: string | null;
+            organizer: components["schemas"]["RankedUser"] | null;
+            /** Game Count */
+            game_count: number;
+            /** Organized By Me */
+            organized_by_me: boolean;
+            /** My Game Count */
+            my_game_count: number;
+        };
+        /**
+         * MatchStanding
+         * @description 試合の結果(全員の順位と、合計点の集計)。
+         */
+        MatchStanding: {
+            statistics: components["schemas"]["MatchStatistics"];
+            /** Entries */
+            entries: components["schemas"]["MatchEntry"][];
+        };
+        /**
+         * MatchStatistics
+         * @description 試合のゲームの合計点の集計。ゲームが無ければ件数 0 で、ほかは null。
+         */
+        MatchStatistics: {
+            /** Count */
+            count: number;
+            /** Average */
+            average: number | null;
+            /** Standard Deviation */
+            standard_deviation: number | null;
+            /** Median */
+            median: number | null;
+            /** Max */
+            max: number | null;
+            /** Min */
+            min: number | null;
+        };
+        /**
+         * MatchUpdate
+         * @description 作った人がタイトル・内容を直す。省いた欄はそのまま、null(空)で消す。
+         */
+        MatchUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
+        };
         /**
          * MeRead
          * @description 本人の行。sub・管理者かどうか・公開範囲は本人にだけ返す。
@@ -2334,6 +2556,7 @@ export interface operations {
                 region_id?: number | null;
                 bow_type?: components["schemas"]["BowType"] | null;
                 distance_m?: number | null;
+                match_id?: string | null;
                 start?: string | null;
                 end?: string | null;
                 skip?: number;
@@ -3613,6 +3836,166 @@ export interface operations {
             };
         };
     };
+    list_my_matches_api_v1_matches_get: {
+        parameters: {
+            query?: {
+                skip?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_match_api_v1_matches_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MatchCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_match_api_v1_matches__match_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_match_api_v1_matches__match_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_match_api_v1_matches__match_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MatchUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_comments_for_game_api_v1_games__game_id__comments_get: {
         parameters: {
             query?: never;
@@ -4600,6 +4983,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": number[];
+                };
+            };
+        };
+    };
+    delete_diary_api_v1_diaries__diary_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                diary_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_diary_api_v1_diaries__diary_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                diary_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiaryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiaryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

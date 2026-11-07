@@ -5,6 +5,7 @@ import { useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
 import DiaryCell from "@/components/DiaryCell";
+import DiaryEditModal from "@/components/DiaryEditModal";
 import Field from "@/components/Field";
 import PageHeader from "@/components/PageHeader";
 import { useLoad } from "@/hooks/useLoad";
@@ -12,6 +13,7 @@ import {
   createDiary,
   listDiaries,
   toErrorDetails,
+  type DiaryRead,
   type ErrorDetails,
 } from "@/lib/api";
 import { MAX_DIARY_LENGTH, RECENT_DIARY_LIMIT } from "@/lib/diary";
@@ -24,7 +26,8 @@ export default function Page() {
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<ErrorDetails | null>(null);
-  // 書いたあとに一覧を読み直すための鍵
+  const [editing, setEditing] = useState<DiaryRead | null>(null);
+  // 書いた・直した・消したあとに一覧を読み直すための鍵
   const [version, setVersion] = useState(0);
   const { data: diaries, loading, error } = useLoad(
     () => listDiaries({ limit: RECENT_DIARY_LIMIT }),
@@ -91,6 +94,7 @@ export default function Page() {
                   key={diary.id}
                   diary={diary}
                   date={formatDateTime(diary.created_at)}
+                  onEdit={setEditing}
                 />
               ))}
             </div>
@@ -104,6 +108,16 @@ export default function Page() {
       >
         {T.diary.toList}
       </button>
+      {editing && (
+        <DiaryEditModal
+          diary={editing}
+          onClose={() => setEditing(null)}
+          onChanged={() => {
+            setEditing(null);
+            setVersion((v) => v + 1);
+          }}
+        />
+      )}
       <BackButton />
     </div>
   );

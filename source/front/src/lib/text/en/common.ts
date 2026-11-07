@@ -54,6 +54,7 @@ export const common: typeof ja = {
     home: t.home,
     startGame: "Start game",
     resumeGame: "Continue the game in progress",
+    match: t.match,
     scoreLog: t.scoreLog,
     analysis: t.statistics,
     profile: t.profile,

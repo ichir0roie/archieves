@@ -270,12 +270,13 @@ def list_user_ranking(
     region_id: int | None = None,
     bow_type: BowType | None = None,
     distance_m: int | None = None,
+    match_id: str | None = None,
     start: date | None = None,
     end: date | None = None,
     skip: int = 0,
     limit: int = 100,
 ) -> list[UserRanking]:
-    """期間・種目(弓の種類・距離)・組織・地域の中で、metric の値が高い順の利用者。
+    """期間・種目(弓の種類・距離)・試合・組織・地域の中で、metric の値が高い順の利用者。
 
     ランキングを viewer に公開している利用者(全体公開か、同じ組織への公開)だけを載せる。
     viewer が None(ログインしていない)なら全体公開の人だけ。非公開なら viewer 本人も載らない。
@@ -302,6 +303,8 @@ def list_user_ranking(
         round_scores = round_scores.where(Game.bow_type == bow_type)
     if distance_m is not None:
         round_scores = round_scores.where(Round.distance_m == distance_m)
+    if match_id is not None:
+        round_scores = round_scores.where(Game.match_id == match_id)
     round_scores = round_scores.subquery()
 
     arrow_count = func.sum(round_scores.c.arrow_count)

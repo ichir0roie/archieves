@@ -154,13 +154,33 @@ type Props = {
   draft: GameSetupDraft;
   onChange: (draft: GameSetupDraft) => void;
   minSizes?: GameSetupMinSizes;
+  /** 試合に参加するとき。矢・エンド・ラウンドの数は試合のものにし、変えさせない */
+  sizesFixed?: boolean;
+  /**
+   * 出す欄。all は全部、gear は人ごとに選ぶ欄(弓・距離・的・矢の直径・インサイドアウト)、
+   * sizes は矢・エンド・ラウンドの数と合計。試合に参加するとき、二つを別の区画に分けて出すのに使う
+   */
+  part?: "all" | "gear" | "sizes";
+  /** 欄ごとの説明を出さない(区画の見出しで用が足りる、試合の画面で使う) */
+  hideHints?: boolean;
 };
 
 /**
  * ゲームの設定の欄(弓・距離・的・矢とエンドとラウンドの数・矢の直径・インサイドアウト)。
  * 始める前の設定の画面と、記入画面のゲームの設定のモーダルで使う
  */
-export default function GameSetupFields({ draft, onChange, minSizes = NO_MIN_SIZES }: Props) {
+export default function GameSetupFields({
+  draft,
+  onChange,
+  minSizes = NO_MIN_SIZES,
+  sizesFixed = false,
+  part = "all",
+  hideHints = false,
+}: Props) {
+  // 試合で数を変えられないときも、欄の説明は要らない(区画の見出しで分かる)
+  const sizeHints = !hideHints && !sizesFixed;
+  const showGear = part !== "sizes";
+  const showSizes = part !== "gear";
   const T = useT();
   const BOW_OPTIONS = BOW_TYPES.map((bowType) => ({
     value: bowType.id,
@@ -233,114 +253,129 @@ export default function GameSetupFields({ draft, onChange, minSizes = NO_MIN_SIZ
 
   return (
     <>
-      <div className="field">
-        <span className="field-label">{T.game.setup.bowType}</span>
-        <Segment
-          options={BOW_OPTIONS}
-          value={bowIsOther ? "" : draft.bowType}
-          onChange={(bowType) => update({ bowType })}
-          label={T.game.setup.bowType}
-          other={{
-            label: bowIsOther ? T.game.setup.otherValue(draft.bowType) : T.game.setup.other,
-            on: bowIsOther,
-            onClick: openBowOther,
-          }}
-        />
-        {isInnerTenBow(draft.bowType) && (
-          <span className="hint">{T.game.setup.innerTenHint}</span>
-        )}
-      </div>
-      <div className="field">
-        <span className="field-label">{T.game.setup.distance}</span>
-        <Segment
-          options={DISTANCE_OPTIONS}
-          value={distanceIsOther ? "" : String(draft.distanceM)}
-          onChange={(value) => update({ distanceM: Number(value) })}
-          label={T.game.setup.distance}
-          other={{
-            label: distanceIsOther
-              ? T.game.setup.otherValue(`${draft.distanceM}m`)
-              : T.game.setup.other,
-            on: distanceIsOther,
-            onClick: openDistanceOther,
-          }}
-        />
-      </div>
-      <div className="field">
-        <span className="field-label">{T.game.setup.targetType}</span>
-        <Segment
-          options={TARGET_OPTIONS}
-          value={targetIsOther ? "" : draft.targetType}
-          onChange={(targetType) => update({ targetType })}
-          label={T.game.setup.targetType}
-          other={{
-            label: targetIsOther ? T.game.setup.otherValue(draft.targetType) : T.game.setup.other,
-            on: targetIsOther,
-            onClick: openTargetOther,
-          }}
-        />
-      </div>
-      <IntegerField
-        label={T.game.setup.endSize}
-        value={draft.endSizeText}
-        onChange={(endSizeText) => update({ endSizeText })}
-        min={Math.max(MIN_END_SIZE, minSizes.endSize)}
-        max={MAX_END_SIZE}
-        hint={T.game.setup.endSizeHint}
-      />
-      <IntegerField
-        label={T.game.setup.roundSize}
-        value={draft.roundSizeText}
-        onChange={(roundSizeText) => update({ roundSizeText })}
-        min={Math.max(MIN_ROUND_SIZE, minSizes.roundSize)}
-        max={MAX_ROUND_SIZE}
-        hint={T.game.setup.roundSizeHint}
-      />
-      <IntegerField
-        label={T.game.setup.gameSize}
-        value={draft.gameSizeText}
-        onChange={(gameSizeText) => update({ gameSizeText })}
-        min={Math.max(MIN_GAME_SIZE, minSizes.gameSize)}
-        max={MAX_GAME_SIZE}
-        hint={T.game.setup.gameSizeHint}
-      />
-      <IntegerField
-        label={T.game.setup.arrowDiameter}
-        value={draft.arrowDiameterMmText}
-        onChange={(arrowDiameterMmText) => update({ arrowDiameterMmText })}
-        min={MIN_ARROW_DIAMETER_MM}
-        max={MAX_ARROW_DIAMETER_MM}
-        hint={T.game.setup.arrowDiameterHint(previewArrowPx)}
-        aside={
-          // 記入画面のズームに出すのと同じ部品・同じ大きさ。帯の線への届き方を設定する前に見られる
-          <div
-            className="SightPreview sight-preview ring-gold"
-            role="img"
-            aria-label={T.game.setup.sightPreview}
-          >
-            {previewArrowPx !== null && (
-              <ArrowSight
-                arrowDiameterPx={previewArrowPx}
-                zoom={lensZoom}
-                ringClassName="ring-gold"
-              />
+      {showGear && (
+        <>
+          <div className="field">
+            <span className="field-label">{T.game.setup.bowType}</span>
+            <Segment
+              options={BOW_OPTIONS}
+              value={bowIsOther ? "" : draft.bowType}
+              onChange={(bowType) => update({ bowType })}
+              label={T.game.setup.bowType}
+              other={{
+                label: bowIsOther ? T.game.setup.otherValue(draft.bowType) : T.game.setup.other,
+                on: bowIsOther,
+                onClick: openBowOther,
+              }}
+            />
+            {isInnerTenBow(draft.bowType) && (
+              <span className="hint">{T.game.setup.innerTenHint}</span>
             )}
           </div>
-        }
-      />
-      <div className="field">
-        <label className="AllInField check-field">
-          <input
-            type="checkbox"
-            checked={draft.allIn}
-            onChange={(e) => update({ allIn: e.target.checked })}
+          <div className="field">
+            <span className="field-label">{T.game.setup.distance}</span>
+            <Segment
+              options={DISTANCE_OPTIONS}
+              value={distanceIsOther ? "" : String(draft.distanceM)}
+              onChange={(value) => update({ distanceM: Number(value) })}
+              label={T.game.setup.distance}
+              other={{
+                label: distanceIsOther
+                  ? T.game.setup.otherValue(`${draft.distanceM}m`)
+                  : T.game.setup.other,
+                on: distanceIsOther,
+                onClick: openDistanceOther,
+              }}
+            />
+          </div>
+          <div className="field">
+            <span className="field-label">{T.game.setup.targetType}</span>
+            <Segment
+              options={TARGET_OPTIONS}
+              value={targetIsOther ? "" : draft.targetType}
+              onChange={(targetType) => update({ targetType })}
+              label={T.game.setup.targetType}
+              other={{
+                label: targetIsOther ? T.game.setup.otherValue(draft.targetType) : T.game.setup.other,
+                on: targetIsOther,
+                onClick: openTargetOther,
+              }}
+            />
+          </div>
+        </>
+      )}
+      {showSizes && (
+        <>
+          <IntegerField
+            label={T.game.setup.endSize}
+            value={draft.endSizeText}
+            onChange={(endSizeText) => update({ endSizeText })}
+            min={Math.max(MIN_END_SIZE, minSizes.endSize)}
+            max={MAX_END_SIZE}
+            hint={sizeHints ? T.game.setup.endSizeHint : undefined}
+            disabled={sizesFixed}
           />
-          {T.terms.allIn}
-        </label>
-        <span className="hint">{T.game.setup.allInHint}</span>
-      </div>
+          <IntegerField
+            label={T.game.setup.roundSize}
+            value={draft.roundSizeText}
+            onChange={(roundSizeText) => update({ roundSizeText })}
+            min={Math.max(MIN_ROUND_SIZE, minSizes.roundSize)}
+            max={MAX_ROUND_SIZE}
+            hint={sizeHints ? T.game.setup.roundSizeHint : undefined}
+            disabled={sizesFixed}
+          />
+          <IntegerField
+            label={T.game.setup.gameSize}
+            value={draft.gameSizeText}
+            onChange={(gameSizeText) => update({ gameSizeText })}
+            min={Math.max(MIN_GAME_SIZE, minSizes.gameSize)}
+            max={MAX_GAME_SIZE}
+            hint={sizeHints ? T.game.setup.gameSizeHint : undefined}
+            disabled={sizesFixed}
+          />
+        </>
+      )}
+      {showGear && (
+        <>
+          <IntegerField
+            label={T.game.setup.arrowDiameter}
+            value={draft.arrowDiameterMmText}
+            onChange={(arrowDiameterMmText) => update({ arrowDiameterMmText })}
+            min={MIN_ARROW_DIAMETER_MM}
+            max={MAX_ARROW_DIAMETER_MM}
+            hint={T.game.setup.arrowDiameterHint(previewArrowPx)}
+            aside={
+              // 記入画面のズームに出すのと同じ部品・同じ大きさ。帯の線への届き方を設定する前に見られる
+              <div
+                className="SightPreview sight-preview ring-gold"
+                role="img"
+                aria-label={T.game.setup.sightPreview}
+              >
+                {previewArrowPx !== null && (
+                  <ArrowSight
+                    arrowDiameterPx={previewArrowPx}
+                    zoom={lensZoom}
+                    ringClassName="ring-gold"
+                  />
+                )}
+              </div>
+            }
+          />
+          <div className="field">
+            <label className="AllInField check-field">
+              <input
+                type="checkbox"
+                checked={draft.allIn}
+                onChange={(e) => update({ allIn: e.target.checked })}
+              />
+              {T.terms.allIn}
+            </label>
+            <span className="hint">{T.game.setup.allInHint}</span>
+          </div>
+        </>
+      )}
 
-      {endSize !== null && roundSize !== null && gameSize !== null && (
+      {showSizes && endSize !== null && roundSize !== null && gameSize !== null && (
         <p className="SetupSummary game-note muted">
           {T.game.setup.summary(
             endSize * roundSize * gameSize,

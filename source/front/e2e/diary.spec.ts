@@ -50,3 +50,33 @@ test("the list screen shows a written diary under its month", async ({ page }) =
   await month.locator(".log-head").click();
   await expect(row).toBeHidden();
 });
+
+test("a diary can be edited and then deleted", async ({ page }) => {
+  await page.goto("/diary");
+  const submit = page.getByRole("button", { name: "書く", exact: true });
+  await expect(submit).toBeDisabled({ timeout: ROUTE_TIMEOUT });
+
+  const body = `E2E の日記の編集 ${Date.now()}`;
+  await page.getByLabel("本文").fill(body);
+  await submit.click();
+  const item = page.locator(".DiaryCell", { hasText: body });
+  await expect(item).toBeVisible();
+
+  await item.getByRole("button", { name: "編集", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "日記を編集" });
+  const save = dialog.getByRole("button", { name: "保存", exact: true });
+  // 何も変えていなければ保存できない
+  await expect(save).toBeDisabled();
+  await dialog.getByLabel("本文").fill(`${body} 直した`);
+  await save.click();
+  await expect(dialog).toBeHidden();
+  const edited = page.locator(".DiaryCell", { hasText: `${body} 直した` });
+  await expect(edited).toBeVisible();
+
+  await edited.getByRole("button", { name: "編集", exact: true }).click();
+  await page.getByRole("dialog", { name: "日記を編集" }).getByRole("button", { name: "削除", exact: true }).click();
+  const confirm = page.getByRole("dialog", { name: "日記を削除" });
+  await confirm.getByRole("button", { name: "削除", exact: true }).click();
+  await expect(confirm).toBeHidden();
+  await expect(page.locator(".DiaryCell", { hasText: body })).toHaveCount(0);
+});

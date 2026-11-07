@@ -16,6 +16,7 @@ import type {
   BowType,
   DiaryCreate,
   DiaryRead,
+  DiaryUpdate,
   EndCommentRead,
   EndRead,
   EndScoreSummary,
@@ -29,6 +30,10 @@ import type {
   GameScoreSummary,
   ImportResult,
   ImportSource,
+  MatchCreate,
+  MatchDetail,
+  MatchRead,
+  MatchUpdate,
   OrganizationCreate,
   OrganizationRead,
   OrganizationSummary,
@@ -354,6 +359,40 @@ export function getGameSheet(gameId: number): Promise<GameSheetRead> {
   return request(`/games/${gameId}/sheet`);
 }
 
+/** 試合を作る。参加する人は、返った id で同じ設定のゲームを始める */
+export function createMatch(match: MatchCreate): Promise<MatchRead> {
+  return request('/matches', {
+    method: 'POST',
+    body: JSON.stringify(match),
+  });
+}
+
+/** 自分が作った試合と、自分のゲームがある試合。開いた日時の新しい順 */
+/** 試合のタイトル・内容を直す。作った人だけ(ほかの人は 403) */
+export function updateMatch(matchId: string, match: MatchUpdate): Promise<MatchRead> {
+  return request(`/matches/${matchId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(match),
+  });
+}
+
+/** 試合を消す。作った人だけ。参加した人のゲームは残り、試合から外れる */
+export function deleteMatch(matchId: string): Promise<void> {
+  return request(`/matches/${matchId}`, { method: 'DELETE' });
+}
+
+export function listMyMatches(): Promise<MatchRead[]> {
+  return request('/matches');
+}
+
+/**
+ * 試合の設定と、作った人・参加した人には結果(ほかの人は result が null)。
+ * 打ち間違えた id(404)は画面で知らせる
+ */
+export function getMatch(matchId: string): Promise<MatchDetail> {
+  return request(`/matches/${matchId}`, undefined, { expectedStatuses: [404] });
+}
+
 /** ゲームを論理削除する。ラウンド・エンド・矢も一緒に消える。 */
 export function deleteGame(gameId: number): Promise<void> {
   return request(`/games/${gameId}`, { method: 'DELETE' });
@@ -592,6 +631,8 @@ export interface RankingQuery {
   end?: string;
   bowType?: BowType;
   distanceM?: number;
+  /** その試合のゲームだけを数える */
+  matchId?: string;
   organizationId?: number;
   regionId?: number;
 }
@@ -643,6 +684,7 @@ export function listUserRanking(params?: RankingQuery): Promise<UserRanking[]> {
   if (params?.end) query.set('end', params.end);
   if (params?.bowType) query.set('bow_type', params.bowType);
   if (params?.distanceM !== undefined) query.set('distance_m', String(params.distanceM));
+  if (params?.matchId !== undefined) query.set('match_id', params.matchId);
   if (params?.organizationId !== undefined) {
     query.set('organization_id', String(params.organizationId));
   }
@@ -670,6 +712,18 @@ export function createDiary(diary: DiaryCreate): Promise<DiaryRead> {
     method: 'POST',
     body: JSON.stringify(diary),
   });
+}
+
+/** 日記の本文を書き換える。書いた日時は変わらない。 */
+export function updateDiary(diaryId: number, diary: DiaryUpdate): Promise<DiaryRead> {
+  return request(`/diaries/${diaryId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(diary),
+  });
+}
+
+export function deleteDiary(diaryId: number): Promise<void> {
+  return request(`/diaries/${diaryId}`, { method: 'DELETE' });
 }
 
 /** 自分が意見箱に送った内容と、その返信。新しい順。 */

@@ -5,6 +5,7 @@ import { game } from "./game";
 import { guide } from "./guide";
 import { home } from "./home";
 import { legal } from "./legal";
+import { match } from "./match";
 import { profile } from "./profile";
 import { settings } from "./settings";
 import { stats } from "./stats";
@@ -16,6 +17,7 @@ export const texts: Texts = {
   stats,
   game,
   guide,
+  match,
   profile,
   settings,
   support,

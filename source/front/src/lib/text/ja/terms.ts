@@ -11,6 +11,7 @@
  */
 export const terms = {
   game: "ゲーム",
+  match: "試合",
   round: "ラウンド",
   end: "エンド",
   arrow: "矢",

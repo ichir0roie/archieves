@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AiCommentPanel from "@/components/AiCommentPanel";
@@ -31,6 +32,7 @@ import {
 } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { SCORE_CARD_PATH } from "@/lib/destinations";
+import { matchPath } from "@/lib/score/match";
 import { countRings, totalScore } from "@/lib/score/scoreFunctions";
 import { ScoreManager } from "@/lib/score/scoreManager";
 import { useLoad } from "@/hooks/useLoad";
@@ -126,6 +128,7 @@ function ScoreViewContent() {
     const sheet = await getGameSheet(Number(requestedId));
     return {
       gameId: sheet.id,
+      matchId: sheet.match_id,
       aiComment: sheet.ai_comment,
       rounds: sheet.rounds.map((round) => ({
         round,
@@ -138,6 +141,7 @@ function ScoreViewContent() {
     };
   }, [requestedId, reloadKey]);
   const gameId = loaded.data?.gameId ?? null;
+  const matchId = loaded.data?.matchId ?? null;
   const rounds = loaded.data?.rounds ?? null;
   const error = actionError ?? loaded.error;
 
@@ -292,6 +296,14 @@ function ScoreViewContent() {
           )
         }
       />
+      {matchId !== null && (
+        <Link
+          className="ScoreViewMatch"
+          href={matchPath(matchId)}
+        >
+          {T.match.title}: {T.match.result.title}
+        </Link>
+      )}
       {error && <ApiErrorAlert error={error} />}
       {loaded.error && rounds === null && (
         <button

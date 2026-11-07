@@ -17,6 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.match_codes import MATCH_ID_MAX_LENGTH
 from app.core.target_types import TARGET_TYPE_MAX_LENGTH
 from app.db.base_class import Base, TimestampMixin
 
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
         GameComment,
         RoundComment,
     )
+    from app.db.models.match_model import Match
     from app.db.models.system_model import User
 
 
@@ -59,8 +61,16 @@ class Game(TimestampMixin, Base):
     # あとから入力: スコアの一覧で日付を決めて入れたゲーム。ラウンド・エンド・矢の日付と矢の時刻は、
     # 編集で足した分も、入れた時でなくゲームの recorded_at にそろえる(フロントの ScoreManager)
     backfilled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # 試合のゲームなら、その試合。試合のラウンド数・エンド数・矢数と日付で始めたゲーム
+    match_id: Mapped[str | None] = mapped_column(
+        String(MATCH_ID_MAX_LENGTH),
+        ForeignKey("matches.id", ondelete="SET NULL"),
+        index=True,
+        default=None,
+    )
 
     user: Mapped[User] = relationship(back_populates="games", lazy="noload")
+    match: Mapped[Match | None] = relationship(back_populates="games", lazy="noload")
     # 子の関係はどれも noload。記録を丸ごと読むところ(crud/game.py の get_game_sheet)だけが
     # ローダーのオプションで読み、そのときの並びを order_by で決める
     rounds: Mapped[list[Round]] = relationship(

@@ -76,6 +76,8 @@ input[type="text"], input[type="search"], input[type="number"], input[type="url"
 textarea { min-height: 8rem; resize: vertical; line-height: 1.7; }
 input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 0; }
 input[aria-invalid="true"] { border-color: var(--danger); }
+/* 上で色と背景を決め打ちしているので、ブラウザの無効の見た目が消える。変えられない欄だと分かるよう、ここで薄くする */
+input:disabled, select:disabled, textarea:disabled { background: var(--chip); color: var(--muted); cursor: not-allowed; }
 
 button { padding: 0.5rem 0.95rem; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; }
 button:hover:not(:disabled) { border-color: var(--accent); }
@@ -208,6 +210,8 @@ table.list th { color: var(--muted); font-weight: 600; background: var(--chip); 
 .modal-head h2 { margin: 0; font-size: 1.05rem; }
 .modal-body { padding: 1rem; overflow: auto; }
 .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; padding: 0.7rem 1rem; border-top: 1px solid var(--line); }
+/* 削除など、ほかの操作と離して左に寄せるボタン */
+.modal-actions .modal-actions-start { margin-right: auto; }
 
 /* ---- 画面の枠 ---- */
 main { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 10px; }
@@ -488,9 +492,58 @@ nav[data-pos$="right"] .nav-panel { left: auto; right: calc(16px + var(--safe-ri
 .log-group .DiaryCells { border: 0; border-radius: 0; }
 .DiaryCell { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.5rem 0.8rem; }
 .DiaryCell + .DiaryCell { border-top: 1px solid var(--line); }
+.DiaryCell-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .DiaryCell-date { color: var(--muted); font-size: 0.85rem; }
+.DiaryCell-edit { padding: 0.15rem 0.5rem; font-size: 0.85rem; color: var(--muted); }
 .Announcements li + li { border-top: 1px solid var(--line); padding-top: 0.6rem; }
 
 /* ---- 使い方(app/guide) ---- */
 .guide-items { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
 .home-intro-lead { margin: 0; font-weight: 600; }
+/* ---- 試合(app/match/*) ---- */
+/* 押す所は指で押しやすい高さにそろえ、狭ければ折り返す */
+.action-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch; }
+.action-row > * { min-height: 44px; }
+.action-row > .grow { flex: 1 1 8rem; min-width: 0; }
+.match-summary-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+.match-summary-head h2 { margin: 0; }
+/* 設定の項目と値を一組ずつ、二列に並べる */
+.match-settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.3rem 1rem; margin: 0; }
+.match-settings > div { display: flex; justify-content: space-between; gap: 0.5rem; }
+.match-settings dd { margin: 0; font-weight: 600; text-align: right; }
+/* 試合のタイトル・内容。内容は打ったままの改行で出す */
+.match-description { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.match-summary-actions .MatchDelete { color: var(--danger); }
+.match-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+.match-stats > div { display: flex; flex-direction: column; align-items: center; background: var(--chip); border-radius: 8px; padding: 0.35rem 0.25rem; }
+.match-stats .value { font-size: 1.2rem; font-weight: 700; }
+.MatchResultTable-scroll { overflow-x: auto; }
+table.list.MatchResultTable td.num, table.list.MatchResultTable th.num { text-align: right; white-space: nowrap; }
+table.list.MatchResultTable tr.mine td { background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+/* td に flex を当てると表の行の背景が欠けるので、距離の方を塊にして下へ送る */
+table.list.MatchResultTable td.gear { font-size: 0.85rem; line-height: 1.25; }
+table.list.MatchResultTable td.gear .small { display: block; }
+.ranking-filter-chip { display: inline-flex; align-items: center; gap: 0.5rem; align-self: flex-start; padding: 0.2rem 0.3rem 0.2rem 0.7rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); font-size: 0.85rem; font-weight: 600; }
+/* 試合一覧のカード。カード全体が試合の画面へのリンク。内容は 3 行までにし、続きは試合の画面で読む */
+a.match-card { color: var(--ink); }
+a.match-card:hover { border-color: var(--accent); text-decoration: none; }
+a.match-card:active { background: color-mix(in srgb, var(--accent) 6%, var(--panel)); }
+.match-card-title { font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+.match-card-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.match-card-tags:empty { display: none; }
+.match-card-tags .tag { padding: 0.05rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
+.match-card-description { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* 試合の共有。QR は横に、コードとコピーのボタンを右に並べ、狭ければ縦に積む */
+.match-share { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.match-share img { width: 10rem; height: 10rem; border-radius: 8px; background: #fff; }
+.match-share > .stack { flex: 1 1 12rem; min-width: 0; }
+/* コードは長い(日付・番号・ランダムな字)ので、等幅で詰め、枠に収まらなければ区切りで折り返す */
+.match-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em; overflow-wrap: anywhere; }
+.match-code-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+/* 記入画面の試合の印は、押すと QR を出すボタン。見た目は小さな印のまま、押せる範囲だけ周りへ広げる */
+.score-progress button.progress-badge { position: relative; border: none; min-height: 0; line-height: inherit; cursor: pointer; }
+.score-progress button.progress-badge::after { content: ""; position: absolute; inset: -12px -6px; }
+/* QR の読み取り。映像は枠いっぱいの正方形に切り、真ん中に狙いの枠を重ねる */
+.qr-scanner { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; border-radius: 8px; background: #000; }
+.qr-scanner video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.qr-scanner-frame { position: absolute; inset: 15%; border: 3px solid rgba(255, 255, 255, 0.9); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35); pointer-events: none; }

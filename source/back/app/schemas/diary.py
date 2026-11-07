@@ -11,6 +11,10 @@ class DiaryCreate(BaseModel):
     body: str = Field(min_length=1, max_length=MAX_DIARY_LENGTH)
 
 
+class DiaryUpdate(BaseModel):
+    body: str = Field(min_length=1, max_length=MAX_DIARY_LENGTH)
+
+
 class DiaryRead(ResponseModel):
     id: int
     user_id: int

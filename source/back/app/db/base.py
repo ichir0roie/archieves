@@ -12,5 +12,6 @@ from app.db.models.comment_model import (  # noqa: F401
 )
 from app.db.models.diary_model import Diary  # noqa: F401
 from app.db.models.game_model import End, Game, Point, Round  # noqa: F401
+from app.db.models.match_model import Match  # noqa: F401
 from app.db.models.support_model import Announcement, ErrorReport, Feedback  # noqa: F401
 from app.db.models.system_model import Organization, Region, User  # noqa: F401

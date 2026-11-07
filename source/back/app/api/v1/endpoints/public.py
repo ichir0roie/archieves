@@ -68,6 +68,7 @@ def list_user_ranking(
     region_id: int | None = None,
     bow_type: BowType | None = None,
     distance_m: int | None = None,
+    match_id: str | None = None,
     start: date | None = None,
     end: date | None = None,
     skip: Skip = 0,
@@ -77,7 +78,8 @@ def list_user_ranking(
 ) -> list[UserRanking]:
     """Users ranked by total score, average round score or average point
     score, high to low, optionally filtered by bow type, distance,
-    organization, region, and/or period. ランキングを見る人に公開している人だけを載せる。"""
+    organization, region, and/or period. ランキングを見る人に公開している人だけを載せる。
+    match_id で、その試合のゲームだけを数える。"""
     return statistics_crud.list_user_ranking(
         s,
         viewer=viewer,
@@ -86,6 +88,7 @@ def list_user_ranking(
         region_id=region_id,
         bow_type=bow_type,
         distance_m=distance_m,
+        match_id=match_id,
         start=start,
         end=end,
         skip=skip,

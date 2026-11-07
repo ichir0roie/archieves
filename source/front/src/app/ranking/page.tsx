@@ -8,10 +8,12 @@ import Field from "@/components/Field";
 import Picker from "@/components/Picker";
 import Segment from "@/components/Segment";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLoad } from "@/hooks/useLoad";
 import { currentMonthRange, currentYearRange } from "@/lib/monthRange";
 import { BOW_TYPES, DISTANCE_PRESETS_M, isBowType } from "@/lib/score/scoreConfig";
+import { RANKING_MATCH_PARAM, matchPath, parseMatchId } from "@/lib/score/match";
+import { useQueryParams } from "@/hooks/useQueryParams";
 import { useT } from "@/lib/text";
 import {
   RankingMetric,
@@ -73,6 +75,16 @@ export default function Page() {
   const [bowType, setBowType] = useState(ALL);
   const [distance, setDistance] = useState(ALL);
   const [organizationId, setOrganizationId] = useState(ALL);
+  // 試合の画面から ?match= で来たら、その試合で絞る。外すと全体のランキングに戻る
+  const params = useQueryParams();
+  const [matchId, setMatchId] = useState<string | null>(null);
+  useEffect(() => {
+    const id = parseMatchId(params?.get(RANKING_MATCH_PARAM) ?? null);
+    if (id === null) return;
+    setMatchId(id);
+    // 試合は今月とは限らないので、期間は全期間にする
+    setPeriod("total");
+  }, [params]);
   const signedIn = useSignedIn();
   // 組織の一覧はログインが要るので、ログインしていなければ組織では絞らせない
   const organizations =
@@ -83,10 +95,11 @@ export default function Page() {
       ...periodRange(period),
       bowType: isBowType(bowType) ? bowType : undefined,
       distanceM: distance === ALL ? undefined : Number(distance),
+      matchId: matchId ?? undefined,
       organizationId: organizationId === ALL ? undefined : Number(organizationId),
     };
     return listUserRanking(query);
-  }, [period, metric, bowType, distance, organizationId]);
+  }, [period, metric, bowType, distance, organizationId, matchId]);
   const rankings = data ?? [];
 
   return (
@@ -151,6 +164,24 @@ export default function Page() {
             </Field>
           )}
         </div>
+        {matchId !== null && (
+          <div className="row">
+            <span className="ranking-filter-chip">
+              <Link href={matchPath(matchId)}>{T.match.rankingFilter(matchId)}</Link>
+              <button
+                type="button"
+                className="ghost small"
+                onClick={() => {
+                  setMatchId(null);
+                  // 読み直してもまた絞られないよう、URL からも外す
+                  window.history.replaceState(null, "", window.location.pathname);
+                }}
+              >
+                {T.match.clearFilter}
+              </button>
+            </span>
+          </div>
+        )}
       </div>
 
       <p className="muted small">{signedIn ? T.stats.ranking.visibilityNote : T.anonymous.rankingNote}</p>

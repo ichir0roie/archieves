@@ -56,6 +56,8 @@ export interface Sheet {
    * ラウンド・エンド・矢の日付は recorded_at に、矢の時刻はその日の 0 時にそろえる
    */
   backfilled: boolean;
+  /** 試合のゲームなら、その試合の id。試合の設定を写して始める */
+  match_id: string | null;
   comment: string | null;
   rounds: Array<SheetRound>;
 }

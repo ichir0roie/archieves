@@ -170,7 +170,7 @@
           "public"
         ],
         "summary": "List User Ranking",
-        "description": "Users ranked by total score, average round score or average point\nscore, high to low, optionally filtered by bow type, distance,\norganization, region, and/or period. ランキングを見る人に公開している人だけを載せる。",
+        "description": "Users ranked by total score, average round score or average point\nscore, high to low, optionally filtered by bow type, distance,\norganization, region, and/or period. ランキングを見る人に公開している人だけを載せる。\nmatch_id で、その試合のゲームだけを数える。",
         "operationId": "list_user_ranking_api_v1_public_ranking_get",
         "security": [
           {
@@ -252,6 +252,22 @@
                 }
               ],
               "title": "Distance M"
+            }
+          },
+          {
+            "name": "match_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Match Id"
             }
           },
           {
@@ -2525,6 +2541,274 @@
         }
       }
     },
+    "/api/v1/matches": {
+      "post": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Create Match",
+        "operationId": "create_match_api_v1_matches_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "List My Matches",
+        "description": "自分が作った試合と、自分のゲームがある試合。開いた日時の新しい順。",
+        "operationId": "list_my_matches_api_v1_matches_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MatchRead"
+                  },
+                  "title": "Response List My Matches Api V1 Matches Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/matches/{match_id}": {
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Get Match",
+        "description": "試合の画面で読む一件(試合の設定と、見られる人には結果)。\n\n設定は id(推測されにくいコード)を知っていればだれでも読める。結果(全員の順位・偏差値と集計)は、\n作った人と、試合のゲームを持つ人にだけ付け、ほかの人には null にする。",
+        "operationId": "get_match_api_v1_matches__match_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Match Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Update Match",
+        "description": "試合のタイトル・内容を直す。作った人だけ。",
+        "operationId": "update_match_api_v1_matches__match_id__patch",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Match Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Delete Match",
+        "description": "試合を消す。作った人だけ。参加した人のゲームは残り、試合から外れる。",
+        "operationId": "delete_match_api_v1_matches__match_id__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Match Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/games/{game_id}/comments": {
       "get": {
         "tags": [
@@ -4676,6 +4960,107 @@
         ]
       }
     },
+    "/api/v1/diaries/{diary_id}": {
+      "patch": {
+        "tags": [
+          "diaries"
+        ],
+        "summary": "Update Diary",
+        "operationId": "update_diary_api_v1_diaries__diary_id__patch",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "diary_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Diary Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiaryUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiaryRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "diaries"
+        ],
+        "summary": "Delete Diary",
+        "operationId": "delete_diary_api_v1_diaries__diary_id__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "diary_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Diary Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/access-tokens": {
       "get": {
         "tags": [
@@ -5500,6 +5885,21 @@
         ],
         "title": "DiaryRead"
       },
+      "DiaryUpdate": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "DiaryUpdate"
+      },
       "EndCommentRead": {
         "properties": {
           "body": {
@@ -6191,6 +6591,17 @@
             "type": "integer",
             "title": "Id"
           },
+          "match_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Id"
+          },
           "deleted_at": {
             "anyOf": [
               {
@@ -6214,6 +6625,7 @@
           "backfilled",
           "user_id",
           "id",
+          "match_id",
           "deleted_at"
         ],
         "title": "GameRead"
@@ -6328,6 +6740,17 @@
             "type": "boolean",
             "title": "Backfilled"
           },
+          "match_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Id"
+          },
           "comment": {
             "anyOf": [
               {
@@ -6368,6 +6791,7 @@
           "arrow_diameter_mm",
           "all_in",
           "backfilled",
+          "match_id",
           "comment",
           "ai_comment",
           "rounds"
@@ -6453,6 +6877,17 @@
               }
             ],
             "title": "Client Key"
+          },
+          "match_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Id"
           },
           "comment": {
             "anyOf": [
@@ -6609,6 +7044,452 @@
           "archieves"
         ],
         "title": "ImportSource"
+      },
+      "MatchCreate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "game_size": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Game Size"
+          },
+          "round_size": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Round Size"
+          },
+          "end_size": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "End Size"
+          },
+          "held_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Held At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "game_size",
+          "round_size",
+          "end_size"
+        ],
+        "title": "MatchCreate"
+      },
+      "MatchDetail": {
+        "properties": {
+          "game_size": {
+            "type": "integer",
+            "title": "Game Size"
+          },
+          "round_size": {
+            "type": "integer",
+            "title": "Round Size"
+          },
+          "end_size": {
+            "type": "integer",
+            "title": "End Size"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "held_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Held At"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "organizer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RankedUser"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "game_count": {
+            "type": "integer",
+            "title": "Game Count"
+          },
+          "organized_by_me": {
+            "type": "boolean",
+            "title": "Organized By Me"
+          },
+          "my_game_count": {
+            "type": "integer",
+            "title": "My Game Count"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatchStanding"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "game_size",
+          "round_size",
+          "end_size",
+          "id",
+          "held_at",
+          "title",
+          "description",
+          "organizer",
+          "game_count",
+          "organized_by_me",
+          "my_game_count",
+          "result"
+        ],
+        "title": "MatchDetail",
+        "description": "試合の画面で読む一件。結果は、作った人と参加した人(自分のゲームがある人)にだけ付け、\nほかの人には null にする(他人の名前と点が出るため)。"
+      },
+      "MatchEntry": {
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "game_id": {
+            "type": "integer",
+            "title": "Game Id"
+          },
+          "user": {
+            "$ref": "#/components/schemas/RankedUser"
+          },
+          "bow_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bow Type"
+          },
+          "distance_m": {
+            "type": "integer",
+            "title": "Distance M"
+          },
+          "total_score": {
+            "type": "integer",
+            "title": "Total Score"
+          },
+          "arrow_count": {
+            "type": "integer",
+            "title": "Arrow Count"
+          },
+          "x_count": {
+            "type": "integer",
+            "title": "X Count"
+          },
+          "ten_count": {
+            "type": "integer",
+            "title": "Ten Count"
+          },
+          "miss_count": {
+            "type": "integer",
+            "title": "Miss Count"
+          },
+          "point_average": {
+            "type": "number",
+            "title": "Point Average"
+          },
+          "deviation_score": {
+            "type": "number",
+            "title": "Deviation Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "game_id",
+          "user",
+          "bow_type",
+          "distance_m",
+          "total_score",
+          "arrow_count",
+          "x_count",
+          "ten_count",
+          "miss_count",
+          "point_average",
+          "deviation_score"
+        ],
+        "title": "MatchEntry",
+        "description": "試合の結果の一行。ゲームごと(同じ人が二つ記録すれば二行)。"
+      },
+      "MatchRead": {
+        "properties": {
+          "game_size": {
+            "type": "integer",
+            "title": "Game Size"
+          },
+          "round_size": {
+            "type": "integer",
+            "title": "Round Size"
+          },
+          "end_size": {
+            "type": "integer",
+            "title": "End Size"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "held_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Held At"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "organizer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RankedUser"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "game_count": {
+            "type": "integer",
+            "title": "Game Count"
+          },
+          "organized_by_me": {
+            "type": "boolean",
+            "title": "Organized By Me"
+          },
+          "my_game_count": {
+            "type": "integer",
+            "title": "My Game Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "game_size",
+          "round_size",
+          "end_size",
+          "id",
+          "held_at",
+          "title",
+          "description",
+          "organizer",
+          "game_count",
+          "organized_by_me",
+          "my_game_count"
+        ],
+        "title": "MatchRead"
+      },
+      "MatchStanding": {
+        "properties": {
+          "statistics": {
+            "$ref": "#/components/schemas/MatchStatistics"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/MatchEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "statistics",
+          "entries"
+        ],
+        "title": "MatchStanding",
+        "description": "試合の結果(全員の順位と、合計点の集計)。"
+      },
+      "MatchStatistics": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
+          },
+          "standard_deviation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Standard Deviation"
+          },
+          "median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count",
+          "average",
+          "standard_deviation",
+          "median",
+          "max",
+          "min"
+        ],
+        "title": "MatchStatistics",
+        "description": "試合のゲームの合計点の集計。ゲームが無ければ件数 0 で、ほかは null。"
+      },
+      "MatchUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "title": "MatchUpdate",
+        "description": "作った人がタイトル・内容を直す。省いた欄はそのまま、null(空)で消す。"
       },
       "MeRead": {
         "properties": {

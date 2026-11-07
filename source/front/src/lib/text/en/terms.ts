@@ -6,6 +6,7 @@ import type { terms as ja } from "../ja/terms";
  */
 export const terms: typeof ja = {
   game: "Game",
+  match: "Match",
   round: "Round",
   end: "End",
   arrow: "Arrow",

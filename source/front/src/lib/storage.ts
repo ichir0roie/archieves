@@ -269,6 +269,7 @@ export function loadScoreSheetCache(sub: string): ScoreSheetCache | null {
       arrow_diameter_mm: sheet.arrow_diameter_mm ?? null,
       all_in: sheet.all_in ?? false,
       backfilled: sheet.backfilled ?? false,
+      match_id: sheet.match_id ?? null,
       // db の的の名前はマイグレーションで変えたので、送ると変えたとみなされて弾かれないよう合わせる
       rounds: sheet.rounds.map((round) => ({
         ...round,
