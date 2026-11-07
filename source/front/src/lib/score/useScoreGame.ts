@@ -8,6 +8,7 @@ import { toErrorDetails, type ErrorDetails } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { type CommentTarget } from "@/lib/comment";
 import { type RoundSetup } from "@/lib/score/scoreConfig";
+import { matchResultPath } from "@/lib/score/match";
 
 /** The notes shown on the entry screen: the game's, and the round/end in progress. */
 export interface ScoreComments {
@@ -150,6 +151,11 @@ export function useScoreGame(beforeLeave: () => void) {
       beforeLeave();
       if (gameId === null) {
         router.replace("/");
+        return;
+      }
+      // 試合のゲームは、ほかの人と比べられる試合の結果へ
+      if (scoreManager.matchId !== null) {
+        router.push(matchResultPath(scoreManager.matchId));
         return;
       }
       const params = new URLSearchParams();

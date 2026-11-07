@@ -69,6 +69,7 @@ export const stats: typeof ja = {
     },
     bowType: t.bowType,
     distance: t.distance,
+    match: "Match code",
     unit: {
       total_score: t.unit.point,
       average_round_score: " pts/round",

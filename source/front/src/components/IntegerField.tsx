@@ -25,6 +25,7 @@ type Props = {
   aside?: ReactNode;
   /** モーダルで、開いたらすぐ打てるようにする */
   autoFocus?: boolean;
+  disabled?: boolean;
 };
 
 /** 整数の欄。数は文字のまま持たせ、読めない間はその場でエラーを出す */
@@ -48,6 +49,7 @@ export default function IntegerField(props: Props) {
             onChange={(e) => props.onChange(e.target.value)}
             aria-invalid={invalid}
             autoFocus={props.autoFocus}
+            disabled={props.disabled}
           />
           {props.aside}
         </div>

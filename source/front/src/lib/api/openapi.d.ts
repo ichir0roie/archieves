@@ -98,6 +98,7 @@ export interface paths {
          * @description Users ranked by total score, average round score or average point
          *     score, high to low, optionally filtered by bow type, distance,
          *     organization, region, and/or period. ランキングを見る人に公開している人だけを載せる。
+         *     match_id で、その試合のゲームだけを数える。
          */
         get: operations["list_user_ranking_api_v1_public_ranking_get"];
         put?: never;
@@ -570,6 +571,71 @@ export interface paths {
         head?: never;
         /** Update Point */
         patch: operations["update_point_api_v1_points__point_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Matches
+         * @description 自分が作った試合と、自分のゲームがある試合。開いた日時の新しい順。
+         */
+        get: operations["list_my_matches_api_v1_matches_get"];
+        put?: never;
+        /** Create Match */
+        post: operations["create_match_api_v1_matches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/matches/{match_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Match
+         * @description 試合の設定。参加する人が、このラウンド数・エンド数・矢数でゲームを始めるために読む。
+         *
+         *     id(推測されにくいコード)を知っていればだれでも読める。
+         */
+        get: operations["get_match_api_v1_matches__match_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/matches/{match_id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Match Result
+         * @description 試合の全員のスコアの順位・偏差値と、平均などの集計。
+         *
+         *     作った人と、試合のゲームを持つ人だけが見られる。
+         */
+        get: operations["get_match_result_api_v1_matches__match_id__result_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/games/{game_id}/comments": {
@@ -1660,6 +1726,8 @@ export interface components {
             user_id: number;
             /** Id */
             id: number;
+            /** Match Id */
+            match_id: string | null;
             /** Deleted At */
             deleted_at: string | null;
         };
@@ -1700,6 +1768,8 @@ export interface components {
             all_in: boolean;
             /** Backfilled */
             backfilled: boolean;
+            /** Match Id */
+            match_id: string | null;
             /** Comment */
             comment: string | null;
             ai_comment: components["schemas"]["AiCommentRead"] | null;
@@ -1733,6 +1803,8 @@ export interface components {
             id?: number | null;
             /** Client Key */
             client_key?: string | null;
+            /** Match Id */
+            match_id?: string | null;
             /** Comment */
             comment?: string | null;
             /**
@@ -1777,6 +1849,90 @@ export interface components {
          * @enum {string}
          */
         ImportSource: "android_mytargets" | "archieves";
+        /** MatchCreate */
+        MatchCreate: {
+            /** Game Size */
+            game_size: number;
+            /** Round Size */
+            round_size: number;
+            /** End Size */
+            end_size: number;
+            /** Held At */
+            held_at?: string | null;
+        };
+        /**
+         * MatchEntry
+         * @description 試合の結果の一行。ゲームごと(同じ人が二つ記録すれば二行)。
+         */
+        MatchEntry: {
+            /** Rank */
+            rank: number;
+            /** Game Id */
+            game_id: number;
+            user: components["schemas"]["RankedUser"];
+            /** Bow Type */
+            bow_type: string | null;
+            /** Distance M */
+            distance_m: number;
+            /** Total Score */
+            total_score: number;
+            /** Arrow Count */
+            arrow_count: number;
+            /** X Count */
+            x_count: number;
+            /** Ten Count */
+            ten_count: number;
+            /** Miss Count */
+            miss_count: number;
+            /** Point Average */
+            point_average: number;
+            /** Deviation Score */
+            deviation_score: number;
+        };
+        /** MatchRead */
+        MatchRead: {
+            /** Game Size */
+            game_size: number;
+            /** Round Size */
+            round_size: number;
+            /** End Size */
+            end_size: number;
+            /** Id */
+            id: string;
+            /**
+             * Held At
+             * Format: date-time
+             */
+            held_at: string;
+            organizer: components["schemas"]["RankedUser"] | null;
+            /** Game Count */
+            game_count: number;
+        };
+        /** MatchResult */
+        MatchResult: {
+            match: components["schemas"]["MatchRead"];
+            statistics: components["schemas"]["MatchStatistics"];
+            /** Entries */
+            entries: components["schemas"]["MatchEntry"][];
+        };
+        /**
+         * MatchStatistics
+         * @description 試合のゲームの合計点の集計。ゲームが無ければ件数 0 で、ほかは null。
+         */
+        MatchStatistics: {
+            /** Count */
+            count: number;
+            /** Average */
+            average: number | null;
+            /** Standard Deviation */
+            standard_deviation: number | null;
+            /** Median */
+            median: number | null;
+            /** Max */
+            max: number | null;
+            /** Min */
+            min: number | null;
+        };
         /**
          * MeRead
          * @description 本人の行。sub・管理者かどうか・公開範囲は本人にだけ返す。
@@ -2357,6 +2513,7 @@ export interface operations {
                 region_id?: number | null;
                 bow_type?: components["schemas"]["BowType"] | null;
                 distance_m?: number | null;
+                match_id?: string | null;
                 start?: string | null;
                 end?: string | null;
                 skip?: number;
@@ -3623,6 +3780,133 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PointRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_matches_api_v1_matches_get: {
+        parameters: {
+            query?: {
+                skip?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_match_api_v1_matches_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MatchCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_match_api_v1_matches__match_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_match_result_api_v1_matches__match_id__result_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchResult"];
                 };
             };
             /** @description Validation Error */

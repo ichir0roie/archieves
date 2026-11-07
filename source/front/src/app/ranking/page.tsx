@@ -8,10 +8,11 @@ import Field from "@/components/Field";
 import Picker from "@/components/Picker";
 import Segment from "@/components/Segment";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLoad } from "@/hooks/useLoad";
 import { currentMonthRange, currentYearRange } from "@/lib/monthRange";
 import { BOW_TYPES, DISTANCE_PRESETS_M, isBowType } from "@/lib/score/scoreConfig";
+import { RANKING_MATCH_PARAM, matchResultPath, parseMatchId } from "@/lib/score/match";
 import { useT } from "@/lib/text";
 import {
   RankingMetric,
@@ -73,6 +74,18 @@ export default function Page() {
   const [bowType, setBowType] = useState(ALL);
   const [distance, setDistance] = useState(ALL);
   const [organizationId, setOrganizationId] = useState(ALL);
+  // 試合のコードの欄。読めない間は絞らない
+  const [matchText, setMatchText] = useState("");
+  const matchId = parseMatchId(matchText);
+
+  // 試合の結果から ?match= で来たら、その試合で絞る。試合は今月とは限らないので期間は全期間にする。
+  // useSearchParams は Suspense で包まないとビルドの事前描画で落ちるので、画面に載ってから URL を読む
+  useEffect(() => {
+    const id = parseMatchId(new URLSearchParams(window.location.search).get(RANKING_MATCH_PARAM));
+    if (id === null) return;
+    setMatchText(id);
+    setPeriod("total");
+  }, []);
   const signedIn = useSignedIn();
   // 組織の一覧はログインが要るので、ログインしていなければ組織では絞らせない
   const organizations =
@@ -83,10 +96,11 @@ export default function Page() {
       ...periodRange(period),
       bowType: isBowType(bowType) ? bowType : undefined,
       distanceM: distance === ALL ? undefined : Number(distance),
+      matchId: matchId ?? undefined,
       organizationId: organizationId === ALL ? undefined : Number(organizationId),
     };
     return listUserRanking(query);
-  }, [period, metric, bowType, distance, organizationId]);
+  }, [period, metric, bowType, distance, organizationId, matchId]);
   const rankings = data ?? [];
 
   return (
@@ -150,7 +164,36 @@ export default function Page() {
               )}
             </Field>
           )}
+          <Field label={T.stats.ranking.match}>
+            {(id) => (
+              <input
+                id={id}
+                className="RankingMatchFilter"
+                type="text"
+                autoCapitalize="characters"
+                autoComplete="off"
+                spellCheck={false}
+                value={matchText}
+                onChange={(e) => setMatchText(e.target.value)}
+                placeholder={T.all}
+              />
+            )}
+          </Field>
         </div>
+        {matchId !== null && (
+          <div className="row">
+            <span className="ranking-filter-chip">
+              <Link href={matchResultPath(matchId)}>{T.match.rankingFilter(matchId)}</Link>
+              <button
+                type="button"
+                className="ghost small"
+                onClick={() => setMatchText("")}
+              >
+                {T.match.clearFilter}
+              </button>
+            </span>
+          </div>
+        )}
       </div>
 
       <p className="muted small">{signedIn ? T.stats.ranking.visibilityNote : T.anonymous.rankingNote}</p>

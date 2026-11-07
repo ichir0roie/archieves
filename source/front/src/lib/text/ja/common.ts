@@ -57,6 +57,7 @@ export const common = {
     home: t.home,
     startGame: `${t.game}開始`,
     resumeGame: `入力中の${t.game}を続ける`,
+    match: t.match,
     scoreLog: t.scoreLog,
     analysis: t.statistics,
     profile: t.profile,

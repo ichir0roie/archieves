@@ -57,6 +57,8 @@ class GameSheetWrite(GameWriteFields):
     # 無ければ新しいゲーム。client_key が同じゲームがあれば、それを上書きする
     id: int | None = None
     client_key: str | None = Field(default=None, min_length=1, max_length=64)
+    # 試合のゲームなら、その試合(POST /matches が返した id)。省けば今の試合のまま
+    match_id: str | None = None
     comment: str | None = Field(default=None, max_length=MAX_COMMENT_LENGTH)
     rounds: list[RoundSheetWrite] = Field(default=[], max_length=_MAX_ITEMS)
 
@@ -106,6 +108,7 @@ class GameSheetRead(ResponseModel):
     arrow_diameter_mm: int | None
     all_in: bool
     backfilled: bool
+    match_id: str | None
     comment: str | None
     # AI(Claude Code など)の指摘・改善点。本人にだけ返し、
     # スコアの公開ページ(SharedGameRead)には載せない

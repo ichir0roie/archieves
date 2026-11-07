@@ -17,6 +17,7 @@ from app.core.errors import NotFoundError
 from app.core.target_types import check_target_type
 from app.crud import comment as comment_crud
 from app.crud import game as game_crud
+from app.crud import match as match_crud
 from app.db import End, Game, Point, Round, User
 from app.schemas.comment import AiCommentRead
 from app.schemas.game import GameFields, PointRead
@@ -151,6 +152,10 @@ def save_game_sheet(
     # 上書きしないため。新しいゲームの列の既定値は、スキーマの既定値と同じ
     for field in _GAME_FIELDS & sheet_in.model_fields_set:
         setattr(game, field, getattr(sheet_in, field))
+    if "match_id" in sheet_in.model_fields_set:
+        if sheet_in.match_id is not None and match_crud.get_match(s, sheet_in.match_id) is None:
+            raise NotFoundError("Match not found")
+        game.match_id = sheet_in.match_id
     comment_crud.save_comment(s, game, game.comment, _comment_body(sheet_in.comment))
     _save_rounds(s, game, sheet_in.rounds)
     s.flush()
@@ -169,6 +174,7 @@ def read_game_sheet(game: Game) -> GameSheetRead:
         arrow_diameter_mm=game.arrow_diameter_mm,
         all_in=game.all_in,
         backfilled=game.backfilled,
+        match_id=game.match_id,
         comment=game.comment.body if game.comment else None,
         ai_comment=AiCommentRead.model_validate(game.ai_comment) if game.ai_comment else None,
         rounds=[

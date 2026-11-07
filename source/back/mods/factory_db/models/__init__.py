@@ -12,6 +12,9 @@ from mods.factory_db.models.game_model import (  # noqa: F401
     PointFactory,
     RoundFactory,
 )
+from mods.factory_db.models.match_model import (  # noqa: F401
+    MatchFactory,
+)
 from mods.factory_db.models.support_model import (  # noqa: F401
     AnnouncementFactory,
     ErrorReportFactory,

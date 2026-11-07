@@ -79,6 +79,7 @@ function fromSheetRead(read: GameSheetRead): Sheet {
     arrow_diameter_mm: read.arrow_diameter_mm,
     all_in: read.all_in,
     backfilled: read.backfilled,
+    match_id: read.match_id,
     comment: read.comment,
     rounds: read.rounds.map((round) => ({
       id: round.id,
@@ -149,25 +150,28 @@ export class ScoreManager {
 
   /**
    * 設定の画面から新しいゲームを始める。前のキャッシュは捨てる。backfillDate("yyyy-mm-dd")を渡すと
-   * あとから入力にし、記録の日付・時刻をその日にそろえる。sub は今のログインの利用者
+   * あとから入力にし、記録の日付・時刻をその日にそろえる。match を渡すと、その試合のゲームにし、
+   * 日付を試合の日(recordedAt)にそろえる(setup の数は試合に合わせたもの)。sub は今のログインの利用者
    */
   static startNewGame(
     sub: string,
     setup: RoundSetup,
     backfillDate: string | null = null,
     numberPad: boolean = false,
+    match: { id: string; recordedAt: string } | null = null,
   ): ScoreManager {
     const manager = new ScoreManager({
       sub,
       sheet: {
         id: null,
         client_key: crypto.randomUUID(),
-        recorded_at: backfillDate ?? today(),
+        recorded_at: backfillDate ?? match?.recordedAt ?? today(),
         game_size: setup.gameSize,
         bow_type: setup.bowType,
         arrow_diameter_mm: setup.arrowDiameterMm,
         all_in: setup.allIn,
         backfilled: backfillDate !== null,
+        match_id: match?.id ?? null,
         comment: null,
         rounds: [],
       },
@@ -235,6 +239,11 @@ export class ScoreManager {
   }
 
   // ---- 今の位置 ----
+
+  /** 試合のゲームなら、その試合の id */
+  get matchId(): string | null {
+    return this.sheet.match_id;
+  }
 
   get gameId(): number | null {
     return this.sheet.id;

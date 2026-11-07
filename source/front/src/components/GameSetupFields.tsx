@@ -154,13 +154,20 @@ type Props = {
   draft: GameSetupDraft;
   onChange: (draft: GameSetupDraft) => void;
   minSizes?: GameSetupMinSizes;
+  /** 試合に参加するとき。矢・エンド・ラウンドの数は試合のものにし、変えさせない */
+  sizesFixed?: boolean;
 };
 
 /**
  * ゲームの設定の欄(弓・距離・的・矢とエンドとラウンドの数・矢の直径・インサイドアウト)。
  * 始める前の設定の画面と、記入画面のゲームの設定のモーダルで使う
  */
-export default function GameSetupFields({ draft, onChange, minSizes = NO_MIN_SIZES }: Props) {
+export default function GameSetupFields({
+  draft,
+  onChange,
+  minSizes = NO_MIN_SIZES,
+  sizesFixed = false,
+}: Props) {
   const T = useT();
   const BOW_OPTIONS = BOW_TYPES.map((bowType) => ({
     value: bowType.id,
@@ -286,7 +293,8 @@ export default function GameSetupFields({ draft, onChange, minSizes = NO_MIN_SIZ
         onChange={(endSizeText) => update({ endSizeText })}
         min={Math.max(MIN_END_SIZE, minSizes.endSize)}
         max={MAX_END_SIZE}
-        hint={T.game.setup.endSizeHint}
+        hint={sizesFixed ? undefined : T.game.setup.endSizeHint}
+        disabled={sizesFixed}
       />
       <IntegerField
         label={T.game.setup.roundSize}
@@ -294,7 +302,8 @@ export default function GameSetupFields({ draft, onChange, minSizes = NO_MIN_SIZ
         onChange={(roundSizeText) => update({ roundSizeText })}
         min={Math.max(MIN_ROUND_SIZE, minSizes.roundSize)}
         max={MAX_ROUND_SIZE}
-        hint={T.game.setup.roundSizeHint}
+        hint={sizesFixed ? undefined : T.game.setup.roundSizeHint}
+        disabled={sizesFixed}
       />
       <IntegerField
         label={T.game.setup.gameSize}
@@ -302,7 +311,8 @@ export default function GameSetupFields({ draft, onChange, minSizes = NO_MIN_SIZ
         onChange={(gameSizeText) => update({ gameSizeText })}
         min={Math.max(MIN_GAME_SIZE, minSizes.gameSize)}
         max={MAX_GAME_SIZE}
-        hint={T.game.setup.gameSizeHint}
+        hint={sizesFixed ? T.match.setup.fixedHint : T.game.setup.gameSizeHint}
+        disabled={sizesFixed}
       />
       <IntegerField
         label={T.game.setup.arrowDiameter}

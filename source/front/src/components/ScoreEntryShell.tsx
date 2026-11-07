@@ -8,6 +8,8 @@ import CommentBar from "@/components/CommentBar";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import AimSettingsModal from "@/components/AimSettingsModal";
 import GameSettingsModal from "@/components/GameSettingsModal";
+import MatchShare from "@/components/MatchShare";
+import Modal from "@/components/Modal";
 import { useGuardScoreEntry } from "@/hooks/useGuardScoreEntry";
 import { shortDate } from "@/lib/score/backfill";
 import { isInnerTenBow } from "@/lib/score/scoreFunctions";
@@ -92,6 +94,8 @@ export default function ScoreEntryShell({ renderInput }: Props) {
   const [aimSettings, setAimSettings] = useState(DEFAULT_AIM_SETTINGS);
   const [aimSettingsOpen, setAimSettingsOpen] = useState(false);
   const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
+  // 試合の QR・コード。作った人が撃ちながらほかの人を呼べるよう、記入画面からも出す
+  const [matchShareOpen, setMatchShareOpen] = useState(false);
 
   // サーバーでの描画中は localStorage を読めないので、画面に載ってから当てる
   useEffect(() => {
@@ -126,6 +130,15 @@ export default function ScoreEntryShell({ renderInput }: Props) {
                 {T.game.entry.backfill(shortDate(manager.backfillDate, T.intlLocale))}
               </span>
             )}
+            {manager?.matchId != null && (
+              <button
+                type="button"
+                className="MatchBadge progress-badge"
+                onClick={() => setMatchShareOpen(true)}
+              >
+                {T.match.badge(manager.matchId)}
+              </button>
+            )}
           </div>
         )}
         {/* ✕ と向かい合う右上に置く。進み具合が短くても右端に寄せる */}
@@ -134,7 +147,8 @@ export default function ScoreEntryShell({ renderInput }: Props) {
             type="button"
             className="GameSettingsOpen ghost icon"
             onClick={() => setGameSettingsOpen(true)}
-            disabled={!manager || isSaving}
+            // 試合のゲームは、ほかの人と同じ数(ラウンド・エンド・矢)で比べるので変えさせない
+            disabled={!manager || isSaving || manager.matchId !== null}
             aria-label={T.game.entry.gameSettings}
           >
             <svg
@@ -215,6 +229,14 @@ export default function ScoreEntryShell({ renderInput }: Props) {
             setAimSettingsOpen(false);
           }}
         />
+      )}
+      {matchShareOpen && manager?.matchId != null && (
+        <Modal
+          title={T.match.badge(manager.matchId)}
+          onClose={() => setMatchShareOpen(false)}
+        >
+          <MatchShare matchId={manager.matchId} />
+        </Modal>
       )}
       {gameSettingsOpen && manager && (
         <GameSettingsModal

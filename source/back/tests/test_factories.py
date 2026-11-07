@@ -2,7 +2,7 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db import End, Game, GameComment, Point, Round, User
+from app.db import End, Game, GameComment, Match, Point, Round, User
 
 
 def test_user_factory_persists_a_row(s: Session, factories) -> None:
@@ -63,6 +63,15 @@ def test_comment_factories_attach_to_their_entity(s: Session, factories) -> None
     assert s.query(GameComment).count() == 1
     assert comment.game_id == s.query(Game).one().id
     assert comment.body
+
+
+def test_a_game_can_join_a_match_made_by_its_factory(s: Session, factories) -> None:
+    match = factories.MatchFactory()
+    game = factories.GameFactory(match=match)
+
+    assert match.organizer_id == s.query(Match).one().organizer_id
+    assert game.match_id == match.id
+    assert game.user_id != match.organizer_id
 
 
 def test_the_user_fixture_is_a_persisted_user(s: Session, user) -> None:

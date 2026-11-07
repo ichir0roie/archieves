@@ -10,6 +10,7 @@ from mods.factory_db.models import (  # noqa: F401
     FeedbackFactory,
     GameCommentFactory,
     GameFactory,
+    MatchFactory,
     OrganizationFactory,
     PointFactory,
     RegionFactory,

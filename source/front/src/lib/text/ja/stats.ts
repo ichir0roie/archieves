@@ -69,6 +69,7 @@ export const stats = {
     },
     bowType: t.bowType,
     distance: t.distance,
+    match: `${t.match}のコード`,
     unit: {
       total_score: t.unit.point,
       average_round_score: `${t.unit.point}/${t.round}`,

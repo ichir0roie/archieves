@@ -77,6 +77,7 @@ class GameUpdate(BaseModel):
 
 class GameRead(GameBase, ResponseModel):
     id: int
+    match_id: str | None = None
     deleted_at: date | None = None
 
 

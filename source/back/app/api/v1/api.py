@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     guide,
     health,
     imports,
+    matches,
     mcp,
     organizations,
     public,
@@ -40,6 +41,7 @@ authenticated_router.include_router(
     organizations.admin_router, prefix="/admin/organizations", tags=["organizations"]
 )
 authenticated_router.include_router(games.router, tags=["games"])
+authenticated_router.include_router(matches.router, tags=["matches"])
 authenticated_router.include_router(comments.router, tags=["comments"])
 authenticated_router.include_router(imports.router, tags=["imports"])
 authenticated_router.include_router(exports.router, tags=["exports"])

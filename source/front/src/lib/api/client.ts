@@ -30,6 +30,9 @@ import type {
   GameScoreSummary,
   ImportResult,
   ImportSource,
+  MatchCreate,
+  MatchRead,
+  MatchResult,
   OrganizationCreate,
   OrganizationRead,
   OrganizationSummary,
@@ -355,6 +358,29 @@ export function getGameSheet(gameId: number): Promise<GameSheetRead> {
   return request(`/games/${gameId}/sheet`);
 }
 
+/** 試合を作る。参加する人は、返った id で同じ設定のゲームを始める */
+export function createMatch(match: MatchCreate): Promise<MatchRead> {
+  return request('/matches', {
+    method: 'POST',
+    body: JSON.stringify(match),
+  });
+}
+
+/** 自分が作った試合と、自分のゲームがある試合。開いた日時の新しい順 */
+export function listMyMatches(): Promise<MatchRead[]> {
+  return request('/matches');
+}
+
+/** 試合の設定。打ち間違えた id(404)は画面で知らせる */
+export function getMatch(matchId: string): Promise<MatchRead> {
+  return request(`/matches/${matchId}`, undefined, { expectedStatuses: [404] });
+}
+
+/** 試合の結果。作った人と参加した人だけが見られる(ほかは 403。画面で知らせる) */
+export function getMatchResult(matchId: string): Promise<MatchResult> {
+  return request(`/matches/${matchId}/result`, undefined, { expectedStatuses: [403, 404] });
+}
+
 /** ゲームを論理削除する。ラウンド・エンド・矢も一緒に消える。 */
 export function deleteGame(gameId: number): Promise<void> {
   return request(`/games/${gameId}`, { method: 'DELETE' });
@@ -593,6 +619,8 @@ export interface RankingQuery {
   end?: string;
   bowType?: BowType;
   distanceM?: number;
+  /** その試合のゲームだけを数える */
+  matchId?: string;
   organizationId?: number;
   regionId?: number;
 }
@@ -644,6 +672,7 @@ export function listUserRanking(params?: RankingQuery): Promise<UserRanking[]> {
   if (params?.end) query.set('end', params.end);
   if (params?.bowType) query.set('bow_type', params.bowType);
   if (params?.distanceM !== undefined) query.set('distance_m', String(params.distanceM));
+  if (params?.matchId !== undefined) query.set('match_id', params.matchId);
   if (params?.organizationId !== undefined) {
     query.set('organization_id', String(params.organizationId));
   }

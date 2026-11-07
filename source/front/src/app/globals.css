@@ -498,3 +498,27 @@ nav[data-pos$="right"] .nav-panel { left: auto; right: calc(16px + var(--safe-ri
 /* ---- 使い方(app/guide) ---- */
 .guide-items { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
 .home-intro-lead { margin: 0; font-weight: 600; }
+/* ---- 試合(app/match/*) ---- */
+.match-summary-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+.match-summary-head h2 { margin: 0; }
+/* 設定の項目と値を一組ずつ、二列に並べる */
+.match-settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.3rem 1rem; margin: 0; }
+.match-settings > div { display: flex; justify-content: space-between; gap: 0.5rem; }
+.match-settings dd { margin: 0; font-weight: 600; text-align: right; }
+.match-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+.match-stats > div { display: flex; flex-direction: column; align-items: center; background: var(--chip); border-radius: 8px; padding: 0.35rem 0.25rem; }
+.match-stats .value { font-size: 1.2rem; font-weight: 700; }
+.MatchResultTable-scroll { overflow-x: auto; }
+table.list.MatchResultTable td.num, table.list.MatchResultTable th.num { text-align: right; white-space: nowrap; }
+table.list.MatchResultTable tr.mine td { background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+.ranking-filter-chip { display: inline-flex; align-items: center; gap: 0.5rem; align-self: flex-start; padding: 0.2rem 0.3rem 0.2rem 0.7rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); font-size: 0.85rem; font-weight: 600; }
+/* 試合の共有。QR は横に、コードとコピーのボタンを右に並べ、狭ければ縦に積む */
+.match-share { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.match-share img { width: 10rem; height: 10rem; border-radius: 8px; background: #fff; }
+.match-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.6rem; font-weight: 700; letter-spacing: 0.12em; }
+.match-code-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+/* 記入画面の試合の印は、押すと QR を出すボタン。ボタンの見た目は消して印のままにする */
+.score-progress button.progress-badge { border: none; min-height: 0; line-height: inherit; cursor: pointer; }
+/* td に flex を当てると表の行の背景が欠けるので、距離の方を塊にして下へ送る */
+table.list.MatchResultTable td.gear { font-size: 0.85rem; line-height: 1.25; }
+table.list.MatchResultTable td.gear .small { display: block; }
