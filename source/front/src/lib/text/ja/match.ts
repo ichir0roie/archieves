@@ -22,6 +22,15 @@ export const match = {
     start: `この${t.match}に参加`,
     startHint: `次の画面で${t.bowType}・${t.distance}・的などを選んで始めます。ラウンド数・エンド数・${t.arrow}数と日付は${t.match}に合わせます`,
   },
+  scan: {
+    open: "QR を読む",
+    title: `${t.match}の QR を読む`,
+    hint: `${t.match}の QR を枠の中に映します`,
+    starting: "カメラを起動中...",
+    notMatch: `${t.match}の QR ではありません`,
+    denied: "カメラを使えません。端末やブラウザの設定でカメラを許可するか、コードを入れて参加します",
+    unsupported: "この端末・ブラウザではカメラを使えません。コードを入れて参加します",
+  },
   setup: {
     title: (id: string) => `${t.match} ${id} に参加`,
     fixedHint: `ラウンド数・エンド数・${t.arrow}数は${t.match}に合わせてあり、変えられません`,
@@ -62,6 +71,7 @@ export const match = {
     ranking: t.ranking,
     share: "QR・コード",
     findByCode: "コードで参加",
+    scan: "QR で参加",
     create: `${t.match}を作る`,
   },
   result: {

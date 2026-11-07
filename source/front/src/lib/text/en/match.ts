@@ -22,6 +22,15 @@ export const match = {
     start: "Join this match",
     startHint: "Choose your bow, distance, target, and so on in the next screen. The round, end, and arrow counts and the date follow the match",
   },
+  scan: {
+    open: "Scan QR",
+    title: "Scan the match QR code",
+    hint: "Fit the match QR code inside the frame",
+    starting: "Starting the camera...",
+    notMatch: "This is not a match QR code",
+    denied: "The camera cannot be used. Allow camera access in your device or browser settings, or join with the code",
+    unsupported: "The camera is not available on this device or browser. Join with the code",
+  },
   setup: {
     title: (id: string) => `Joining ${t.match} ${id}`,
     fixedHint: "The round, end, and arrow counts follow the match and cannot be changed",
@@ -62,6 +71,7 @@ export const match = {
     ranking: t.ranking,
     share: "QR / code",
     findByCode: "Join with a code",
+    scan: "Join with QR",
     create: "Create a match",
   },
   result: {

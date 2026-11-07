@@ -69,6 +69,22 @@ export function parseMatchId(text: string | null): string | null {
   return [...normalized].every((c) => MATCH_ID_ALPHABET.includes(c)) ? normalized : null;
 }
 
+/**
+ * QR から読んだ文字を試合の id にする。参加の URL(?id=<コード>)でも、コードだけでも受ける。
+ * URL の場所(どのサーバーか)は見ない。手元・本番のどちらで作った QR でも、コードは同じ試合を指すため
+ */
+export function matchIdFromQr(text: string): string | null {
+  try {
+    const url = new URL(text);
+    return parseMatchId(url.searchParams.get(MATCH_ID_PARAM));
+  } catch {
+    return parseMatchId(text);
+  }
+}
+
+/** 試合の画面で、開いたらすぐ QR の読み取りを始めるクエリ(?scan=1)。試合一覧の「QR で参加」から来る */
+export const MATCH_SCAN_PARAM = "scan";
+
 export function matchJoinPath(matchId: string): string {
   return `${MATCH_PATH}?${MATCH_ID_PARAM}=${matchId}`;
 }

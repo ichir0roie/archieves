@@ -11,6 +11,7 @@ import { listMyMatches, type MatchRead } from "@/lib/api";
 import { MATCH_PATH, START_GAME } from "@/lib/destinations";
 import { formatDateTime } from "@/lib/formatDateTime";
 import {
+  MATCH_SCAN_PARAM,
   matchJoinPath,
   matchRankingPath,
   matchResultPath,
@@ -100,6 +101,12 @@ export default function Page() {
           className="MatchListCreate"
         >
           {T.match.list.create}
+        </Link>
+        <Link
+          href={`${MATCH_PATH}?${MATCH_SCAN_PARAM}=1`}
+          className="MatchListScan"
+        >
+          {T.match.list.scan}
         </Link>
         <Link
           href={MATCH_PATH}
