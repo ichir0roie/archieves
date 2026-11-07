@@ -69,5 +69,6 @@ export type MatchRead = Schemas['MatchRead'];
 export type MatchUpdate = Schemas['MatchUpdate'];
 export type MatchEntry = Schemas['MatchEntry'];
 export type MatchStatistics = Schemas['MatchStatistics'];
-export type MatchResult = Schemas['MatchResult'];
+export type MatchStanding = Schemas['MatchStanding'];
+export type MatchDetail = Schemas['MatchDetail'];
 export type UserUpdate = Schemas['UserUpdate'];

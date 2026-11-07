@@ -1,7 +1,10 @@
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from app.core.match_codes import MATCH_ID_ALPHABET, MATCH_ID_LENGTH
@@ -211,7 +214,6 @@ def test_a_missing_match_is_404(client: TestClient, factories) -> None:
     match = factories.MatchFactory(deleted_at=datetime.now(UTC).date())
 
     assert client.get(f"{MATCHES_URL}/{match.id}").status_code == 404
-    assert client.get(f"{MATCHES_URL}/{match.id}/result").status_code == 404
     assert client.get(f"{MATCHES_URL}/NOSUCHID").status_code == 404
 
 
@@ -245,6 +247,40 @@ def test_my_matches_are_the_ones_i_made_or_played(
     assert response.status_code == 200
     assert [match["id"] for match in response.json()] == [played.id, made.id]
     assert response.json()[0]["game_count"] == 1
+
+
+@contextmanager
+def _count_selects(s: Session) -> Generator[list[str]]:
+    selects: list[str] = []
+
+    def _record(conn, cursor, statement: str, *_: object) -> None:
+        if statement.lstrip().upper().startswith("SELECT"):
+            selects.append(statement)
+
+    connection = s.connection()
+    event.listen(connection, "before_cursor_execute", _record)
+    try:
+        yield selects
+    finally:
+        event.remove(connection, "before_cursor_execute", _record)
+
+
+def test_listing_matches_does_not_read_once_per_match(
+    client: TestClient, s: Session, current_user, factories
+) -> None:
+    def make_match() -> None:
+        match = factories.MatchFactory(organizer=factories.UserFactory())
+        _game_with_scores(factories, match, current_user, [10, 9])
+
+    make_match()
+    with _count_selects(s) as one:
+        assert len(client.get(MATCHES_URL).json()) == 1
+    for _ in range(4):
+        make_match()
+    with _count_selects(s) as five:
+        assert len(client.get(MATCHES_URL).json()) == 5
+
+    assert len(five) == len(one)
 
 
 def test_a_saved_sheet_joins_the_match(client: TestClient, s: Session, factories) -> None:
@@ -312,13 +348,13 @@ def test_the_result_ranks_every_game_with_its_deviation_score(
     # ほかの試合のゲームも数えない
     _game_with_scores(factories, factories.MatchFactory(), alice, [10])
 
-    response = client.get(f"{MATCHES_URL}/{match.id}/result")
+    response = client.get(f"{MATCHES_URL}/{match.id}")
 
     assert response.status_code == 200
     body = response.json()
-    assert body["match"]["id"] == match.id
-    assert body["match"]["game_count"] == 4
-    entries = body["entries"]
+    assert body["id"] == match.id
+    assert body["game_count"] == 4
+    entries = body["result"]["entries"]
     assert [(e["rank"], e["game_id"], e["user"]["name"], e["total_score"]) for e in entries] == [
         (1, bob_game.id, "Bob", 29),
         (2, alice_game.id, "Alice", 29),
@@ -345,7 +381,7 @@ def test_the_result_ranks_every_game_with_its_deviation_score(
     assert [e["deviation_score"] for e in entries] == pytest.approx(
         [50 + 10 * (total - average) / standard_deviation for total in [29, 29, 29, 10]]
     )
-    statistics = body["statistics"]
+    statistics = body["result"]["statistics"]
     assert statistics["count"] == 4
     assert statistics["average"] == pytest.approx(average)
     assert statistics["standard_deviation"] == pytest.approx(standard_deviation)
@@ -360,7 +396,7 @@ def test_equal_games_share_a_rank_and_the_middle_deviation(
     mine = _game_with_scores(factories, match, current_user, [10, 9])
     theirs = _game_with_scores(factories, match, factories.UserFactory(), [10, 9])
 
-    entries = client.get(f"{MATCHES_URL}/{match.id}/result").json()["entries"]
+    entries = client.get(f"{MATCHES_URL}/{match.id}").json()["result"]["entries"]
 
     assert [(e["rank"], e["game_id"]) for e in entries] == [(1, mine.id), (1, theirs.id)]
     assert {e["deviation_score"] for e in entries} == {50}
@@ -369,7 +405,7 @@ def test_equal_games_share_a_rank_and_the_middle_deviation(
 def test_a_match_without_games_has_an_empty_result(client: TestClient, current_user, factories):
     match = factories.MatchFactory(organizer=current_user)
 
-    body = client.get(f"{MATCHES_URL}/{match.id}/result").json()
+    body = client.get(f"{MATCHES_URL}/{match.id}").json()["result"]
 
     assert body["entries"] == []
     assert body["statistics"] == {
@@ -389,9 +425,12 @@ def test_only_the_organizer_and_participants_see_the_result(
     _game_with_scores(factories, match, factories.UserFactory(), [10])
     _game_with_scores(factories, match, current_user, [10], deleted_at=datetime.now(UTC).date())
 
-    response = client.get(f"{MATCHES_URL}/{match.id}/result")
+    response = client.get(f"{MATCHES_URL}/{match.id}")
 
-    assert response.status_code == 403
+    # 試合の設定は読めるが、他人の名前と点が出る結果は付かない
+    assert response.status_code == 200
+    assert response.json()["game_count"] == 1
+    assert response.json()["result"] is None
 
 
 def test_a_token_cannot_read_matches(token_client: TestClient, factories) -> None:

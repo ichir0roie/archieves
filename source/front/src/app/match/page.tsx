@@ -1,155 +1,117 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
-import Field from "@/components/Field";
-import MatchQrScanner from "@/components/MatchQrScanner";
-import MatchShare from "@/components/MatchShare";
+import MatchShareModal from "@/components/MatchShareModal";
+import MatchStandingView from "@/components/MatchStandingView";
 import MatchSummary from "@/components/MatchSummary";
 import PageHeader from "@/components/PageHeader";
 import { useLoad } from "@/hooks/useLoad";
+import { useOnResume } from "@/hooks/useOnResume";
+import { useQueryParams } from "@/hooks/useQueryParams";
 import { getMatch } from "@/lib/api";
 import { MATCH_LIST_PATH } from "@/lib/destinations";
 import {
   MATCH_ID_PARAM,
-  MATCH_SCAN_PARAM,
-  matchJoinPath,
-  matchResultPath,
+  matchRankingPath,
   matchSetupPath,
+  matchTitle,
   parseMatchId,
 } from "@/lib/score/match";
 import { useT } from "@/lib/text";
 
+/**
+ * 一つの試合の画面。概要・参加・QR と、作った人・参加した人には結果(順位と集計)を出す。
+ * 共有の URL・QR はここを指す
+ */
 export default function Page() {
   const T = useT();
   const router = useRouter();
-  const [idText, setIdText] = useState("");
-  // 探す試合。URL の ?id=(QR・共有の URL)か、探すボタンで決める
-  const [matchId, setMatchId] = useState<string | null>(null);
-  // 上げると読み直す(作った人がタイトル・内容を直したとき)
+  const params = useQueryParams();
+  const matchId = params ? parseMatchId(params.get(MATCH_ID_PARAM)) : undefined;
+  // 上げると読み直す。画面に戻ったとき(ほかの人の記録が増えていく)と、作った人が直したとき
   const [reloadKey, setReloadKey] = useState(0);
-  const [scanning, setScanning] = useState(false);
+  useOnResume(() => setReloadKey((key) => key + 1));
+  const [sharing, setSharing] = useState(false);
 
-  // useSearchParams は Suspense で包まないとビルドの事前描画で落ちるので、画面に載ってから URL を読む
+  // 試合の id の無い・読めない URL は、試合を探す入口の一覧へ
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const id = parseMatchId(params.get(MATCH_ID_PARAM));
-    if (id !== null) {
-      setIdText(id);
-      setMatchId(id);
-    } else if (params.has(MATCH_SCAN_PARAM)) {
-      setScanning(true);
-    }
-  }, []);
+    if (matchId === null) router.replace(MATCH_LIST_PATH);
+  }, [matchId, router]);
 
-  const found = useLoad(
-    () => (matchId === null ? Promise.resolve(null) : getMatch(matchId)),
+  const loaded = useLoad(
+    () => (matchId ? getMatch(matchId) : Promise.resolve(null)),
     [matchId, reloadKey],
   );
-  const match = found.data && found.data.id === matchId ? found.data : null;
-  const parsedId = parseMatchId(idText);
-
-  function show(id: string) {
-    setIdText(id);
-    setMatchId(id);
-    // 共有・読み直しのため、探した試合を URL に残す(?scan も外れる)
-    window.history.replaceState(null, "", matchJoinPath(id));
-  }
-
-  function find() {
-    if (parsedId !== null) show(parsedId);
-  }
+  const match = loaded.data && loaded.data.id === matchId ? loaded.data : null;
 
   return (
     <div className="page">
-      <PageHeader title={T.match.title} />
-
-      <div className="MatchJoin panel stack">
-        <div className="section-label">{T.match.join.title}</div>
-        <Field
-          label={T.match.join.idLabel}
-          hint={T.match.join.idHint}
-        >
-          {(id) => (
-            <form
-              className="row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                find();
-              }}
-            >
-              <input
-                id={id}
-                type="text"
-                autoCapitalize="characters"
-                autoComplete="off"
-                spellCheck={false}
-                className="grow match-code-input"
-                value={idText}
-                onChange={(e) => setIdText(e.target.value)}
-              />
-              <button
-                type="submit"
-                disabled={parsedId === null}
-              >
-                {T.match.join.find}
-              </button>
-            </form>
-          )}
-        </Field>
-        <button
-          type="button"
-          className="MatchScanOpen"
-          onClick={() => setScanning(true)}
-        >
-          {T.match.scan.open}
-        </button>
-        {scanning && (
-          <MatchQrScanner
-            onClose={() => setScanning(false)}
-            onFound={(id) => {
-              setScanning(false);
-              show(id);
-            }}
-          />
-        )}
-        {found.error?.status === 404 && (
-          <p className="MatchNotFound status error">{T.match.join.notFound}</p>
-        )}
-        {found.error && found.error.status !== 404 && <ApiErrorAlert error={found.error} />}
-      </div>
+      <PageHeader title={match ? matchTitle(T, match) : T.match.title} />
+      {loaded.error?.status === 404 && (
+        <div className="stack tight">
+          <p className="MatchNotFound status error">{T.match.detail.notFound}</p>
+          <button
+            type="button"
+            className="block"
+            onClick={() => router.push(MATCH_LIST_PATH)}
+          >
+            {T.match.detail.toList}
+          </button>
+        </div>
+      )}
+      {loaded.error && loaded.error.status !== 404 && <ApiErrorAlert error={loaded.error} />}
+      {loaded.loading && !match && matchId && <p className="status empty">{T.loading}</p>}
 
       {match && (
         <>
           <MatchSummary
             match={match}
+            titleInHeader
             onUpdated={() => setReloadKey((key) => key + 1)}
             onDeleted={() => router.push(MATCH_LIST_PATH)}
           />
-          <div className="panel stack tight">
+          <button
+            type="button"
+            className="MatchJoinStart primary large block"
+            onClick={() => router.push(matchSetupPath(match.id))}
+          >
+            {T.match.detail.join}
+          </button>
+          <div className="action-row">
             <button
               type="button"
-              className="MatchJoinStart primary large block"
-              onClick={() => router.push(matchSetupPath(match.id))}
+              className="MatchShareOpen grow"
+              onClick={() => setSharing(true)}
             >
-              {T.match.join.start}
+              {T.match.share.open}
             </button>
-            <span className="hint">{T.match.join.startHint}</span>
-            <Link href={matchResultPath(match.id)}>{T.match.result.title}</Link>
+            {match.result && (
+              <button
+                type="button"
+                className="MatchRankingOpen grow"
+                onClick={() => router.push(matchRankingPath(match.id))}
+              >
+                {T.match.result.ranking}
+              </button>
+            )}
           </div>
-          <MatchShare matchId={match.id} />
+          <div className="section-label">{T.match.result.title}</div>
+          {match.result ? (
+            <MatchStandingView standing={match.result} />
+          ) : (
+            <p className="MatchResultHidden muted small">{T.match.detail.resultHidden}</p>
+          )}
+          {sharing && (
+            <MatchShareModal
+              matchId={match.id}
+              onClose={() => setSharing(false)}
+            />
+          )}
         </>
       )}
-
-      <Link
-        href={MATCH_LIST_PATH}
-        className="MatchListLink"
-      >
-        {T.match.list.title}
-      </Link>
       <BackButton />
     </div>
   );

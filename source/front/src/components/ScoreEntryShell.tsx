@@ -8,8 +8,7 @@ import CommentBar from "@/components/CommentBar";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import AimSettingsModal from "@/components/AimSettingsModal";
 import GameSettingsModal from "@/components/GameSettingsModal";
-import MatchShare from "@/components/MatchShare";
-import Modal from "@/components/Modal";
+import MatchShareModal from "@/components/MatchShareModal";
 import { useGuardScoreEntry } from "@/hooks/useGuardScoreEntry";
 import { shortDate } from "@/lib/score/backfill";
 import { isInnerTenBow } from "@/lib/score/scoreFunctions";
@@ -231,12 +230,10 @@ export default function ScoreEntryShell({ renderInput }: Props) {
         />
       )}
       {matchShareOpen && manager?.matchId != null && (
-        <Modal
-          title={T.match.badge(manager.matchId)}
+        <MatchShareModal
+          matchId={manager.matchId}
           onClose={() => setMatchShareOpen(false)}
-        >
-          <MatchShare matchId={manager.matchId} />
-        </Modal>
+        />
       )}
       {gameSettingsOpen && manager && (
         <GameSettingsModal

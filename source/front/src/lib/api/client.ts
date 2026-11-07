@@ -31,8 +31,8 @@ import type {
   ImportResult,
   ImportSource,
   MatchCreate,
+  MatchDetail,
   MatchRead,
-  MatchResult,
   MatchUpdate,
   OrganizationCreate,
   OrganizationRead,
@@ -385,14 +385,12 @@ export function listMyMatches(): Promise<MatchRead[]> {
   return request('/matches');
 }
 
-/** 試合の設定。打ち間違えた id(404)は画面で知らせる */
-export function getMatch(matchId: string): Promise<MatchRead> {
+/**
+ * 試合の設定と、作った人・参加した人には結果(ほかの人は result が null)。
+ * 打ち間違えた id(404)は画面で知らせる
+ */
+export function getMatch(matchId: string): Promise<MatchDetail> {
   return request(`/matches/${matchId}`, undefined, { expectedStatuses: [404] });
-}
-
-/** 試合の結果。作った人と参加した人だけが見られる(ほかは 403。画面で知らせる) */
-export function getMatchResult(matchId: string): Promise<MatchResult> {
-  return request(`/matches/${matchId}/result`, undefined, { expectedStatuses: [403, 404] });
 }
 
 /** ゲームを論理削除する。ラウンド・エンド・矢も一緒に消える。 */

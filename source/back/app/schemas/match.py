@@ -1,4 +1,4 @@
-"""試合(POST /matches・GET/PATCH /matches/{match_id}・GET /matches/{match_id}/result)の形。"""
+"""試合(POST/GET /matches・GET/PATCH/DELETE /matches/{match_id})の形。"""
 
 from datetime import datetime
 
@@ -99,8 +99,16 @@ class MatchStatistics(ResponseModel):
     min: int | None
 
 
-class MatchResult(ResponseModel):
-    match: MatchRead
+class MatchStanding(ResponseModel):
+    """試合の結果(全員の順位と、合計点の集計)。"""
+
     statistics: MatchStatistics
     # 合計点の高い順。同点は 10 点(X を含む)の本数、X の本数の多い順。それも同じなら同じ順位
     entries: list[MatchEntry]
+
+
+class MatchDetail(MatchRead):
+    """試合の画面で読む一件。結果は、作った人と参加した人(自分のゲームがある人)にだけ付け、
+    ほかの人には null にする(他人の名前と点が出るため)。"""
+
+    result: MatchStanding | None

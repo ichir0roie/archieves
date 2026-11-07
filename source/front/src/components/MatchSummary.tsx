@@ -13,6 +13,7 @@ import {
   type MatchRead,
 } from "@/lib/api";
 import { formatDateTime } from "@/lib/formatDateTime";
+import { matchArrowSummary, matchTitle } from "@/lib/score/match";
 import { useT } from "@/lib/text";
 
 type Props = {
@@ -21,6 +22,10 @@ type Props = {
   onUpdated?: (match: MatchRead) => void;
   /** 渡すと、作った人に削除を出す。消したあとに呼ぶ(呼ぶ側は一覧などへ移る) */
   onDeleted?: () => void;
+  /** 見出し(タイトル・コード・日時)だけにする。数を別の区画に出す参加の設定の画面で使う */
+  compact?: boolean;
+  /** タイトルを画面の見出しに出しているので、ここでは繰り返さない(試合の画面) */
+  titleInHeader?: boolean;
 };
 
 type DeleteProps = {
@@ -72,42 +77,52 @@ function MatchDeleteModal({ match, onClose, onDeleted }: DeleteProps) {
       }
     >
       {error && <ApiErrorAlert error={error} />}
-      <p>{T.match.info.deleteConfirm(match.title ?? T.match.badge(match.id))}</p>
+      <p>{T.match.info.deleteConfirm(matchTitle(T, match))}</p>
     </Modal>
   );
 }
 
 /** 試合の見出し(タイトル・コード・日時・作った人)と内容、揃える矢の数 */
-export default function MatchSummary({ match, onUpdated, onDeleted }: Props) {
+export default function MatchSummary({
+  match,
+  onUpdated,
+  onDeleted,
+  compact = false,
+  titleInHeader = false,
+}: Props) {
   const T = useT();
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const total = match.end_size * match.round_size * match.game_size;
   const items = [
     {
       label: T.match.heldAt,
       value: formatDateTime(match.held_at),
     },
-    {
-      label: T.match.arrows,
-      value: T.game.setup.summary(
-        total,
-        String(match.end_size),
-        String(match.round_size),
-        String(match.game_size),
-      ),
-    },
+    ...(compact
+      ? []
+      : [
+          {
+            label: T.match.arrows,
+            value: matchArrowSummary(T, match),
+          },
+        ]),
   ];
 
   return (
     <div className="MatchSummary panel stack tight">
       <div className="match-summary-head">
-        <h2>{match.title ?? T.match.badge(match.id)}</h2>
-        <span className="muted small">{T.match.gameCount(match.game_count)}</span>
+        {titleInHeader ? (
+          <span className="MatchSummaryCode muted small">{T.match.badge(match.id)}</span>
+        ) : (
+          <h2>{matchTitle(T, match)}</h2>
+        )}
+        {!compact && <span className="muted small">{T.match.gameCount(match.game_count)}</span>}
       </div>
       {/* タイトルを付けた試合でも、共有・参加に使うコードは見せる */}
-      {match.title && <span className="MatchSummaryCode muted small">{T.match.badge(match.id)}</span>}
-      {match.organizer && (
+      {match.title && !titleInHeader && (
+        <span className="MatchSummaryCode muted small">{T.match.badge(match.id)}</span>
+      )}
+      {!compact && match.organizer && (
         <span className="small">
           <span className="muted">{T.match.organizer}: </span>
           {match.organizer.profile_visible ? (
@@ -117,7 +132,7 @@ export default function MatchSummary({ match, onUpdated, onDeleted }: Props) {
           )}
         </span>
       )}
-      {match.description && <p className="MatchSummaryDescription match-description">{match.description}</p>}
+      {!compact && match.description && <p className="MatchSummaryDescription match-description">{match.description}</p>}
       <dl className="match-settings">
         {items.map((item) => (
           <div key={item.label}>
@@ -126,9 +141,8 @@ export default function MatchSummary({ match, onUpdated, onDeleted }: Props) {
           </div>
         ))}
       </dl>
-      <span className="hint">{T.match.sharedNote}</span>
       {match.organized_by_me && (onUpdated || onDeleted) && (
-        <div className="match-summary-actions">
+        <div className="match-summary-actions action-row">
           {onUpdated && (
             <button
               type="button"

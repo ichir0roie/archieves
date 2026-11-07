@@ -6,7 +6,7 @@ from app.api.pagination import Limit, Skip
 from app.core.errors import ForbiddenError
 from app.crud import match as match_crud
 from app.db import User
-from app.schemas.match import MatchCreate, MatchRead, MatchResult, MatchUpdate
+from app.schemas.match import MatchCreate, MatchDetail, MatchRead, MatchUpdate
 
 # 試合。だれかが日時と矢の数を決めて作り、参加する人はその id(コード)でゲームを始める(ゲームの保存で
 # match_id を送る。PUT /games/sheet)。読み書きとも画面からログインした人だけ(トークンは通さない)
@@ -20,9 +20,8 @@ def create_match(
     s: Session = Depends(deps.get_session),
 ) -> MatchRead:
     match = match_crud.create_match(s, me.id, match_in)
-    result = match_crud.read_match(s, me, match)
     s.commit()
-    return result
+    return deps.get_or_404(match_crud.read_match, s, me, match.id, detail="Match not found")
 
 
 @router.get("/matches", response_model=list[MatchRead])
@@ -36,18 +35,18 @@ def list_my_matches(
     return match_crud.list_my_matches(s, me, skip=skip, limit=limit)
 
 
-@router.get("/matches/{match_id}", response_model=MatchRead)
+@router.get("/matches/{match_id}", response_model=MatchDetail)
 def get_match(
     match_id: str,
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
-) -> MatchRead:
-    """試合の設定。参加する人が、このラウンド数・エンド数・矢数でゲームを始めるために読む。
+) -> MatchDetail:
+    """試合の画面で読む一件(試合の設定と、見られる人には結果)。
 
-    id(推測されにくいコード)を知っていればだれでも読める。
+    設定は id(推測されにくいコード)を知っていればだれでも読める。結果(全員の順位・偏差値と集計)は、
+    作った人と、試合のゲームを持つ人にだけ付け、ほかの人には null にする。
     """
-    match = deps.get_or_404(match_crud.get_match, s, match_id, detail="Match not found")
-    return match_crud.read_match(s, me, match)
+    return deps.get_or_404(match_crud.get_match_detail, s, me, match_id, detail="Match not found")
 
 
 @router.patch("/matches/{match_id}", response_model=MatchRead)
@@ -62,9 +61,8 @@ def update_match(
     if match.organizer_id != me.id:
         raise ForbiddenError("Only the organizer can edit the match")
     match_crud.update_match(s, match, match_in)
-    result = match_crud.read_match(s, me, match)
     s.commit()
-    return result
+    return deps.get_or_404(match_crud.read_match, s, me, match_id, detail="Match not found")
 
 
 @router.delete("/matches/{match_id}", status_code=204)
@@ -79,19 +77,3 @@ def delete_match(
         raise ForbiddenError("Only the organizer can delete the match")
     match_crud.delete_match(s, match)
     s.commit()
-
-
-@router.get("/matches/{match_id}/result", response_model=MatchResult)
-def get_match_result(
-    match_id: str,
-    me: User = Depends(deps.get_me),
-    s: Session = Depends(deps.get_session),
-) -> MatchResult:
-    """試合の全員のスコアの順位・偏差値と、平均などの集計。
-
-    作った人と、試合のゲームを持つ人だけが見られる。
-    """
-    match = deps.get_or_404(match_crud.get_match, s, match_id, detail="Match not found")
-    if not match_crud.can_view_result(s, me, match):
-        raise ForbiddenError("Only the organizer and participants can view the result")
-    return match_crud.get_match_result(s, me, match)

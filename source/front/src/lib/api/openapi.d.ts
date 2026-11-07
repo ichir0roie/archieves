@@ -603,9 +603,10 @@ export interface paths {
         };
         /**
          * Get Match
-         * @description 試合の設定。参加する人が、このラウンド数・エンド数・矢数でゲームを始めるために読む。
+         * @description 試合の画面で読む一件(試合の設定と、見られる人には結果)。
          *
-         *     id(推測されにくいコード)を知っていればだれでも読める。
+         *     設定は id(推測されにくいコード)を知っていればだれでも読める。結果(全員の順位・偏差値と集計)は、
+         *     作った人と、試合のゲームを持つ人にだけ付け、ほかの人には null にする。
          */
         get: operations["get_match_api_v1_matches__match_id__get"];
         put?: never;
@@ -622,28 +623,6 @@ export interface paths {
          * @description 試合のタイトル・内容を直す。作った人だけ。
          */
         patch: operations["update_match_api_v1_matches__match_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/matches/{match_id}/result": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Match Result
-         * @description 試合の全員のスコアの順位・偏差値と、平均などの集計。
-         *
-         *     作った人と、試合のゲームを持つ人だけが見られる。
-         */
-        get: operations["get_match_result_api_v1_matches__match_id__result_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/api/v1/games/{game_id}/comments": {
@@ -1873,6 +1852,38 @@ export interface components {
             held_at?: string | null;
         };
         /**
+         * MatchDetail
+         * @description 試合の画面で読む一件。結果は、作った人と参加した人(自分のゲームがある人)にだけ付け、
+         *     ほかの人には null にする(他人の名前と点が出るため)。
+         */
+        MatchDetail: {
+            /** Game Size */
+            game_size: number;
+            /** Round Size */
+            round_size: number;
+            /** End Size */
+            end_size: number;
+            /** Id */
+            id: string;
+            /**
+             * Held At
+             * Format: date-time
+             */
+            held_at: string;
+            /** Title */
+            title: string | null;
+            /** Description */
+            description: string | null;
+            organizer: components["schemas"]["RankedUser"] | null;
+            /** Game Count */
+            game_count: number;
+            /** Organized By Me */
+            organized_by_me: boolean;
+            /** My Game Count */
+            my_game_count: number;
+            result: components["schemas"]["MatchStanding"] | null;
+        };
+        /**
          * MatchEntry
          * @description 試合の結果の一行。ゲームごと(同じ人が二つ記録すれば二行)。
          */
@@ -1928,9 +1939,11 @@ export interface components {
             /** My Game Count */
             my_game_count: number;
         };
-        /** MatchResult */
-        MatchResult: {
-            match: components["schemas"]["MatchRead"];
+        /**
+         * MatchStanding
+         * @description 試合の結果(全員の順位と、合計点の集計)。
+         */
+        MatchStanding: {
             statistics: components["schemas"]["MatchStatistics"];
             /** Entries */
             entries: components["schemas"]["MatchEntry"][];
@@ -3905,7 +3918,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MatchRead"];
+                    "application/json": components["schemas"]["MatchDetail"];
                 };
             };
             /** @description Validation Error */
@@ -3970,37 +3983,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MatchRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_match_result_api_v1_matches__match_id__result_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                match_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MatchResult"];
                 };
             };
             /** @description Validation Error */

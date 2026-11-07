@@ -32,7 +32,7 @@ import {
 } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { SCORE_CARD_PATH } from "@/lib/destinations";
-import { matchResultPath } from "@/lib/score/match";
+import { matchPath } from "@/lib/score/match";
 import { countRings, totalScore } from "@/lib/score/scoreFunctions";
 import { ScoreManager } from "@/lib/score/scoreManager";
 import { useLoad } from "@/hooks/useLoad";
@@ -299,7 +299,7 @@ function ScoreViewContent() {
       {matchId !== null && (
         <Link
           className="ScoreViewMatch"
-          href={matchResultPath(matchId)}
+          href={matchPath(matchId)}
         >
           {T.match.badge(matchId)}: {T.match.result.title}
         </Link>

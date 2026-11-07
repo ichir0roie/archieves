@@ -2,11 +2,13 @@
 
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
-import { matchJoinPath } from "@/lib/score/match";
+import Modal from "@/components/Modal";
+import { matchPath } from "@/lib/score/match";
 import { useT } from "@/lib/text";
 
 type Props = {
   matchId: string;
+  onClose: () => void;
 };
 
 // 「コピーしました」を出しておく時間
@@ -14,8 +16,11 @@ const COPIED_MS = 2000;
 // QR の画像の一辺(px)。画面では CSS で縮める
 const QR_SIZE_PX = 320;
 
-/** 試合に参加してもらうための QR・コード・コピーのボタン。読み取ると参加の画面(?id= 付き)が開く */
-export default function MatchShare({ matchId }: Props) {
+/**
+ * 試合に参加してもらうための QR・コード・コピーのボタンを出すモーダル。読み取ると試合の画面が開く。
+ * 試合の画面と、記入画面の試合の印から開く
+ */
+export default function MatchShareModal({ matchId, onClose }: Props) {
   const T = useT();
   const [qr, setQr] = useState<string | null>(null);
   const [copied, setCopied] = useState<"url" | "code" | null>(null);
@@ -23,7 +28,7 @@ export default function MatchShare({ matchId }: Props) {
   // origin は画面に載ってからでないと読めない
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
-    setUrl(`${window.location.origin}${matchJoinPath(matchId)}`);
+    setUrl(`${window.location.origin}${matchPath(matchId)}`);
   }, [matchId]);
 
   useEffect(() => {
@@ -61,9 +66,11 @@ export default function MatchShare({ matchId }: Props) {
   }
 
   return (
-    <div className="MatchShare panel stack tight">
-      <div className="section-label">{T.match.share.title}</div>
-      <div className="match-share">
+    <Modal
+      title={T.match.badge(matchId)}
+      onClose={onClose}
+    >
+      <div className="MatchShare match-share">
         {qr && (
           // 画面で作った data: の URL なので、next/image で縮める・配る意味が無い
           // eslint-disable-next-line @next/next/no-img-element
@@ -78,7 +85,7 @@ export default function MatchShare({ matchId }: Props) {
         <div className="stack tight">
           <span className="muted small">{T.match.share.code}</span>
           <span className="MatchShareCode match-code">{matchId}</span>
-          <div className="row">
+          <div className="action-row">
             <button
               type="button"
               className="MatchShareCopyCode"
@@ -97,6 +104,6 @@ export default function MatchShare({ matchId }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -2663,7 +2663,7 @@
           "matches"
         ],
         "summary": "Get Match",
-        "description": "試合の設定。参加する人が、このラウンド数・エンド数・矢数でゲームを始めるために読む。\n\nid(推測されにくいコード)を知っていればだれでも読める。",
+        "description": "試合の画面で読む一件(試合の設定と、見られる人には結果)。\n\n設定は id(推測されにくいコード)を知っていればだれでも読める。結果(全員の順位・偏差値と集計)は、\n作った人と、試合のゲームを持つ人にだけ付け、ほかの人には null にする。",
         "operationId": "get_match_api_v1_matches__match_id__get",
         "security": [
           {
@@ -2690,7 +2690,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MatchRead"
+                  "$ref": "#/components/schemas/MatchDetail"
                 }
               }
             }
@@ -2795,57 +2795,6 @@
         "responses": {
           "204": {
             "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/matches/{match_id}/result": {
-      "get": {
-        "tags": [
-          "matches"
-        ],
-        "summary": "Get Match Result",
-        "description": "試合の全員のスコアの順位・偏差値と、平均などの集計。\n\n作った人と、試合のゲームを持つ人だけが見られる。",
-        "operationId": "get_match_result_api_v1_matches__match_id__result_get",
-        "security": [
-          {
-            "APIKeyHeader": []
-          },
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "match_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Match Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MatchResult"
-                }
-              }
-            }
           },
           "422": {
             "description": "Validation Error",
@@ -7161,6 +7110,102 @@
         ],
         "title": "MatchCreate"
       },
+      "MatchDetail": {
+        "properties": {
+          "game_size": {
+            "type": "integer",
+            "title": "Game Size"
+          },
+          "round_size": {
+            "type": "integer",
+            "title": "Round Size"
+          },
+          "end_size": {
+            "type": "integer",
+            "title": "End Size"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "held_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Held At"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "organizer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RankedUser"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "game_count": {
+            "type": "integer",
+            "title": "Game Count"
+          },
+          "organized_by_me": {
+            "type": "boolean",
+            "title": "Organized By Me"
+          },
+          "my_game_count": {
+            "type": "integer",
+            "title": "My Game Count"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatchStanding"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "game_size",
+          "round_size",
+          "end_size",
+          "id",
+          "held_at",
+          "title",
+          "description",
+          "organizer",
+          "game_count",
+          "organized_by_me",
+          "my_game_count",
+          "result"
+        ],
+        "title": "MatchDetail",
+        "description": "試合の画面で読む一件。結果は、作った人と参加した人(自分のゲームがある人)にだけ付け、\nほかの人には null にする(他人の名前と点が出るため)。"
+      },
       "MatchEntry": {
         "properties": {
           "rank": {
@@ -7320,11 +7365,8 @@
         ],
         "title": "MatchRead"
       },
-      "MatchResult": {
+      "MatchStanding": {
         "properties": {
-          "match": {
-            "$ref": "#/components/schemas/MatchRead"
-          },
           "statistics": {
             "$ref": "#/components/schemas/MatchStatistics"
           },
@@ -7338,11 +7380,11 @@
         },
         "type": "object",
         "required": [
-          "match",
           "statistics",
           "entries"
         ],
-        "title": "MatchResult"
+        "title": "MatchStanding",
+        "description": "試合の結果(全員の順位と、合計点の集計)。"
       },
       "MatchStatistics": {
         "properties": {

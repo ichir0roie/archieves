@@ -6,21 +6,19 @@ import GameSetupFields, {
   toGameSetupDraft,
 } from "@/components/GameSetupFields";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
-import MatchInfoModal from "@/components/MatchInfoModal";
 import MatchSummary from "@/components/MatchSummary";
 import PageHeader from "@/components/PageHeader";
 import { useLoad } from "@/hooks/useLoad";
+import { useQueryParams } from "@/hooks/useQueryParams";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_ROUND_SETUP } from "@/lib/score/scoreConfig";
-import { createMatch, getMatch } from "@/lib/api";
+import { getMatch } from "@/lib/api";
 import {
   SETUP_MATCH_PARAM,
   matchRecordedAt,
   parseMatchId,
-  toMatchCreate,
   withMatchSizes,
-  type MatchInfo,
 } from "@/lib/score/match";
 import { BACKFILL_DATE_PARAM, isBackfillDate } from "@/lib/score/backfill";
 import { getCurrentUser } from "@/lib/auth/currentUser";
@@ -38,34 +36,23 @@ export default function Page() {
   const T = useT();
   const router = useRouter();
   const [draft, setDraft] = useState(() => toGameSetupDraft(DEFAULT_ROUND_SETUP));
-  // あとから入力の日付。スコアの一覧から ?date=yyyy-mm-dd で来る。無い・読めない日付なら今の日時で付ける
-  const [backfillDate, setBackfillDate] = useState<string | null>(null);
   // 点だけ入力(数字のボタン)で始めるか。前回の選び方を覚えておき、普段は触らずに始められるようにする
   const [numberPad, setNumberPad] = useState(false);
-  // 試合を作るときの、タイトル・内容を入れるモーダル
-  const [creatingMatch, setCreatingMatch] = useState(false);
-  // 参加する試合。試合の画面から ?match=<コード> で来る。URL を読むまでは undefined、無ければ null
-  const [joinMatchId, setJoinMatchId] = useState<string | null | undefined>(undefined);
+  const params = useQueryParams();
+  const matchParam = params?.get(SETUP_MATCH_PARAM) ?? null;
+  // 参加する試合。試合の画面から ?match=<コード> で来る。URL を読むまでは undefined、無ければ null、
+  // 読めないコードなら ""
+  const joinMatchId = params === null ? undefined : matchParam === null ? null : (parseMatchId(matchParam) ?? "");
+  // あとから入力の日付。スコアの一覧から ?date=yyyy-mm-dd で来る。無い・読めない日付なら今の日時で付ける。
+  // 試合のゲームの日付は試合の日にするので、試合に参加するときは使わない
+  const dateParam = params?.get(BACKFILL_DATE_PARAM) ?? null;
+  const backfillDate = joinMatchId === null && isBackfillDate(dateParam) ? dateParam : null;
 
   // サーバーでの描画中は localStorage を読めないので、前回の設定は画面に載ってから当てる
   useEffect(() => {
     const saved = loadRoundSetup();
     if (saved) setDraft(toGameSetupDraft(saved));
     setNumberPad(loadLastNumberPad());
-  }, []);
-
-  // useSearchParams は Suspense で包まないとビルドの事前描画で落ちるので、画面に載ってから URL を読む
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const matchParam = params.get(SETUP_MATCH_PARAM);
-    // 試合のゲームの日付は試合の日にするので、あとから入力の日付とは一緒にしない
-    if (matchParam !== null) {
-      setJoinMatchId(parseMatchId(matchParam) ?? "");
-      return;
-    }
-    setJoinMatchId(null);
-    const date = params.get(BACKFILL_DATE_PARAM);
-    if (isBackfillDate(date)) setBackfillDate(date);
   }, []);
 
   const joining = useLoad(
@@ -95,11 +82,8 @@ export default function Page() {
   // 開始は sub を引いてから進むので、二度押しで二つ始めないようにする
   const starting = useRef(false);
 
-  /**
-   * newMatch を渡すと、今の設定とそのタイトル・内容で試合を作り、そのゲームとして始める。
-   * 試合を作れなければ投げる(タイトルのモーダルがエラーを出す)
-   */
-  async function start(newMatch: MatchInfo | null = null) {
+  /** 新しいゲームを始める。試合に参加するときは、その試合のゲームにする */
+  async function start() {
     if (setup === null || !canStart || starting.current) return;
     starting.current = true;
     try {
@@ -108,7 +92,7 @@ export default function Page() {
       if (ScoreManager.hasUnsavedCache(userId) && !window.confirm(T.game.setup.discardUnsaved)) {
         return;
       }
-      const match = newMatch ? await createMatch(toMatchCreate(setup, newMatch)) : joinMatch;
+      const match = joinMatch;
       // 参加した試合の数は、次に自分で始めるときの設定に残さない
       const saved = loadRoundSetup();
       saveRoundSetup(
@@ -136,62 +120,78 @@ export default function Page() {
     }
   }
 
+  // 試合に参加する(?match= で来た)ときだけ、試合の区画を出し、数の欄を試合の区画へ分ける。
+  // ふつうに始めるときは、スコアの設定だけの画面にする(試合は試合の画面で作る)
+  const joiningMatch = joinMatchId !== null && joinMatchId !== undefined;
+
+  const numberPadField = (
+    <div className="field">
+      <label className="NumberPadSetupField check-field">
+        <input
+          type="checkbox"
+          checked={numberPad}
+          onChange={(e) => setNumberPad(e.target.checked)}
+        />
+        {T.game.setup.numberPad}
+      </label>
+      <span className="hint">{T.game.setup.numberPadHint}</span>
+    </div>
+  );
+
   return (
     <div className="page">
-      <PageHeader title={joinMatchId ? T.match.setup.title(joinMatchId) : T.game.setup.title} />
-      {joinMatch && <MatchSummary match={joinMatch} />}
-      {joinNotFound && <p className="MatchNotFound status error">{T.match.setup.notFound}</p>}
-      {joining.error && joining.error.status !== 404 && <ApiErrorAlert error={joining.error} />}
-      {backfillDate && (
-        <div className="BackfillNotice panel stack tight">
-          <b>{T.game.setup.backfill(backfillDate)}</b>
-          <span className="muted small">{T.game.backfillHint}</span>
-        </div>
-      )}
-      <div className="panel stack">
-        <GameSetupFields
-          draft={draft}
-          onChange={setDraft}
-          sizesFixed={joinMatchId !== null && joinMatchId !== undefined}
-        />
-        <div className="field">
-          <label className="NumberPadSetupField check-field">
-            <input
-              type="checkbox"
-              checked={numberPad}
-              onChange={(e) => setNumberPad(e.target.checked)}
+      <PageHeader title={joiningMatch && joinMatchId ? T.match.setup.title(joinMatchId) : T.game.setup.title} />
+      {joiningMatch ? (
+        <>
+          <div className="section-label">{T.match.setup.matchSection}</div>
+          {joinMatch && (
+            <MatchSummary
+              match={joinMatch}
+              compact
             />
-            {T.game.setup.numberPad}
-          </label>
-          <span className="hint">{T.game.setup.numberPadHint}</span>
-        </div>
-        {/* あとから入力のゲームは、その場でほかの人と撃つ試合にしない。参加するときも作らない */}
-        {!backfillDate && joinMatchId === null && (
-          <div className="field">
-            <button
-              type="button"
-              className="MatchCreateStart block"
-              disabled={!canStart}
-              onClick={() => setCreatingMatch(true)}
-            >
-              {T.match.create.start}
-            </button>
-            <span className="hint">{T.match.create.hint}</span>
+          )}
+          {joinNotFound && <p className="MatchNotFound status error">{T.match.setup.notFound}</p>}
+          {joining.error && joining.error.status !== 404 && <ApiErrorAlert error={joining.error} />}
+          {joining.loading && !joinMatch && <p className="status empty">{T.loading}</p>}
+          {joinMatch && (
+            <div className="MatchSizes panel stack">
+              <div className="section-label">{T.match.setup.sizesSection}</div>
+              <GameSetupFields
+                draft={draft}
+                onChange={setDraft}
+                sizesFixed
+                part="sizes"
+              />
+            </div>
+          )}
+          <div className="section-label">{T.match.setup.gearSection}</div>
+          <div className="MatchGear panel stack">
+            <span className="hint">{T.match.sharedNote}</span>
+            <GameSetupFields
+              draft={draft}
+              onChange={setDraft}
+              part="gear"
+            />
+            {numberPadField}
           </div>
-        )}
-        {creatingMatch && (
-          <MatchInfoModal
-            title={T.match.info.createTitle}
-            submitLabel={T.match.info.createSubmit}
-            onClose={() => setCreatingMatch(false)}
-            onSubmit={async (info) => {
-              await start(info);
-              // 保存していない記録を捨てるのをやめたときは、ここに戻る
-              setCreatingMatch(false);
-            }}
-          />
-        )}
-      </div>
+        </>
+      ) : (
+        <>
+          {backfillDate && (
+            <div className="BackfillNotice panel stack tight">
+              <b>{T.game.setup.backfill(backfillDate)}</b>
+              <span className="muted small">{T.game.backfillHint}</span>
+            </div>
+          )}
+          <div className="panel stack">
+            <GameSetupFields
+              draft={draft}
+              onChange={setDraft}
+            />
+            {numberPadField}
+          </div>
+        </>
+      )}
       {/* 設定の欄が長いので、開始はどこまで送っても押せるよう画面の下に留める */}
       <div className="SetupStart setup-start">
         <button
@@ -200,7 +200,7 @@ export default function Page() {
           disabled={!canStart}
           onClick={() => start()}
         >
-          {T.game.setup.start}
+          {joiningMatch ? T.match.setup.start : T.game.setup.start}
         </button>
       </div>
       <BackButton />

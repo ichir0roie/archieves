@@ -12,12 +12,12 @@ export interface Destination {
 }
 
 /**
- * 試合: 自分が作った・参加した試合の一覧(MATCH_LIST_PATH)、コードで探して参加する画面(MATCH_PATH)、
- * 結果(MATCH_RESULT_PATH)。後ろの二つは ?id=<試合の id> で試合を受ける
+ * 試合: 一覧(MATCH_LIST_PATH。コード・QR で探す入口もここ)、作る画面(MATCH_NEW_PATH。試合はここでだけ作る)、
+ * 一つの試合の画面(MATCH_PATH。?id=<試合の id>。概要・参加・QR・結果)
  */
 export const MATCH_LIST_PATH = "/match/list";
+export const MATCH_NEW_PATH = "/match/new";
 export const MATCH_PATH = "/match";
-export const MATCH_RESULT_PATH = "/match/result";
 
 /** ホームでは大きなボタンにし、ほかの行き先と分けて出す */
 export const START_GAME: Destination = { href: "/game/setup", label: "startGame" };

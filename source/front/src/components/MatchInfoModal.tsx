@@ -2,14 +2,10 @@
 
 import { useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
-import Field from "@/components/Field";
+import MatchInfoFields from "@/components/MatchInfoFields";
 import Modal from "@/components/Modal";
 import { toErrorDetails, type ErrorDetails } from "@/lib/api";
-import {
-  MATCH_DESCRIPTION_MAX_LENGTH,
-  MATCH_TITLE_MAX_LENGTH,
-  type MatchInfo,
-} from "@/lib/score/match";
+import type { MatchInfo } from "@/lib/score/match";
 import { useT } from "@/lib/text";
 
 type Props = {
@@ -21,7 +17,7 @@ type Props = {
   onSubmit: (info: MatchInfo) => Promise<void>;
 };
 
-/** 試合のタイトル・内容を入れるモーダル。作るとき(設定の画面)と、作った人が直すときに使う */
+/** 作った人が試合のタイトル・内容を直すモーダル */
 export default function MatchInfoModal({ title, submitLabel, initial, onClose, onSubmit }: Props) {
   const T = useT();
   const [info, setInfo] = useState<MatchInfo>(initial ?? { title: "", description: "" });
@@ -68,36 +64,10 @@ export default function MatchInfoModal({ title, submitLabel, initial, onClose, o
     >
       <div className="MatchInfoModal stack">
         {error && <ApiErrorAlert error={error} />}
-        <Field
-          label={T.match.info.title}
-          hint={T.match.info.titleHint}
-        >
-          {(id) => (
-            <input
-              id={id}
-              type="text"
-              className="MatchInfoTitle"
-              value={info.title}
-              maxLength={MATCH_TITLE_MAX_LENGTH}
-              onChange={(e) => setInfo({ ...info, title: e.target.value })}
-            />
-          )}
-        </Field>
-        <Field
-          label={T.match.info.description}
-          hint={T.match.info.descriptionHint}
-        >
-          {(id) => (
-            <textarea
-              id={id}
-              className="MatchInfoDescription"
-              value={info.description}
-              maxLength={MATCH_DESCRIPTION_MAX_LENGTH}
-              rows={6}
-              onChange={(e) => setInfo({ ...info, description: e.target.value })}
-            />
-          )}
-        </Field>
+        <MatchInfoFields
+          info={info}
+          onChange={setInfo}
+        />
       </div>
     </Modal>
   );
