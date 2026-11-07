@@ -33,6 +33,7 @@ import type {
   MatchCreate,
   MatchRead,
   MatchResult,
+  MatchUpdate,
   OrganizationCreate,
   OrganizationRead,
   OrganizationSummary,
@@ -367,6 +368,19 @@ export function createMatch(match: MatchCreate): Promise<MatchRead> {
 }
 
 /** 自分が作った試合と、自分のゲームがある試合。開いた日時の新しい順 */
+/** 試合のタイトル・内容を直す。作った人だけ(ほかの人は 403) */
+export function updateMatch(matchId: string, match: MatchUpdate): Promise<MatchRead> {
+  return request(`/matches/${matchId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(match),
+  });
+}
+
+/** 試合を消す。作った人だけ。参加した人のゲームは残り、試合から外れる */
+export function deleteMatch(matchId: string): Promise<void> {
+  return request(`/matches/${matchId}`, { method: 'DELETE' });
+}
+
 export function listMyMatches(): Promise<MatchRead[]> {
   return request('/matches');
 }

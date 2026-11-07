@@ -66,6 +66,7 @@ export type EndSheetRead = Schemas['EndSheetRead'];
 export type GameSheetWrite = Schemas['GameSheetWrite'];
 export type MatchCreate = Schemas['MatchCreate'];
 export type MatchRead = Schemas['MatchRead'];
+export type MatchUpdate = Schemas['MatchUpdate'];
 export type MatchEntry = Schemas['MatchEntry'];
 export type MatchStatistics = Schemas['MatchStatistics'];
 export type MatchResult = Schemas['MatchResult'];

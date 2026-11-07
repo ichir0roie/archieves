@@ -11,11 +11,13 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.match_codes import MATCH_ID_LENGTH
+from app.core.matches import MATCH_TITLE_MAX_LENGTH
 from app.db.base_class import Base
 
 if TYPE_CHECKING:
@@ -42,6 +44,9 @@ class Match(Base):
         BigInteger, ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
     held_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # 作った人が付ける名前と説明。省ける(画面はタイトルが無ければ「試合 <id>」と出す)
+    title: Mapped[str | None] = mapped_column(String(MATCH_TITLE_MAX_LENGTH), default=None)
+    description: Mapped[str | None] = mapped_column(Text, default=None)
 
     game_size: Mapped[int] = mapped_column(Integer)
     round_size: Mapped[int] = mapped_column(Integer)

@@ -681,6 +681,9 @@ export class ScoreManager {
    */
   private applySaved(saved: GameSheetRead) {
     this.sheet.id = saved.id;
+    // 入力の途中に試合が消されると、API は試合から外して保存する。終えたあとに消えた試合の結果へ
+    // 行かないよう、外れたことを手元にも写す
+    this.sheet.match_id = saved.match_id;
     this.sheet.rounds.forEach((round, roundIndex) => {
       const savedRound = saved.rounds[roundIndex];
       round.id = savedRound?.id ?? null;

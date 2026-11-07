@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.core.match_codes import MATCH_ID_ALPHABET, MATCH_ID_LENGTH
+from app.core.matches import MATCH_DESCRIPTION_MAX_LENGTH, MATCH_TITLE_MAX_LENGTH
 from app.core.scoring import X_SCORE
 from app.db import Game
 
@@ -43,6 +44,127 @@ def test_create_a_match_with_the_arrow_counts(client: TestClient, current_user) 
         "profile_visible": True,
     }
     assert body["game_count"] == 0
+
+
+def test_a_match_has_a_title_and_a_description(client: TestClient) -> None:
+    response = client.post(
+        MATCHES_URL,
+        json={**SETTINGS, "title": "  秋の記録会  ", "description": "70m の部と 30m の部"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["title"] == "秋の記録会"
+    assert response.json()["description"] == "70m の部と 30m の部"
+
+
+def test_a_blank_title_is_no_title(client: TestClient) -> None:
+    body = client.post(MATCHES_URL, json={**SETTINGS, "title": "   ", "description": ""}).json()
+
+    assert body["title"] is None
+    assert body["description"] is None
+
+
+@pytest.mark.parametrize(
+    ("field", "length"),
+    [
+        ("title", MATCH_TITLE_MAX_LENGTH + 1),
+        ("description", MATCH_DESCRIPTION_MAX_LENGTH + 1),
+    ],
+)
+def test_too_long_texts_are_rejected(client: TestClient, field: str, length: int) -> None:
+    response = client.post(MATCHES_URL, json={**SETTINGS, field: "あ" * length})
+
+    assert response.status_code == 422
+
+
+def test_the_organizer_edits_the_title_and_description(
+    client: TestClient, current_user, factories
+) -> None:
+    match = factories.MatchFactory(organizer=current_user, title="前", description="説明")
+
+    retitled = client.patch(f"{MATCHES_URL}/{match.id}", json={"title": "後"})
+    cleared = client.patch(f"{MATCHES_URL}/{match.id}", json={"description": None})
+
+    assert retitled.status_code == 200
+    assert (retitled.json()["title"], retitled.json()["description"]) == ("後", "説明")
+    assert (cleared.json()["title"], cleared.json()["description"]) == ("後", None)
+
+
+def test_only_the_organizer_edits_a_match(client: TestClient, factories) -> None:
+    match = factories.MatchFactory(title="前")
+
+    response = client.patch(f"{MATCHES_URL}/{match.id}", json={"title": "後"})
+
+    assert response.status_code == 403
+    assert client.get(f"{MATCHES_URL}/{match.id}").json()["title"] == "前"
+
+
+def test_editing_a_missing_match_is_404(client: TestClient) -> None:
+    assert client.patch(f"{MATCHES_URL}/NOSUCHID", json={"title": "後"}).status_code == 404
+
+
+def test_a_match_tells_whether_i_made_or_played_it(
+    client: TestClient, current_user, factories
+) -> None:
+    made = factories.MatchFactory(organizer=current_user)
+    played = factories.MatchFactory()
+    _game_with_scores(factories, played, current_user, [10])
+    factories.GameFactory(user=current_user, match=played)
+    factories.GameFactory(user=current_user, match=played, deleted_at=datetime.now(UTC).date())
+
+    made_body = client.get(f"{MATCHES_URL}/{made.id}").json()
+    played_body = client.get(f"{MATCHES_URL}/{played.id}").json()
+
+    assert (made_body["organized_by_me"], made_body["my_game_count"]) == (True, 0)
+    assert (played_body["organized_by_me"], played_body["my_game_count"]) == (False, 2)
+
+
+def test_the_organizer_deletes_a_match_and_its_games_stay_as_plain_games(
+    client: TestClient, s: Session, current_user, factories
+) -> None:
+    match = factories.MatchFactory(organizer=current_user)
+    game = _game_with_scores(factories, match, factories.UserFactory(), [10])
+
+    response = client.delete(f"{MATCHES_URL}/{match.id}")
+
+    assert response.status_code == 204
+    assert client.get(f"{MATCHES_URL}/{match.id}").status_code == 404
+    assert client.get(MATCHES_URL).json() == []
+    s.refresh(game)
+    assert game.deleted_at is None
+    assert game.match_id is None
+
+
+def test_only_the_organizer_deletes_a_match(client: TestClient, current_user, factories) -> None:
+    match = factories.MatchFactory()
+    _game_with_scores(factories, match, current_user, [10])
+
+    response = client.delete(f"{MATCHES_URL}/{match.id}")
+
+    assert response.status_code == 403
+    assert client.get(f"{MATCHES_URL}/{match.id}").status_code == 200
+
+
+def test_deleting_a_missing_match_is_404(client: TestClient, factories) -> None:
+    match = factories.MatchFactory(deleted_at=datetime.now(UTC).date())
+
+    assert client.delete(f"{MATCHES_URL}/{match.id}").status_code == 404
+    assert client.delete(f"{MATCHES_URL}/NOSUCHID").status_code == 404
+
+
+def test_a_sheet_for_a_deleted_match_is_saved_without_the_match(
+    client: TestClient, factories
+) -> None:
+    # 入力の途中に試合が消えても、手元の記録は保存できる
+    match = factories.MatchFactory(deleted_at=datetime.now(UTC).date())
+
+    response = client.put(
+        "/api/v1/games/sheet",
+        json={"recorded_at": "2026-11-07", "match_id": match.id},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["match_id"] is None
 
 
 def test_each_match_gets_its_own_code(client: TestClient) -> None:
@@ -156,12 +278,10 @@ def test_saving_without_the_match_keeps_it_and_null_leaves_it(
     assert left.json()["match_id"] is None
 
 
-def test_a_sheet_cannot_join_a_missing_match(client: TestClient, factories) -> None:
-    match = factories.MatchFactory(deleted_at=datetime.now(UTC).date())
-
+def test_a_sheet_cannot_join_a_match_that_never_existed(client: TestClient) -> None:
     response = client.put(
         "/api/v1/games/sheet",
-        json={"recorded_at": "2026-11-07", "match_id": match.id},
+        json={"recorded_at": "2026-11-07", "match_id": "NOSUCHID"},
     )
 
     assert response.status_code == 404

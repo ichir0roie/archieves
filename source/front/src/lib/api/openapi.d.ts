@@ -610,10 +610,18 @@ export interface paths {
         get: operations["get_match_api_v1_matches__match_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Match
+         * @description 試合を消す。作った人だけ。参加した人のゲームは残り、試合から外れる。
+         */
+        delete: operations["delete_match_api_v1_matches__match_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update Match
+         * @description 試合のタイトル・内容を直す。作った人だけ。
+         */
+        patch: operations["update_match_api_v1_matches__match_id__patch"];
         trace?: never;
     };
     "/api/v1/matches/{match_id}/result": {
@@ -1851,6 +1859,10 @@ export interface components {
         ImportSource: "android_mytargets" | "archieves";
         /** MatchCreate */
         MatchCreate: {
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
             /** Game Size */
             game_size: number;
             /** Round Size */
@@ -1904,9 +1916,17 @@ export interface components {
              * Format: date-time
              */
             held_at: string;
+            /** Title */
+            title: string | null;
+            /** Description */
+            description: string | null;
             organizer: components["schemas"]["RankedUser"] | null;
             /** Game Count */
             game_count: number;
+            /** Organized By Me */
+            organized_by_me: boolean;
+            /** My Game Count */
+            my_game_count: number;
         };
         /** MatchResult */
         MatchResult: {
@@ -1932,6 +1952,16 @@ export interface components {
             max: number | null;
             /** Min */
             min: number | null;
+        };
+        /**
+         * MatchUpdate
+         * @description 作った人がタイトル・内容を直す。省いた欄はそのまま、null(空)で消す。
+         */
+        MatchUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /**
          * MeRead
@@ -3868,6 +3898,70 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_match_api_v1_matches__match_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_match_api_v1_matches__match_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MatchUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

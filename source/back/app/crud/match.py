@@ -1,6 +1,6 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
-from sqlalchemy import Select, exists, func, or_, select
+from sqlalchemy import Select, exists, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.match_codes import new_match_id
@@ -13,6 +13,7 @@ from app.schemas.match import (
     MatchRead,
     MatchResult,
     MatchStatistics,
+    MatchUpdate,
 )
 from app.schemas.statistics import RankedUser
 
@@ -30,6 +31,8 @@ def create_match(s: Session, organizer_id: int, match_in: MatchCreate) -> Match:
         id=match_id,
         organizer_id=organizer_id,
         held_at=match_in.held_at or datetime.now(UTC),
+        title=match_in.title,
+        description=match_in.description,
         game_size=match_in.game_size,
         round_size=match_in.round_size,
         end_size=match_in.end_size,
@@ -37,6 +40,29 @@ def create_match(s: Session, organizer_id: int, match_in: MatchCreate) -> Match:
     s.add(match)
     s.flush()
     return match
+
+
+def update_match(s: Session, match: Match, match_in: MatchUpdate) -> Match:
+    # 送られた欄だけを書き換える(省いた欄はそのまま)
+    for field in match_in.model_fields_set:
+        setattr(match, field, getattr(match_in, field))
+    s.flush()
+    return match
+
+
+def delete_match(s: Session, match: Match) -> None:
+    """試合を消す(消した印を付ける)。参加した人のゲームは消さず、試合から外してふつうのゲームに戻す。
+
+    外さないと、消した試合を指したまま結果の画面へのリンクが残り、開くと「ありません」になる。
+    """
+    match.deleted_at = date.today()
+    s.execute(update(Game).where(Game.match_id == match.id).values(match_id=None))
+    s.flush()
+
+
+def match_exists(s: Session, match_id: str) -> bool:
+    """消したものも含めて、その id の試合が作られたことがあるか。"""
+    return s.get(Match, match_id) is not None
 
 
 def get_match(s: Session, match_id: str) -> Match | None:
@@ -77,16 +103,28 @@ def _game_count(match_id: str) -> Select[tuple[int]]:
     return select(func.count()).select_from(games)
 
 
+def _my_game_count(match_id: str, user_id: int) -> Select[tuple[int]]:
+    return select(func.count(Game.id)).where(
+        Game.match_id == match_id,
+        Game.user_id == user_id,
+        Game.deleted_at.is_(None),
+    )
+
+
 def read_match(s: Session, viewer: User, match: Match) -> MatchRead:
     organizer = s.get(User, match.organizer_id) if match.organizer_id is not None else None
     return MatchRead(
         id=match.id,
         held_at=match.held_at,
+        title=match.title,
+        description=match.description,
         game_size=match.game_size,
         round_size=match.round_size,
         end_size=match.end_size,
         organizer=_ranked_user(viewer, organizer) if organizer is not None else None,
         game_count=s.scalar(_game_count(match.id)) or 0,
+        organized_by_me=match.organizer_id == viewer.id,
+        my_game_count=s.scalar(_my_game_count(match.id, viewer.id)) or 0,
     )
 
 

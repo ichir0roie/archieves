@@ -10,8 +10,8 @@ import MatchShare from "@/components/MatchShare";
 import MatchSummary from "@/components/MatchSummary";
 import PageHeader from "@/components/PageHeader";
 import { useLoad } from "@/hooks/useLoad";
-import { getMatch, listMyMatches } from "@/lib/api";
-import { formatDateTime } from "@/lib/formatDateTime";
+import { getMatch } from "@/lib/api";
+import { MATCH_LIST_PATH } from "@/lib/destinations";
 import {
   MATCH_ID_PARAM,
   matchJoinPath,
@@ -27,6 +27,8 @@ export default function Page() {
   const [idText, setIdText] = useState("");
   // 探す試合。URL の ?id=(QR・共有の URL)か、探すボタンで決める
   const [matchId, setMatchId] = useState<string | null>(null);
+  // 上げると読み直す(作った人がタイトル・内容を直したとき)
+  const [reloadKey, setReloadKey] = useState(0);
 
   // useSearchParams は Suspense で包まないとビルドの事前描画で落ちるので、画面に載ってから URL を読む
   useEffect(() => {
@@ -37,8 +39,10 @@ export default function Page() {
     }
   }, []);
 
-  const found = useLoad(() => (matchId === null ? Promise.resolve(null) : getMatch(matchId)), [matchId]);
-  const mine = useLoad(listMyMatches, []);
+  const found = useLoad(
+    () => (matchId === null ? Promise.resolve(null) : getMatch(matchId)),
+    [matchId, reloadKey],
+  );
   const match = found.data && found.data.id === matchId ? found.data : null;
   const parsedId = parseMatchId(idText);
 
@@ -95,7 +99,11 @@ export default function Page() {
 
       {match && (
         <>
-          <MatchSummary match={match} />
+          <MatchSummary
+            match={match}
+            onUpdated={() => setReloadKey((key) => key + 1)}
+            onDeleted={() => router.push(MATCH_LIST_PATH)}
+          />
           <div className="panel stack tight">
             <button
               type="button"
@@ -111,29 +119,12 @@ export default function Page() {
         </>
       )}
 
-      <div className="section-label">{T.match.mine.title}</div>
-      {mine.error && <ApiErrorAlert error={mine.error} />}
-      {mine.loading && !mine.data && <p className="status empty">{T.loading}</p>}
-      {mine.data && mine.data.length === 0 && <p className="status empty">{T.match.mine.empty}</p>}
-      {mine.data && mine.data.length > 0 && (
-        <div className="MyMatches row-list">
-          {mine.data.map((item) => (
-            <Link
-              key={item.id}
-              href={matchResultPath(item.id)}
-            >
-              <div className="main">
-                <span>{T.match.badge(item.id)}</span>
-                <span className="muted small">{formatDateTime(item.held_at)}</span>
-              </div>
-              <div className="side">
-                <span className="muted small">{T.match.gameCount(item.game_count)}</span>
-                {item.organizer && <span className="muted small">{item.organizer.name}</span>}
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+      <Link
+        href={MATCH_LIST_PATH}
+        className="MatchListLink"
+      >
+        {T.match.list.title}
+      </Link>
       <BackButton />
     </div>
   );

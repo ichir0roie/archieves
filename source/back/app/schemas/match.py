@@ -1,9 +1,10 @@
-"""試合(POST /matches・GET /matches/{match_id}・GET /matches/{match_id}/result)の形。"""
+"""試合(POST /matches・GET/PATCH /matches/{match_id}・GET /matches/{match_id}/result)の形。"""
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from app.core.matches import MATCH_DESCRIPTION_MAX_LENGTH, MATCH_TITLE_MAX_LENGTH
 from app.core.scoring import MAX_END_SIZE, MAX_GAME_SIZE, MAX_ROUND_SIZE
 from app.schemas.base import ResponseModel
 from app.schemas.statistics import RankedUser
@@ -18,7 +19,27 @@ class MatchSettings(BaseModel):
     end_size: int
 
 
-class MatchCreate(MatchSettings):
+def _blank_to_none(value: object) -> object:
+    """前後の空白を落とし、空になれば null にする(空のタイトルを「無い」と同じに扱う)。"""
+    if isinstance(value, str):
+        value = value.strip()
+        return value or None
+    return value
+
+
+class MatchInfo(BaseModel):
+    """作った人が付けるタイトルと内容(説明)。どちらも省ける。"""
+
+    title: str | None = Field(default=None, max_length=MATCH_TITLE_MAX_LENGTH)
+    description: str | None = Field(default=None, max_length=MATCH_DESCRIPTION_MAX_LENGTH)
+
+    @field_validator("title", "description", mode="before")
+    @classmethod
+    def _strip(cls, value: object) -> object:
+        return _blank_to_none(value)
+
+
+class MatchCreate(MatchSettings, MatchInfo):
     # 省けば作った時
     held_at: datetime | None = None
     game_size: int = Field(ge=1, le=MAX_GAME_SIZE)
@@ -26,14 +47,23 @@ class MatchCreate(MatchSettings):
     end_size: int = Field(ge=1, le=MAX_END_SIZE)
 
 
+class MatchUpdate(MatchInfo):
+    """作った人がタイトル・内容を直す。省いた欄はそのまま、null(空)で消す。"""
+
+
 class MatchRead(MatchSettings, ResponseModel):
     # 参加のコード(app/core/match_codes.py)
     id: str
     held_at: datetime
+    title: str | None
+    description: str | None
     # 作った人。利用者の行が消えていれば null
     organizer: RankedUser | None
     # 試合のゲーム(矢が一本でもあるもの。消したゲームは数えない)の数
     game_count: int
+    # 読んだ人から見た試合。自分が作ったか、自分のゲーム(消したものは除く)がいくつあるか
+    organized_by_me: bool
+    my_game_count: int
 
 
 class MatchEntry(ResponseModel):

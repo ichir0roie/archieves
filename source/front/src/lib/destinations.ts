@@ -11,7 +11,11 @@ export interface Destination {
   adminOnly?: boolean;
 }
 
-/** 試合: ID で参加する・自分の試合の一覧。結果は MATCH_RESULT_PATH(?id=<試合の id>) */
+/**
+ * 試合: 自分が作った・参加した試合の一覧(MATCH_LIST_PATH)、コードで探して参加する画面(MATCH_PATH)、
+ * 結果(MATCH_RESULT_PATH)。後ろの二つは ?id=<試合の id> で試合を受ける
+ */
+export const MATCH_LIST_PATH = "/match/list";
 export const MATCH_PATH = "/match";
 export const MATCH_RESULT_PATH = "/match/result";
 
@@ -21,7 +25,7 @@ export const START_GAME: Destination = { href: "/game/setup", label: "startGame"
 /** メニュー(Nav)とホームのボタンに並べる行き先。この順に並べる */
 export const DESTINATIONS: ReadonlyArray<Destination> = [
   START_GAME,
-  { href: MATCH_PATH, label: "match" },
+  { href: MATCH_LIST_PATH, label: "match" },
   { href: "/score-log", label: "scoreLog" },
   { href: "/analysis", label: "analysis" },
   { href: "/diary", label: "diary" },

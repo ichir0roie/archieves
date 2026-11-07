@@ -6,19 +6,21 @@ import GameSetupFields, {
   toGameSetupDraft,
 } from "@/components/GameSetupFields";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
+import MatchInfoModal from "@/components/MatchInfoModal";
 import MatchSummary from "@/components/MatchSummary";
 import PageHeader from "@/components/PageHeader";
 import { useLoad } from "@/hooks/useLoad";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_ROUND_SETUP } from "@/lib/score/scoreConfig";
-import { createMatch, getMatch, toErrorDetails, type ErrorDetails } from "@/lib/api";
+import { createMatch, getMatch } from "@/lib/api";
 import {
   SETUP_MATCH_PARAM,
   matchRecordedAt,
   parseMatchId,
   toMatchCreate,
   withMatchSizes,
+  type MatchInfo,
 } from "@/lib/score/match";
 import { BACKFILL_DATE_PARAM, isBackfillDate } from "@/lib/score/backfill";
 import { getCurrentUser } from "@/lib/auth/currentUser";
@@ -40,7 +42,8 @@ export default function Page() {
   const [backfillDate, setBackfillDate] = useState<string | null>(null);
   // 点だけ入力(数字のボタン)で始めるか。前回の選び方を覚えておき、普段は触らずに始められるようにする
   const [numberPad, setNumberPad] = useState(false);
-  const [matchError, setMatchError] = useState<ErrorDetails | null>(null);
+  // 試合を作るときの、タイトル・内容を入れるモーダル
+  const [creatingMatch, setCreatingMatch] = useState(false);
   // 参加する試合。試合の画面から ?match=<コード> で来る。URL を読むまでは undefined、無ければ null
   const [joinMatchId, setJoinMatchId] = useState<string | null | undefined>(undefined);
 
@@ -92,26 +95,20 @@ export default function Page() {
   // 開始は sub を引いてから進むので、二度押しで二つ始めないようにする
   const starting = useRef(false);
 
-  /** asMatch なら、今の設定で試合を作り、そのゲームとして始める */
-  async function start(asMatch: boolean = false) {
+  /**
+   * newMatch を渡すと、今の設定とそのタイトル・内容で試合を作り、そのゲームとして始める。
+   * 試合を作れなければ投げる(タイトルのモーダルがエラーを出す)
+   */
+  async function start(newMatch: MatchInfo | null = null) {
     if (setup === null || !canStart || starting.current) return;
     starting.current = true;
-    setMatchError(null);
     try {
       const { userId } = await getCurrentUser();
       // 入力の途中のゲームの、保存していない記録はキャッシュにしか無い。始めると捨てるので確かめる
       if (ScoreManager.hasUnsavedCache(userId) && !window.confirm(T.game.setup.discardUnsaved)) {
         return;
       }
-      let match = joinMatch;
-      if (asMatch) {
-        try {
-          match = await createMatch(toMatchCreate(setup));
-        } catch (e) {
-          setMatchError(toErrorDetails(e));
-          return;
-        }
-      }
+      const match = newMatch ? await createMatch(toMatchCreate(setup, newMatch)) : joinMatch;
       // 参加した試合の数は、次に自分で始めるときの設定に残さない
       const saved = loadRoundSetup();
       saveRoundSetup(
@@ -175,14 +172,25 @@ export default function Page() {
               type="button"
               className="MatchCreateStart block"
               disabled={!canStart}
-              onClick={() => start(true)}
+              onClick={() => setCreatingMatch(true)}
             >
               {T.match.create.start}
             </button>
             <span className="hint">{T.match.create.hint}</span>
           </div>
         )}
-        {matchError && <ApiErrorAlert error={matchError} />}
+        {creatingMatch && (
+          <MatchInfoModal
+            title={T.match.info.createTitle}
+            submitLabel={T.match.info.createSubmit}
+            onClose={() => setCreatingMatch(false)}
+            onSubmit={async (info) => {
+              await start(info);
+              // 保存していない記録を捨てるのをやめたときは、ここに戻る
+              setCreatingMatch(false);
+            }}
+          />
+        )}
       </div>
       {/* 設定の欄が長いので、開始はどこまで送っても押せるよう画面の下に留める */}
       <div className="SetupStart setup-start">

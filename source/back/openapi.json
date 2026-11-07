@@ -2706,6 +2706,107 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Update Match",
+        "description": "試合のタイトル・内容を直す。作った人だけ。",
+        "operationId": "update_match_api_v1_matches__match_id__patch",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Match Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Delete Match",
+        "description": "試合を消す。作った人だけ。参加した人のゲームは残り、試合から外れる。",
+        "operationId": "delete_match_api_v1_matches__match_id__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Match Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/matches/{match_id}/result": {
@@ -6997,6 +7098,30 @@
       },
       "MatchCreate": {
         "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "game_size": {
             "type": "integer",
             "maximum": 100.0,
@@ -7134,6 +7259,28 @@
             "format": "date-time",
             "title": "Held At"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "organizer": {
             "anyOf": [
               {
@@ -7147,6 +7294,14 @@
           "game_count": {
             "type": "integer",
             "title": "Game Count"
+          },
+          "organized_by_me": {
+            "type": "boolean",
+            "title": "Organized By Me"
+          },
+          "my_game_count": {
+            "type": "integer",
+            "title": "My Game Count"
           }
         },
         "type": "object",
@@ -7156,8 +7311,12 @@
           "end_size",
           "id",
           "held_at",
+          "title",
+          "description",
           "organizer",
-          "game_count"
+          "game_count",
+          "organized_by_me",
+          "my_game_count"
         ],
         "title": "MatchRead"
       },
@@ -7258,6 +7417,37 @@
         ],
         "title": "MatchStatistics",
         "description": "試合のゲームの合計点の集計。ゲームが無ければ件数 0 で、ほかは null。"
+      },
+      "MatchUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "title": "MatchUpdate",
+        "description": "作った人がタイトル・内容を直す。省いた欄はそのまま、null(空)で消す。"
       },
       "MeRead": {
         "properties": {

@@ -16,9 +16,24 @@ export const SETUP_MATCH_PARAM = "match";
 const MATCH_ID_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 const MATCH_ID_LENGTH = 8;
 
-/** 設定の画面で決めた設定のうち、試合で揃える数(ラウンド数・エンド数・矢数)を、試合を作る要求にする */
-export function toMatchCreate(setup: RoundSetup): MatchCreate {
+/** 試合のタイトル・内容の長さ。API の app/core/matches.py と揃える */
+export const MATCH_TITLE_MAX_LENGTH = 100;
+export const MATCH_DESCRIPTION_MAX_LENGTH = 2000;
+
+/** 作った人が付けるタイトルと内容。空なら付けない(API が null にする) */
+export type MatchInfo = {
+  title: string;
+  description: string;
+};
+
+/**
+ * 設定の画面で決めた設定のうち、試合で揃える数(ラウンド数・エンド数・矢数)と、
+ * タイトル・内容を、試合を作る要求にする
+ */
+export function toMatchCreate(setup: RoundSetup, info: MatchInfo): MatchCreate {
   return {
+    title: info.title,
+    description: info.description,
     game_size: setup.gameSize,
     round_size: setup.roundSize,
     end_size: setup.endSize,

@@ -76,6 +76,8 @@ input[type="text"], input[type="search"], input[type="number"], input[type="url"
 textarea { min-height: 8rem; resize: vertical; line-height: 1.7; }
 input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 0; }
 input[aria-invalid="true"] { border-color: var(--danger); }
+/* 上で色と背景を決め打ちしているので、ブラウザの無効の見た目が消える。変えられない欄だと分かるよう、ここで薄くする */
+input:disabled, select:disabled, textarea:disabled { background: var(--chip); color: var(--muted); cursor: not-allowed; }
 
 button { padding: 0.5rem 0.95rem; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; }
 button:hover:not(:disabled) { border-color: var(--accent); }
@@ -522,3 +524,13 @@ table.list.MatchResultTable tr.mine td { background: color-mix(in srgb, var(--ac
 /* td に flex を当てると表の行の背景が欠けるので、距離の方を塊にして下へ送る */
 table.list.MatchResultTable td.gear { font-size: 0.85rem; line-height: 1.25; }
 table.list.MatchResultTable td.gear .small { display: block; }
+/* 試合のタイトル・内容。内容は打ったままの改行で出す */
+.match-description { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.match-summary-actions { display: flex; gap: 0.5rem; }
+.match-summary-actions .MatchDelete { color: var(--danger); }
+/* 試合一覧のカード。内容は長くても 3 行までにし、続きは試合の画面で読む */
+.match-card-title { font-weight: 700; font-size: 1.05rem; }
+.match-card-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.match-card-tags .tag { padding: 0.05rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
+.match-card-description { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.match-card-links { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; }

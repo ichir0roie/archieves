@@ -153,9 +153,14 @@ def save_game_sheet(
     for field in _GAME_FIELDS & sheet_in.model_fields_set:
         setattr(game, field, getattr(sheet_in, field))
     if "match_id" in sheet_in.model_fields_set:
-        if sheet_in.match_id is not None and match_crud.get_match(s, sheet_in.match_id) is None:
-            raise NotFoundError("Match not found")
-        game.match_id = sheet_in.match_id
+        match_id = sheet_in.match_id
+        if match_id is not None and match_crud.get_match(s, match_id) is None:
+            if not match_crud.match_exists(s, match_id):
+                raise NotFoundError("Match not found")
+            # 入力の途中に作った人が試合を消した。手元の記録を保存できなくならないよう、
+            # 試合から外してふつうのゲームとして保存する(消すときに外したゲームと同じ扱い)
+            match_id = None
+        game.match_id = match_id
     comment_crud.save_comment(s, game, game.comment, _comment_body(sheet_in.comment))
     _save_rounds(s, game, sheet_in.rounds)
     s.flush()

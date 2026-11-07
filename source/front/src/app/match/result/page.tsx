@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
@@ -11,6 +12,7 @@ import { useCachedAppUser } from "@/hooks/useCachedAppUser";
 import { useLoad } from "@/hooks/useLoad";
 import { useOnResume } from "@/hooks/useOnResume";
 import { getMatchResult, type MatchStatistics } from "@/lib/api";
+import { MATCH_LIST_PATH } from "@/lib/destinations";
 import { MATCH_ID_PARAM, matchJoinPath, matchRankingPath, parseMatchId } from "@/lib/score/match";
 import { useT, type Texts } from "@/lib/text";
 
@@ -64,6 +66,7 @@ function StatisticsPanel({ statistics }: { statistics: MatchStatistics }) {
 
 export default function Page() {
   const T = useT();
+  const router = useRouter();
   const me = useCachedAppUser();
   // URL を読むまでは undefined。読めない id なら null
   const [matchId, setMatchId] = useState<string | null | undefined>(undefined);
@@ -100,7 +103,11 @@ export default function Page() {
 
       {result && (
         <>
-          <MatchSummary match={result.match} />
+          <MatchSummary
+            match={result.match}
+            onUpdated={() => setReloadKey((key) => key + 1)}
+            onDeleted={() => router.push(MATCH_LIST_PATH)}
+          />
           <div className="row">
             <Link href={matchJoinPath(result.match.id)}>{T.match.result.join}</Link>
             <Link href={matchRankingPath(result.match.id)}>{T.match.result.ranking}</Link>
