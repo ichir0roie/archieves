@@ -23,7 +23,6 @@ export const match = {
     join: `この${t.match}に参加`,
     notFound: `その${t.match}はありません`,
     toList: `${t.match}一覧へ`,
-    resultHidden: `結果は作った人と参加した人だけが見られます`,
   },
   scan: {
     open: "QR で参加",
@@ -58,7 +57,6 @@ export const match = {
     descriptionPlaceholder: "種目・集合の時刻など",
     edit: "編集",
     editTitle: `${t.match}を編集`,
-    delete: "削除",
     deleteTitle: `${t.match}を削除`,
     deleteConfirm: (title: string) =>
       `「${title}」を削除します。参加した人の${t.game}は消えず、${t.match}から外れて残ります。元に戻せません`,
@@ -91,5 +89,6 @@ export const match = {
     ranking: `${t.ranking}で見る`,
   },
   rankingFilter: (id: string) => `${t.match} ${id} のみ`,
+  rankingNote: `${t.match}で絞ったときは、公開範囲に依らず${t.match}に出た人を全員載せます。`,
   clearFilter: "外す",
 };

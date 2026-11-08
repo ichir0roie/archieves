@@ -435,19 +435,22 @@ def test_a_match_without_games_has_an_empty_result(client: TestClient, current_u
     }
 
 
-def test_only_the_organizer_and_participants_see_the_result(
+def test_anyone_who_opens_the_match_sees_every_result_regardless_of_visibility(
     client: TestClient, current_user, factories
 ) -> None:
     match = factories.MatchFactory()
-    _game_with_scores(factories, match, factories.UserFactory(), [10])
+    hidden = factories.UserFactory(profile_visibility="private", ranking_visibility="private")
+    _game_with_scores(factories, match, hidden, [10])
     _game_with_scores(factories, match, current_user, [10], deleted_at=datetime.now(UTC).date())
 
     response = client.get(f"{MATCHES_URL}/{match.id}")
 
-    # 試合の設定は読めるが、他人の名前と点が出る結果は付かない
+    # 作った人でも参加した人でもないが、結果は読める。非公開の人も載り、プロフィールへは行かせない
     assert response.status_code == 200
-    assert response.json()["game_count"] == 1
-    assert response.json()["result"] is None
+    entries = response.json()["result"]["entries"]
+    assert [entry["user"] for entry in entries] == [
+        {"id": hidden.id, "name": hidden.name, "profile_visible": False}
+    ]
 
 
 def test_a_token_cannot_read_matches(token_client: TestClient, factories) -> None:
@@ -466,3 +469,19 @@ def test_the_ranking_counts_only_the_matchs_games(anonymous_client: TestClient, 
 
     assert response.status_code == 200
     assert [(r["user"]["id"], r["value"]) for r in response.json()] == [(player.id, 20)]
+
+
+def test_the_matchs_ranking_lists_players_regardless_of_visibility(
+    anonymous_client: TestClient, factories
+) -> None:
+    match = factories.MatchFactory()
+    hidden = factories.UserFactory(ranking_visibility="private")
+    _game_with_scores(factories, match, hidden, [10])
+    _game_with_scores(factories, None, factories.UserFactory(ranking_visibility="private"), [9])
+
+    in_match = anonymous_client.get("/api/v1/public/ranking", params={"match_id": match.id})
+    overall = anonymous_client.get("/api/v1/public/ranking")
+
+    assert [r["user"]["id"] for r in in_match.json()] == [hidden.id]
+    # 試合で絞らなければ、非公開の人は載らない
+    assert hidden.id not in [r["user"]["id"] for r in overall.json()]

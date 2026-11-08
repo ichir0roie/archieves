@@ -6,7 +6,7 @@ import { recordGame } from "./recordGame";
 // 残るので、この spec のトークンは終わりに消す(落ちて残ったものは次の回の初めに消す)
 const TOKEN_NAME = "E2E AIコメント";
 
-test("Claude Code がトークンで書いた AIコメントをスコアの最後に出し、消すと枠ごと消える", async ({ page, request }) => {
+test("Claude Code がトークンで書いた AIコメントをスコアの最後に出し、右上の設定から消すと枠ごと消える", async ({ page, request }) => {
   await ensureRegistered(page);
   for (const token of await (await page.request.get("/api/v1/access-tokens")).json()) {
     if (token.name === TOKEN_NAME) await page.request.delete(`/api/v1/access-tokens/${token.id}`);
@@ -37,7 +37,10 @@ test("Claude Code がトークンで書いた AIコメントをスコアの最�
     await expect(panel.locator(".AiCommentText")).toHaveText(body);
     await expect(panel).toContainText(TOKEN_NAME);
 
-    await panel.getByRole("button", { name: "AIコメントを削除" }).click();
+    // 削除は右上の設定から選び、確かめてから消す
+    await page.getByRole("button", { name: "設定", exact: true }).click();
+    await page.getByRole("dialog", { name: "設定" }).getByRole("button", { name: "AIコメントを削除" }).click();
+    await page.getByRole("dialog", { name: "AIコメントを削除" }).getByRole("button", { name: "削除", exact: true }).click();
     // 無いときは枠ごと出さない
     await expect(panel).toHaveCount(0);
   } finally {

@@ -108,7 +108,6 @@ class MatchStanding(ResponseModel):
 
 
 class MatchDetail(MatchRead):
-    """試合の画面で読む一件。結果は、作った人と参加した人(自分のゲームがある人)にだけ付け、
-    ほかの人には null にする(他人の名前と点が出るため)。"""
+    """試合の画面で読む一件。結果は、参加した人の公開範囲に依らず全員を載せる。"""
 
-    result: MatchStanding | None
+    result: MatchStanding
