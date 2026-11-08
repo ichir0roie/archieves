@@ -41,10 +41,11 @@ def get_match(
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
 ) -> MatchDetail:
-    """試合の画面で読む一件(試合の設定と、見られる人には結果)。
+    """試合の画面で読む一件(試合の設定と結果)。
 
-    設定は id(推測されにくいコード)を知っていればだれでも読める。結果(全員の順位・偏差値と集計)は、
-    作った人と、試合のゲームを持つ人にだけ付け、ほかの人には null にする。
+    id(推測されにくいコード)を知っていればだれでも読める。結果(全員の順位・偏差値と集計)は、
+    参加した人のプロフィール・ランキングの公開範囲に依らず全員を載せる(試合に出た時点で、
+    その試合の人たちに見せるものとする)。
     """
     return deps.get_or_404(match_crud.get_match_detail, s, me, match_id, detail="Match not found")
 

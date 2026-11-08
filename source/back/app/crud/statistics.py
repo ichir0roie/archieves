@@ -280,6 +280,7 @@ def list_user_ranking(
 
     ランキングを viewer に公開している利用者(全体公開か、同じ組織への公開)だけを載せる。
     viewer が None(ログインしていない)なら全体公開の人だけ。非公開なら viewer 本人も載らない。
+    試合で絞るときは、公開範囲に依らず試合に出た人を全員載せる(試合の結果と同じ顔ぶれにする)。
     矢が一本も無いラウンドは、どの metric にも数えない。
     """
     round_scores = (
@@ -317,15 +318,14 @@ def list_user_ranking(
     stmt = (
         select(User, value, func.count(round_scores.c.round_id), arrow_count)
         .join(round_scores, round_scores.c.user_id == User.id)
-        .where(
-            User.deleted_at.is_(None),
-            user_crud.visible_condition(viewer, User.ranking_visibility),
-        )
+        .where(User.deleted_at.is_(None))
         .group_by(User.id)
         .order_by(value.desc(), User.id)
         .offset(skip)
         .limit(limit)
     )
+    if match_id is None:
+        stmt = stmt.where(user_crud.visible_condition(viewer, User.ranking_visibility))
     if organization_id is not None:
         stmt = stmt.where(User.organization_id == organization_id)
     if region_id is not None:
