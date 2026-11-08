@@ -98,7 +98,8 @@ export interface paths {
          * @description Users ranked by total score, average round score or average point
          *     score, high to low, optionally filtered by bow type, distance,
          *     organization, region, and/or period. ランキングを見る人に公開している人だけを載せる。
-         *     match_id で、その試合のゲームだけを数える。そのときは公開範囲に依らず試合に出た人を全員載せる。
+         *     match_id で、その試合のゲームだけを数える。そのときは公開範囲に依らず、
+         *     試合に出た人を全員載せる。
          */
         get: operations["list_user_ranking_api_v1_public_ranking_get"];
         put?: never;
