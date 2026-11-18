@@ -13,6 +13,7 @@ import {
 import { useOnResume } from "@/hooks/useOnResume";
 import type { ScoreManager } from "@/lib/score/scoreManager";
 import {
+  PHOTO_MAX_BYTES,
   deleteQueuedPhoto,
   listQueuedPhotos,
   putQueuedPhoto,
@@ -42,6 +43,9 @@ export interface EndPhotoView {
 
 type Stage = "saved" | "uploading" | "processing" | "sendFailed";
 
+/** 撮った写真を端末に置けなかったわけ。読み込めなかった・大きすぎた */
+export type CaptureError = "convertFailed" | "tooLarge";
+
 const RETRY_DELAY_MS = 15_000;
 
 function positionKey(roundIndex: number, endIndex: number) {
@@ -67,7 +71,7 @@ export function usePhotoQueue(
   const [queued, setQueued] = useState<QueuedPhoto[]>([]);
   const [stages, setStages] = useState<Record<string, Stage>>({});
   const [serverPhotos, setServerPhotos] = useState<Record<number, EndPhotoRead>>({});
-  const [captureError, setCaptureError] = useState(false);
+  const [captureError, setCaptureError] = useState<CaptureError | null>(null);
   const objectUrls = useRef(new Map<string, string>());
   const queuedRef = useRef<QueuedPhoto[]>([]);
   queuedRef.current = queued;
@@ -146,7 +150,7 @@ export function usePhotoQueue(
         return true;
       }
       setStage(photo.id, "uploading");
-      const started = await startPhotoUpload(endId, photo.contentType);
+      const started = await startPhotoUpload(endId, photo.contentType, photo.blob.size);
       await uploadPhotoFile(started.upload_url, started.upload_headers, photo.blob);
       photoId = started.photo.id;
       await putQueuedPhoto({ ...photo, uploadedPhotoId: photoId });
@@ -213,10 +217,14 @@ export function usePhotoQueue(
     if (!m || !s) return;
     const uploadable = await toUploadable(file);
     if (!uploadable) {
-      setCaptureError(true);
+      setCaptureError("convertFailed");
       return;
     }
-    setCaptureError(false);
+    if (uploadable.blob.size > PHOTO_MAX_BYTES) {
+      setCaptureError("tooLarge");
+      return;
+    }
+    setCaptureError(null);
     const { roundIndex, endIndex } = m.position;
     // 送る前に撮り直したら、前の写真は送らない
     for (const photo of queued) {

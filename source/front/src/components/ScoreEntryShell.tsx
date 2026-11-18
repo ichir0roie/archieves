@@ -21,7 +21,7 @@ import {
 } from "@/lib/score/scoreConfig";
 import { loadAimSettings } from "@/lib/storage";
 import type { PhotoPhase, SheetPoint } from "@/lib/score/scoreSheetCache";
-import type { EndPhotoView } from "@/lib/photo/usePhotoQueue";
+import type { CaptureError, EndPhotoView } from "@/lib/photo/usePhotoQueue";
 import { useT } from "@/lib/text";
 
 /** 写真モードの入力に渡すもの */
@@ -31,8 +31,8 @@ export type PhotoInputProps = {
   view: EndPhotoView | null;
   /** 端末に置いて、まだ送り終えていない写真の数 */
   pendingCount: number;
-  /** 撮った写真を読み込めなかった */
-  captureError: boolean;
+  /** 撮った写真を端末に置けなかったわけ。置けていれば null */
+  captureError: CaptureError | null;
   capture: (file: File) => void;
   /** 撮るのを終えて補正を始める */
   startReview: () => void;

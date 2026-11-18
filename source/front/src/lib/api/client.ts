@@ -376,16 +376,23 @@ export function photoFileUrl(url: string): string {
  */
 const PHOTO_QUEUE_HANDLING: ErrorHandling = { stayOnPageStatuses: [500, 502, 503, 504] };
 
-/** エンドの写真を受け付けてもらい、元の写真を送る先を受け取る。撮り直しなら前の写真と置き換わる */
+/**
+ * エンドの写真を受け付けてもらい、元の写真を送る先を受け取る。撮り直しなら前の写真と置き換わる。
+ * 送る先(S3 の署名付き URL)は contentLength と同じ大きさの本文だけを通す
+ */
 export function startPhotoUpload(
   endId: number,
   contentType: PhotoUploadCreate['content_type'],
+  contentLength: PhotoUploadCreate['content_length'],
 ): Promise<PhotoUploadRead> {
   return request(
     `/ends/${endId}/photo`,
     {
       method: 'POST',
-      body: JSON.stringify({ content_type: contentType }),
+      body: JSON.stringify({
+        content_type: contentType,
+        content_length: contentLength,
+      }),
     },
     PHOTO_QUEUE_HANDLING,
   );

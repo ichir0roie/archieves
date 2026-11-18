@@ -37,7 +37,13 @@ def start_photo_upload(
 ) -> PhotoUploadRead:
     """エンドの写真を受け付け、元の写真を送る先を返す。撮り直しなら前の写真と置き換える"""
     end = deps.get_own_or_404(me, game_crud.get_end, s, end_id, detail="End not found")
-    photo, target, old_keys = photo_service.start_upload(s, storage, end, upload_in.content_type)
+    photo, target, old_keys = photo_service.start_upload(
+        s,
+        storage,
+        end,
+        upload_in.content_type,
+        upload_in.content_length,
+    )
     s.commit()
     # 前の写真のファイルは、置き換えがコミットされてから消す
     storage.delete(old_keys)
@@ -58,11 +64,9 @@ def process_photo(
     """置き場に届いた元の写真を処理する。処理が済んでいれば、処理し直さずに今の結果を返す"""
     photo = deps.get_own_or_404(me, photo_crud.get_photo, s, photo_id, detail="Photo not found")
     if photo_service.needs_processing(photo):
-        original = storage.read(photo.original_key)
-        if original is None:
+        if not photo_service.process_stored(s, storage, photo):
             # ブラウザが送り終える前に頼んだ。送り直してから頼み直してもらう
             raise HTTPException(status_code=409, detail="Photo not uploaded")
-        photo_service.process(s, storage, photo, original)
         s.commit()
     return photo_service.to_read(storage, photo)
 
@@ -77,11 +81,8 @@ def align_photo(
 ) -> EndPhotoRead:
     """的の補正を、人が手で合わせた 4 点でやり直す。矢の推測もやり直す"""
     photo = deps.get_own_or_404(me, photo_crud.get_photo, s, photo_id, detail="Photo not found")
-    original = storage.read(photo.original_key)
-    if original is None:
+    if not photo_service.process_stored(s, storage, photo, alignment_in.points):
         raise HTTPException(status_code=409, detail="Photo not uploaded")
-    photo.alignment_points = alignment_in.points
-    photo_service.process(s, storage, photo, original)
     s.commit()
     return photo_service.to_read(storage, photo)
 

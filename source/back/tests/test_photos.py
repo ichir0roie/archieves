@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.photos import PHOTO_MAX_BYTES
 from app.db import EndPhoto, Round
 from app.main import app
 from app.services import photo_analysis
@@ -20,6 +21,7 @@ from app.services import photos as photo_service
 from app.services.photo_analysis import ANALYZER_VERSION, EstimatedArrow, PhotoAnalysis, analyze
 from app.services.photo_storage import (
     LocalPhotoStorage,
+    PhotoTooLargeError,
     S3PhotoStorage,
     get_photo_storage,
 )
@@ -58,7 +60,10 @@ def add_photo(s: Session, end) -> EndPhoto:
 
 
 def start(client: TestClient, end_id: int, content_type: str = "image/jpeg") -> dict:
-    response = client.post(f"/api/v1/ends/{end_id}/photo", json={"content_type": content_type})
+    response = client.post(
+        f"/api/v1/ends/{end_id}/photo",
+        json={"content_type": content_type, "content_length": 1000},
+    )
     assert response.status_code == 201
     return response.json()
 
@@ -205,6 +210,18 @@ def test_a_photo_over_the_size_limit_fails(
     assert failed["error"] == "too_large"
 
 
+@pytest.mark.parametrize("content_length", [0, PHOTO_MAX_BYTES + 1])
+def test_a_photo_size_outside_the_limit_is_refused_before_the_upload(
+    client: TestClient, end, content_length: int
+) -> None:
+    response = client.post(
+        f"/api/v1/ends/{end.id}/photo",
+        json={"content_type": "image/jpeg", "content_length": content_length},
+    )
+
+    assert response.status_code == 422
+
+
 def test_uploading_more_than_the_size_limit_is_refused(
     client: TestClient, end, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -246,7 +263,10 @@ def test_the_file_of_a_photo_that_is_not_processed_is_not_found(client: TestClie
 
 
 def test_an_unsupported_content_type_is_refused(client: TestClient, end) -> None:
-    response = client.post(f"/api/v1/ends/{end.id}/photo", json={"content_type": "image/heic"})
+    response = client.post(
+        f"/api/v1/ends/{end.id}/photo",
+        json={"content_type": "image/heic", "content_length": 1000},
+    )
 
     assert response.status_code == 422
 
@@ -302,7 +322,8 @@ def test_another_users_end_and_photo_are_forbidden(
 
     assert (
         client.post(
-            f"/api/v1/ends/{others_end.id}/photo", json={"content_type": "image/jpeg"}
+            f"/api/v1/ends/{others_end.id}/photo",
+            json={"content_type": "image/jpeg", "content_length": 1000},
         ).status_code
         == 403
     )
@@ -314,7 +335,10 @@ def test_another_users_end_and_photo_are_forbidden(
 
 def test_unknown_ends_photos_and_games_are_not_found(client: TestClient) -> None:
     assert (
-        client.post("/api/v1/ends/0/photo", json={"content_type": "image/jpeg"}).status_code
+        client.post(
+            "/api/v1/ends/0/photo",
+            json={"content_type": "image/jpeg", "content_length": 1000},
+        ).status_code
         == 404
     )
     assert client.post("/api/v1/photos/0/process").status_code == 404
@@ -352,6 +376,22 @@ def test_the_local_storage_keeps_keys_inside_its_directory(tmp_path: Path) -> No
     assert not (tmp_path / "photos" / "photos" / "1").exists()
 
 
+@pytest.mark.parametrize("storage_kind", ["local", "s3"])
+def test_a_file_over_the_read_limit_is_refused_without_reading_it(
+    storage_kind: str, tmp_path: Path, request: pytest.FixtureRequest
+) -> None:
+    storage = (
+        LocalPhotoStorage(tmp_path)
+        if storage_kind == "local"
+        else request.getfixturevalue("s3_storage")
+    )
+    storage.write("photos/1/2/a.jpg", b"abc", "image/jpeg")
+
+    assert storage.read("photos/1/2/a.jpg", 3) == b"abc"
+    with pytest.raises(PhotoTooLargeError):
+        storage.read("photos/1/2/a.jpg", 2)
+
+
 @pytest.fixture()
 def s3_storage():
     with mock_aws():
@@ -363,11 +403,13 @@ def s3_storage():
 
 
 def test_the_s3_storage_signs_urls_and_reads_and_writes(s3_storage: S3PhotoStorage) -> None:
-    target = s3_storage.upload_target(1, "photos/1/2/a.jpg", "image/jpeg")
+    target = s3_storage.upload_target(1, "photos/1/2/a.jpg", "image/jpeg", 1000)
 
     # ブラウザが CORS で直に届くよう、地域の付いた仮想ホストの署名付き URL
     assert target.url.startswith(f"https://{BUCKET}.s3.{REGION}.amazonaws.com/photos/1/2/a.jpg?")
     assert "X-Amz-Signature=" in target.url
+    # 大きさを縛るため、Content-Length を署名に入れる
+    assert "X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost" in target.url
     assert target.headers == {"Content-Type": "image/jpeg"}
     assert s3_storage.download_url(1, "photos/1/2/a.jpg", "display").startswith(
         f"https://{BUCKET}.s3.{REGION}.amazonaws.com/photos/1/2/a.jpg?"

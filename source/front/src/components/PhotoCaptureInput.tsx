@@ -38,7 +38,7 @@ export default function PhotoCaptureInput(props: ScoreInputProps) {
           <p className="PhotoEmpty photo-empty muted">{T.game.entry.photo.noPhoto}</p>
         )}
         {photo?.captureError && (
-          <p className="status error">{T.game.entry.photo.convertFailed}</p>
+          <p className="status error">{T.game.entry.photo[photo.captureError]}</p>
         )}
         {photo !== null && photo.pendingCount > 0 && (
           <p className="PhotoPending hint">{T.game.entry.photo.pending(photo.pendingCount)}</p>

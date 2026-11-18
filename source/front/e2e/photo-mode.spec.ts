@@ -58,6 +58,26 @@ async function takePhoto(page: Page) {
   });
 }
 
+test("a photo over the size limit is refused when taken and is not sent", async ({ page }) => {
+  await startPhotoGame(page);
+  const started: string[] = [];
+  page.on("request", (request) => {
+    if (/\/ends\/\d+\/photo$/.test(request.url())) started.push(request.url());
+  });
+
+  // JPEG はそのまま送るので、中身を読まずに大きさだけで断る(lib/photo/photoStore.ts の PHOTO_MAX_BYTES)
+  await page.locator(".PhotoCaptureInput input[type=file]").setInputFiles({
+    name: "huge.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.alloc(30 * 1024 * 1024 + 1),
+  });
+
+  await expect(page.getByText("写真が大きすぎます。撮り直してください")).toBeVisible();
+  await expect(page.locator(".PhotoEmpty")).toBeVisible();
+  await expect(page.locator(".PhotoPending")).toHaveCount(0);
+  expect(started).toEqual([]);
+});
+
 test("photos are taken per end, then reviewed on the target and listed with the game", async ({
   page,
 }) => {

@@ -3,12 +3,15 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.photos import PHOTO_MAX_BYTES
 from app.schemas.base import ResponseModel
 
 
 class PhotoUploadCreate(BaseModel):
     # app/core/photos.py の PHOTO_EXTENSIONS。ほかの形式はフロントが JPEG に直してから送る
     content_type: Literal["image/jpeg", "image/png", "image/webp"]
+    # 送る元の写真のバイト数。S3 の署名付き URL がこの大きさの PUT だけを通す
+    content_length: int = Field(gt=0, le=PHOTO_MAX_BYTES)
 
 
 class PhotoAlignmentWrite(BaseModel):
@@ -73,6 +76,7 @@ class EndPhotoRead(ResponseModel):
 
 class PhotoUploadRead(ResponseModel):
     photo: EndPhotoRead
-    # 元の写真を PUT で送る先と、付けるヘッダー。upload_url の形は original_url と同じ決まり
+    # 元の写真を PUT で送る先と、付けるヘッダー。upload_url の形は original_url と同じ決まり。
+    # 送る本文は、受け付けで渡した content_length と同じ大きさにする(違えば S3 が 403 で弾く)
     upload_url: str
     upload_headers: dict[str, str]

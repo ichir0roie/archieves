@@ -2,7 +2,7 @@
 
 1. 受け付け(start_upload): エンドに写真の行を作り、元の写真を送る先(置き場の URL)を返す
 2. ブラウザが元の写真を置き場へ送る
-3. 処理(process): 置き場の元の写真から表示の画像を作り、補正と推測の結果を行に書く
+3. 処理(process_stored): 置き場の元の写真から表示の画像を作り、補正と推測の結果を行に書く
 
 ブラウザは、画面を閉じて送りや処理の応答を受け取り損ねても、画面に戻ったときに 2・3 をやり直す。
 どちらも同じ写真に何度呼ばれてもよい形にする。
@@ -21,7 +21,12 @@ from app.crud import photo as photo_crud
 from app.db import End, EndPhoto
 from app.schemas.photo import EndPhotoRead, EstimatedArrowRead
 from app.services.photo_analysis import ANALYZER_VERSION, PhotoUnreadableError, analyze
-from app.services.photo_storage import PhotoStorage, UploadTarget, user_prefix
+from app.services.photo_storage import (
+    PhotoStorage,
+    PhotoTooLargeError,
+    UploadTarget,
+    user_prefix,
+)
 from app.services.target_detection import alignment_points
 
 logger = logging.getLogger(__name__)
@@ -37,6 +42,7 @@ def start_upload(
     storage: PhotoStorage,
     end: End,
     content_type: str,
+    content_length: int,
 ) -> tuple[EndPhoto, UploadTarget, list[str]]:
     """エンドの写真の行を作り直し、元の写真を送る先を返す。撮り直しなら前の行を消し、
     前のファイルのキーも返す(呼ぶ側がコミットのあとで置き場から消す)"""
@@ -54,7 +60,7 @@ def start_upload(
         content_type=content_type,
         original_key=key,
     )
-    return photo, storage.upload_target(photo.id, key, content_type), old_keys
+    return photo, storage.upload_target(photo.id, key, content_type, content_length), old_keys
 
 
 def discard_photos(s: Session, photos: list[EndPhoto]) -> list[str]:
@@ -72,12 +78,37 @@ def needs_processing(photo: EndPhoto) -> bool:
     return photo.status == PhotoStatus.UPLOADING or photo.analyzer_version != ANALYZER_VERSION
 
 
-def process(s: Session, storage: PhotoStorage, photo: EndPhoto, original: bytes) -> EndPhoto:
-    """元の写真を処理して、結果を行に書く。読めない写真は failed にする(撮り直してもらう)"""
+def process_stored(
+    s: Session,
+    storage: PhotoStorage,
+    photo: EndPhoto,
+    manual_points: list[list[float]] | None = None,
+) -> bool:
+    """置き場の元の写真を処理して、結果を行に書く。読めない写真は failed にする(撮り直してもらう)。
+    元の写真がまだ置き場に届いていなければ、何も書かずに False。
+    manual_points(手で合わせた 4 点)は、元の写真が届いているときだけ行に書く"""
+    try:
+        original = storage.read(photo.original_key, PHOTO_MAX_BYTES)
+    except PhotoTooLargeError:
+        # 署名付き URL が大きさを縛るので、ふつうは来ない
+        _stamp(photo)
+        _fail(s, photo, "too_large")
+        return True
+    if original is None:
+        return False
+    if manual_points is not None:
+        photo.alignment_points = manual_points
+    _process(s, storage, photo, original)
+    return True
+
+
+def _stamp(photo: EndPhoto) -> None:
     photo.analyzer_version = ANALYZER_VERSION
     photo.processed_at = datetime.now(UTC)
-    if len(original) > PHOTO_MAX_BYTES:
-        return _fail(s, photo, "too_large")
+
+
+def _process(s: Session, storage: PhotoStorage, photo: EndPhoto, original: bytes) -> EndPhoto:
+    _stamp(photo)
     # 同じ的に刺さったほかの人の矢と見分けるよう、ゲームの矢の色で探す
     game = photo_crud.get_photo_game(s, photo)
     try:

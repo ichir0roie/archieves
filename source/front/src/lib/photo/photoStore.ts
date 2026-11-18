@@ -6,6 +6,12 @@
  * IndexedDB を開けない(プライベートブラウズなど)ときは、画面を開いている間だけメモリに置く。
  */
 
+/**
+ * 送る写真の大きさの上限(app/core/photos.py の PHOTO_MAX_BYTES と揃える)。超える写真は API が
+ * 受け付けで弾き、送り直しても通らないので、撮ったときに断る
+ */
+export const PHOTO_MAX_BYTES = 30 * 1024 * 1024;
+
 /** 送る写真の形式。API が受けるもの(app/core/photos.py の PHOTO_EXTENSIONS) */
 export type PhotoContentType = "image/jpeg" | "image/png" | "image/webp";
 

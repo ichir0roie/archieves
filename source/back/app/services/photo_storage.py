@@ -37,17 +37,29 @@ class UploadTarget:
     headers: dict[str, str]
 
 
+class PhotoTooLargeError(Exception):
+    """置き場のファイルが、読む上限より大きい。本文は読んでいない"""
+
+
 def user_prefix(user_id: int) -> str:
     """その人の写真のキーの頭。アカウントを消すとき、ここから下を消す"""
     return f"photos/{user_id}/"
 
 
 class PhotoStorage(Protocol):
-    def upload_target(self, photo_id: int, key: str, content_type: str) -> UploadTarget: ...
+    def upload_target(
+        self,
+        photo_id: int,
+        key: str,
+        content_type: str,
+        content_length: int,
+    ) -> UploadTarget: ...
 
     def download_url(self, photo_id: int, key: str, kind: PhotoKind) -> str: ...
 
-    def read(self, key: str) -> bytes | None: ...
+    def read(self, key: str, max_bytes: int | None = None) -> bytes | None:
+        """無ければ None。max_bytes より大きければ、本文を読まずに PhotoTooLargeError"""
+        ...
 
     def write(self, key: str, data: bytes, content_type: str) -> None: ...
 
@@ -69,15 +81,26 @@ class LocalPhotoStorage:
             raise ValueError(f"Invalid photo key: {key}")
         return path
 
-    def upload_target(self, photo_id: int, key: str, content_type: str) -> UploadTarget:
+    def upload_target(
+        self,
+        photo_id: int,
+        key: str,
+        content_type: str,
+        content_length: int,
+    ) -> UploadTarget:
+        # 大きさは API の道(endpoints/photos.py の upload_photo_file)が受けるときに確かめる
         return UploadTarget(url=f"/photos/{photo_id}/file", headers={"Content-Type": content_type})
 
     def download_url(self, photo_id: int, key: str, kind: PhotoKind) -> str:
         return f"/photos/{photo_id}/file?kind={kind}"
 
-    def read(self, key: str) -> bytes | None:
+    def read(self, key: str, max_bytes: int | None = None) -> bytes | None:
         path = self._path(key)
-        return path.read_bytes() if path.is_file() else None
+        if not path.is_file():
+            return None
+        if max_bytes is not None and path.stat().st_size > max_bytes:
+            raise PhotoTooLargeError(key)
+        return path.read_bytes()
 
     def write(self, key: str, data: bytes, content_type: str) -> None:
         path = self._path(key)
@@ -115,10 +138,24 @@ class S3PhotoStorage:
             config=Config(signature_version="s3v4", s3={"addressing_style": "virtual"}),
         )
 
-    def upload_target(self, photo_id: int, key: str, content_type: str) -> UploadTarget:
+    def upload_target(
+        self,
+        photo_id: int,
+        key: str,
+        content_type: str,
+        content_length: int,
+    ) -> UploadTarget:
+        # 署名付きの PUT は、そのままでは大きさを縛れない(5GB まで置ける)。Content-Length を署名に
+        # 入れ、受け付けのときに上限で確かめた大きさ以外の PUT を S3 に弾かせる。ブラウザは
+        # Content-Length を本文から自分で付けるので、upload_headers には載せない
         url = self.client.generate_presigned_url(
             "put_object",
-            Params={"Bucket": self.bucket, "Key": key, "ContentType": content_type},
+            Params={
+                "Bucket": self.bucket,
+                "Key": key,
+                "ContentType": content_type,
+                "ContentLength": content_length,
+            },
             ExpiresIn=self.expires_seconds,
         )
         return UploadTarget(url=url, headers={"Content-Type": content_type})
@@ -130,11 +167,15 @@ class S3PhotoStorage:
             ExpiresIn=self.expires_seconds,
         )
 
-    def read(self, key: str) -> bytes | None:
+    def read(self, key: str, max_bytes: int | None = None) -> bytes | None:
         try:
             response = self.client.get_object(Bucket=self.bucket, Key=key)
         except self.client.exceptions.NoSuchKey:
             return None
+        # 本文を読む前に応答のヘッダーで大きさを見る。読み切ると Lambda のメモリを使い切ることがある
+        if max_bytes is not None and response["ContentLength"] > max_bytes:
+            response["Body"].close()
+            raise PhotoTooLargeError(key)
         return response["Body"].read()
 
     def write(self, key: str, data: bytes, content_type: str) -> None:

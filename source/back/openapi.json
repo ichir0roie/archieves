@@ -8483,11 +8483,18 @@
               "image/webp"
             ],
             "title": "Content Type"
+          },
+          "content_length": {
+            "type": "integer",
+            "maximum": 31457280.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Content Length"
           }
         },
         "type": "object",
         "required": [
-          "content_type"
+          "content_type",
+          "content_length"
         ],
         "title": "PhotoUploadCreate"
       },

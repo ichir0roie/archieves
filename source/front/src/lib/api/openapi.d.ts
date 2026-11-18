@@ -2258,6 +2258,8 @@ export interface components {
              * @enum {string}
              */
             content_type: "image/jpeg" | "image/png" | "image/webp";
+            /** Content Length */
+            content_length: number;
         };
         /** PhotoUploadRead */
         PhotoUploadRead: {
