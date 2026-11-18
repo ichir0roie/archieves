@@ -701,6 +701,16 @@ export class ScoreManager {
     this.changed();
   }
 
+  /** 今のエンドの矢を外し、写真の推測を入れ直せるようにする(的を合わせ直したあと) */
+  resetEstimates() {
+    const end = this.currentEnd;
+    if (!end) return;
+    end.points.splice(0);
+    end.estimates_applied = false;
+    this.undonePoints.delete(this.undoneKey);
+    this.changed();
+  }
+
   /** 撮るのを終え、最初のエンドから補正を始める */
   startPhotoReview() {
     if (this._photoPhase !== "record") return;

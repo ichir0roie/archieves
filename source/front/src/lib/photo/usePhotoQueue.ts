@@ -293,10 +293,16 @@ export function usePhotoQueue(
     };
   }
 
+  /** 処理し直した写真(手で合わせたものなど)を、画面に出す結果へ写す */
+  function replacePhoto(photo: EndPhotoRead) {
+    setServerPhotos((current) => ({ ...current, [photo.end_id]: photo }));
+  }
+
   return {
     current: currentView(),
     pendingCount: queued.length,
     captureError,
     capture,
+    replacePhoto,
   };
 }

@@ -36,6 +36,11 @@ export type PhotoInputProps = {
   capture: (file: File) => void;
   /** 撮るのを終えて補正を始める */
   startReview: () => void;
+  /**
+   * 今のエンドの写真の的を、手で合わせた 4 点で補正し直す。replace なら、このエンドの矢を補正し直した
+   * 推測で置き換える。できたら true
+   */
+  align: (photoId: number, points: Array<[number, number]>, replace: boolean) => Promise<boolean>;
 };
 
 export type ScoreInputProps = {
@@ -107,6 +112,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
     applySetup,
     movePoint,
     startPhotoReview,
+    alignPhoto,
     photos,
     error,
     isSaving,
@@ -325,6 +331,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
                     captureError: photos.captureError,
                     capture: (file) => void photos.capture(file),
                     startReview: () => void startPhotoReview(),
+                    align: alignPhoto,
                   }
                 : null,
               backPoint,

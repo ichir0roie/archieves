@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ScoreManager, type ScoreProgress } from "@/lib/score/scoreManager";
 import { type SheetPoint } from "@/lib/score/scoreSheetCache";
-import { toErrorDetails, type ErrorDetails } from "@/lib/api";
+import { alignPhoto as alignPhotoApi, toErrorDetails, type ErrorDetails } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { type CommentTarget } from "@/lib/comment";
 import { type RoundSetup } from "@/lib/score/scoreConfig";
@@ -147,6 +147,20 @@ export function useScoreGame(beforeLeave: () => void) {
     act((scoreManager) => scoreManager.movePoint(index, point, x, y));
   }
 
+  /**
+   * 写真モード: 今のエンドの写真の的を、手で合わせた 4 点で補正し直す。replace なら、このエンドの矢を
+   * 外して、補正し直した推測を入れ直す。できたら true
+   */
+  async function alignPhoto(photoId: number, points: Array<[number, number]>, replace: boolean) {
+    try {
+      photos.replacePhoto(await alignPhotoApi(photoId, points));
+    } catch {
+      return false;
+    }
+    if (replace) act((scoreManager) => scoreManager.resetEstimates());
+    return true;
+  }
+
   /** 写真モード: 撮るのを終えて、記録を保存してから最初のエンドから補正を始める */
   async function startPhotoReview() {
     if (!manager) return;
@@ -223,6 +237,7 @@ export function useScoreGame(beforeLeave: () => void) {
     finish,
     movePoint,
     startPhotoReview,
+    alignPhoto,
     photos,
     error,
     isSaving,

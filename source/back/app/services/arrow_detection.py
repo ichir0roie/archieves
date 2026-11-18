@@ -37,6 +37,9 @@ COLOR_RANGES: dict[ArrowColor, list[tuple[tuple[int, int, int], tuple[int, int, 
 }
 # ノックの色を決めていないときに探す色
 DEFAULT_NOCK_COLORS = (ArrowColor.GREEN, ArrowColor.ORANGE, ArrowColor.PINK)
+# 刺さった点が的の中心からこれより遠い(的に対する割合)ものは、矢でない(台・背景の色の塊から
+# たどった線)とみなす。的紙の外の畳に刺さった矢までは拾う
+MAX_ENTRY_DISTANCE = 0.62
 
 
 @dataclass(frozen=True)
@@ -225,12 +228,15 @@ def detect_arrows(
             continue
         end, length, covered = traced
         mapped = fit.homography @ np.array([end[0], end[1], 1.0])
+        x, y = float(mapped[0] / mapped[2]), float(mapped[1] / mapped[2])
+        if math.dist((x, y), (0.5, 0.5)) > MAX_ENTRY_DISTANCE:
+            continue
         confidence = covered * min(1.0, length / (fit.radius_px * 0.3))
         confidence += _fletch_bonus(hsv, nock, end, fletch_color, fit.radius_px)
         arrows.append(
             DetectedArrow(
-                x=float(mapped[0] / mapped[2]),
-                y=float(mapped[1] / mapped[2]),
+                x=x,
+                y=y,
                 confidence=round(float(min(1.0, max(0.0, confidence))), 3),
             )
         )

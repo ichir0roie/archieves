@@ -12,7 +12,8 @@
 """
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from typing import Self
 
 import cv2
 import numpy as np
@@ -23,6 +24,18 @@ RING_RADIUS = {"yellow": 0.2, "red": 0.4, "blue": 0.6}
 RING_RATIO_TOLERANCE = (0.75, 1.3)
 
 
+# 手で合わせるときの 4 点の、的の上の位置(的に対する割合)。青の帯の外の線(5 点の外)の
+# 上・右・下・左。的紙の点数の数字は中心から右へ横一直線に並ぶので、右・左の点は数字の並びで
+# 見当をつけられる
+ALIGNMENT_RADIUS = RING_RADIUS["blue"] / 2
+ALIGNMENT_TARGET_POINTS = [
+    (0.5, 0.5 - ALIGNMENT_RADIUS),
+    (0.5 + ALIGNMENT_RADIUS, 0.5),
+    (0.5, 0.5 + ALIGNMENT_RADIUS),
+    (0.5 - ALIGNMENT_RADIUS, 0.5),
+]
+
+
 @dataclass(frozen=True)
 class TargetFit:
     # 画像の px を、的に対する割合へ写す 3x3
@@ -30,6 +43,15 @@ class TargetFit:
     # 画像の上での、的の中心の像と的の半径のおよその px
     center_px: tuple[float, float]
     radius_px: float
+
+    def scaled(self, factor: float) -> Self:
+        """画像を factor 倍した(大きさを変えた)ときの的"""
+        return replace(
+            self,
+            homography=self.homography @ np.diag([1 / factor, 1 / factor, 1.0]),
+            center_px=(self.center_px[0] * factor, self.center_px[1] * factor),
+            radius_px=self.radius_px * factor,
+        )
 
 
 def ring_masks(hsv: np.ndarray) -> dict[str, np.ndarray]:
@@ -210,3 +232,30 @@ def find_target(image_bgr: np.ndarray) -> TargetFit | None:
         center_px=(float(center[0]), float(center[1])),
         radius_px=float(radius),
     )
+
+
+def fit_from_points(points_px: list[tuple[float, float]]) -> TargetFit:
+    """人が合わせた 4 点(画像の px。ALIGNMENT_TARGET_POINTS の順)からの的"""
+    homography = cv2.getPerspectiveTransform(
+        np.array(points_px, dtype=np.float32),
+        np.array(ALIGNMENT_TARGET_POINTS, dtype=np.float32),
+    )
+    center = np.linalg.inv(homography) @ np.array([0.5, 0.5, 1.0])
+    center_px = (float(center[0] / center[2]), float(center[1] / center[2]))
+    # 4 点は的の半径の 6 割の所にある
+    spread = np.mean([math.dist(point, center_px) for point in points_px])
+    return TargetFit(
+        homography=homography,
+        center_px=center_px,
+        radius_px=float(spread / (ALIGNMENT_RADIUS * 2)),
+    )
+
+
+def alignment_points(homography: np.ndarray, width: int, height: int) -> list[list[float]]:
+    """的を写す行列から、合わせる 4 点の画像の上の位置(画像の幅・高さに対する割合)"""
+    inverse = np.linalg.inv(homography)
+    points = []
+    for x, y in ALIGNMENT_TARGET_POINTS:
+        mapped = inverse @ np.array([x, y, 1.0])
+        points.append([float(mapped[0] / mapped[2] / width), float(mapped[1] / mapped[2] / height)])
+    return points

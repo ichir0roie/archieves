@@ -15,7 +15,12 @@ from app.core.photos import PHOTO_MAX_BYTES
 from app.crud import game as game_crud
 from app.crud import photo as photo_crud
 from app.db import User
-from app.schemas.photo import EndPhotoRead, PhotoUploadCreate, PhotoUploadRead
+from app.schemas.photo import (
+    EndPhotoRead,
+    PhotoAlignmentWrite,
+    PhotoUploadCreate,
+    PhotoUploadRead,
+)
 from app.services import photos as photo_service
 from app.services.photo_storage import LocalPhotoStorage, PhotoStorage, get_photo_storage
 
@@ -59,6 +64,25 @@ def process_photo(
             raise HTTPException(status_code=409, detail="Photo not uploaded")
         photo_service.process(s, storage, photo, original)
         s.commit()
+    return photo_service.to_read(storage, photo)
+
+
+@router.put("/photos/{photo_id}/alignment", response_model=EndPhotoRead)
+def align_photo(
+    photo_id: int,
+    alignment_in: PhotoAlignmentWrite,
+    me: User = Depends(deps.get_me),
+    s: Session = Depends(deps.get_session),
+    storage: PhotoStorage = Depends(get_photo_storage),
+) -> EndPhotoRead:
+    """的の補正を、人が手で合わせた 4 点でやり直す。矢の推測もやり直す"""
+    photo = deps.get_own_or_404(me, photo_crud.get_photo, s, photo_id, detail="Photo not found")
+    original = storage.read(photo.original_key)
+    if original is None:
+        raise HTTPException(status_code=409, detail="Photo not uploaded")
+    photo.alignment_points = alignment_in.points
+    photo_service.process(s, storage, photo, original)
+    s.commit()
     return photo_service.to_read(storage, photo)
 
 

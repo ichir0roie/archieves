@@ -20,11 +20,11 @@ from PIL import ExifTags, Image, ImageOps, UnidentifiedImageError
 
 from app.core.arrow_colors import ArrowColor
 from app.services.arrow_detection import detect_arrows
-from app.services.target_detection import find_target
+from app.services.target_detection import find_target, fit_from_points
 
 logger = logging.getLogger(__name__)
 
-ANALYZER_VERSION = "rings-1"
+ANALYZER_VERSION = "rings-2"
 
 # 表示の画像の長辺(px)。スマホの写真で的が写る幅(2000〜2500px)に見合い、入力の画面のズームで
 # 見ても粗くない。これより大きくしても、元の写真に無い細かさは出ない
@@ -67,7 +67,10 @@ def analyze(
     original: bytes,
     nock_color: ArrowColor | None = None,
     fletch_color: ArrowColor | None = None,
+    alignment: list[list[float]] | None = None,
 ) -> PhotoAnalysis:
+    """alignment は人が合わせた 4 点(向きを直した元の写真の幅・高さに対する割合)。
+    あれば的を探さずに、その 4 点で補正する"""
     try:
         # 元の写真の大きさは、画素を広げる前にヘッダーから読む(draft で縮めると変わるため)
         width, height = _original_size(original)
@@ -83,7 +86,11 @@ def analyze(
     decoded = np.asarray(image)[:, :, ::-1].copy()
     work_scale = min(1.0, WORK_PX / max(decoded.shape[:2]))
     work = cv2.resize(decoded, None, fx=work_scale, fy=work_scale, interpolation=cv2.INTER_AREA)
-    fit = find_target(work)
+    fit = (
+        find_target(work)
+        if alignment is None
+        else fit_from_points([(x * work.shape[1], y * work.shape[0]) for x, y in alignment])
+    )
     if fit is None:
         image.thumbnail((DISPLAY_MAX_PX, DISPLAY_MAX_PX))
         logger.info("photo analyzed without a target: original=%sx%s", width, height)
@@ -100,7 +107,9 @@ def analyze(
         [[unit, 0, unit * DISPLAY_EXTENT], [0, unit, unit * DISPLAY_EXTENT], [0, 0, 1]]
     )
     display = cv2.warpPerspective(decoded, to_display @ to_decoded, (side, side))
-    arrows = detect_arrows(work, fit, nock_color, fletch_color)[:MAX_ESTIMATES]
+    # 矢の軸は細いので、的を探した作業画像でなく、読み込んだ大きさの画像で探す
+    arrows = detect_arrows(decoded, fit.scaled(1 / work_scale), nock_color, fletch_color)
+    arrows = arrows[:MAX_ESTIMATES]
     logger.info(
         "photo analyzed: original=%sx%s arrows=%s",
         width,

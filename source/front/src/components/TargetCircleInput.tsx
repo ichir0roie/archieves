@@ -2,7 +2,10 @@
 
 import { JSX, useEffect, useRef, useState } from "react";
 import ArrowSight from "@/components/ArrowSight";
+import PhotoAlignment from "@/components/PhotoAlignment";
 import PhotoViewer from "@/components/PhotoViewer";
+import { photoFileUrl } from "@/lib/api";
+import type { Point } from "@/lib/photo/alignment";
 import ScoreEntryActions from "@/components/ScoreEntryActions";
 import type { ScoreInputProps } from "@/components/ScoreEntryShell";
 import { ringClass, scoreAtPosition, scoreToStr, zoneRadiusRatio } from "@/lib/score/scoreFunctions";
@@ -52,6 +55,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   const [maxDiameter, setMaxDiameter] = useState<number>(0);
   const [press, setPress] = useState<Press | null>(null);
   const [viewingPhoto, setViewingPhoto] = useState(false);
+  const [aligning, setAligning] = useState(false);
   const { lensZoom, aimDivisor, lensSizePercent, alwaysShowSight } = props.aimSettings;
 
   useEffect(() => {
@@ -91,6 +95,18 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   const photoView = props.photo?.phase === "review" ? props.photo.view : null;
   const photoUrl = photoView?.imageUrl ?? null;
   const photoExtent = photoView?.photo?.rectified ? photoView.photo.display_extent : null;
+  // 処理の済んだ写真なら、元の写真で的を手で合わせ直せる
+  const alignable = photoView?.photo?.status === "processed" ? photoView.photo : null;
+
+  /** 手で合わせた 4 点で補正し直す。矢が入っていれば、推測し直した矢で置き換えるかを聞く */
+  async function saveAlignment(points: Array<Point>): Promise<boolean> {
+    if (!alignable || !props.photo) return false;
+    const replace =
+      props.points.length === 0 || window.confirm(T.game.entry.photo.replaceConfirm);
+    const ok = await props.photo.align(alignable.id, points, replace);
+    if (ok) setAligning(false);
+    return ok;
+  }
   const { sizeCm } = resolveTargetType(props.targetType);
   const arrowPx = arrowDiameterPx(props.arrowDiameterMm, sizeCm, maxDiameter);
 
@@ -410,6 +426,16 @@ export default function TargetCircleInput(props: ScoreInputProps) {
             />
           </button>
         )}
+        {alignable && (
+          <button
+            type="button"
+            className="TargetAlignButton target-align-button"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => setAligning(true)}
+          >
+            {T.game.entry.photo.align}
+          </button>
+        )}
         <button
           type="button"
           tabIndex={-1}
@@ -420,6 +446,14 @@ export default function TargetCircleInput(props: ScoreInputProps) {
         {maxDiameter > 0 && lens(press)}
       </div>
       <ScoreEntryActions {...props} />
+      {aligning && alignable && (
+        <PhotoAlignment
+          src={photoFileUrl(alignable.original_url)}
+          initial={(alignable.alignment_points as Array<Point> | null) ?? null}
+          onSave={saveAlignment}
+          onClose={() => setAligning(false)}
+        />
+      )}
       {viewingPhoto && photoUrl && (
         <PhotoViewer
           src={photoUrl}

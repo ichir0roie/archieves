@@ -625,6 +625,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/photos/{photo_id}/alignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Align Photo
+         * @description 的の補正を、人が手で合わせた 4 点でやり直す。矢の推測もやり直す
+         */
+        put: operations["align_photo_api_v1_photos__photo_id__alignment_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/games/{game_id}/photos": {
         parameters: {
             query?: never;
@@ -1603,6 +1623,10 @@ export interface components {
             display_extent: number | null;
             /** Estimates */
             estimates: components["schemas"]["EstimatedArrowRead"][];
+            /** Alignment Points */
+            alignment_points: number[][] | null;
+            /** Aligned Manually */
+            aligned_manually: boolean;
             /** Analyzer Version */
             analyzer_version: string | null;
             /** Error */
@@ -2216,6 +2240,16 @@ export interface components {
             location?: string | null;
             /** Parent Organization Id */
             parent_organization_id?: number | null;
+        };
+        /**
+         * PhotoAlignmentWrite
+         * @description 手で合わせた 4 点。青の帯の外の線の上・右・下・左の順。
+         *
+         *     値は、向きを直した元の写真の幅・高さに対する割合
+         */
+        PhotoAlignmentWrite: {
+            /** Points */
+            points: number[][];
         };
         /** PhotoUploadCreate */
         PhotoUploadCreate: {
@@ -4056,6 +4090,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndPhotoRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    align_photo_api_v1_photos__photo_id__alignment_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoAlignmentWrite"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.base import ResponseModel
 
@@ -9,6 +9,31 @@ from app.schemas.base import ResponseModel
 class PhotoUploadCreate(BaseModel):
     # app/core/photos.py の PHOTO_EXTENSIONS。ほかの形式はフロントが JPEG に直してから送る
     content_type: Literal["image/jpeg", "image/png", "image/webp"]
+
+
+class PhotoAlignmentWrite(BaseModel):
+    """手で合わせた 4 点。青の帯の外の線の上・右・下・左の順。
+
+    値は、向きを直した元の写真の幅・高さに対する割合
+    """
+
+    points: list[list[float]] = Field(min_length=4, max_length=4)
+
+    @field_validator("points")
+    @classmethod
+    def _convex(cls, points: list[list[float]]) -> list[list[float]]:
+        if any(len(p) != 2 or not all(-1 <= v <= 2 for v in p) for p in points):
+            raise ValueError("each point must be [x, y] within the photo")
+        # 上 → 右 → 下 → 左 は、画像の上で時計回りの凸な四角になる(つぶれた四角では補正が決まらない)
+        following = points[1:] + points[:1]
+        after = points[2:] + points[:2]
+        crosses = [
+            (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0])
+            for a, b, c in zip(points, following, after, strict=True)
+        ]
+        if min(crosses) <= 1e-6:
+            raise ValueError("points must go clockwise around the target: top, right, bottom, left")
+        return points
 
 
 class EstimatedArrowRead(ResponseModel):
@@ -31,6 +56,10 @@ class EndPhotoRead(ResponseModel):
     rectified: bool
     display_extent: float | None
     estimates: list[EstimatedArrowRead]
+    # 合わせる 4 点(PhotoAlignmentWrite と同じ形)。手で合わせていればその点、
+    # 補正できていれば補正から求めた点、どちらでもなければ null
+    alignment_points: list[list[float]] | None
+    aligned_manually: bool
     analyzer_version: str | None
     error: str | None
     created_at: datetime

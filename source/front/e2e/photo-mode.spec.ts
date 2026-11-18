@@ -83,6 +83,23 @@ test("photos are taken per end, then reviewed on the target and listed with the 
   await page.locator(".PhotoViewerClose").click();
   await expect(page.locator(".PhotoViewer")).toHaveCount(0);
 
+  // 的を手で合わせ直す: 元の写真に 4 点と輪が出て、点を動かして保存すると補正し直す
+  await page.locator(".TargetAlignButton").click();
+  const handles = page.locator(".PhotoAlignment svg circle");
+  await expect(handles).toHaveCount(4);
+  const handle = await handles.first().boundingBox();
+  if (!handle) throw new Error("alignment handle not laid out");
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2 - 10, { steps: 4 });
+  await page.mouse.up();
+  const realigned = page.waitForResponse(
+    (r) => r.request().method() === "PUT" && /\/photos\/\d+\/alignment$/.test(r.url()),
+  );
+  await page.locator(".PhotoAlignmentSave").click();
+  expect((await realigned).status()).toBe(200);
+  await expect(page.locator(".PhotoAlignment")).toHaveCount(0);
+
   await shoot(page, "10", 6);
   await expect(recordedArrows(page).first()).toHaveText("10");
 

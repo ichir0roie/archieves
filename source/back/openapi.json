@@ -2656,6 +2656,67 @@
         }
       }
     },
+    "/api/v1/photos/{photo_id}/alignment": {
+      "put": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "Align Photo",
+        "description": "的の補正を、人が手で合わせた 4 点でやり直す。矢の推測もやり直す",
+        "operationId": "align_photo_api_v1_photos__photo_id__alignment_put",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "photo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Photo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhotoAlignmentWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndPhotoRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/games/{game_id}/photos": {
       "get": {
         "tags": [
@@ -6298,6 +6359,27 @@
             "type": "array",
             "title": "Estimates"
           },
+          "alignment_points": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alignment Points"
+          },
+          "aligned_manually": {
+            "type": "boolean",
+            "title": "Aligned Manually"
+          },
           "analyzer_version": {
             "anyOf": [
               {
@@ -6363,6 +6445,8 @@
           "rectified",
           "display_extent",
           "estimates",
+          "alignment_points",
+          "aligned_manually",
           "analyzer_version",
           "error",
           "created_at",
@@ -8366,6 +8450,28 @@
         "type": "object",
         "title": "OrganizationUpdate",
         "description": "管理者が組織を直す。送った欄だけを書き、null は空にする(名前は空にできない)"
+      },
+      "PhotoAlignmentWrite": {
+        "properties": {
+          "points": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "title": "PhotoAlignmentWrite",
+        "description": "手で合わせた 4 点。青の帯の外の線の上・右・下・左の順。\n\n値は、向きを直した元の写真の幅・高さに対する割合"
       },
       "PhotoUploadCreate": {
         "properties": {

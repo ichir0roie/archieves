@@ -416,6 +416,18 @@ export function processPhoto(photoId: number): Promise<EndPhotoRead> {
   );
 }
 
+/** 写真の的を、手で合わせた 4 点(上・右・下・左。元の写真に対する割合)で補正し直してもらう */
+export function alignPhoto(photoId: number, points: Array<[number, number]>): Promise<EndPhotoRead> {
+  return request(
+    `/photos/${photoId}/alignment`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ points }),
+    },
+    PHOTO_QUEUE_HANDLING,
+  );
+}
+
 /** ゲームのエンドの写真を、ラウンド・エンドの順に */
 export function listGamePhotos(gameId: number): Promise<EndPhotoRead[]> {
   return request(`/games/${gameId}/photos`);

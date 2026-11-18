@@ -102,6 +102,8 @@ def test_lookalikes_around_the_target_are_not_taken() -> None:
             Arrow(0.5, 0.5),
             # 軸の短すぎる矢(ノックの直後で途切れる)は、推測にしない
             Arrow(0.62, 0.45, offset=(4.0, 14.0)),
+            # 的から離れすぎた所で終わる軸(台・背景の色の塊からたどった線)も、推測にしない
+            Arrow(-0.25, 0.3),
         ],
         blobs=[
             # 赤に囲まれない黄の丸
@@ -181,4 +183,46 @@ def test_the_fletch_is_not_looked_for_outside_the_image() -> None:
 
 
 def test_the_analyzer_version_is_kept_with_the_results() -> None:
-    assert photo_analysis.ANALYZER_VERSION == "rings-1"
+    assert photo_analysis.ANALYZER_VERSION == "rings-2"
+
+
+def true_alignment() -> list[list[float]]:
+    """描いた写真の、合わせる 4 点の本当の位置(写真の幅・高さに対する割合)"""
+    height, width = samples.CANVAS
+    points = []
+    for x, y in target_detection.ALIGNMENT_TARGET_POINTS:
+        mapped = samples.homography() @ np.array([x, y, 1.0])
+        points.append([mapped[0] / mapped[2] / width, mapped[1] / mapped[2] / height])
+    return points
+
+
+def test_the_alignment_points_follow_the_automatic_rectification() -> None:
+    result = analyze(samples.jpeg(Sample()))
+
+    assert result.homography is not None
+    points = target_detection.alignment_points(
+        np.array(result.homography), result.width, result.height
+    )
+    for got, expected in zip(points, true_alignment(), strict=True):
+        assert math.dist(got, expected) < 0.01
+
+
+def test_points_aligned_by_hand_rectify_a_photo_whose_target_is_not_found() -> None:
+    # 色の帯の無い的(白黒に写った・色あせた)は見つからないが、手で合わせた 4 点で補正できる
+    sample = Sample(arrows=[Arrow(0.5, 0.5), Arrow(0.42, 0.6)])
+    gray = cv2.cvtColor(cv2.cvtColor(samples.draw(sample), cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)
+    # ノックの色は残す(白黒にした写真に、緑の丸を描き直す)
+    for arrow in sample.arrows:
+        point = samples.homography() @ np.array([arrow.x, arrow.y, 1.0])
+        nock = (round(point[0] / point[2] + 70), round(point[1] / point[2] + 230))
+        cv2.circle(gray, nock, 11, samples.GREEN_NOCK, -1)
+    _, encoded = cv2.imencode(".jpg", gray, [cv2.IMWRITE_JPEG_QUALITY, 95])
+
+    assert analyze(encoded.tobytes()).rectified is False
+
+    result = analyze(encoded.tobytes(), alignment=true_alignment())
+
+    assert result.rectified is True
+    assert len(result.estimates) == 2
+    assert nearest(result.estimates, 0.5, 0.5) < 0.02
+    assert nearest(result.estimates, 0.42, 0.6) < 0.02

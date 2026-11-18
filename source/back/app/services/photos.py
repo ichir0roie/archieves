@@ -12,6 +12,7 @@ import logging
 import uuid
 from datetime import UTC, datetime
 
+import numpy as np
 from sqlalchemy.orm import Session
 
 from app.core.arrow_colors import ArrowColor
@@ -21,6 +22,7 @@ from app.db import End, EndPhoto
 from app.schemas.photo import EndPhotoRead, EstimatedArrowRead
 from app.services.photo_analysis import ANALYZER_VERSION, PhotoUnreadableError, analyze
 from app.services.photo_storage import PhotoStorage, UploadTarget, user_prefix
+from app.services.target_detection import alignment_points
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +85,7 @@ def process(s: Session, storage: PhotoStorage, photo: EndPhoto, original: bytes)
             original,
             ArrowColor(game.nock_color) if game.nock_color else None,
             ArrowColor(game.fletch_color) if game.fletch_color else None,
+            photo.alignment_points,
         )
     except PhotoUnreadableError as e:
         logger.warning("photo %s is unreadable: %s", photo.id, e)
@@ -112,6 +115,14 @@ def _fail(s: Session, photo: EndPhoto, error: str) -> EndPhoto:
     return photo
 
 
+def _alignment_points(photo: EndPhoto) -> list[list[float]] | None:
+    if photo.alignment_points is not None:
+        return photo.alignment_points
+    if photo.homography is None or photo.width is None or photo.height is None:
+        return None
+    return alignment_points(np.array(photo.homography), photo.width, photo.height)
+
+
 def to_read(storage: PhotoStorage, photo: EndPhoto) -> EndPhotoRead:
     """応答の形。置き場の URL(署名付きなら期限つき)をそのたびに作る"""
     return EndPhotoRead(
@@ -123,6 +134,8 @@ def to_read(storage: PhotoStorage, photo: EndPhoto) -> EndPhotoRead:
         rectified=photo.rectified,
         display_extent=photo.display_extent,
         estimates=[EstimatedArrowRead.model_validate(arrow) for arrow in photo.estimates or []],
+        alignment_points=_alignment_points(photo),
+        aligned_manually=photo.alignment_points is not None,
         analyzer_version=photo.analyzer_version,
         error=photo.error,
         created_at=photo.created_at,

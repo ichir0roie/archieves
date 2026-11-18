@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db import EndPhoto
+from app.db import EndPhoto, Round
 from app.main import app
 from app.services import photo_analysis
 from app.services import photos as photo_service
@@ -519,7 +519,7 @@ def test_the_games_arrow_colors_are_used_to_find_the_arrows(
     upload(client, photo["id"], jpeg())
     calls = []
 
-    def fake_analyze(data: bytes, nock_color, fletch_color) -> PhotoAnalysis:
+    def fake_analyze(data: bytes, nock_color, fletch_color, alignment) -> PhotoAnalysis:
         calls.append((nock_color, fletch_color))
         return PhotoAnalysis(display_jpeg=jpeg(10, 10), width=400, height=300)
 
@@ -527,3 +527,105 @@ def test_the_games_arrow_colors_are_used_to_find_the_arrows(
     process(client, photo["id"])
 
     assert calls == [("green", "white")]
+
+
+# ---- 手で合わせる ----
+
+ALIGNMENT = [[0.5, 0.2], [0.8, 0.5], [0.5, 0.8], [0.2, 0.5]]
+
+
+def test_a_photo_is_aligned_by_hand_and_processed_again(
+    client: TestClient, end, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    photo = start(client, end.id)["photo"]
+    upload(client, photo["id"], jpeg())
+    processed = process(client, photo["id"])
+    assert processed["alignment_points"] is None
+    assert processed["aligned_manually"] is False
+    calls = []
+
+    def fake_analyze(data: bytes, nock_color, fletch_color, alignment) -> PhotoAnalysis:
+        calls.append(alignment)
+        return PhotoAnalysis(
+            display_jpeg=jpeg(10, 10),
+            width=1000,
+            height=1000,
+            rectified=True,
+            display_extent=0.25,
+            homography=[[0.001, 0.0, 0.0], [0.0, 0.001, 0.0], [0.0, 0.0, 1.0]],
+            estimates=[EstimatedArrow(x=0.5, y=0.5, confidence=0.8)],
+        )
+
+    monkeypatch.setattr(photo_service, "analyze", fake_analyze)
+
+    response = client.put(f"/api/v1/photos/{photo['id']}/alignment", json={"points": ALIGNMENT})
+
+    assert response.status_code == 200
+    aligned = response.json()
+    assert calls == [ALIGNMENT]
+    assert aligned["aligned_manually"] is True
+    assert aligned["alignment_points"] == ALIGNMENT
+    assert aligned["rectified"] is True
+    assert aligned["estimates"] == [{"x": 0.5, "y": 0.5, "confidence": 0.8}]
+
+
+def test_alignment_points_are_derived_from_the_automatic_rectification(
+    client: TestClient, s: Session, end
+) -> None:
+    photo = start(client, end.id)["photo"]
+    upload(client, photo["id"], jpeg())
+    process(client, photo["id"])
+    row = s.get(EndPhoto, photo["id"])
+    assert row is not None
+    # 元の写真の px を 1/1000 にして、的の割合とみなす行列
+    row.homography = [[0.001, 0.0, 0.0], [0.0, 0.001, 0.0], [0.0, 0.0, 1.0]]
+    row.width, row.height = 1000, 2000
+    s.flush()
+
+    round_ = s.get(Round, end.round_id)
+    assert round_ is not None
+    listed = client.get(f"/api/v1/games/{round_.game_id}/photos").json()[0]
+
+    assert listed["aligned_manually"] is False
+    expected = [[0.5, 0.1], [0.8, 0.25], [0.5, 0.4], [0.2, 0.25]]
+    for got, point in zip(listed["alignment_points"], expected, strict=True):
+        assert got == pytest.approx(point)
+
+
+@pytest.mark.parametrize(
+    "points",
+    [
+        ALIGNMENT[:3],
+        # 反時計回り(上・左・下・右)
+        [ALIGNMENT[0], ALIGNMENT[3], ALIGNMENT[2], ALIGNMENT[1]],
+        # つぶれた四角
+        [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5]],
+        [[0.5, 0.2, 0.0], [0.8, 0.5], [0.5, 0.8], [0.2, 0.5]],
+        [[0.5, -3.0], [0.8, 0.5], [0.5, 0.8], [0.2, 0.5]],
+    ],
+)
+def test_malformed_alignment_points_are_refused(client: TestClient, end, points) -> None:
+    photo = start(client, end.id)["photo"]
+
+    response = client.put(f"/api/v1/photos/{photo['id']}/alignment", json={"points": points})
+
+    assert response.status_code == 422
+
+
+def test_aligning_before_the_upload_is_a_conflict(client: TestClient, s: Session, end) -> None:
+    photo = start(client, end.id)["photo"]
+
+    response = client.put(f"/api/v1/photos/{photo['id']}/alignment", json={"points": ALIGNMENT})
+
+    assert response.status_code == 409
+    row = s.get(EndPhoto, photo["id"])
+    assert row is not None
+    assert row.alignment_points is None
+
+
+def test_another_users_photo_cannot_be_aligned(client: TestClient, s: Session, factories) -> None:
+    others_photo = add_photo(s, factories.EndFactory())
+
+    response = client.put(f"/api/v1/photos/{others_photo.id}/alignment", json={"points": ALIGNMENT})
+
+    assert response.status_code == 403

@@ -367,6 +367,30 @@ body:has(.score-entry) { background: var(--panel); }
 .swatch-purple { background: #8a3fd1; }
 .swatch-pink { background: #ff4fa8; }
 
+/* 写真の的を合わせるボタン(写真の小窓の下) */
+.target-face .target-align-button { position: absolute; left: 8px; top: 80px; z-index: 150; padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+
+/* 写真の的を手で合わせる(PhotoAlignment)。元の写真に、4 点から求めた輪を重ねる */
+.photo-alignment { position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column; background: #111; color: #fff; }
+.photo-alignment-head { padding: 10px 16px 6px; }
+.photo-alignment-hint { margin: 0; font-size: 0.85rem; line-height: 1.4; }
+.photo-alignment-frame { position: relative; flex: 1; min-height: 0; touch-action: none; user-select: none; -webkit-user-select: none; overflow: hidden; }
+.photo-alignment-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.photo-alignment-overlay { position: absolute; inset: 0; pointer-events: none; }
+.photo-alignment-overlay .alignment-ring { fill: none; stroke: #39ff14; stroke-width: 1; opacity: 0.85; }
+.photo-alignment-overlay .alignment-ring.main { stroke-width: 2.5; }
+.photo-alignment-overlay .alignment-handle { fill: rgb(57 255 20 / 0.25); stroke: #fff; stroke-width: 2; }
+.photo-alignment-overlay .alignment-handle-label { fill: #fff; font-size: 12px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #000; stroke-width: 3px; }
+/* 動かしている点の拡大。中央の十字が点の位置 */
+.photo-alignment-lens { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); border-radius: 999px; border: 2px solid #fff; background-repeat: no-repeat; box-shadow: 0 6px 20px rgb(0 0 0 / 0.5); pointer-events: none; }
+.photo-alignment-lens::before,
+.photo-alignment-lens::after { content: ""; position: absolute; left: 50%; top: 50%; background: #39ff14; transform: translate(-50%, -50%); }
+.photo-alignment-lens::before { width: 22px; height: 2px; }
+.photo-alignment-lens::after { width: 2px; height: 22px; }
+.photo-alignment-actions { display: flex; gap: 0.75rem; justify-content: flex-end; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+.photo-alignment-actions button { color: inherit; }
+.photo-alignment-actions button.primary { color: var(--accent-ink); }
+
 /* 写真モードの撮影(PhotoCaptureInput) */
 .photo-capture-area { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.5rem; padding: 8px 16px; }
 .photo-preview { flex: 1; min-height: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
