@@ -99,9 +99,6 @@ export interface StageConfig {
   migrationDatabaseUser: string;
   // 写真の置き場へ、ブラウザが直に届くのを許す origin
   webOrigins: string[];
-  // VPC に S3 のゲートウェイエンドポイントを作る。本番と develop は同じ VPC なので、本番のスタックだけが作る
-  // (develop のスタックは本番のものを使う。本番より先に develop を建てると、develop の写真の処理は S3 に届かない)
-  createS3GatewayEndpoint: boolean;
 }
 
 export function stageConfig(stage: Stage, config: DeployConfig): StageConfig {
@@ -125,7 +122,6 @@ export function stageConfig(stage: Stage, config: DeployConfig): StageConfig {
       appDatabaseUser: "archieves_app",
       migrationDatabaseUser: "archieves_migrator",
       webOrigins: config.webOrigins?.prod ?? ["*"],
-      createS3GatewayEndpoint: true,
     };
   }
   return {
@@ -148,6 +144,5 @@ export function stageConfig(stage: Stage, config: DeployConfig): StageConfig {
     appDatabaseUser: "archieves_dev_app",
     migrationDatabaseUser: "archieves_dev_migrator",
     webOrigins: config.webOrigins?.dev ?? ["*"],
-    createS3GatewayEndpoint: false,
   };
 }

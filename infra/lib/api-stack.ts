@@ -86,10 +86,9 @@ export class ArchievesApiStack extends Stack {
       lifecycleRules: [{ abortIncompleteMultipartUploadAfter: Duration.days(1) }],
     });
     // Lambda は NAT の無い VPC の中にいるので、処理のときに元の写真を読み・表示の画像を書くには S3 の
-    // ゲートウェイエンドポイントが要る(料金はかからない)。同じ VPC に二つは作れないので、一つのスタックだけが作る
-    if (stage.createS3GatewayEndpoint) {
-      vpc.addGatewayEndpoint("S3GatewayEndpoint", { service: ec2.GatewayVpcEndpointAwsService.S3 });
-    }
+    // ゲートウェイエンドポイントが要る。VPC には手で作ったもの(Name=s3)が既にあり、Lambda のサブネットの
+    // ルートテーブルに S3 のルートを持つので、ここでは作らない。同じルートテーブルに二つ目は付けられず、
+    // 作ろうとすると deploy が AlreadyExists で落ちる
 
     // CI が差し替えたイメージは、template の ImageUri(repo:main)が変わらない限り cdk deploy で戻らない
     const fn = new lambda.DockerImageFunction(this, "Function", {
