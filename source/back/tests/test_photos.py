@@ -152,7 +152,7 @@ def test_a_photo_processed_by_an_older_analyzer_is_processed_again(
     row.analyzer_version = "display-0"
     s.commit()
 
-    def fake_analyze(data: bytes) -> PhotoAnalysis:
+    def fake_analyze(data: bytes, *colors) -> PhotoAnalysis:
         return PhotoAnalysis(
             display_jpeg=jpeg(10, 10),
             width=400,
@@ -506,3 +506,24 @@ def test_ends_left_out_of_a_saved_sheet_lose_their_photos_but_trashed_rounds_kee
     photo_ids = select(EndPhoto.id).where(EndPhoto.user_id == current_user.id).order_by(EndPhoto.id)
     assert list(s.scalars(photo_ids)) == [kept["id"], in_dropped_round["id"]]
     assert len(stored_files(photo_storage)) == 4
+
+
+def test_the_games_arrow_colors_are_used_to_find_the_arrows(
+    client: TestClient, s: Session, end, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    game = end.round.game
+    game.nock_color = "green"
+    game.fletch_color = "white"
+    s.flush()
+    photo = start(client, end.id)["photo"]
+    upload(client, photo["id"], jpeg())
+    calls = []
+
+    def fake_analyze(data: bytes, nock_color, fletch_color) -> PhotoAnalysis:
+        calls.append((nock_color, fletch_color))
+        return PhotoAnalysis(display_jpeg=jpeg(10, 10), width=400, height=300)
+
+    monkeypatch.setattr(photo_service, "analyze", fake_analyze)
+    process(client, photo["id"])
+
+    assert calls == [("green", "white")]

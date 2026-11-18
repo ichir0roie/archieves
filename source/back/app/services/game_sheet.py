@@ -197,6 +197,8 @@ def read_game_sheet(game: Game) -> GameSheetRead:
         bow_type=game.bow_type,
         arrow_diameter_mm=game.arrow_diameter_mm,
         all_in=game.all_in,
+        nock_color=game.nock_color,
+        fletch_color=game.fletch_color,
         backfilled=game.backfilled,
         match_id=game.match_id,
         comment=game.comment.body if game.comment else None,

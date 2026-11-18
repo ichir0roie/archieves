@@ -438,7 +438,7 @@
           "users"
         ],
         "summary": "Delete My User",
-        "description": "本人のアカウントと記録をすべて消す。写真のファイルも消す。Cognito の利用者はフロントが消す。",
+        "description": "本人のアカウントと記録をすべて消す。写真のファイルも消す。\n\nCognito の利用者はフロントが消す。",
         "operationId": "delete_my_user_api_v1_users_me_delete",
         "responses": {
           "204": {
@@ -1400,6 +1400,7 @@
           "games"
         ],
         "summary": "Delete Game",
+        "description": "ゲームをゴミ箱へ。戻せるので、写真は消さない",
         "operationId": "delete_game_api_v1_games__game_id__delete",
         "security": [
           {
@@ -1802,6 +1803,7 @@
           "games"
         ],
         "summary": "Delete Round",
+        "description": "ラウンドをゴミ箱へ。戻せるので、写真は消さない",
         "operationId": "delete_round_api_v1_rounds__round_id__delete",
         "security": [
           {
@@ -2220,6 +2222,7 @@
           "games"
         ],
         "summary": "Delete End",
+        "description": "エンドを消す。エンドは戻せないので、写真も行とファイルを消す",
         "operationId": "delete_end_api_v1_ends__end_id__delete",
         "security": [
           {
@@ -6010,6 +6013,21 @@
         ],
         "title": "AnnouncementRead"
       },
+      "ArrowColor": {
+        "type": "string",
+        "enum": [
+          "white",
+          "black",
+          "red",
+          "orange",
+          "yellow",
+          "green",
+          "blue",
+          "purple",
+          "pink"
+        ],
+        "title": "ArrowColor"
+      },
       "Body_import_export_file_api_v1_import_post": {
         "properties": {
           "source": {
@@ -6896,6 +6914,26 @@
             "type": "boolean",
             "title": "Backfilled",
             "default": false
+          },
+          "nock_color": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArrowColor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fletch_color": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArrowColor"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -7016,6 +7054,26 @@
             "title": "Backfilled",
             "default": false
           },
+          "nock_color": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArrowColor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fletch_color": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArrowColor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "user_id": {
             "type": "integer",
             "title": "User Id"
@@ -7056,6 +7114,8 @@
           "arrow_diameter_mm",
           "all_in",
           "backfilled",
+          "nock_color",
+          "fletch_color",
           "user_id",
           "id",
           "match_id",
@@ -7173,6 +7233,26 @@
             "type": "boolean",
             "title": "Backfilled"
           },
+          "nock_color": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArrowColor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fletch_color": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArrowColor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "match_id": {
             "anyOf": [
               {
@@ -7224,6 +7304,8 @@
           "arrow_diameter_mm",
           "all_in",
           "backfilled",
+          "nock_color",
+          "fletch_color",
           "match_id",
           "comment",
           "ai_comment",
@@ -7286,6 +7368,26 @@
             "type": "boolean",
             "title": "Backfilled",
             "default": false
+          },
+          "nock_color": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArrowColor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fletch_color": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArrowColor"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "id": {
             "anyOf": [

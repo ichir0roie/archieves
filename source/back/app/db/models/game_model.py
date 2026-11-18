@@ -17,6 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.arrow_colors import ARROW_COLOR_MAX_LENGTH
 from app.core.match_codes import MATCH_ID_MAX_LENGTH
 from app.core.target_types import TARGET_TYPE_MAX_LENGTH
 from app.db.base_class import Base, TimestampMixin
@@ -59,6 +60,10 @@ class Game(TimestampMixin, Base):
     arrow_diameter_mm: Mapped[int | None] = mapped_column(Integer, default=None)
     # インサイドアウト: 矢が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方)
     all_in: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # 矢のノック・羽根の色(app/core/arrow_colors.py の ArrowColor)。写真モードで自分の矢を見分ける。
+    # 決めていなければ null
+    nock_color: Mapped[str | None] = mapped_column(String(ARROW_COLOR_MAX_LENGTH), default=None)
+    fletch_color: Mapped[str | None] = mapped_column(String(ARROW_COLOR_MAX_LENGTH), default=None)
     # あとから入力: スコアの一覧で日付を決めて入れたゲーム。ラウンド・エンド・矢の日付と矢の時刻は、
     # 編集で足した分も、入れた時でなくゲームの recorded_at にそろえる(フロントの ScoreManager)
     backfilled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())

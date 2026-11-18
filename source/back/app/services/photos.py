@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
+from app.core.arrow_colors import ArrowColor
 from app.core.photos import PHOTO_EXTENSIONS, PHOTO_MAX_BYTES, PhotoStatus
 from app.crud import photo as photo_crud
 from app.db import End, EndPhoto
@@ -75,8 +76,14 @@ def process(s: Session, storage: PhotoStorage, photo: EndPhoto, original: bytes)
     photo.processed_at = datetime.now(UTC)
     if len(original) > PHOTO_MAX_BYTES:
         return _fail(s, photo, "too_large")
+    # 同じ的に刺さったほかの人の矢と見分けるよう、ゲームの矢の色で探す
+    game = photo_crud.get_photo_game(s, photo)
     try:
-        result = analyze(original)
+        result = analyze(
+            original,
+            ArrowColor(game.nock_color) if game.nock_color else None,
+            ArrowColor(game.fletch_color) if game.fletch_color else None,
+        )
     except PhotoUnreadableError as e:
         logger.warning("photo %s is unreadable: %s", photo.id, e)
         return _fail(s, photo, "unreadable")

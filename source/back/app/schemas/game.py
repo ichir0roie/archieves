@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.arrow_colors import ArrowColor
 from app.core.bow_types import BOW_TYPE_MAX_LENGTH
 from app.core.scoring import (
     MAX_ARROW_DIAMETER_MM,
@@ -42,6 +43,9 @@ class GameFields(BaseModel):
     all_in: bool = False
     # あとから入力: 日付を決めて入れたゲーム。中の記録の日付・時刻をゲームの日付にそろえる
     backfilled: bool = False
+    # 矢のノック・羽根の色。写真モードで、同じ的のほかの人の矢と自分の矢を見分ける
+    nock_color: ArrowColor | None = None
+    fletch_color: ArrowColor | None = None
 
 
 class GameWriteFields(GameFields):

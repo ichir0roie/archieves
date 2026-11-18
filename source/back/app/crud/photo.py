@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db import End, EndPhoto, Round
+from app.db import End, EndPhoto, Game, Round
 
 
 def get_photo(s: Session, photo_id: int) -> EndPhoto | None:
@@ -23,6 +23,16 @@ def list_game_photos(s: Session, game_id: int) -> list[EndPhoto]:
             .order_by(Round.number, Round.id, End.number, End.id)
         )
     )
+
+
+def get_photo_game(s: Session, photo: EndPhoto) -> Game:
+    """写真のエンドのゲーム(矢の色を引くため)"""
+    return s.scalars(
+        select(Game)
+        .join(Round, Round.game_id == Game.id)
+        .join(End, End.round_id == Round.id)
+        .where(End.id == photo.end_id)
+    ).one()
 
 
 def list_photos_for_ends(s: Session, end_ids: list[int]) -> list[EndPhoto]:

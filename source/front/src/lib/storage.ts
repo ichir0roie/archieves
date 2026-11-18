@@ -236,7 +236,10 @@ type StoredScoreSheetCache = Omit<ScoreSheetCache, "sub" | "sheet" | "numberPad"
   numberPad?: boolean;
   /** 写真モードを足す前のキャッシュには無い */
   photoPhase?: PhotoPhase | null;
-  sheet: Omit<Sheet, "arrow_diameter_mm" | "all_in" | "backfilled" | "rounds"> & {
+  sheet: Omit<Sheet, "arrow_diameter_mm" | "all_in" | "backfilled" | "rounds" | "nock_color" | "fletch_color"> & {
+    /** 矢の色を足す前のキャッシュには無い */
+    nock_color?: Sheet["nock_color"];
+    fletch_color?: Sheet["fletch_color"];
     rounds: Array<
       Omit<SheetRound, "ends"> & {
         /** 写真モードを足す前のキャッシュには、写真の印が無い */
@@ -286,6 +289,8 @@ export function loadScoreSheetCache(sub: string): ScoreSheetCache | null {
       ...sheet,
       arrow_diameter_mm: sheet.arrow_diameter_mm ?? null,
       all_in: sheet.all_in ?? false,
+      nock_color: sheet.nock_color ?? null,
+      fletch_color: sheet.fletch_color ?? null,
       backfilled: sheet.backfilled ?? false,
       match_id: sheet.match_id ?? null,
       // db の的の名前はマイグレーションで変えたので、送ると変えたとみなされて弾かれないよう合わせる

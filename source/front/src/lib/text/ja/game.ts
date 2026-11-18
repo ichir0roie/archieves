@@ -44,6 +44,21 @@ export const game = {
     alwaysShowSightHint:
       "押していないあいだも、ズームが出る所にサイトを出しておきます。慣れてきたら、常に上のサイトを見ながら感覚でボタンを押すと楽になります",
     start: `${t.game}開始`,
+    nockColor: "ノックの色",
+    fletchColor: "羽根の色",
+    arrowColorNone: "なし",
+    arrowColorHint: `写真モードで、同じ的に刺さったほかの人の${t.arrow}と、自分の${t.arrow}を見分けます。次の${t.game}も同じ色で始めます`,
+    arrowColors: {
+      white: "白",
+      black: "黒",
+      red: "赤",
+      orange: "オレンジ",
+      yellow: "黄",
+      green: "緑",
+      blue: "青",
+      purple: "紫",
+      pink: "ピンク",
+    },
     inputMode: "入れ方",
     inputModes: {
       target: "的",

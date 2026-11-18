@@ -284,6 +284,21 @@ def test_the_arrow_diameter_is_kept_per_game(client: TestClient) -> None:
     assert updated["arrow_diameter_mm"] is None
 
 
+def test_the_arrow_colors_are_kept_per_game(client: TestClient) -> None:
+    saved = _save(client, _sheet([], nock_color="green", fletch_color="white"))
+
+    assert (saved["nock_color"], saved["fletch_color"]) == ("green", "white")
+    game = client.get(f"/api/v1/games/{saved['id']}").json()
+    assert (game["nock_color"], game["fletch_color"]) == ("green", "white")
+
+    updated = _save(client, _sheet([], id=saved["id"], nock_color=None, fletch_color="blue"))
+    assert (updated["nock_color"], updated["fletch_color"]) == (None, "blue")
+
+
+def test_an_unknown_arrow_color_is_rejected(client: TestClient) -> None:
+    assert client.put(SHEET_URL, json=_sheet([], nock_color="gold")).status_code == 422
+
+
 def test_an_arrow_diameter_outside_the_range_is_rejected(client: TestClient) -> None:
     assert client.put(SHEET_URL, json=_sheet([], arrow_diameter_mm=0)).status_code == 422
     assert client.put(SHEET_URL, json=_sheet([], arrow_diameter_mm=31)).status_code == 422

@@ -25,6 +25,7 @@ export type AdminFeedbackRead = Schemas['AdminFeedbackRead'];
 export type AdminOrganizationRead = Schemas['AdminOrganizationRead'];
 export type AdminPendingCounts = Schemas['AdminPendingCounts'];
 export type AnnouncementRead = Schemas['AnnouncementRead'];
+export type ArrowColor = Schemas['ArrowColor'];
 export type BowType = Schemas['BowType'];
 export type ErrorReportCreate = Schemas['ErrorReportCreate'];
 export type FeedbackCreate = Schemas['FeedbackCreate'];

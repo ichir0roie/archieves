@@ -140,7 +140,9 @@ export interface paths {
         post?: never;
         /**
          * Delete My User
-         * @description 本人のアカウントと記録をすべて消す。写真のファイルも消す。Cognito の利用者はフロントが消す。
+         * @description 本人のアカウントと記録をすべて消す。写真のファイルも消す。
+         *
+         *     Cognito の利用者はフロントが消す。
          */
         delete: operations["delete_my_user_api_v1_users_me_delete"];
         options?: never;
@@ -387,7 +389,10 @@ export interface paths {
         get: operations["get_game_api_v1_games__game_id__get"];
         put?: never;
         post?: never;
-        /** Delete Game */
+        /**
+         * Delete Game
+         * @description ゲームをゴミ箱へ。戻せるので、写真は消さない
+         */
         delete: operations["delete_game_api_v1_games__game_id__delete"];
         options?: never;
         head?: never;
@@ -458,7 +463,10 @@ export interface paths {
         get: operations["get_round_api_v1_rounds__round_id__get"];
         put?: never;
         post?: never;
-        /** Delete Round */
+        /**
+         * Delete Round
+         * @description ラウンドをゴミ箱へ。戻せるので、写真は消さない
+         */
         delete: operations["delete_round_api_v1_rounds__round_id__delete"];
         options?: never;
         head?: never;
@@ -529,7 +537,10 @@ export interface paths {
         get: operations["get_end_api_v1_ends__end_id__get"];
         put?: never;
         post?: never;
-        /** Delete End */
+        /**
+         * Delete End
+         * @description エンドを消す。エンドは戻せないので、写真も行とファイルを消す
+         */
         delete: operations["delete_end_api_v1_ends__end_id__delete"];
         options?: never;
         head?: never;
@@ -1482,6 +1493,11 @@ export interface components {
             /** Body */
             body: string;
         };
+        /**
+         * ArrowColor
+         * @enum {string}
+         */
+        ArrowColor: "white" | "black" | "red" | "orange" | "yellow" | "green" | "blue" | "purple" | "pink";
         /** Body_import_export_file_api_v1_import_post */
         Body_import_export_file_api_v1_import_post: {
             source: components["schemas"]["ImportSource"];
@@ -1801,6 +1817,8 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
+            nock_color?: components["schemas"]["ArrowColor"] | null;
+            fletch_color?: components["schemas"]["ArrowColor"] | null;
         };
         /**
          * GameKindOptions
@@ -1843,6 +1861,8 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
+            nock_color: components["schemas"]["ArrowColor"] | null;
+            fletch_color: components["schemas"]["ArrowColor"] | null;
             /** User Id */
             user_id: number;
             /** Id */
@@ -1889,6 +1909,8 @@ export interface components {
             all_in: boolean;
             /** Backfilled */
             backfilled: boolean;
+            nock_color: components["schemas"]["ArrowColor"] | null;
+            fletch_color: components["schemas"]["ArrowColor"] | null;
             /** Match Id */
             match_id: string | null;
             /** Comment */
@@ -1920,6 +1942,8 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
+            nock_color?: components["schemas"]["ArrowColor"] | null;
+            fletch_color?: components["schemas"]["ArrowColor"] | null;
             /** Id */
             id?: number | null;
             /** Client Key */

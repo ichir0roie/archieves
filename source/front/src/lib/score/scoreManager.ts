@@ -82,6 +82,8 @@ function fromSheetRead(read: GameSheetRead): Sheet {
     bow_type: read.bow_type,
     arrow_diameter_mm: read.arrow_diameter_mm,
     all_in: read.all_in,
+    nock_color: read.nock_color,
+    fletch_color: read.fletch_color,
     backfilled: read.backfilled,
     match_id: read.match_id,
     comment: read.comment,
@@ -179,6 +181,8 @@ export class ScoreManager {
         bow_type: setup.bowType,
         arrow_diameter_mm: setup.arrowDiameterMm,
         all_in: setup.allIn,
+        nock_color: setup.nockColor,
+        fletch_color: setup.fletchColor,
         backfilled: backfillDate !== null,
         match_id: match?.id ?? null,
         comment: null,
@@ -416,6 +420,8 @@ export class ScoreManager {
       gameSize: this.gameSize,
       arrowDiameterMm: this.arrowDiameterMm,
       allIn: this.allIn,
+      nockColor: this.sheet.nock_color,
+      fletchColor: this.sheet.fletch_color,
     };
   }
 
@@ -460,6 +466,8 @@ export class ScoreManager {
       this.sheet.arrow_diameter_mm = next.arrowDiameterMm;
     }
     if (next.allIn !== current.allIn) this.sheet.all_in = next.allIn;
+    if (next.nockColor !== current.nockColor) this.sheet.nock_color = next.nockColor;
+    if (next.fletchColor !== current.fletchColor) this.sheet.fletch_color = next.fletchColor;
     if (next.gameSize !== current.gameSize) this.sheet.game_size = next.gameSize;
     for (const round of this.sheet.rounds) {
       if (next.distanceM !== current.distanceM) round.distance_m = next.distanceM;

@@ -8,6 +8,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
+from app.core.arrow_colors import ArrowColor
 from app.core.comments import MAX_COMMENT_LENGTH
 from app.core.scoring import (
     MISS_SCORE,
@@ -110,6 +111,8 @@ class GameSheetRead(ResponseModel):
     arrow_diameter_mm: int | None
     all_in: bool
     backfilled: bool
+    nock_color: ArrowColor | None
+    fletch_color: ArrowColor | None
     match_id: str | None
     comment: str | None
     # AI(Claude Code など)の指摘・改善点。本人にだけ返し、

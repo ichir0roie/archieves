@@ -1,3 +1,4 @@
+import type { ArrowColor } from "@/lib/api";
 import type { RoundSetup } from "@/lib/score/scoreConfig";
 
 /**
@@ -58,6 +59,9 @@ export interface Sheet {
   arrow_diameter_mm: number | null;
   /** インサイドアウト */
   all_in: boolean;
+  /** 矢のノック・羽根の色(写真モードで自分の矢を見分ける) */
+  nock_color: ArrowColor | null;
+  fletch_color: ArrowColor | null;
   /**
    * あとから入力: スコアの一覧で日付を決めて入れたゲーム。
    * ラウンド・エンド・矢の日付は recorded_at に、矢の時刻はその日の 0 時にそろえる
