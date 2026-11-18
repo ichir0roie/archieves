@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from moto import mock_aws
 from PIL import Image
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -433,3 +434,78 @@ def test_the_analyzer_refuses_too_many_pixels(monkeypatch: pytest.MonkeyPatch) -
 
     with pytest.raises(photo_analysis.PhotoUnreadableError):
         analyze(jpeg(400, 300))
+
+
+# ---- エンド・ラウンド・ゲームを消すと、写真の行とファイルも消す ----
+
+
+def stored_files(storage: LocalPhotoStorage) -> list[Path]:
+    return [p for p in storage.root.rglob("*") if p.is_file()]
+
+
+def processed_photo(client: TestClient, end) -> dict:
+    photo = start(client, end.id)["photo"]
+    upload(client, photo["id"], jpeg())
+    return process(client, photo["id"])
+
+
+def test_deleting_an_end_deletes_its_photo(
+    client: TestClient, s: Session, end, photo_storage: LocalPhotoStorage
+) -> None:
+    photo = processed_photo(client, end)
+    assert len(stored_files(photo_storage)) == 2
+
+    assert client.delete(f"/api/v1/ends/{end.id}").status_code == 204
+
+    s.expire_all()
+    assert s.get(EndPhoto, photo["id"]) is None
+    assert stored_files(photo_storage) == []
+
+
+def test_trashing_a_round_or_a_game_deletes_their_photos(
+    client: TestClient, s: Session, factories, current_user, photo_storage: LocalPhotoStorage
+) -> None:
+    game = factories.GameFactory(user=current_user)
+    round_1 = factories.RoundFactory(game=game, number=1)
+    round_2 = factories.RoundFactory(game=game, number=2)
+    in_round_1 = processed_photo(client, factories.EndFactory(round=round_1))
+    in_round_2 = processed_photo(client, factories.EndFactory(round=round_2))
+    other_game = processed_photo(client, factories.EndFactory(round__game__user=current_user))
+
+    assert client.delete(f"/api/v1/rounds/{round_1.id}").status_code == 204
+    s.expire_all()
+    assert s.get(EndPhoto, in_round_1["id"]) is None
+    assert len(stored_files(photo_storage)) == 4
+
+    assert client.delete(f"/api/v1/games/{game.id}").status_code == 204
+    s.expire_all()
+    assert s.get(EndPhoto, in_round_2["id"]) is None
+    # ほかのゲームの写真は残る
+    assert s.get(EndPhoto, other_game["id"]) is not None
+    assert len(stored_files(photo_storage)) == 2
+
+
+def test_ends_and_rounds_left_out_of_a_saved_sheet_lose_their_photos(
+    client: TestClient, s: Session, factories, current_user, photo_storage: LocalPhotoStorage
+) -> None:
+    game = factories.GameFactory(user=current_user)
+    kept_round = factories.RoundFactory(game=game, number=1)
+    dropped_round = factories.RoundFactory(game=game, number=2)
+    kept_end = factories.EndFactory(round=kept_round, number=1)
+    dropped_end = factories.EndFactory(round=kept_round, number=2)
+    kept = processed_photo(client, kept_end)
+    processed_photo(client, dropped_end)
+    processed_photo(client, factories.EndFactory(round=dropped_round))
+    sheet = client.get(f"/api/v1/games/{game.id}/sheet").json()
+    sheet["rounds"] = sheet["rounds"][:1]
+    sheet["rounds"][0]["ends"] = sheet["rounds"][0]["ends"][:1]
+
+    response = client.put("/api/v1/games/sheet", json=sheet)
+
+    assert response.status_code == 200
+    assert [end["has_photo"] for end in response.json()["rounds"][0]["ends"]] == [True]
+    s.expire_all()
+    assert list(s.scalars(select(EndPhoto.id).where(EndPhoto.user_id == current_user.id))) == [
+        kept["id"]
+    ]
+    assert len(stored_files(photo_storage)) == 2

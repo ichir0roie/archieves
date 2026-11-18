@@ -54,6 +54,16 @@ def start_upload(
     return photo, storage.upload_target(photo.id, key, content_type), old_keys
 
 
+def discard_photos(s: Session, photos: list[EndPhoto]) -> list[str]:
+    """写真の行を消し、置き場のファイルのキーを返す。ファイルは、呼ぶ側がコミットのあとで消す
+    (コミットできなかったのにファイルだけ消えないように)。エンド・ラウンド・ゲームを消すときに使う。
+    ゴミ箱のラウンド・ゲームを戻しても、写真は戻らない"""
+    keys = [key for photo in photos for key in (photo.original_key, photo.display_key) if key]
+    for photo in photos:
+        photo_crud.delete_photo(s, photo)
+    return keys
+
+
 def needs_processing(photo: EndPhoto) -> bool:
     """まだ処理していないか、今より古い処理の結果。読めなかった写真は、処理が変わるまでやり直さない"""
     return photo.status == PhotoStatus.UPLOADING or photo.analyzer_version != ANALYZER_VERSION
