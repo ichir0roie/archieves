@@ -29,28 +29,6 @@ def list_photos_for_ends(s: Session, end_ids: list[int]) -> list[EndPhoto]:
     return list(s.scalars(select(EndPhoto).where(EndPhoto.end_id.in_(end_ids))))
 
 
-def list_photos_for_round(s: Session, round_id: int) -> list[EndPhoto]:
-    return list(
-        s.scalars(
-            select(EndPhoto)
-            .join(End, End.id == EndPhoto.end_id)
-            .where(End.round_id == round_id)
-        )
-    )
-
-
-def list_photos_for_game(s: Session, game_id: int) -> list[EndPhoto]:
-    """ゲームのすべての写真。ゴミ箱のラウンドの分も含める"""
-    return list(
-        s.scalars(
-            select(EndPhoto)
-            .join(End, End.id == EndPhoto.end_id)
-            .join(Round, Round.id == End.round_id)
-            .where(Round.game_id == game_id)
-        )
-    )
-
-
 def create_photo(
     s: Session,
     end: End,

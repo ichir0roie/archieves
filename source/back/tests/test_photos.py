@@ -462,30 +462,28 @@ def test_deleting_an_end_deletes_its_photo(
     assert stored_files(photo_storage) == []
 
 
-def test_trashing_a_round_or_a_game_deletes_their_photos(
+def test_trashing_a_round_or_a_game_keeps_their_photos(
     client: TestClient, s: Session, factories, current_user, photo_storage: LocalPhotoStorage
 ) -> None:
+    """ゴミ箱から戻せるので、写真は消さない。戻せば写真も付いたまま"""
     game = factories.GameFactory(user=current_user)
     round_1 = factories.RoundFactory(game=game, number=1)
     round_2 = factories.RoundFactory(game=game, number=2)
-    in_round_1 = processed_photo(client, factories.EndFactory(round=round_1))
-    in_round_2 = processed_photo(client, factories.EndFactory(round=round_2))
-    other_game = processed_photo(client, factories.EndFactory(round__game__user=current_user))
+    processed_photo(client, factories.EndFactory(round=round_1))
+    processed_photo(client, factories.EndFactory(round=round_2))
 
     assert client.delete(f"/api/v1/rounds/{round_1.id}").status_code == 204
-    s.expire_all()
-    assert s.get(EndPhoto, in_round_1["id"]) is None
+    assert client.delete(f"/api/v1/games/{game.id}").status_code == 204
     assert len(stored_files(photo_storage)) == 4
 
-    assert client.delete(f"/api/v1/games/{game.id}").status_code == 204
-    s.expire_all()
-    assert s.get(EndPhoto, in_round_2["id"]) is None
-    # ほかのゲームの写真は残る
-    assert s.get(EndPhoto, other_game["id"]) is not None
-    assert len(stored_files(photo_storage)) == 2
+    assert client.post(f"/api/v1/games/{game.id}/restore").status_code == 200
+    assert client.post(f"/api/v1/rounds/{round_1.id}/restore").status_code == 200
+    sheet = client.get(f"/api/v1/games/{game.id}/sheet").json()
+    assert [end["has_photo"] for r in sheet["rounds"] for end in r["ends"]] == [True, True]
+    assert len(client.get(f"/api/v1/games/{game.id}/photos").json()) == 2
 
 
-def test_ends_and_rounds_left_out_of_a_saved_sheet_lose_their_photos(
+def test_ends_left_out_of_a_saved_sheet_lose_their_photos_but_trashed_rounds_keep_them(
     client: TestClient, s: Session, factories, current_user, photo_storage: LocalPhotoStorage
 ) -> None:
     game = factories.GameFactory(user=current_user)
@@ -495,7 +493,7 @@ def test_ends_and_rounds_left_out_of_a_saved_sheet_lose_their_photos(
     dropped_end = factories.EndFactory(round=kept_round, number=2)
     kept = processed_photo(client, kept_end)
     processed_photo(client, dropped_end)
-    processed_photo(client, factories.EndFactory(round=dropped_round))
+    in_dropped_round = processed_photo(client, factories.EndFactory(round=dropped_round))
     sheet = client.get(f"/api/v1/games/{game.id}/sheet").json()
     sheet["rounds"] = sheet["rounds"][:1]
     sheet["rounds"][0]["ends"] = sheet["rounds"][0]["ends"][:1]
@@ -505,7 +503,6 @@ def test_ends_and_rounds_left_out_of_a_saved_sheet_lose_their_photos(
     assert response.status_code == 200
     assert [end["has_photo"] for end in response.json()["rounds"][0]["ends"]] == [True]
     s.expire_all()
-    assert list(s.scalars(select(EndPhoto.id).where(EndPhoto.user_id == current_user.id))) == [
-        kept["id"]
-    ]
-    assert len(stored_files(photo_storage)) == 2
+    photo_ids = select(EndPhoto.id).where(EndPhoto.user_id == current_user.id).order_by(EndPhoto.id)
+    assert list(s.scalars(photo_ids)) == [kept["id"], in_dropped_round["id"]]
+    assert len(stored_files(photo_storage)) == 4

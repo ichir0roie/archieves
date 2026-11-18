@@ -146,9 +146,7 @@ def _save_rounds(
         _save_ends(s, round_, round_in.ends, discarded_keys)
     for round_id, round_ in existing.items():
         if round_id not in kept:
-            discarded_keys += photo_service.discard_photos(
-                s, photo_crud.list_photos_for_round(s, round_id)
-            )
+            # ゴミ箱へ入れるだけで戻せるので、写真は消さない
             game_crud.delete_round(s, round_)
 
 
@@ -164,8 +162,8 @@ def save_game_sheet(
     game は sheet_in.id のゲームを、持ち主を確かめて get_game_sheet で引いたもの
     (id が無ければ None)。
     返すゲームは、書いたあとの記録を読み直したもの。
-    送られてこずに消したエンド・ラウンドの写真は行を消し、ファイルのキーを discarded_keys に足す
-    (呼ぶ側がコミットのあとで置き場から消す)。
+    送られてこずに消したエンドの写真は行を消し、ファイルのキーを discarded_keys に足す
+    (呼ぶ側がコミットのあとで置き場から消す)。ゴミ箱へ入れたラウンドの写真は消さない。
     """
     if game is None:
         game = _find_or_create_game(s, me, sheet_in)

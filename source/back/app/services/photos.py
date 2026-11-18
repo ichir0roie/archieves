@@ -56,8 +56,8 @@ def start_upload(
 
 def discard_photos(s: Session, photos: list[EndPhoto]) -> list[str]:
     """写真の行を消し、置き場のファイルのキーを返す。ファイルは、呼ぶ側がコミットのあとで消す
-    (コミットできなかったのにファイルだけ消えないように)。エンド・ラウンド・ゲームを消すときに使う。
-    ゴミ箱のラウンド・ゲームを戻しても、写真は戻らない"""
+    (コミットできなかったのにファイルだけ消えないように)。エンドを消すときに使う。
+    ゴミ箱へ入れるラウンド・ゲームは戻せるので、その写真は消さない"""
     keys = [key for photo in photos for key in (photo.original_key, photo.display_key) if key]
     for photo in photos:
         photo_crud.delete_photo(s, photo)

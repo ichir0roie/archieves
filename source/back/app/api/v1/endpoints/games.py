@@ -177,14 +177,11 @@ def delete_game(
     game_id: int,
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
-    storage: PhotoStorage = Depends(get_photo_storage),
 ) -> None:
-    """ゲームをゴミ箱へ。写真は行もファイルも消す(ゲームを戻しても写真は戻らない)"""
+    """ゲームをゴミ箱へ。戻せるので、写真は消さない"""
     game = deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
-    keys = photo_service.discard_photos(s, photo_crud.list_photos_for_game(s, game_id))
     game_crud.delete_game(s, game)
     s.commit()
-    storage.delete(keys)
 
 
 @router.get("/trash/games", response_model=list[GameRead])
@@ -268,14 +265,11 @@ def delete_round(
     round_id: int,
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
-    storage: PhotoStorage = Depends(get_photo_storage),
 ) -> None:
-    """ラウンドをゴミ箱へ。写真は行もファイルも消す(ラウンドを戻しても写真は戻らない)"""
+    """ラウンドをゴミ箱へ。戻せるので、写真は消さない"""
     round_ = deps.get_own_or_404(me, game_crud.get_round, s, round_id, detail="Round not found")
-    keys = photo_service.discard_photos(s, photo_crud.list_photos_for_round(s, round_id))
     game_crud.delete_round(s, round_)
     s.commit()
-    storage.delete(keys)
 
 
 @router.get("/trash/rounds", response_model=list[RoundRead])
@@ -363,7 +357,7 @@ def delete_end(
     s: Session = Depends(deps.get_session),
     storage: PhotoStorage = Depends(get_photo_storage),
 ) -> None:
-    """エンドを消す。写真は行もファイルも消す"""
+    """エンドを消す。エンドは戻せないので、写真も行とファイルを消す"""
     end = deps.get_own_or_404(me, game_crud.get_end, s, end_id, detail="End not found")
     keys = photo_service.discard_photos(s, photo_crud.list_photos_for_ends(s, [end_id]))
     game_crud.delete_end(s, end)
