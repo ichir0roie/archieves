@@ -140,7 +140,9 @@ export interface paths {
         post?: never;
         /**
          * Delete My User
-         * @description 本人のアカウントと記録をすべて消す。Cognito の利用者はフロントが消す。
+         * @description 本人のアカウントと記録をすべて消す。写真のファイルも消す。
+         *
+         *     Cognito の利用者はフロントが消す。
          */
         delete: operations["delete_my_user_api_v1_users_me_delete"];
         options?: never;
@@ -387,7 +389,10 @@ export interface paths {
         get: operations["get_game_api_v1_games__game_id__get"];
         put?: never;
         post?: never;
-        /** Delete Game */
+        /**
+         * Delete Game
+         * @description ゲームをゴミ箱へ。戻せるので、写真は消さない
+         */
         delete: operations["delete_game_api_v1_games__game_id__delete"];
         options?: never;
         head?: never;
@@ -458,7 +463,10 @@ export interface paths {
         get: operations["get_round_api_v1_rounds__round_id__get"];
         put?: never;
         post?: never;
-        /** Delete Round */
+        /**
+         * Delete Round
+         * @description ラウンドをゴミ箱へ。戻せるので、写真は消さない
+         */
         delete: operations["delete_round_api_v1_rounds__round_id__delete"];
         options?: never;
         head?: never;
@@ -529,7 +537,10 @@ export interface paths {
         get: operations["get_end_api_v1_ends__end_id__get"];
         put?: never;
         post?: never;
-        /** Delete End */
+        /**
+         * Delete End
+         * @description エンドを消す。エンドは戻せないので、写真も行とファイルを消す
+         */
         delete: operations["delete_end_api_v1_ends__end_id__delete"];
         options?: never;
         head?: never;
@@ -572,6 +583,110 @@ export interface paths {
         head?: never;
         /** Update Point */
         patch: operations["update_point_api_v1_points__point_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/ends/{end_id}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Photo Upload
+         * @description エンドの写真を受け付け、元の写真を送る先を返す。撮り直しなら前の写真と置き換える
+         */
+        post: operations["start_photo_upload_api_v1_ends__end_id__photo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/photos/{photo_id}/process": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Process Photo
+         * @description 置き場に届いた元の写真を処理する。処理が済んでいれば、処理し直さずに今の結果を返す
+         */
+        post: operations["process_photo_api_v1_photos__photo_id__process_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/photos/{photo_id}/alignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Align Photo
+         * @description 的の補正を、人が手で合わせた 4 点でやり直す。矢の推測もやり直す
+         */
+        put: operations["align_photo_api_v1_photos__photo_id__alignment_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/games/{game_id}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Game Photos
+         * @description ゲームのエンドの写真を、ラウンド・エンドの順に。処理の済んでいないものも含める
+         */
+        get: operations["list_game_photos_api_v1_games__game_id__photos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/photos/{photo_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Photo File
+         * @description 手元の置き場の、元の写真か表示の画像を読む(S3 の署名付き URL の GET の代わり)
+         */
+        get: operations["read_photo_file_api_v1_photos__photo_id__file_get"];
+        /**
+         * Upload Photo File
+         * @description 手元の置き場へ、元の写真を送る(S3 の署名付き URL への PUT の代わり)
+         */
+        put: operations["upload_photo_file_api_v1_photos__photo_id__file_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/matches": {
@@ -1398,6 +1513,11 @@ export interface components {
             /** Body */
             body: string;
         };
+        /**
+         * ArrowColor
+         * @enum {string}
+         */
+        ArrowColor: "white" | "black" | "red" | "orange" | "yellow" | "green" | "blue" | "purple" | "pink";
         /** Body_import_export_file_api_v1_import_post */
         Body_import_export_file_api_v1_import_post: {
             source: components["schemas"]["ImportSource"];
@@ -1485,6 +1605,44 @@ export interface components {
              */
             recorded_at: string;
         };
+        /** EndPhotoRead */
+        EndPhotoRead: {
+            /** Id */
+            id: number;
+            /** End Id */
+            end_id: number;
+            /** Status */
+            status: string;
+            /** Width */
+            width: number | null;
+            /** Height */
+            height: number | null;
+            /** Rectified */
+            rectified: boolean;
+            /** Display Extent */
+            display_extent: number | null;
+            /** Estimates */
+            estimates: components["schemas"]["EstimatedArrowRead"][];
+            /** Alignment Points */
+            alignment_points: number[][] | null;
+            /** Aligned Manually */
+            aligned_manually: boolean;
+            /** Analyzer Version */
+            analyzer_version: string | null;
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Processed At */
+            processed_at: string | null;
+            /** Original Url */
+            original_url: string;
+            /** Display Url */
+            display_url: string | null;
+        };
         /** EndRead */
         EndRead: {
             /** Number */
@@ -1536,6 +1694,8 @@ export interface components {
             comment: string | null;
             /** Points */
             points: components["schemas"]["PointRead"][];
+            /** Has Photo */
+            has_photo: boolean;
         };
         /** EndSheetWrite */
         EndSheetWrite: {
@@ -1583,6 +1743,18 @@ export interface components {
          * @enum {string}
          */
         ErrorReportKind: "page" | "api";
+        /**
+         * EstimatedArrowRead
+         * @description 推測した矢の刺さった所。x・y は的に対する割合(左上が 0、中心が 0.5)
+         */
+        EstimatedArrowRead: {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Confidence */
+            confidence: number;
+        };
         /** FeedbackCreate */
         FeedbackCreate: {
             /** Body */
@@ -1669,6 +1841,8 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
+            nock_color?: components["schemas"]["ArrowColor"] | null;
+            fletch_color?: components["schemas"]["ArrowColor"] | null;
         };
         /**
          * GameKindOptions
@@ -1711,6 +1885,8 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
+            nock_color: components["schemas"]["ArrowColor"] | null;
+            fletch_color: components["schemas"]["ArrowColor"] | null;
             /** User Id */
             user_id: number;
             /** Id */
@@ -1757,6 +1933,8 @@ export interface components {
             all_in: boolean;
             /** Backfilled */
             backfilled: boolean;
+            nock_color: components["schemas"]["ArrowColor"] | null;
+            fletch_color: components["schemas"]["ArrowColor"] | null;
             /** Match Id */
             match_id: string | null;
             /** Comment */
@@ -1788,6 +1966,8 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
+            nock_color?: components["schemas"]["ArrowColor"] | null;
+            fletch_color?: components["schemas"]["ArrowColor"] | null;
             /** Id */
             id?: number | null;
             /** Client Key */
@@ -2060,6 +2240,34 @@ export interface components {
             location?: string | null;
             /** Parent Organization Id */
             parent_organization_id?: number | null;
+        };
+        /**
+         * PhotoAlignmentWrite
+         * @description 手で合わせた 4 点。赤の帯の外の線(7 点の外)の上・右・下・左の順。
+         *
+         *     値は、向きを直した元の写真の幅・高さに対する割合
+         */
+        PhotoAlignmentWrite: {
+            /** Points */
+            points: number[][];
+        };
+        /** PhotoUploadCreate */
+        PhotoUploadCreate: {
+            /**
+             * Content Type
+             * @enum {string}
+             */
+            content_type: "image/jpeg" | "image/png" | "image/webp";
+        };
+        /** PhotoUploadRead */
+        PhotoUploadRead: {
+            photo: components["schemas"]["EndPhotoRead"];
+            /** Upload Url */
+            upload_url: string;
+            /** Upload Headers */
+            upload_headers: {
+                [key: string]: string;
+            };
         };
         /** PointCreate */
         PointCreate: {
@@ -3825,6 +4033,200 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PointRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_photo_upload_api_v1_ends__end_id__photo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                end_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoUploadCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoUploadRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    process_photo_api_v1_photos__photo_id__process_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndPhotoRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    align_photo_api_v1_photos__photo_id__alignment_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoAlignmentWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndPhotoRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_game_photos_api_v1_games__game_id__photos_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndPhotoRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_photo_file_api_v1_photos__photo_id__file_get: {
+        parameters: {
+            query?: {
+                kind?: "original" | "display";
+            };
+            header?: never;
+            path: {
+                photo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_photo_file_api_v1_photos__photo_id__file_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -1,11 +1,13 @@
 "use client";
 
+import ArrowColorField from "@/components/ArrowColorField";
 import ArrowSight from "@/components/ArrowSight";
 import { TARGET_FACE_PADDING } from "@/components/TargetCircleInput";
 import IntegerField, { parseInteger } from "@/components/IntegerField";
 import Modal from "@/components/Modal";
 import Segment from "@/components/Segment";
 import { useEffect, useState, type ReactNode } from "react";
+import type { ArrowColor } from "@/lib/api";
 import {
   BOW_TYPES,
   BOW_TYPE_MAX_LENGTH,
@@ -44,6 +46,8 @@ export type GameSetupDraft = {
   gameSizeText: string;
   arrowDiameterMmText: string;
   allIn: boolean;
+  nockColor: ArrowColor | null;
+  fletchColor: ArrowColor | null;
 };
 
 /** 数の欄の下限。記録の途中のゲームでは、記録した矢・エンド・ラウンドの数より小さくできない */
@@ -69,6 +73,8 @@ export function toGameSetupDraft(setup: RoundSetup): GameSetupDraft {
     gameSizeText: String(setup.gameSize),
     arrowDiameterMmText: String(setup.arrowDiameterMm),
     allIn: setup.allIn,
+    nockColor: setup.nockColor,
+    fletchColor: setup.fletchColor,
   };
 }
 
@@ -111,6 +117,8 @@ export function parseGameSetupDraft(
     gameSize,
     arrowDiameterMm,
     allIn: draft.allIn,
+    nockColor: draft.nockColor,
+    fletchColor: draft.fletchColor,
   };
 }
 
@@ -372,6 +380,19 @@ export default function GameSetupFields({
             </label>
             <span className="hint">{T.game.setup.allInHint}</span>
           </div>
+          <ArrowColorField
+            label={T.game.setup.nockColor}
+            className="NockColorField"
+            value={draft.nockColor}
+            onChange={(nockColor) => update({ nockColor })}
+          />
+          <ArrowColorField
+            label={T.game.setup.fletchColor}
+            className="FletchColorField"
+            value={draft.fletchColor}
+            onChange={(fletchColor) => update({ fletchColor })}
+            hint={T.game.setup.arrowColorHint}
+          />
         </>
       )}
 

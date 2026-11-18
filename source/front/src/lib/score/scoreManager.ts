@@ -9,6 +9,8 @@ import {
   DEFAULT_GAME_SIZE,
   DEFAULT_ROUND_SIZE,
   DEFAULT_TARGET_TYPE_ID,
+  resolveTargetType,
+  type InputMode,
   type RoundSetup,
 } from "./scoreConfig";
 import {
@@ -17,6 +19,7 @@ import {
   saveScoreSheetCache,
 } from "@/lib/storage";
 import {
+  type PhotoPhase,
   type ScoreSheetCache,
   type Sheet,
   type SheetEnd,
@@ -64,8 +67,9 @@ function hasComment(entity: { comment: string | null }): boolean {
   return entity.comment !== null && entity.comment.trim() !== "";
 }
 
+/** 矢もコメントも写真も無い(開けただけの)エンド */
 function isBlankEnd(end: SheetEnd): boolean {
-  return end.points.length === 0 && !hasComment(end);
+  return end.points.length === 0 && !hasComment(end) && !end.has_photo;
 }
 
 /** API の応答を、手元の形にする(読むだけの欄を落とす) */
@@ -78,6 +82,8 @@ function fromSheetRead(read: GameSheetRead): Sheet {
     bow_type: read.bow_type,
     arrow_diameter_mm: read.arrow_diameter_mm,
     all_in: read.all_in,
+    nock_color: read.nock_color,
+    fletch_color: read.fletch_color,
     backfilled: read.backfilled,
     match_id: read.match_id,
     comment: read.comment,
@@ -95,6 +101,8 @@ function fromSheetRead(read: GameSheetRead): Sheet {
         number: end.number,
         recorded_at: end.recorded_at,
         comment: end.comment,
+        has_photo: end.has_photo,
+        estimates_applied: false,
         points: end.points.map((point) => ({
           id: point.id,
           number: point.number,
@@ -127,6 +135,8 @@ export class ScoreManager {
   private dirty: boolean;
   /** 点だけ入力のゲーム。始めるときに決め、途中では変えない */
   readonly numberPad: boolean;
+  /** 写真モードのゲームの段階。写真モードでなければ null */
+  private _photoPhase: PhotoPhase | null;
 
   /**
    * 「1矢戻る」で外した矢の控え。キーは `ラウンドの位置:エンドの位置`。キャッシュには持たない
@@ -142,6 +152,7 @@ export class ScoreManager {
     this.endIndex = cache.endIndex;
     this.dirty = cache.dirty;
     this.numberPad = cache.numberPad;
+    this._photoPhase = cache.photoPhase;
     if (this.sheet.rounds.length === 0) this.openNextRound();
     this.clampPosition();
   }
@@ -157,7 +168,7 @@ export class ScoreManager {
     sub: string,
     setup: RoundSetup,
     backfillDate: string | null = null,
-    numberPad: boolean = false,
+    inputMode: InputMode = "target",
     match: { id: string; recordedAt: string } | null = null,
   ): ScoreManager {
     const manager = new ScoreManager({
@@ -170,6 +181,8 @@ export class ScoreManager {
         bow_type: setup.bowType,
         arrow_diameter_mm: setup.arrowDiameterMm,
         all_in: setup.allIn,
+        nock_color: setup.nockColor,
+        fletch_color: setup.fletchColor,
         backfilled: backfillDate !== null,
         match_id: match?.id ?? null,
         comment: null,
@@ -179,26 +192,39 @@ export class ScoreManager {
       roundIndex: 0,
       endIndex: 0,
       dirty: false,
-      numberPad,
+      numberPad: inputMode === "numberPad",
+      photoPhase: inputMode === "photo" ? "record" : null,
     });
     manager.persist();
     return manager;
   }
 
-  /** 保存したゲームの編集を始める。API から丸ごと読んでキャッシュを作り直し、いちばん後ろのエンドを開く */
-  static async startEditing(sub: string, gameId: number): Promise<ScoreManager> {
+  /**
+   * 保存したゲームの編集を始める。API から丸ごと読んでキャッシュを作り直し、いちばん後ろのエンドを開く。
+   * photoReview なら、写真モードの補正として最初のエンドを開く(写真を撮ったゲームを、あとから補正する)
+   */
+  static async startEditing(
+    sub: string,
+    gameId: number,
+    photoReview: boolean = false,
+  ): Promise<ScoreManager> {
     const sheet = fromSheetRead(await getGameSheet(gameId));
-    const roundIndex = Math.max(sheet.rounds.length - 1, 0);
+    const roundIndex = photoReview ? 0 : Math.max(sheet.rounds.length - 1, 0);
     const manager = new ScoreManager({
       sub,
       sheet,
       setup: null,
       roundIndex,
-      endIndex: Math.max((sheet.rounds[roundIndex]?.ends.length ?? 0) - 1, 0),
+      endIndex: photoReview ? 0 : Math.max((sheet.rounds[roundIndex]?.ends.length ?? 0) - 1, 0),
       dirty: false,
       // 保存したゲームの編集は的で入れる(記録に入れ方を持たないため)
       numberPad: false,
+      photoPhase: photoReview ? "review" : null,
     });
+    if (photoReview) {
+      manager.persist();
+      return manager;
+    }
     if (manager.ends.length === 0) {
       manager.pushEnd();
     } else if (manager.isEndFull && manager.canForwardEnd) {
@@ -229,6 +255,7 @@ export class ScoreManager {
       endIndex: this.endIndex,
       dirty: this.dirty,
       numberPad: this.numberPad,
+      photoPhase: this._photoPhase,
     });
   }
 
@@ -247,6 +274,39 @@ export class ScoreManager {
 
   get gameId(): number | null {
     return this.sheet.id;
+  }
+
+  get photoPhase(): PhotoPhase | null {
+    return this._photoPhase;
+  }
+
+  /** 端末に置く写真(lib/photo/photoStore.ts)を、ゲームごとに分けるキー */
+  get photoQueueKey(): string {
+    return this.sheet.client_key ?? `game:${this.sheet.id}`;
+  }
+
+  /** 的の直径に対する矢の直径。写真の推測を点数にするときに使う */
+  get arrowRatio(): number {
+    return this.arrowDiameterMm / (resolveTargetType(this.targetType).sizeCm * 10);
+  }
+
+  /** 今のラウンド・エンドの位置。写真を撮ったエンドを、保存のあとに id で引くために使う */
+  get position(): { roundIndex: number; endIndex: number } {
+    return { roundIndex: this.roundIndex, endIndex: this.endIndex };
+  }
+
+  /** その位置のエンドの id。まだ保存していなければ null */
+  endIdAt(roundIndex: number, endIndex: number): number | null {
+    return this.sheet.rounds[roundIndex]?.ends[endIndex]?.id ?? null;
+  }
+
+  /** 今のエンドの id。まだ保存していなければ null */
+  get currentEndId(): number | null {
+    return this.currentEnd?.id ?? null;
+  }
+
+  get currentEndHasPhoto(): boolean {
+    return this.currentEnd?.has_photo ?? false;
   }
 
   get hasUnsavedChanges(): boolean {
@@ -360,6 +420,8 @@ export class ScoreManager {
       gameSize: this.gameSize,
       arrowDiameterMm: this.arrowDiameterMm,
       allIn: this.allIn,
+      nockColor: this.sheet.nock_color,
+      fletchColor: this.sheet.fletch_color,
     };
   }
 
@@ -404,6 +466,8 @@ export class ScoreManager {
       this.sheet.arrow_diameter_mm = next.arrowDiameterMm;
     }
     if (next.allIn !== current.allIn) this.sheet.all_in = next.allIn;
+    if (next.nockColor !== current.nockColor) this.sheet.nock_color = next.nockColor;
+    if (next.fletchColor !== current.fletchColor) this.sheet.fletch_color = next.fletchColor;
     if (next.gameSize !== current.gameSize) this.sheet.game_size = next.gameSize;
     for (const round of this.sheet.rounds) {
       if (next.distanceM !== current.distanceM) round.distance_m = next.distanceM;
@@ -555,6 +619,8 @@ export class ScoreManager {
       recorded_at: this.recordDate,
       comment: null,
       points: [],
+      has_photo: false,
+      estimates_applied: false,
     });
     this.endIndex = round.ends.length - 1;
   }
@@ -590,6 +656,68 @@ export class ScoreManager {
       shot_at: shotAt.toISOString(),
     });
     this.changed();
+  }
+
+  /**
+   * 今のエンドの index 番目の矢を、別の位置・点数に動かす(エンドが満ちたあとに、近くを押して直す)。
+   * 記録した時刻はそのまま
+   */
+  movePoint(index: number, score: number, x: number, y: number) {
+    const point = this.currentPoints[index];
+    if (!point) return;
+    point.score = score;
+    point.x = x;
+    point.y = y;
+    this.changed();
+  }
+
+  // ---- 写真モード ----
+
+  /** 今のエンドに写真を撮った印を付ける。矢が無くても、保存で空のエンドとして捨てなくなる */
+  markPhoto() {
+    if (!this.currentEnd) return;
+    this.currentEnd.has_photo = true;
+    this.changed();
+  }
+
+  /**
+   * 写真の推測を、今のエンドの矢として入れる。補正で、矢の無いエンドを開いたときに一度だけ入れ、
+   * そのあとは人が直す。全部の矢を外しても入れ直さない
+   */
+  applyEstimates(points: Array<{ score: number; x: number; y: number }>) {
+    const end = this.currentEnd;
+    if (!end || end.estimates_applied || end.points.length > 0 || points.length === 0) return;
+    end.estimates_applied = true;
+    const shotAt = new Date();
+    for (const { score, x, y } of points.slice(0, this.endSize)) {
+      this.pushPoint({
+        score,
+        x,
+        y,
+        recorded_at: end.recorded_at,
+        shot_at: shotAt.toISOString(),
+      });
+    }
+    this.changed();
+  }
+
+  /** 今のエンドの矢を外し、写真の推測を入れ直せるようにする(的を合わせ直したあと) */
+  resetEstimates() {
+    const end = this.currentEnd;
+    if (!end) return;
+    end.points.splice(0);
+    end.estimates_applied = false;
+    this.undonePoints.delete(this.undoneKey);
+    this.changed();
+  }
+
+  /** 撮るのを終え、最初のエンドから補正を始める */
+  startPhotoReview() {
+    if (this._photoPhase !== "record") return;
+    this._photoPhase = "review";
+    this.roundIndex = 0;
+    this.endIndex = 0;
+    this.persist();
   }
 
   /** 今のエンドの最後の矢を外す。データが消えるのはここだけ。restorePoint() で入れ直せる */
@@ -657,7 +785,7 @@ export class ScoreManager {
     while (rounds.length > 0) {
       const round = rounds[rounds.length - 1];
       const end = round.ends[round.ends.length - 1];
-      if (end && end.points.length === 0 && !hasComment(end)) {
+      if (end && isBlankEnd(end)) {
         round.ends.pop();
         continue;
       }

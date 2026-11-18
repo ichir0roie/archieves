@@ -2,16 +2,14 @@
 
 import { JSX, useEffect, useRef, useState } from "react";
 import ArrowSight from "@/components/ArrowSight";
+import PhotoAlignment from "@/components/PhotoAlignment";
+import PhotoViewer from "@/components/PhotoViewer";
+import { photoFileUrl } from "@/lib/api";
+import type { Point } from "@/lib/photo/alignment";
 import ScoreEntryActions from "@/components/ScoreEntryActions";
 import type { ScoreInputProps } from "@/components/ScoreEntryShell";
-import { ringClass, scoreToStr, zoneRadiusRatio } from "@/lib/score/scoreFunctions";
-import {
-  MAX_RING_SCORE,
-  MISS_SCORE,
-  X_SCORE,
-  arrowDiameterPx,
-  resolveTargetType,
-} from "@/lib/score/scoreConfig";
+import { ringClass, scoreAtPosition, scoreToStr, zoneRadiusRatio } from "@/lib/score/scoreFunctions";
+import { MISS_SCORE, X_SCORE, arrowDiameterPx, resolveTargetType } from "@/lib/score/scoreConfig";
 import { saveTargetDiameterPx } from "@/lib/storage";
 import { useT } from "@/lib/text";
 
@@ -28,23 +26,26 @@ export const TARGET_FACE_PADDING = 24;
  */
 const MIN_ARROW_MARK_PX = 8;
 
+/**
+ * エンドが満ちたあと、矢の印をこの距離(px)まで外して押しても、その矢を掴んで動かす。指は印より太いので、
+ * 印の大きさでなく指で押せる広さにする
+ */
+const GRAB_RADIUS_PX = 28;
+
 type Press = {
   pointerId: number;
-  /** 押した所(枠の左上からの px)。狙う点はここから動き始める */
-  startX: number;
-  startY: number;
+  /** 押した所(枠の左上からの px)。指の動きはここから測る */
+  fingerX: number;
+  fingerY: number;
+  /** 狙う点の動き始め。新しい矢は押した所、動かす矢はその矢の今の位置 */
+  originX: number;
+  originY: number;
   /** 狙う点(ズームの中央)。枠の左上からの px */
   x: number;
   y: number;
+  /** エンドが満ちたあとに掴んだ矢の番号。新しい矢を入れるときは null */
+  moving: number | null;
 };
-
-/** 中心からの距離(的の半径に対する割合)が入る帯の点数。線の上は内側(高い方)。的の外は外れ */
-function scoreAtDistance(distanceRatio: number): number {
-  for (let score = X_SCORE; score >= 1; score--) {
-    if (distanceRatio <= zoneRadiusRatio(score)) return score;
-  }
-  return MISS_SCORE;
-}
 
 export default function TargetCircleInput(props: ScoreInputProps) {
   const T = useT();
@@ -53,6 +54,8 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   const [height, setHeight] = useState<number>(0);
   const [maxDiameter, setMaxDiameter] = useState<number>(0);
   const [press, setPress] = useState<Press | null>(null);
+  const [viewingPhoto, setViewingPhoto] = useState(false);
+  const [aligning, setAligning] = useState(false);
   const { lensZoom, aimDivisor, lensSizePercent, alwaysShowSight } = props.aimSettings;
 
   useEffect(() => {
@@ -86,7 +89,24 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   const centerY = height - TARGET_FACE_PADDING - maxDiameter / 2;
   const targetTop = centerY - maxDiameter / 2;
 
+  // エンドが満ちたら新しい矢は入れず、押した近くの矢を掴んで動かす
   const isLocked = props.isEndFull || props.disabled;
+  // 補正のときは、エンドの写真を的に重ねる(補正できた写真)か、隅に小さく出す(まだ補正できない写真)
+  const photoView = props.photo?.phase === "review" ? props.photo.view : null;
+  const photoUrl = photoView?.imageUrl ?? null;
+  const photoExtent = photoView?.photo?.rectified ? photoView.photo.display_extent : null;
+  // 処理の済んだ写真なら、元の写真で的を手で合わせ直せる
+  const alignable = photoView?.photo?.status === "processed" ? photoView.photo : null;
+
+  /** 手で合わせた 4 点で補正し直す。矢が入っていれば、推測し直した矢で置き換えるかを聞く */
+  async function saveAlignment(points: Array<Point>): Promise<boolean> {
+    if (!alignable || !props.photo) return false;
+    const replace =
+      props.points.length === 0 || window.confirm(T.game.entry.photo.replaceConfirm);
+    const ok = await props.photo.align(alignable.id, points, replace);
+    if (ok) setAligning(false);
+    return ok;
+  }
   const { sizeCm } = resolveTargetType(props.targetType);
   const arrowPx = arrowDiameterPx(props.arrowDiameterMm, sizeCm, maxDiameter);
 
@@ -105,9 +125,37 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   function aimPoint(current: Press, event: React.PointerEvent<HTMLDivElement>) {
     const finger = fingerPoint(event);
     return {
-      x: current.startX + (finger.x - current.startX) / aimDivisor,
-      y: current.startY + (finger.y - current.startY) / aimDivisor,
+      x: current.originX + (finger.x - current.fingerX) / aimDivisor,
+      y: current.originY + (finger.y - current.fingerY) / aimDivisor,
     };
+  }
+
+  /** 枠の px での矢の位置。位置の無い矢は null */
+  function markPosition(point: { x: number | null; y: number | null }) {
+    if (point.x == null || point.y == null || (point.x === 0 && point.y === 0)) return null;
+    return {
+      x: centerX + (point.x - 0.5) * maxDiameter,
+      y: centerY + (point.y - 0.5) * maxDiameter,
+    };
+  }
+
+  /**
+   * 押した所にいちばん近い、掴める距離の中の矢の番号。無ければ null。
+   * 同じ所に重なった矢は、上に描かれている後の矢を掴む
+   */
+  function nearestPoint(finger: { x: number; y: number }): number | null {
+    let nearest: number | null = null;
+    let nearestDistance = Math.max(GRAB_RADIUS_PX, arrowPx);
+    props.points.forEach((point, index) => {
+      const position = markPosition(point);
+      if (!position) return;
+      const distance = Math.hypot(position.x - finger.x, position.y - finger.y);
+      if (distance <= nearestDistance) {
+        nearest = index;
+        nearestDistance = distance;
+      }
+    });
+    return nearest;
   }
 
   /**
@@ -123,22 +171,23 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     };
   }
 
-  /**
-   * 矢の中心が (x, y) のときの点数。矢をゲームで決めた直径(arrowPx)の円として、縁がいちばん
-   * 中心に寄った所で決める。円が少しでも帯の線にかかれば、高い方の帯の点数(線にかかった矢は高い方の得点、
-   * というアーチェリーの決まり)。
-   * インサイドアウトでは逆に、縁がいちばん外に出た所で決める。円が帯に完全に入らなければその帯の点にならず、
-   * 線にかかれば低い方、的の縁にかかれば外れ。
-   * インナー10(コンパウンド)では、X の外の 10 点の帯を 9 点にする。X の輪は X のまま
-   */
+  /** 矢の中心が枠の (x, y) px にあるときの点数(scoreAtPosition) */
   function scoreAt(x: number, y: number): number {
     if (maxDiameter === 0) return MISS_SCORE;
-    const distance = Math.hypot(x - centerX, y - centerY);
-    const radius = arrowPx / 2;
-    const edge = props.allIn ? distance + radius : Math.max(distance - radius, 0);
-    const score = scoreAtDistance(edge / (maxDiameter / 2));
-    return props.innerTen && score === MAX_RING_SCORE ? MAX_RING_SCORE - 1 : score;
+    const { relativeX, relativeY } = toTargetCoordinates(x, y);
+    return scoreAtPosition(relativeX, relativeY, {
+      arrowRatio: arrowPx / maxDiameter,
+      allIn: props.allIn,
+      innerTen: props.innerTen,
+    });
   }
+
+  // 動かしている矢は、狙う点に描く
+  const shownPoints = props.points.map((point, index) => {
+    if (press?.moving !== index) return point;
+    const { relativeX, relativeY } = toTargetCoordinates(press.x, press.y);
+    return { ...point, x: relativeX, y: relativeY };
+  });
 
   /*
    * 指で押すと指の下が見えないので、押した所を狙う点の起点にして、的の上の余白にズームを出す。
@@ -146,14 +195,21 @@ export default function TargetCircleInput(props: ScoreInputProps) {
    * 帯のボタンは点数の読み上げ・テストで指すために残し、記録そのものは枠が pointer events で受ける。
    */
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (isLocked || press) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (props.disabled || press) return;
     const finger = fingerPoint(event);
+    // 満ちたエンドでは、押した近くの矢を掴む。近くに無ければ何もしない
+    const moving = props.isEndFull ? nearestPoint(finger) : null;
+    if (props.isEndFull && moving === null) return;
+    const origin = moving === null ? finger : markPosition(props.points[moving]) ?? finger;
+    event.currentTarget.setPointerCapture(event.pointerId);
     setPress({
       pointerId: event.pointerId,
-      startX: finger.x,
-      startY: finger.y,
-      ...finger,
+      fingerX: finger.x,
+      fingerY: finger.y,
+      originX: origin.x,
+      originY: origin.y,
+      ...origin,
+      moving,
     });
   }
 
@@ -166,9 +222,15 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     if (!press || press.pointerId !== event.pointerId) return;
     const point = aimPoint(press, event);
     setPress(null);
-    if (isLocked) return;
+    if (props.disabled) return;
     const coordinates = toTargetCoordinates(point.x, point.y);
-    props.next(scoreAt(point.x, point.y), coordinates.relativeX, coordinates.relativeY);
+    const score = scoreAt(point.x, point.y);
+    if (press.moving !== null) {
+      props.movePoint(press.moving, score, coordinates.relativeX, coordinates.relativeY);
+      return;
+    }
+    if (isLocked) return;
+    props.next(score, coordinates.relativeX, coordinates.relativeY);
   }
 
   function handlePointerCancel(event: React.PointerEvent<HTMLDivElement>) {
@@ -303,7 +365,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
           }}
         >
           {lensCircles}
-          {props.points.map((point, index) => createArrow(point.x, point.y, index, lensZoom))}
+          {shownPoints.map((point, index) => createArrow(point.x, point.y, index, lensZoom))}
         </div>
         {/* 中央の帯と同じ色だと埋もれるので、帯のクラスを付けて反転色で描く(globals.css) */}
         {/* 十字の円は、ここに置く矢の太さ。円が帯の線にかかれば高い方の点数(インサイドアウトなら低い方)になる */}
@@ -322,14 +384,58 @@ export default function TargetCircleInput(props: ScoreInputProps) {
       {props.commentBar}
       <div
         ref={containerRef}
-        className={`TargetFace target-face ${press ? "pressing" : ""}`}
+        className={`TargetFace target-face ${press ? "pressing" : ""} ${photoExtent != null ? "with-photo" : ""}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
       >
+        {photoUrl && photoExtent != null && maxDiameter > 0 && (
+          // 補正した写真は、的に対する割合で -extent〜1+extent の正方形。的の帯と重なるように置き、
+          // 枠の外(下の操作のボタン)には出さない。枠そのものは切らない(ズームは枠の上にはみ出す)
+          <div className="target-photo-clip">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="TargetPhoto target-photo"
+              src={photoUrl}
+              alt=""
+              style={{
+                width: `${maxDiameter * (1 + 2 * photoExtent)}px`,
+                height: `${maxDiameter * (1 + 2 * photoExtent)}px`,
+                left: `${centerX - (maxDiameter * (1 + 2 * photoExtent)) / 2}px`,
+                top: `${centerY - (maxDiameter * (1 + 2 * photoExtent)) / 2}px`,
+              }}
+            />
+          </div>
+        )}
         {circles}
-        {props.points.map((point, index) => createArrow(point.x, point.y, index, null))}
+        {shownPoints.map((point, index) => createArrow(point.x, point.y, index, null))}
+        {photoUrl && (
+          <button
+            type="button"
+            className="TargetPhotoThumb target-photo-thumb"
+            aria-label={T.game.entry.photo.open}
+            // 的の枠が押すのを受けて矢を入れないよう、ここで止める
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => setViewingPhoto(true)}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photoUrl}
+              alt=""
+            />
+          </button>
+        )}
+        {alignable && (
+          <button
+            type="button"
+            className="TargetAlignButton target-align-button"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => setAligning(true)}
+          >
+            {T.game.entry.photo.align}
+          </button>
+        )}
         <button
           type="button"
           tabIndex={-1}
@@ -340,6 +446,20 @@ export default function TargetCircleInput(props: ScoreInputProps) {
         {maxDiameter > 0 && lens(press)}
       </div>
       <ScoreEntryActions {...props} />
+      {aligning && alignable && (
+        <PhotoAlignment
+          src={photoFileUrl(alignable.original_url)}
+          initial={(alignable.alignment_points as Array<Point> | null) ?? null}
+          onSave={saveAlignment}
+          onClose={() => setAligning(false)}
+        />
+      )}
+      {viewingPhoto && photoUrl && (
+        <PhotoViewer
+          src={photoUrl}
+          onClose={() => setViewingPhoto(false)}
+        />
+      )}
     </div>
   );
 }

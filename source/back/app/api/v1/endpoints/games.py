@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.api.pagination import Limit, Skip
 from app.crud import game as game_crud
+from app.crud import photo as photo_crud
 from app.db import User
 from app.schemas.game import (
     EndCreate,
@@ -24,6 +25,8 @@ from app.schemas.game import (
 )
 from app.schemas.game_sheet import GameSheetRead, GameSheetWrite
 from app.services import game_sheet as game_sheet_service
+from app.services import photos as photo_service
+from app.services.photo_storage import PhotoStorage, get_photo_storage
 
 # ゲーム・ラウンド・エンド・ポイントは本人のものだけを読み書きする。
 # 持ち主は要求で受けず、ログインから引く。
@@ -109,6 +112,7 @@ def save_game_sheet(
     sheet_in: GameSheetWrite,
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
+    storage: PhotoStorage = Depends(get_photo_storage),
 ) -> GameSheetRead:
     """入力の画面が手元に溜めたゲームの記録を、一度に保存する。
 
@@ -126,9 +130,12 @@ def save_game_sheet(
         if sheet_in.id is not None
         else None
     )
-    game = game_sheet_service.save_game_sheet(s, me, game, sheet_in)
+    discarded_keys: list[str] = []
+    game = game_sheet_service.save_game_sheet(s, me, game, sheet_in, discarded_keys)
     result = game_sheet_service.read_game_sheet(game)
     s.commit()
+    # 消したエンド・ラウンドの写真のファイルは、コミットのあとで消す
+    storage.delete(discarded_keys)
     return result
 
 
@@ -171,6 +178,7 @@ def delete_game(
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
 ) -> None:
+    """ゲームをゴミ箱へ。戻せるので、写真は消さない"""
     game = deps.get_own_or_404(me, game_crud.get_game, s, game_id, detail="Game not found")
     game_crud.delete_game(s, game)
     s.commit()
@@ -258,6 +266,7 @@ def delete_round(
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
 ) -> None:
+    """ラウンドをゴミ箱へ。戻せるので、写真は消さない"""
     round_ = deps.get_own_or_404(me, game_crud.get_round, s, round_id, detail="Round not found")
     game_crud.delete_round(s, round_)
     s.commit()
@@ -346,10 +355,14 @@ def delete_end(
     end_id: int,
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
+    storage: PhotoStorage = Depends(get_photo_storage),
 ) -> None:
+    """エンドを消す。エンドは戻せないので、写真も行とファイルを消す"""
     end = deps.get_own_or_404(me, game_crud.get_end, s, end_id, detail="End not found")
+    keys = photo_service.discard_photos(s, photo_crud.list_photos_for_ends(s, [end_id]))
     game_crud.delete_end(s, end)
     s.commit()
+    storage.delete(keys)
 
 
 @router.get("/ends/{end_id}/points", response_model=list[PointRead])

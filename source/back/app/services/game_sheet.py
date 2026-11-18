@@ -18,6 +18,7 @@ from app.core.target_types import check_target_type
 from app.crud import comment as comment_crud
 from app.crud import game as game_crud
 from app.crud import match as match_crud
+from app.crud import photo as photo_crud
 from app.db import End, Game, Point, Round, User
 from app.schemas.comment import AiCommentRead
 from app.schemas.game import GameFields, PointRead
@@ -31,6 +32,7 @@ from app.schemas.game_sheet import (
     RoundSheetWrite,
     SharedGameRead,
 )
+from app.services import photos as photo_service
 
 
 def _comment_body(comment: str | None) -> str | None:
@@ -83,7 +85,12 @@ def _save_points(s: Session, round_: Round, end: End, points_in: list[PointSheet
             game_crud.delete_point(s, point)
 
 
-def _save_ends(s: Session, round_: Round, ends_in: list[EndSheetWrite]) -> None:
+def _save_ends(
+    s: Session,
+    round_: Round,
+    ends_in: list[EndSheetWrite],
+    discarded_keys: list[str],
+) -> None:
     existing = {end.id: end for end in round_.ends}
     kept: set[int] = set()
     for end_in in ends_in:
@@ -102,10 +109,18 @@ def _save_ends(s: Session, round_: Round, ends_in: list[EndSheetWrite]) -> None:
         _save_points(s, round_, end, end_in.points)
     for end_id, end in existing.items():
         if end_id not in kept:
+            discarded_keys += photo_service.discard_photos(
+                s, photo_crud.list_photos_for_ends(s, [end_id])
+            )
             game_crud.delete_end(s, end)
 
 
-def _save_rounds(s: Session, game: Game, rounds_in: list[RoundSheetWrite]) -> None:
+def _save_rounds(
+    s: Session,
+    game: Game,
+    rounds_in: list[RoundSheetWrite],
+    discarded_keys: list[str],
+) -> None:
     existing = {round_.id: round_ for round_ in game.rounds}
     kept: set[int] = set()
     for round_in in rounds_in:
@@ -128,9 +143,10 @@ def _save_rounds(s: Session, game: Game, rounds_in: list[RoundSheetWrite]) -> No
         round_.distance_m = round_in.distance_m
         round_.target_type = round_in.target_type
         comment_crud.save_comment(s, round_, round_.comment, _comment_body(round_in.comment))
-        _save_ends(s, round_, round_in.ends)
+        _save_ends(s, round_, round_in.ends, discarded_keys)
     for round_id, round_ in existing.items():
         if round_id not in kept:
+            # ゴミ箱へ入れるだけで戻せるので、写真は消さない
             game_crud.delete_round(s, round_)
 
 
@@ -139,12 +155,15 @@ def save_game_sheet(
     me: User,
     game: Game | None,
     sheet_in: GameSheetWrite,
+    discarded_keys: list[str],
 ) -> Game:
     """送られた記録でゲームを作る・上書きする。コミットは呼ぶ側がする。
 
     game は sheet_in.id のゲームを、持ち主を確かめて get_game_sheet で引いたもの
     (id が無ければ None)。
     返すゲームは、書いたあとの記録を読み直したもの。
+    送られてこずに消したエンドの写真は行を消し、ファイルのキーを discarded_keys に足す
+    (呼ぶ側がコミットのあとで置き場から消す)。ゴミ箱へ入れたラウンドの写真は消さない。
     """
     if game is None:
         game = _find_or_create_game(s, me, sheet_in)
@@ -162,7 +181,7 @@ def save_game_sheet(
             match_id = None
         game.match_id = match_id
     comment_crud.save_comment(s, game, game.comment, _comment_body(sheet_in.comment))
-    _save_rounds(s, game, sheet_in.rounds)
+    _save_rounds(s, game, sheet_in.rounds, discarded_keys)
     s.flush()
     return game_crud.refresh_game_sheet(s, game)
 
@@ -178,6 +197,8 @@ def read_game_sheet(game: Game) -> GameSheetRead:
         bow_type=game.bow_type,
         arrow_diameter_mm=game.arrow_diameter_mm,
         all_in=game.all_in,
+        nock_color=game.nock_color,
+        fletch_color=game.fletch_color,
         backfilled=game.backfilled,
         match_id=game.match_id,
         comment=game.comment.body if game.comment else None,
@@ -199,6 +220,7 @@ def read_game_sheet(game: Game) -> GameSheetRead:
                         recorded_at=end.recorded_at,
                         comment=end.comment.body if end.comment else None,
                         points=[PointRead.model_validate(point) for point in end.points],
+                        has_photo=end.photo is not None,
                     )
                     for end in round_.ends
                 ],

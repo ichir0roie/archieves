@@ -146,6 +146,8 @@ function ScoreViewContent() {
   const matchId = loaded.data?.matchId ?? null;
   const rounds = loaded.data?.rounds ?? null;
   const error = actionError ?? loaded.error;
+  // 写真モードで撮ったゲーム。元の写真の一覧と、写真を見ての補正へ行ける
+  const hasPhotos = rounds?.some((viewRound) => viewRound.ends.some((viewEnd) => viewEnd.end.has_photo)) ?? false;
 
   // コメントは押した時点で画面に出す(API には裏で書く)ので、読んだものとは別に持つ。読み直したら読んだものに戻す
   const [comments, setComments] = useState<CommentTexts>(NO_COMMENTS);
@@ -231,8 +233,8 @@ function ScoreViewContent() {
   }
 
   // 入力の画面は手元のキャッシュから開く。ここで API から丸ごと読んでキャッシュを作り直し、
-  // いちばん最後のエンドに戻る
-  async function editGame() {
+  // いちばん最後のエンドに戻る。photoReview なら、写真を見ての補正として最初のエンドから開く
+  async function editGame(photoReview: boolean = false) {
     if (gameId === null) return;
     setActionError(null);
     try {
@@ -245,7 +247,7 @@ function ScoreViewContent() {
       }
       // 裏で書いているコメントが API に届いてから読む。でないと編集の保存で、そのコメントを消してしまう
       await Promise.all(commentWrites.current.values());
-      await ScoreManager.startEditing(userId, gameId);
+      await ScoreManager.startEditing(userId, gameId, photoReview);
       router.push(SCORE_CARD_PATH);
     } catch (e) {
       setActionError(toErrorDetails(e));
@@ -352,8 +354,25 @@ function ScoreViewContent() {
               rounds={rounds}
               comment={comments.game}
               onSaveComment={onSaveGameComment}
-              onEdit={editGame}
+              onEdit={() => editGame()}
             />
+          )}
+          {gameId !== null && hasPhotos && (
+            <div className="GamePhotos stack tight">
+              <button
+                type="button"
+                className="ReviewWithPhotosButton block"
+                onClick={() => editGame(true)}
+              >
+                {T.profile.scoreView.reviewWithPhotos}
+              </button>
+              <Link
+                className="GamePhotosLink"
+                href={`/score-view/photos?gameId=${gameId}`}
+              >
+                {T.profile.scoreView.photos}
+              </Link>
+            </div>
           )}
           {loaded.data?.aiComment && (
             <AiCommentPanel aiComment={loaded.data.aiComment} />

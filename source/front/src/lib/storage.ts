@@ -6,12 +6,16 @@ import {
   isValidRoundSetup,
   selectableTargetTypeId,
   type AimSettings,
+  type InputMode,
   type RoundSetup,
 } from "@/lib/score/scoreConfig";
 import {
   SCORE_SHEET_CACHE_VERSION,
+  type PhotoPhase,
   type ScoreSheetCache,
   type Sheet,
+  type SheetEnd,
+  type SheetRound,
 } from "@/lib/score/scoreSheetCache";
 
 const ROUND_SETUP_KEY = "roundSetup";
@@ -148,22 +152,27 @@ export function subscribeCachedAppUser(onChange: () => void): () => void {
   };
 }
 
+const INPUT_MODE_KEY = "inputMode";
+/** 入れ方に写真を足す前の、点だけ入力かどうかのキー。残っていれば、点だけ入力の既定に使う */
 const NUMBER_PAD_KEY = "numberPadInput";
 
-/** 前回のゲームを点だけ入力で始めたか。設定の画面のチェックの既定にする */
-export function saveLastNumberPad(numberPad: boolean) {
+/** 前回のゲームを始めた入れ方。設定の画面の既定にする */
+export function saveLastInputMode(mode: InputMode) {
   try {
-    localStorage.setItem(NUMBER_PAD_KEY, JSON.stringify(numberPad));
+    localStorage.setItem(INPUT_MODE_KEY, mode);
+    localStorage.removeItem(NUMBER_PAD_KEY);
   } catch {
     // 保存できなければ、次は的で入れる既定になるだけ
   }
 }
 
-export function loadLastNumberPad(): boolean {
+export function loadLastInputMode(): InputMode {
   try {
-    return JSON.parse(localStorage.getItem(NUMBER_PAD_KEY) ?? "false") === true;
+    const saved = localStorage.getItem(INPUT_MODE_KEY);
+    if (saved === "target" || saved === "numberPad" || saved === "photo") return saved;
+    return JSON.parse(localStorage.getItem(NUMBER_PAD_KEY) ?? "false") === true ? "numberPad" : "target";
   } catch {
-    return false;
+    return "target";
   }
 }
 
@@ -222,10 +231,21 @@ function scoreSheetKey(sub: string) {
 const LEGACY_SCORE_SHEET_KEY = "scoreSheet";
 
 /** localStorage に残っているかもしれない、古い形も含めたキャッシュ */
-type StoredScoreSheetCache = Omit<ScoreSheetCache, "sub" | "sheet" | "numberPad"> & {
+type StoredScoreSheetCache = Omit<ScoreSheetCache, "sub" | "sheet" | "numberPad" | "photoPhase"> & {
   /** 点だけ入力を足す前のキャッシュには無い(的で入れていたもの) */
   numberPad?: boolean;
-  sheet: Omit<Sheet, "arrow_diameter_mm" | "all_in" | "backfilled"> & {
+  /** 写真モードを足す前のキャッシュには無い */
+  photoPhase?: PhotoPhase | null;
+  sheet: Omit<Sheet, "arrow_diameter_mm" | "all_in" | "backfilled" | "rounds" | "nock_color" | "fletch_color"> & {
+    /** 矢の色を足す前のキャッシュには無い */
+    nock_color?: Sheet["nock_color"];
+    fletch_color?: Sheet["fletch_color"];
+    rounds: Array<
+      Omit<SheetRound, "ends"> & {
+        /** 写真モードを足す前のキャッシュには、写真の印が無い */
+        ends: Array<Omit<SheetEnd, "has_photo" | "estimates_applied"> & Partial<SheetEnd>>;
+      }
+    >;
     /** 矢の直径を px で持っていたころのキャッシュには無い */
     arrow_diameter_mm?: number | null;
     /** 矢の直径を px で持っていたころの欄。的の大きさが分からず mm に直せないので捨て、既定の太さにする */
@@ -264,16 +284,24 @@ export function loadScoreSheetCache(sub: string): ScoreSheetCache | null {
     ...stored,
     sub,
     numberPad: stored.numberPad ?? false,
+    photoPhase: stored.photoPhase ?? null,
     sheet: {
       ...sheet,
       arrow_diameter_mm: sheet.arrow_diameter_mm ?? null,
       all_in: sheet.all_in ?? false,
+      nock_color: sheet.nock_color ?? null,
+      fletch_color: sheet.fletch_color ?? null,
       backfilled: sheet.backfilled ?? false,
       match_id: sheet.match_id ?? null,
       // db の的の名前はマイグレーションで変えたので、送ると変えたとみなされて弾かれないよう合わせる
       rounds: sheet.rounds.map((round) => ({
         ...round,
         target_type: currentTargetTypeId(round.target_type),
+        ends: round.ends.map((end) => ({
+          ...end,
+          has_photo: end.has_photo ?? false,
+          estimates_applied: end.estimates_applied ?? false,
+        })),
       })),
     },
     setup: stored.setup && {

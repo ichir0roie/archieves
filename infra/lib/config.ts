@@ -12,6 +12,9 @@ export interface DeployConfig {
   db: { instanceIdentifier: string; name: string };
   // Lambda を置くサブネット。省けば RDS の DB サブネットグループのもの
   functionSubnetIds?: string[];
+  // 写真の置き場(S3)へ、ブラウザが直に送り・読むのを許すサイトの origin(https://<ドメイン>)。
+  // 省けばどこからでも許す(署名付き URL が無ければ読み書きできないので、漏れはしない)
+  webOrigins?: Partial<Record<Stage, string[]>>;
 }
 
 export function loadDeployConfig(): DeployConfig {
@@ -94,6 +97,11 @@ export interface StageConfig {
   appDatabaseUser: string;
   // マイグレーションを流す db のロール。表の持ち主(infra/sql/archieves_roles.sql)
   migrationDatabaseUser: string;
+  // 写真の置き場へ、ブラウザが直に届くのを許す origin
+  webOrigins: string[];
+  // VPC に S3 のゲートウェイエンドポイントを作る。本番と develop は同じ VPC なので、本番のスタックだけが作る
+  // (develop のスタックは本番のものを使う。本番より先に develop を建てると、develop の写真の処理は S3 に届かない)
+  createS3GatewayEndpoint: boolean;
 }
 
 export function stageConfig(stage: Stage, config: DeployConfig): StageConfig {
@@ -116,6 +124,8 @@ export function stageConfig(stage: Stage, config: DeployConfig): StageConfig {
       amplifyComputeRole: "own",
       appDatabaseUser: "archieves_app",
       migrationDatabaseUser: "archieves_migrator",
+      webOrigins: config.webOrigins?.prod ?? ["*"],
+      createS3GatewayEndpoint: true,
     };
   }
   return {
@@ -137,5 +147,7 @@ export function stageConfig(stage: Stage, config: DeployConfig): StageConfig {
     amplifyComputeRole: { parameterName: "/archieves/amplify/compute-role-arn" },
     appDatabaseUser: "archieves_dev_app",
     migrationDatabaseUser: "archieves_dev_migrator",
+    webOrigins: config.webOrigins?.dev ?? ["*"],
+    createS3GatewayEndpoint: false,
   };
 }

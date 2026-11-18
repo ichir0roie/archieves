@@ -4,5 +4,9 @@
     "instanceIdentifier": "<RDS のインスタンス名>",
     "name": "archieves"
   },
-  "functionSubnetIds": ["subnet-xxxxxxxx", "subnet-yyyyyyyy"]
+  "functionSubnetIds": ["subnet-xxxxxxxx", "subnet-yyyyyyyy"],
+  "webOrigins": {
+    "prod": ["https://<本番のドメイン>"],
+    "dev": ["https://develop.<Amplify のアプリのドメイン>"]
+  }
 }

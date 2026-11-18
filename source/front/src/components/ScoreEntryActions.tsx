@@ -74,43 +74,66 @@ function FinishIcon() {
  */
 export default function ScoreEntryActions(props: ScoreInputProps) {
   const T = useT();
+  // 写真モードの撮影は、点数を付けずにエンドを進めるだけ。終了の代わりに補正へ進む
+  const recording = props.photo?.phase === "record";
+  const startReview = props.photo?.startReview;
   return (
     <div className="ScoreEntryActions score-actions">
-      <button
-        type="button"
-        className={props.isGameComplete ? "step finish success" : "step finish"}
-        onClick={props.finish}
-        disabled={props.disabled}
-      >
-        <FinishIcon />
-        <span className="caption">{T.game.entry.finish}</span>
-      </button>
-      <button
-        type="button"
-        className="step"
-        onClick={props.backPoint}
-        disabled={props.disabled || !props.canBackPoint}
-        aria-label={T.game.entry.backPoint}
-      >
-        <StepIcon
-          direction="back"
-          double={false}
-        />
-        <span className="caption">{T.game.entry.pointCaption}</span>
-      </button>
-      <button
-        type="button"
-        className="step"
-        onClick={props.forwardPoint}
-        disabled={props.disabled || !props.canForwardPoint}
-        aria-label={T.game.entry.forwardPoint}
-      >
-        <StepIcon
-          direction="forward"
-          double={false}
-        />
-        <span className="caption">{T.game.entry.pointCaption}</span>
-      </button>
+      {recording && startReview ? (
+        <button
+          type="button"
+          className={
+            props.isGameComplete ? "PhotoToReview step finish success" : "PhotoToReview step finish"
+          }
+          onClick={() => {
+            if (window.confirm(T.game.entry.photo.reviewConfirm)) startReview();
+          }}
+          disabled={props.disabled}
+        >
+          <FinishIcon />
+          <span className="caption">{T.game.entry.photo.toReview}</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          className={props.isGameComplete ? "step finish success" : "step finish"}
+          onClick={props.finish}
+          disabled={props.disabled}
+        >
+          <FinishIcon />
+          <span className="caption">{T.game.entry.finish}</span>
+        </button>
+      )}
+      {!recording && (
+        <>
+          <button
+            type="button"
+            className="step"
+            onClick={props.backPoint}
+            disabled={props.disabled || !props.canBackPoint}
+            aria-label={T.game.entry.backPoint}
+          >
+            <StepIcon
+              direction="back"
+              double={false}
+            />
+            <span className="caption">{T.game.entry.pointCaption}</span>
+          </button>
+          <button
+            type="button"
+            className="step"
+            onClick={props.forwardPoint}
+            disabled={props.disabled || !props.canForwardPoint}
+            aria-label={T.game.entry.forwardPoint}
+          >
+            <StepIcon
+              direction="forward"
+              double={false}
+            />
+            <span className="caption">{T.game.entry.pointCaption}</span>
+          </button>
+        </>
+      )}
       <button
         type="button"
         className="step"
@@ -126,7 +149,11 @@ export default function ScoreEntryActions(props: ScoreInputProps) {
       </button>
       <button
         type="button"
-        className={props.isEndFull && !props.isGameComplete ? "step primary" : "step"}
+        className={
+          (recording ? props.photo?.view !== null : props.isEndFull) && !props.isGameComplete
+            ? "step primary"
+            : "step"
+        }
         onClick={props.forwardEnd}
         disabled={props.disabled || !props.canForwardEnd}
         aria-label={T.game.entry.forwardEnd}

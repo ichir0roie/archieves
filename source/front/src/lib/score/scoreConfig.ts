@@ -1,4 +1,4 @@
-import type { BowType } from "@/lib/api/schemas";
+import type { ArrowColor, BowType } from "@/lib/api/schemas";
 
 /**
  * archieves-api's Round carries end_size/round_size/distance_m/target_type
@@ -184,6 +184,26 @@ export interface RoundSetup {
   arrowDiameterMm: number;
   /** インサイドアウト: 矢の円が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方) */
   allIn: boolean;
+  /** 矢のノック・羽根の色。写真モードで、同じ的のほかの人の矢と自分の矢を見分ける。決めていなければ null */
+  nockColor: ArrowColor | null;
+  fletchColor: ArrowColor | null;
+}
+
+/** 矢の色の選択肢(API の ArrowColor)。画面に並べる順 */
+export const ARROW_COLORS: ReadonlyArray<ArrowColor> = [
+  "green",
+  "orange",
+  "pink",
+  "yellow",
+  "red",
+  "blue",
+  "purple",
+  "white",
+  "black",
+];
+
+function isArrowColorOrNull(value: unknown): value is ArrowColor | null {
+  return value === null || ARROW_COLORS.includes(value as ArrowColor);
 }
 
 export const DEFAULT_ROUND_SETUP: RoundSetup = {
@@ -195,6 +215,8 @@ export const DEFAULT_ROUND_SETUP: RoundSetup = {
   gameSize: DEFAULT_GAME_SIZE,
   arrowDiameterMm: DEFAULT_ARROW_DIAMETER_MM,
   allIn: false,
+  nockColor: null,
+  fletchColor: null,
 };
 
 function isBowName(value: unknown): value is string {
@@ -215,6 +237,8 @@ export function isValidRoundSetup(setup: RoundSetup): boolean {
     isWithin(setup.gameSize, MIN_GAME_SIZE, MAX_GAME_SIZE) &&
     isWithin(setup.arrowDiameterMm, MIN_ARROW_DIAMETER_MM, MAX_ARROW_DIAMETER_MM) &&
     typeof setup.allIn === "boolean" &&
+    isArrowColorOrNull(setup.nockColor) &&
+    isArrowColorOrNull(setup.fletchColor) &&
     isSelectableTargetType(setup.targetType)
   );
 }
@@ -224,6 +248,12 @@ export function isValidRoundSetup(setup: RoundSetup): boolean {
  * 端末ごとの好みなので RoundSetup とは分けて持つ(storage.ts の loadAimSettings)
  */
 export type Handedness = "right" | "left";
+
+/**
+ * ゲームの入れ方。target は的を押す、numberPad は数字のボタンで点数だけ、photo はエンドごとに的の写真を撮り、
+ * 最後に写真を見ながら矢を入れ・直す(写真モード)。始めるときに決め、途中では変えない
+ */
+export type InputMode = "target" | "numberPad" | "photo";
 
 export interface AimSettings {
   lensZoom: number;
