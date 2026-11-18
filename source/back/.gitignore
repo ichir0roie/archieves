@@ -13,3 +13,6 @@ dist/
 htmlcov/
 .coverage
 
+
+# 手元の写真の置き場(設定の PHOTO_LOCAL_DIR)
+.photos/

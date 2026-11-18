@@ -60,6 +60,17 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 0
     DB_POOL_PRE_PING: bool = True
 
+    # 写真モードの写真の置き場(app/services/photo_storage.py)。
+    # "s3" は本番。ブラウザは署名付き URL で PHOTO_BUCKET に直に送り・読む
+    # (API の Lambda を通すと 6MB の上限にかかるため)。
+    # "local" は手元・テスト。PHOTO_LOCAL_DIR に書き、送る・読むは API を通す
+    PHOTO_STORAGE: Literal["local", "s3"] = "local"
+    PHOTO_BUCKET: str = ""
+    # 相対パスは API を起こした所(source/back)から。git には入れない(.gitignore)
+    PHOTO_LOCAL_DIR: str = ".photos"
+    # 署名付き URL の期限(秒)。送り直し・画面の開き直しのたびに作り直すので長くしない
+    PHOTO_URL_EXPIRES_SECONDS: int = 3600
+
 
 class DebugSettings(BaseSettings):
     """Local-dev/test-only knobs, kept out of Settings so production config

@@ -438,7 +438,7 @@
           "users"
         ],
         "summary": "Delete My User",
-        "description": "本人のアカウントと記録をすべて消す。Cognito の利用者はフロントが消す。",
+        "description": "本人のアカウントと記録をすべて消す。写真のファイルも消す。Cognito の利用者はフロントが消す。",
         "operationId": "delete_my_user_api_v1_users_me_delete",
         "responses": {
           "204": {
@@ -2527,6 +2527,278 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ends/{end_id}/photo": {
+      "post": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "Start Photo Upload",
+        "description": "エンドの写真を受け付け、元の写真を送る先を返す。撮り直しなら前の写真と置き換える",
+        "operationId": "start_photo_upload_api_v1_ends__end_id__photo_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "end_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "End Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhotoUploadCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoUploadRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/photos/{photo_id}/process": {
+      "post": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "Process Photo",
+        "description": "置き場に届いた元の写真を処理する。処理が済んでいれば、処理し直さずに今の結果を返す",
+        "operationId": "process_photo_api_v1_photos__photo_id__process_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "photo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Photo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndPhotoRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/{game_id}/photos": {
+      "get": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "List Game Photos",
+        "description": "ゲームのエンドの写真を、ラウンド・エンドの順に。処理の済んでいないものも含める",
+        "operationId": "list_game_photos_api_v1_games__game_id__photos_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EndPhotoRead"
+                  },
+                  "title": "Response List Game Photos Api V1 Games  Game Id  Photos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/photos/{photo_id}/file": {
+      "put": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "Upload Photo File",
+        "description": "手元の置き場へ、元の写真を送る(S3 の署名付き URL への PUT の代わり)",
+        "operationId": "upload_photo_file_api_v1_photos__photo_id__file_put",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "photo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Photo Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "Read Photo File",
+        "description": "手元の置き場の、元の写真か表示の画像を読む(S3 の署名付き URL の GET の代わり)",
+        "operationId": "read_photo_file_api_v1_photos__photo_id__file_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "photo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Photo Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "original",
+                "display"
+              ],
+              "type": "string",
+              "default": "original",
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -5950,6 +6222,138 @@
         ],
         "title": "EndCreate"
       },
+      "EndPhotoRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "end_id": {
+            "type": "integer",
+            "title": "End Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "rectified": {
+            "type": "boolean",
+            "title": "Rectified"
+          },
+          "display_extent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Extent"
+          },
+          "estimates": {
+            "items": {
+              "$ref": "#/components/schemas/EstimatedArrowRead"
+            },
+            "type": "array",
+            "title": "Estimates"
+          },
+          "analyzer_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analyzer Version"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "processed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processed At"
+          },
+          "original_url": {
+            "type": "string",
+            "title": "Original Url"
+          },
+          "display_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "end_id",
+          "status",
+          "width",
+          "height",
+          "rectified",
+          "display_extent",
+          "estimates",
+          "analyzer_version",
+          "error",
+          "created_at",
+          "processed_at",
+          "original_url",
+          "display_url"
+        ],
+        "title": "EndPhotoRead"
+      },
       "EndRead": {
         "properties": {
           "number": {
@@ -6067,6 +6471,10 @@
             },
             "type": "array",
             "title": "Points"
+          },
+          "has_photo": {
+            "type": "boolean",
+            "title": "Has Photo"
           }
         },
         "type": "object",
@@ -6075,7 +6483,8 @@
           "number",
           "recorded_at",
           "comment",
-          "points"
+          "points",
+          "has_photo"
         ],
         "title": "EndSheetRead"
       },
@@ -6231,6 +6640,30 @@
         ],
         "title": "ErrorReportKind",
         "description": "フロントが送るエラーの種類。"
+      },
+      "EstimatedArrowRead": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "confidence"
+        ],
+        "title": "EstimatedArrowRead",
+        "description": "推測した矢の刺さった所。x・y は的に対する割合(左上が 0、中心が 0.5)"
       },
       "FeedbackCreate": {
         "properties": {
@@ -7831,6 +8264,49 @@
         "type": "object",
         "title": "OrganizationUpdate",
         "description": "管理者が組織を直す。送った欄だけを書き、null は空にする(名前は空にできない)"
+      },
+      "PhotoUploadCreate": {
+        "properties": {
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp"
+            ],
+            "title": "Content Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content_type"
+        ],
+        "title": "PhotoUploadCreate"
+      },
+      "PhotoUploadRead": {
+        "properties": {
+          "photo": {
+            "$ref": "#/components/schemas/EndPhotoRead"
+          },
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url"
+          },
+          "upload_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Upload Headers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "photo",
+          "upload_url",
+          "upload_headers"
+        ],
+        "title": "PhotoUploadRead"
       },
       "PointCreate": {
         "properties": {

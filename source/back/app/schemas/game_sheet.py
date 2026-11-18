@@ -69,6 +69,8 @@ class EndSheetRead(ResponseModel):
     recorded_at: date
     comment: str | None
     points: list[PointRead]
+    # 写真モードで写真を撮ったエンド。矢がまだ無くても、空のエンドとして捨てない(フロントの保存)
+    has_photo: bool
 
 
 class RoundSheetRead(ResponseModel):

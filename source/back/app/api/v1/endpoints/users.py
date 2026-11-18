@@ -12,6 +12,7 @@ from app.crud import organization as organization_crud
 from app.crud import user as user_crud
 from app.db import User
 from app.schemas.user import MeRead, UserCreate, UserUpdate
+from app.services.photo_storage import PhotoStorage, get_photo_storage, user_prefix
 
 router = APIRouter()
 
@@ -62,7 +63,13 @@ def update_my_user(
 def delete_my_user(
     me: User = Depends(deps.get_me),
     s: Session = Depends(deps.get_session),
+    storage: PhotoStorage = Depends(get_photo_storage),
 ) -> None:
-    """本人のアカウントと記録をすべて消す。Cognito の利用者はフロントが消す。"""
+    """本人のアカウントと記録をすべて消す。写真のファイルも消す。
+
+    Cognito の利用者はフロントが消す。
+    """
+    prefix = user_prefix(me.id)
     user_crud.delete_user(s, me)
     s.commit()
+    storage.delete_prefix(prefix)

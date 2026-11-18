@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     matches,
     mcp,
     organizations,
+    photos,
     public,
     statistics,
     support,
@@ -41,6 +42,7 @@ authenticated_router.include_router(
     organizations.admin_router, prefix="/admin/organizations", tags=["organizations"]
 )
 authenticated_router.include_router(games.router, tags=["games"])
+authenticated_router.include_router(photos.router, tags=["photos"])
 authenticated_router.include_router(matches.router, tags=["matches"])
 authenticated_router.include_router(comments.router, tags=["comments"])
 authenticated_router.include_router(imports.router, tags=["imports"])

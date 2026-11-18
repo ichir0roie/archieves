@@ -76,6 +76,7 @@ def _with_sheet(stmt: Select[tuple[Game]]) -> Select[tuple[Game]]:
             joinedload(Round.ends).options(
                 joinedload(End.comment),
                 joinedload(End.points),
+                joinedload(End.photo),
             ),
         ),
     ).execution_options(populate_existing=True)

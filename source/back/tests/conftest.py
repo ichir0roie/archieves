@@ -19,6 +19,7 @@ from app.core.security import ACCESS_TOKEN_HEADER, Claims  # noqa: E402
 from app.crud import access_token as access_token_crud  # noqa: E402
 from app.db.session import engine  # noqa: E402
 from app.main import app  # noqa: E402
+from app.services.photo_storage import LocalPhotoStorage, get_photo_storage  # noqa: E402
 from mods import factory_db  # noqa: E402
 
 TEST_CLAIMS = Claims(sub="test-user-sub", username="testuser", email="test@example.com")
@@ -39,6 +40,15 @@ def _schema() -> None:
         TEST_DATABASE_URL,
         reset=os.environ.get("ARCHIEVES_TEST_DB_RESET") == "1",
     )
+
+
+@pytest.fixture(autouse=True)
+def photo_storage(tmp_path) -> Generator[LocalPhotoStorage]:
+    """写真の置き場を、テストごとの一時ディレクトリにする(手元の .photos に書かない)。"""
+    storage = LocalPhotoStorage(tmp_path / "photos")
+    app.dependency_overrides[get_photo_storage] = lambda: storage
+    yield storage
+    app.dependency_overrides.pop(get_photo_storage, None)
 
 
 @pytest.fixture()
@@ -92,7 +102,8 @@ def unregistered_client(s: Session) -> Generator[TestClient]:
     app.dependency_overrides[deps.get_optional_current_user] = lambda: TEST_CLAIMS
     with TestClient(app) as test_client:
         yield test_client
-    app.dependency_overrides.clear()
+    app.dependency_overrides.pop(deps.get_session, None)
+    app.dependency_overrides.pop(deps.get_optional_current_user, None)
 
 
 @pytest.fixture()

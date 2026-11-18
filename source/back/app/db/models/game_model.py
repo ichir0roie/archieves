@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         RoundComment,
     )
     from app.db.models.match_model import Match
+    from app.db.models.photo_model import EndPhoto
     from app.db.models.system_model import User
 
 
@@ -140,6 +141,10 @@ class End(TimestampMixin, Base):
         order_by=lambda: [Point.number, Point.id],
     )
     comment: Mapped[EndComment | None] = relationship(
+        back_populates="end", cascade="all, delete-orphan", uselist=False, lazy="noload"
+    )
+    # 写真モードで撮った写真。置き場のファイルは行を消しても残る(app/services/photo_storage.py)
+    photo: Mapped[EndPhoto | None] = relationship(
         back_populates="end", cascade="all, delete-orphan", uselist=False, lazy="noload"
     )
 

@@ -199,6 +199,7 @@ def read_game_sheet(game: Game) -> GameSheetRead:
                         recorded_at=end.recorded_at,
                         comment=end.comment.body if end.comment else None,
                         points=[PointRead.model_validate(point) for point in end.points],
+                        has_photo=end.photo is not None,
                     )
                     for end in round_.ends
                 ],

@@ -5,6 +5,7 @@ import * as ecr from "aws-cdk-lib/aws-ecr";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as logs from "aws-cdk-lib/aws-logs";
+import * as s3 from "aws-cdk-lib/aws-s3";
 import * as ssm from "aws-cdk-lib/aws-ssm";
 import type { Construct } from "constructs";
 import { type ExistingDb, repositoryName, type StageConfig } from "./config.js";
@@ -68,6 +69,28 @@ export class ArchievesApiStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
+    // 写真モードの写真の置き場(source/back の app/services/photo_storage.py)。ブラウザは API が署名した URL で
+    // 直に PUT・GET する(Lambda を通すと 6MB の上限にかかるため)。署名付き URL が鍵なので、公開はしない
+    const photoBucket = new s3.Bucket(this, "PhotoBucket", {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      // 利用者の記録なので、スタックを消しても残す
+      removalPolicy: RemovalPolicy.RETAIN,
+      cors: [{
+        allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET],
+        allowedOrigins: stage.webOrigins,
+        allowedHeaders: ["Content-Type"],
+        maxAge: 3600,
+      }],
+      lifecycleRules: [{ abortIncompleteMultipartUploadAfter: Duration.days(1) }],
+    });
+    // Lambda は NAT の無い VPC の中にいるので、処理のときに元の写真を読み・表示の画像を書くには S3 の
+    // ゲートウェイエンドポイントが要る(料金はかからない)。同じ VPC に二つは作れないので、一つのスタックだけが作る
+    if (stage.createS3GatewayEndpoint) {
+      vpc.addGatewayEndpoint("S3GatewayEndpoint", { service: ec2.GatewayVpcEndpointAwsService.S3 });
+    }
+
     // CI が差し替えたイメージは、template の ImageUri(repo:main)が変わらない限り cdk deploy で戻らない
     const fn = new lambda.DockerImageFunction(this, "Function", {
       functionName: api.functionName,
@@ -87,8 +110,13 @@ export class ArchievesApiStack extends Stack {
         AUTH_MODE: "proxy",
         DB_POOL_SIZE: String(api.dbPoolSize),
         API_KEYS: `web=${readApiKey(parameterPrefix, "web")}`,
+        PHOTO_STORAGE: "s3",
+        PHOTO_BUCKET: photoBucket.bucketName,
       },
     });
+    // 読み書きと、撮り直し・アカウントの削除での消し(一覧も要る)
+    photoBucket.grantReadWrite(fn);
+    photoBucket.grantDelete(fn);
     // 署名の無い要求は関数が起きる前に Lambda が弾くので、URL を叩かれ続けても料金もログも生まれない。
     // 署名の上に合言葉(x-archieves-api-key。app/core/api_keys.py)も要るので、ロールを持つ別のものが呼んでも通らない
     const url = fn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.AWS_IAM });
@@ -150,6 +178,7 @@ export class ArchievesApiStack extends Stack {
     new CfnOutput(this, "FunctionUrl", { value: url.url });
     new CfnOutput(this, "AmplifyComputeRoleArn", { value: amplifyComputeRoleArn });
     new CfnOutput(this, "MigrationFunctionName", { value: migrationFunction.functionName });
+    new CfnOutput(this, "PhotoBucketName", { value: photoBucket.bucketName });
   }
 }
 
