@@ -9,6 +9,8 @@ import { getCurrentUser } from "@/lib/auth/currentUser";
 import { type CommentTarget } from "@/lib/comment";
 import { type RoundSetup } from "@/lib/score/scoreConfig";
 import { matchPath } from "@/lib/score/match";
+import { scoreAtPosition, isInnerTenBow } from "@/lib/score/scoreFunctions";
+import { usePhotoQueue } from "@/lib/photo/usePhotoQueue";
 
 /** The notes shown on the entry screen: the game's, and the round/end in progress. */
 export interface ScoreComments {
@@ -27,6 +29,8 @@ export interface ScoreComments {
 export function useScoreGame(beforeLeave: () => void) {
   const router = useRouter();
   const [manager, setManager] = useState<ScoreManager | null>(null);
+  // 写真を端末に置くときの持ち主(ログインの sub)
+  const [sub, setSub] = useState<string | null>(null);
   const [mirrorPoints, setMirrorPoints] = useState<Array<SheetPoint>>([]);
   const [progress, setProgress] = useState<ScoreProgress | null>(null);
   const [comments, setComments] = useState<ScoreComments>({
@@ -65,6 +69,7 @@ export function useScoreGame(beforeLeave: () => void) {
           router.replace("/");
           return;
         }
+        setSub(userId);
         setManager(scoreManager);
         syncFrom(scoreManager);
       },
@@ -109,8 +114,44 @@ export function useScoreGame(beforeLeave: () => void) {
     }
   }
 
+  // 写真モード: 写真を送るときに記録を保存してエンドの id を得る。入力の保存と重なれば、次の機会に回す
+  const photos = usePhotoQueue(
+    manager,
+    sub,
+    () => sendToApi((scoreManager) => scoreManager.save()),
+    () => manager && syncFrom(manager),
+  );
+
+  // 補正: 矢の無いエンドを開いたら、写真の推測を矢として入れる(人が直す下書き)
+  const estimates = photos.current?.photo?.estimates;
+  useEffect(() => {
+    if (!manager || manager.photoPhase !== "review" || !estimates || estimates.length === 0) return;
+    if (inFlight.current) return;
+    const rules = {
+      arrowRatio: manager.arrowRatio,
+      allIn: manager.allIn,
+      innerTen: isInnerTenBow(manager.bowType),
+    };
+    manager.applyEstimates(
+      estimates.map(({ x, y }) => ({ score: scoreAtPosition(x, y, rules), x, y })),
+    );
+    syncFrom(manager);
+    // エンドを動かしたとき・推測が届いたときに確かめる
+  }, [manager, estimates, progress?.roundNumber, progress?.endNumber]);
+
   function next(point: number, x: number | null, y: number | null) {
     act((scoreManager) => scoreManager.addPoint(point, x, y));
+  }
+
+  function movePoint(index: number, point: number, x: number, y: number) {
+    act((scoreManager) => scoreManager.movePoint(index, point, x, y));
+  }
+
+  /** 写真モード: 撮るのを終えて、記録を保存してから最初のエンドから補正を始める */
+  async function startPhotoReview() {
+    if (!manager) return;
+    await sendToApi((scoreManager) => scoreManager.save());
+    act((scoreManager) => scoreManager.startPhotoReview());
   }
 
   function backPoint() {
@@ -180,6 +221,9 @@ export function useScoreGame(beforeLeave: () => void) {
     applySetup,
     save,
     finish,
+    movePoint,
+    startPhotoReview,
+    photos,
     error,
     isSaving,
     isFinishing,

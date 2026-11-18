@@ -8,11 +8,12 @@ import GameSetupFields, {
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import MatchSummary from "@/components/MatchSummary";
 import PageHeader from "@/components/PageHeader";
+import Segment from "@/components/Segment";
 import { useLoad } from "@/hooks/useLoad";
 import { useQueryParams } from "@/hooks/useQueryParams";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { DEFAULT_ROUND_SETUP } from "@/lib/score/scoreConfig";
+import { DEFAULT_ROUND_SETUP, type InputMode } from "@/lib/score/scoreConfig";
 import { getMatch } from "@/lib/api";
 import {
   SETUP_MATCH_PARAM,
@@ -26,9 +27,9 @@ import { getCurrentUser } from "@/lib/auth/currentUser";
 import { SCORE_CARD_PATH } from "@/lib/destinations";
 import { ScoreManager } from "@/lib/score/scoreManager";
 import {
-  loadLastNumberPad,
+  loadLastInputMode,
   loadRoundSetup,
-  saveLastNumberPad,
+  saveLastInputMode,
   saveRoundSetup,
 } from "@/lib/storage";
 import { useT } from "@/lib/text";
@@ -37,8 +38,8 @@ export default function Page() {
   const T = useT();
   const router = useRouter();
   const [draft, setDraft] = useState(() => toGameSetupDraft(DEFAULT_ROUND_SETUP));
-  // 点だけ入力(数字のボタン)で始めるか。前回の選び方を覚えておき、普段は触らずに始められるようにする
-  const [numberPad, setNumberPad] = useState(false);
+  // 入れ方(的・数字だけ・写真)。前回の選び方を覚えておき、普段は触らずに始められるようにする
+  const [inputMode, setInputMode] = useState<InputMode>("target");
   const params = useQueryParams();
   const matchParam = params?.get(SETUP_MATCH_PARAM) ?? null;
   // 参加する試合。試合の画面から ?match=<コード> で来る。URL を読むまでは undefined、無ければ null、
@@ -53,7 +54,7 @@ export default function Page() {
   useEffect(() => {
     const saved = loadRoundSetup();
     if (saved) setDraft(toGameSetupDraft(saved));
-    setNumberPad(loadLastNumberPad());
+    setInputMode(loadLastInputMode());
   }, []);
 
   const joining = useLoad(
@@ -106,13 +107,13 @@ export default function Page() {
             }
           : setup,
       );
-      saveLastNumberPad(numberPad);
+      saveLastInputMode(inputMode);
       // この画面からは必ず新しいゲームを始める(手元のキャッシュを作り直す)。続きはこの画面を通らない
       ScoreManager.startNewGame(
         userId,
         setup,
         backfillDate,
-        numberPad,
+        inputMode,
         match ? { id: match.id, recordedAt: matchRecordedAt(match) } : null,
       );
       router.push(SCORE_CARD_PATH);
@@ -125,17 +126,18 @@ export default function Page() {
   // ふつうに始めるときは、スコアの設定だけの画面にする(試合は試合の画面で作る)
   const joiningMatch = joinMatchId !== null && joinMatchId !== undefined;
 
-  const numberPadField = (
-    <div className="field">
-      <label className="NumberPadSetupField check-field">
-        <input
-          type="checkbox"
-          checked={numberPad}
-          onChange={(e) => setNumberPad(e.target.checked)}
-        />
-        {T.game.setup.numberPad}
-      </label>
-      <span className="hint">{T.game.setup.numberPadHint}</span>
+  const inputModes: ReadonlyArray<InputMode> = ["target", "numberPad", "photo"];
+  const inputModeField = (
+    <div className="InputModeSetupField field">
+      <span className="field-label">{T.game.setup.inputMode}</span>
+      <Segment
+        label={T.game.setup.inputMode}
+        options={inputModes.map((mode) => ({ value: mode, label: T.game.setup.inputModes[mode] }))}
+        value={inputMode}
+        onChange={setInputMode}
+      />
+      <span className="hint">{T.game.setup.inputModeHints[inputMode]}</span>
+      <span className="hint">{T.game.setup.inputModeNote}</span>
     </div>
   );
 
@@ -179,7 +181,7 @@ export default function Page() {
               onChange={setDraft}
               part="gear"
             />
-            {numberPadField}
+            {inputModeField}
           </div>
         </>
       ) : (
@@ -195,7 +197,7 @@ export default function Page() {
               draft={draft}
               onChange={setDraft}
             />
-            {numberPadField}
+            {inputModeField}
           </div>
         </>
       )}

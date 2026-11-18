@@ -18,6 +18,7 @@ import type {
   DiaryRead,
   DiaryUpdate,
   EndCommentRead,
+  EndPhotoRead,
   EndRead,
   EndScoreSummary,
   ErrorReportCreate,
@@ -38,6 +39,8 @@ import type {
   OrganizationRead,
   OrganizationSummary,
   OrganizationUpdate,
+  PhotoUploadCreate,
+  PhotoUploadRead,
   PointRead,
   RankingMetric,
   RoundCommentRead,
@@ -357,6 +360,65 @@ export function saveGameSheet(sheet: GameSheetWrite): Promise<GameSheetRead> {
 /** ゲームの記録(ラウンド・エンド・矢・コメント)を丸ごと読む。 */
 export function getGameSheet(gameId: number): Promise<GameSheetRead> {
   return request(`/games/${gameId}/sheet`);
+}
+
+/**
+ * 写真の置き場の URL を、ブラウザが開ける形にする。S3 の署名付き URL(http で始まる)はそのまま、
+ * 手元の置き場の API の道は、この画面の route handler(クッキーのログインを付けて流す)を指す
+ */
+export function photoFileUrl(url: string): string {
+  return /^https?:\/\//.test(url) ? url : `${API_BASE_URL}${url}`;
+}
+
+/**
+ * 写真の送りと処理は、入力の画面の裏で流す。API が落ちていても入力の画面から離さず(集積には送る)、
+ * 画面に戻ったときに送り直す
+ */
+const PHOTO_QUEUE_HANDLING: ErrorHandling = { stayOnPageStatuses: [500, 502, 503, 504] };
+
+/** エンドの写真を受け付けてもらい、元の写真を送る先を受け取る。撮り直しなら前の写真と置き換わる */
+export function startPhotoUpload(
+  endId: number,
+  contentType: PhotoUploadCreate['content_type'],
+): Promise<PhotoUploadRead> {
+  return request(
+    `/ends/${endId}/photo`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ content_type: contentType }),
+    },
+    PHOTO_QUEUE_HANDLING,
+  );
+}
+
+/**
+ * 元の写真を置き場へ送る。失敗しても集積に送らず、ホームへも戻さない(電波の無い所で撮ることがあり、
+ * 画面に戻ったときに送り直す)。S3 の署名付き URL へは、ログインを付けずに直に送る
+ */
+export async function uploadPhotoFile(
+  url: string,
+  headers: Record<string, string>,
+  file: Blob,
+): Promise<void> {
+  if (!/^https?:\/\//.test(url)) await refreshSession();
+  const response = await fetch(photoFileUrl(url), { method: 'PUT', headers, body: file });
+  if (!response.ok) {
+    throw new ApiError(response.status, response.statusText, 'PUT', url);
+  }
+}
+
+/** 置き場に届いた写真を処理してもらう。409 は送り終える前に頼んだもので、送り直してから頼み直す */
+export function processPhoto(photoId: number): Promise<EndPhotoRead> {
+  return request(
+    `/photos/${photoId}/process`,
+    { method: 'POST' },
+    { ...PHOTO_QUEUE_HANDLING, expectedStatuses: [409] },
+  );
+}
+
+/** ゲームのエンドの写真を、ラウンド・エンドの順に */
+export function listGamePhotos(gameId: number): Promise<EndPhotoRead[]> {
+  return request(`/games/${gameId}/photos`);
 }
 
 /** 試合を作る。参加する人は、返った id で同じ設定のゲームを始める */

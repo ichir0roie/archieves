@@ -225,6 +225,12 @@ export function isValidRoundSetup(setup: RoundSetup): boolean {
  */
 export type Handedness = "right" | "left";
 
+/**
+ * ゲームの入れ方。target は的を押す、numberPad は数字のボタンで点数だけ、photo はエンドごとに的の写真を撮り、
+ * 最後に写真を見ながら矢を入れ・直す(写真モード)。始めるときに決め、途中では変えない
+ */
+export type InputMode = "target" | "numberPad" | "photo";
+
 export interface AimSettings {
   lensZoom: number;
   aimDivisor: number;

@@ -20,8 +20,23 @@ import {
   type AimSettings,
 } from "@/lib/score/scoreConfig";
 import { loadAimSettings } from "@/lib/storage";
-import type { SheetPoint } from "@/lib/score/scoreSheetCache";
+import type { PhotoPhase, SheetPoint } from "@/lib/score/scoreSheetCache";
+import type { EndPhotoView } from "@/lib/photo/usePhotoQueue";
 import { useT } from "@/lib/text";
+
+/** 写真モードの入力に渡すもの */
+export type PhotoInputProps = {
+  phase: PhotoPhase;
+  /** 今のエンドの写真。撮っていなければ null */
+  view: EndPhotoView | null;
+  /** 端末に置いて、まだ送り終えていない写真の数 */
+  pendingCount: number;
+  /** 撮った写真を読み込めなかった */
+  captureError: boolean;
+  capture: (file: File) => void;
+  /** 撮るのを終えて補正を始める */
+  startReview: () => void;
+};
 
 export type ScoreInputProps = {
   points: Array<SheetPoint>;
@@ -29,6 +44,10 @@ export type ScoreInputProps = {
   commentBar: ReactNode;
   /** x・y は的に対する割合。数字だけの入力は位置を持たないので null */
   next: (point: number, x: number | null, y: number | null) => void;
+  /** エンドが満ちたあとに、index 番目の矢を動かす */
+  movePoint: (index: number, point: number, x: number, y: number) => void;
+  /** 写真モードのゲームなら、その写真と操作。写真モードでなければ null */
+  photo: PhotoInputProps | null;
   /** 今のエンドの最後の矢を消す / 消した矢を入れ直す */
   backPoint: () => void;
   forwardPoint: () => void;
@@ -86,6 +105,9 @@ export default function ScoreEntryShell({ renderInput }: Props) {
     forwardEnd,
     finish,
     applySetup,
+    movePoint,
+    startPhotoReview,
+    photos,
     error,
     isSaving,
     isFinishing,
@@ -127,6 +149,13 @@ export default function ScoreEntryShell({ renderInput }: Props) {
             {manager?.backfillDate && (
               <span className="BackfillBadge progress-badge">
                 {T.game.entry.backfill(shortDate(manager.backfillDate, T.intlLocale))}
+              </span>
+            )}
+            {manager?.photoPhase && (
+              <span className="PhotoPhaseBadge progress-badge">
+                {manager.photoPhase === "record"
+                  ? T.game.entry.photo.recordBadge
+                  : T.game.entry.photo.reviewBadge}
               </span>
             )}
             {manager?.matchId != null && (
@@ -287,6 +316,17 @@ export default function ScoreEntryShell({ renderInput }: Props) {
                 />
               ),
               next,
+              movePoint,
+              photo: manager.photoPhase
+                ? {
+                    phase: manager.photoPhase,
+                    view: photos.current,
+                    pendingCount: photos.pendingCount,
+                    captureError: photos.captureError,
+                    capture: (file) => void photos.capture(file),
+                    startReview: () => void startPhotoReview(),
+                  }
+                : null,
               backPoint,
               forwardPoint,
               backEnd,

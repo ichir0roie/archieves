@@ -26,6 +26,13 @@ export interface SheetEnd {
   recorded_at: string;
   comment: string | null;
   points: Array<SheetPoint>;
+  /**
+   * 写真モードで写真を撮ったエンド(API の has_photo)。矢がまだ無くても、空のエンドとして捨てない。
+   * 手元だけの欄で、保存では API が読まない
+   */
+  has_photo: boolean;
+  /** 補正で、写真の推測を矢として入れた。全部の矢を外したエンドに、推測を入れ直さないための印。手元だけ */
+  estimates_applied: boolean;
 }
 
 export interface SheetRound {
@@ -76,7 +83,15 @@ export interface ScoreSheetCache {
   dirty: boolean;
   /** 点だけ入力(数字のボタン)のゲーム。始めるときに決め、途中では変えない */
   numberPad: boolean;
+  /** 写真モードのゲームなら、その段階 */
+  photoPhase: PhotoPhase | null;
 }
+
+/**
+ * 写真モードの段階。record は撮って次のエンドへ進むだけ(点数は付けない)、review は最初のエンドから
+ * 写真を見て矢を入れ・直す。写真モードでなければ null
+ */
+export type PhotoPhase = "record" | "review";
 
 /**
  * キャッシュの形のバージョン。欄を足す・置き換えるだけなら上げず、読むところ(storage.ts の
