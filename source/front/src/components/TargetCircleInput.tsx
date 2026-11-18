@@ -375,19 +375,22 @@ export default function TargetCircleInput(props: ScoreInputProps) {
         onPointerCancel={handlePointerCancel}
       >
         {photoUrl && photoExtent != null && maxDiameter > 0 && (
-          // 補正した写真は、的に対する割合で -extent〜1+extent の正方形。的の帯と重なるように置く
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            className="TargetPhoto target-photo"
-            src={photoUrl}
-            alt=""
-            style={{
-              width: `${maxDiameter * (1 + 2 * photoExtent)}px`,
-              height: `${maxDiameter * (1 + 2 * photoExtent)}px`,
-              left: `${centerX - (maxDiameter * (1 + 2 * photoExtent)) / 2}px`,
-              top: `${centerY - (maxDiameter * (1 + 2 * photoExtent)) / 2}px`,
-            }}
-          />
+          // 補正した写真は、的に対する割合で -extent〜1+extent の正方形。的の帯と重なるように置き、
+          // 枠の外(下の操作のボタン)には出さない。枠そのものは切らない(ズームは枠の上にはみ出す)
+          <div className="target-photo-clip">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="TargetPhoto target-photo"
+              src={photoUrl}
+              alt=""
+              style={{
+                width: `${maxDiameter * (1 + 2 * photoExtent)}px`,
+                height: `${maxDiameter * (1 + 2 * photoExtent)}px`,
+                left: `${centerX - (maxDiameter * (1 + 2 * photoExtent)) / 2}px`,
+                top: `${centerY - (maxDiameter * (1 + 2 * photoExtent)) / 2}px`,
+              }}
+            />
+          </div>
         )}
         {circles}
         {shownPoints.map((point, index) => createArrow(point.x, point.y, index, null))}
