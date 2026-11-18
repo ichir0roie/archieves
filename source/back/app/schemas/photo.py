@@ -12,7 +12,7 @@ class PhotoUploadCreate(BaseModel):
 
 
 class PhotoAlignmentWrite(BaseModel):
-    """手で合わせた 4 点。青の帯の外の線の上・右・下・左の順。
+    """手で合わせた 4 点。赤の帯の外の線(7 点の外)の上・右・下・左の順。
 
     値は、向きを直した元の写真の幅・高さに対する割合
     """

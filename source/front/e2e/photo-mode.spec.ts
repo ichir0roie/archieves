@@ -85,7 +85,7 @@ test("photos are taken per end, then reviewed on the target and listed with the 
 
   // 的を手で合わせ直す: 元の写真に 4 点と輪が出て、点を動かして保存すると補正し直す
   await page.locator(".TargetAlignButton").click();
-  const handles = page.locator(".PhotoAlignment svg circle");
+  const handles = page.locator(".PhotoAlignment svg circle.alignment-handle");
   await expect(handles).toHaveCount(4);
   const handle = await handles.first().boundingBox();
   if (!handle) throw new Error("alignment handle not laid out");

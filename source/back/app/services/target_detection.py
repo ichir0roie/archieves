@@ -24,10 +24,10 @@ RING_RADIUS = {"yellow": 0.2, "red": 0.4, "blue": 0.6}
 RING_RATIO_TOLERANCE = (0.75, 1.3)
 
 
-# 手で合わせるときの 4 点の、的の上の位置(的に対する割合)。青の帯の外の線(5 点の外)の
-# 上・右・下・左。的紙の点数の数字は中心から右へ横一直線に並ぶので、右・左の点は数字の並びで
-# 見当をつけられる
-ALIGNMENT_RADIUS = RING_RADIUS["blue"] / 2
+# 手で合わせるときの 4 点の、的の上の位置(的に対する割合)。赤の帯の外の線(7 点の外。赤と青の
+# 境目で見分けやすく、青の帯が的紙からはみ出す写真でも紙の中に収まる)の上・右・下・左。
+# 的紙の点数の数字は中心から右へ横一直線に並ぶので、右・左の点は数字の並びで見当をつけられる
+ALIGNMENT_RADIUS = RING_RADIUS["red"] / 2
 ALIGNMENT_TARGET_POINTS = [
     (0.5, 0.5 - ALIGNMENT_RADIUS),
     (0.5 + ALIGNMENT_RADIUS, 0.5),
@@ -242,7 +242,7 @@ def fit_from_points(points_px: list[tuple[float, float]]) -> TargetFit:
     )
     center = np.linalg.inv(homography) @ np.array([0.5, 0.5, 1.0])
     center_px = (float(center[0] / center[2]), float(center[1] / center[2]))
-    # 4 点は的の半径の 6 割の所にある
+    # 4 点は的の半径の 4 割の所にある
     spread = np.mean([math.dist(point, center_px) for point in points_px])
     return TargetFit(
         homography=homography,

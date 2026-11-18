@@ -587,7 +587,8 @@ def test_alignment_points_are_derived_from_the_automatic_rectification(
     listed = client.get(f"/api/v1/games/{round_.game_id}/photos").json()[0]
 
     assert listed["aligned_manually"] is False
-    expected = [[0.5, 0.1], [0.8, 0.25], [0.5, 0.4], [0.2, 0.25]]
+    # 赤の帯の外の線(的の割合で半径 0.2)の上・右・下・左を、幅 1000・高さ 2000 の写真の割合に
+    expected = [[0.5, 0.15], [0.7, 0.25], [0.5, 0.35], [0.3, 0.25]]
     for got, point in zip(listed["alignment_points"], expected, strict=True):
         assert got == pytest.approx(point)
 

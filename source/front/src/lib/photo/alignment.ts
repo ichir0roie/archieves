@@ -1,14 +1,14 @@
 /**
  * 写真の的を手で合わせる 4 点と、その 4 点から求める射影(ホモグラフィ)。
  *
- * 4 点は、青の帯の外の線(5 点の外)の上・右・下・左。API の target_detection.ALIGNMENT_TARGET_POINTS と同じ。
+ * 4 点は、赤の帯の外の線(7 点の外)の上・右・下・左。API の target_detection.ALIGNMENT_TARGET_POINTS と同じ。
  * 写真の上の位置は、向きを直した元の写真の幅・高さに対する割合で持つ(API の PhotoAlignmentWrite)。
  */
 
 export type Point = [number, number];
 
-/** 的の半径(0.5)に対する、青の帯の外の線の半径(6 割) */
-export const ALIGNMENT_RADIUS = 0.3;
+/** 赤の帯の外の線の半径(的に対する割合。的の縁は 0.5) */
+export const ALIGNMENT_RADIUS = 0.2;
 
 /** 4 点の、的の上の位置(的に対する割合)。上・右・下・左 */
 export const ALIGNMENT_TARGET_POINTS: ReadonlyArray<Point> = [

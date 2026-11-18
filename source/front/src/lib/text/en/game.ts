@@ -119,7 +119,7 @@ export const game: typeof ja = {
       convertFailed: "Could not load the photo",
       align: "Align target",
       alignTitle: "Align the target",
-      alignHint: "Place the four points on the top, right, bottom and left of the outer edge of the blue ring (outside the 5). The green rings are redrawn as you move them. Save once they sit on the printed lines.",
+      alignHint: "Place the four points on the top, right, bottom and left of the line between red and blue (outside the 7). The target edge, the 7 line and the center are redrawn as you move them. Save once they sit on the printed lines and center.",
       alignHandles: ["Top", "Right", "Bottom", "Left"],
       alignSave: "Save and realign",
       alignCancel: "Cancel",

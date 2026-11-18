@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { zoneRadiusRatio } from "@/lib/score/scoreFunctions";
-import { X_SCORE } from "@/lib/score/scoreConfig";
 import {
   ALIGNMENT_TARGET_POINTS,
   applyHomography,
@@ -33,6 +32,11 @@ const LENS_ZOOM = 3;
 const LENS_PX = 140;
 /** 輪を描くときの、円の分け方 */
 const RING_STEPS = 96;
+/**
+ * ガイドに描く線: 1 点の外(的の縁)と 7 点の外(4 点を置く線)。全部の輪を描くと細かすぎて
+ * 印刷の線と見比べにくい
+ */
+const GUIDE_SCORES = [1, 7];
 
 type Rect = { left: number; top: number; width: number; height: number };
 
@@ -45,7 +49,7 @@ type Drag = {
 };
 
 /**
- * 写真の的を手で合わせる。元の写真の上に、青の帯の外の線の上・右・下・左の 4 点を置き、
+ * 写真の的を手で合わせる。元の写真の上に、赤の帯の外の線(7 点の外)の上・右・下・左の 4 点を置き、
  * 4 点から求めた的の輪を重ねて描く。輪が印刷の線に重なるまで点を動かして、保存すると補正し直す。
  */
 export default function PhotoAlignment({ src, initial, onSave, onClose }: Props) {
@@ -90,6 +94,7 @@ export default function PhotoAlignment({ src, initial, onSave, onClose }: Props)
 
   const usable = points !== null && isUsableAlignment(points);
   const homography = usable && points ? solveHomography(ALIGNMENT_TARGET_POINTS, points) : null;
+  const center = homography ? toScreen(applyHomography(homography, [0.5, 0.5])) : null;
 
   /** 的の割合で半径 r の円を、写真の上の折れ線にする */
   function ringPath(radius: number): string {
@@ -194,13 +199,28 @@ export default function PhotoAlignment({ src, initial, onSave, onClose }: Props)
             height={frame.height}
             aria-hidden="true"
           >
-            {Array.from({ length: X_SCORE }, (_, i) => i + 1).map((score) => (
+            {GUIDE_SCORES.map((score) => (
               <path
                 key={score}
                 d={ringPath(zoneRadiusRatio(score) / 2)}
-                className={score === 5 ? "alignment-ring main" : "alignment-ring"}
+                className="alignment-ring"
               />
             ))}
+            {center && (
+              <g className="alignment-center">
+                <circle
+                  cx={center[0]}
+                  cy={center[1]}
+                  r={3}
+                />
+                <path
+                  d={[
+                    `M${center[0] - 12},${center[1]} H${center[0] + 12}`,
+                    `M${center[0]},${center[1] - 12} V${center[1] + 12}`,
+                  ].join(" ")}
+                />
+              </g>
+            )}
             {points.map((point, index) => {
               const [sx, sy] = toScreen(point);
               return (
