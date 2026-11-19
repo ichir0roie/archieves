@@ -184,9 +184,43 @@ export interface RoundSetup {
   arrowDiameterMm: number;
   /** インサイドアウト: 矢の円が帯に完全に入らなければ、その帯の点にしない(線にかかれば低い方) */
   allIn: boolean;
-  /** 矢のノック・羽根の色。写真モードで、同じ的のほかの人の矢と自分の矢を見分ける。決めていなければ null */
-  nockColor: ArrowColor | null;
+  /**
+   * 矢のノック・羽根の色。写真モードで、同じ的のほかの人の矢と自分の矢を見分ける。決めていなければ null。
+   * ノックは矢の色の登録(NockColorRegistration)で、矢の写真から測った色(#rrggbb)。写真モードは
+   * これが無いと始められない
+   */
+  nockColor: string | null;
   fletchColor: ArrowColor | null;
+}
+
+/** ノックの色(#rrggbb、小文字)。API の NOCK_COLOR_PATTERN と同じ */
+const NOCK_COLOR_PATTERN = /^#[0-9a-f]{6}$/;
+
+/**
+ * ノックの色を色の名前から選んでいたころの値と、その代表の色。API のマイグレーション
+ * (a7d3e9f1c2b4_nock_color_to_measured_hex)と同じ値にし、手元に残った古い設定・入力の途中のゲームを
+ * 読むときに直す(名前のまま送ると API が弾く)
+ */
+const LEGACY_NOCK_COLORS: Readonly<Record<string, string>> = {
+  white: "#f5f5f5",
+  black: "#232323",
+  red: "#e02020",
+  orange: "#ff7a00",
+  yellow: "#ffe000",
+  green: "#3cff28",
+  blue: "#1e64e1",
+  purple: "#8c28c8",
+  pink: "#ff3cb4",
+};
+
+export function isNockColor(value: unknown): value is string {
+  return typeof value === "string" && NOCK_COLOR_PATTERN.test(value);
+}
+
+/** 手元に残っていたノックの色を今の形にする。読めなければ null(登録し直してもらう) */
+export function currentNockColor(value: unknown): string | null {
+  if (isNockColor(value)) return value;
+  return typeof value === "string" ? (LEGACY_NOCK_COLORS[value] ?? null) : null;
 }
 
 /** 矢の色の選択肢(API の ArrowColor)。画面に並べる順 */
@@ -237,7 +271,7 @@ export function isValidRoundSetup(setup: RoundSetup): boolean {
     isWithin(setup.gameSize, MIN_GAME_SIZE, MAX_GAME_SIZE) &&
     isWithin(setup.arrowDiameterMm, MIN_ARROW_DIAMETER_MM, MAX_ARROW_DIAMETER_MM) &&
     typeof setup.allIn === "boolean" &&
-    isArrowColorOrNull(setup.nockColor) &&
+    (setup.nockColor === null || isNockColor(setup.nockColor)) &&
     isArrowColorOrNull(setup.fletchColor) &&
     isSelectableTargetType(setup.targetType)
   );

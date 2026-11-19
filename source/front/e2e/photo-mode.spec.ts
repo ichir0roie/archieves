@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
+import { registerNockColor } from "./nockColor";
 import { finishSheet, recordedArrows, shoot } from "./scoreEntry";
 
 // 写真モード: エンドごとに写真を撮って進み(点数は付けない)、最後に写真を見ながら的で矢を入れて直す。
@@ -45,6 +46,8 @@ async function startPhotoGame(page: Page) {
   await page.getByLabel("エンド数").fill("2");
   await page.getByLabel("ラウンド数").fill("1");
   await page.getByRole("group", { name: "入れ方" }).getByRole("button", { name: "写真" }).click();
+  // 写真モードは、ノックの色を登録するまで始められない
+  await registerNockColor(page);
   await page.getByRole("button", { name: "ゲーム開始" }).click();
   await expect(page).toHaveURL(/\/game\/score-card$/, { timeout: ROUTE_TIMEOUT });
   await expect(page.locator(".PhotoCaptureInput")).toBeVisible({ timeout: ROUTE_TIMEOUT });

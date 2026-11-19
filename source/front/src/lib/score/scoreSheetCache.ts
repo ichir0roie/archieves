@@ -59,8 +59,8 @@ export interface Sheet {
   arrow_diameter_mm: number | null;
   /** インサイドアウト */
   all_in: boolean;
-  /** 矢のノック・羽根の色(写真モードで自分の矢を見分ける) */
-  nock_color: ArrowColor | null;
+  /** 矢のノック・羽根の色(写真モードで自分の矢を見分ける)。ノックは矢の写真から測った色(#rrggbb) */
+  nock_color: string | null;
   fletch_color: ArrowColor | null;
   /**
    * あとから入力: スコアの一覧で日付を決めて入れたゲーム。

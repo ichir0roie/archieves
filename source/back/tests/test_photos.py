@@ -554,7 +554,7 @@ def test_the_games_arrow_colors_are_used_to_find_the_arrows(
     client: TestClient, s: Session, end, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     game = end.round.game
-    game.nock_color = "green"
+    game.nock_color = "#cefa67"
     game.fletch_color = "white"
     s.flush()
     photo = start(client, end.id)["photo"]
@@ -568,7 +568,7 @@ def test_the_games_arrow_colors_are_used_to_find_the_arrows(
     monkeypatch.setattr(photo_service, "analyze", fake_analyze)
     process(client, photo["id"])
 
-    assert calls == [("green", "white")]
+    assert calls == [("#cefa67", "white")]
 
 
 # ---- 手で合わせる ----

@@ -76,12 +76,33 @@ def test_only_arrows_with_the_games_nock_color_are_taken() -> None:
     )
 
     everyone = analyze(samples.jpeg(sample))
-    mine = analyze(samples.jpeg(sample), nock_color=ArrowColor.GREEN)
+    # ノックの色は、矢の写真から測った色(描いたノックの色)
+    green = analyze(samples.jpeg(sample), nock_color="#3cff28")
+    orange = analyze(samples.jpeg(sample), nock_color="#ff7800")
 
     assert len(everyone.estimates) == 4
-    assert len(mine.estimates) == 2
-    assert nearest(mine.estimates, 0.5, 0.5) < 0.02
-    assert nearest(mine.estimates, 0.42, 0.6) < 0.02
+    assert len(green.estimates) == 2
+    assert nearest(green.estimates, 0.5, 0.5) < 0.02
+    assert nearest(green.estimates, 0.42, 0.6) < 0.02
+    assert len(orange.estimates) == 2
+    assert nearest(orange.estimates, 0.62, 0.45) < 0.02
+    assert nearest(orange.estimates, 0.55, 0.7) < 0.02
+
+
+def test_a_measured_nock_color_is_looked_for_around_its_hue() -> None:
+    # 赤は色相の 0 と 180 をまたぐので、両側を探す
+    red = arrow_detection.nock_ranges("#e02020")
+    assert len(red) == 2
+    assert {low[0] for low, _ in red} | {high[0] for _, high in red} >= {0, 180}
+    # 赤紫は色相の 180 をまたぐ
+    magenta = arrow_detection.nock_ranges("#ff2050")
+    assert len(magenta) == 2
+    assert {low[0] for low, _ in magenta} | {high[0] for _, high in magenta} >= {0, 180}
+    # 白は色相が決まらないので、明るさで探す
+    [(low, high)] = arrow_detection.nock_ranges("#f5f5f5")
+    assert (low[0], high[0]) == (0, 180)
+    assert high[1] <= arrow_detection.ACHROMATIC_SATURATION
+    assert low[2] > 150
 
 
 def test_the_fletch_color_raises_or_lowers_the_confidence() -> None:
@@ -102,8 +123,9 @@ def test_lookalikes_around_the_target_are_not_taken() -> None:
             Arrow(0.5, 0.5),
             # 軸の短すぎる矢(ノックの直後で途切れる)は、推測にしない
             Arrow(0.62, 0.45, offset=(4.0, 14.0)),
-            # 的から離れすぎた所で終わる軸(台・背景の色の塊からたどった線)も、推測にしない
-            Arrow(-0.25, 0.3),
+            # 的から離れすぎた所で終わる軸(台・背景の色の塊からたどった線)も、推測にしない。
+            # 的の側へ向かう線(的と逆へ向かう線は、たどる向きで先に弾く)
+            Arrow(-0.2, 0.3, offset=(-70.0, 25.0)),
         ],
         blobs=[
             # 赤に囲まれない黄の丸
@@ -158,20 +180,72 @@ def test_no_segments_are_found_in_a_blank_image() -> None:
     assert arrow_detection._segments(np.zeros((50, 50), np.uint8)).shape == (0, 4)
 
 
-def test_the_vanishing_direction_follows_the_shafts() -> None:
-    assert arrow_detection._vanishing([((0, 0), (0, 10))]) is None
+def test_a_shaft_hidden_in_places_is_followed_to_where_it_enters_the_target() -> None:
+    # ノック (0, 0) から上(的の中心の側)へ伸びる軸。途中の 80px は羽根・印字で見えず、
+    # 300px で的に刺さる。その先に離れて一つある短い線分(的の線・穴の縁)までは行かない
+    segments = np.array(
+        [
+            [0, -20, 0, -100],
+            [0, -180, 0, -300],
+            [0, -360, 0, -372],
+        ],
+        dtype=float,
+    )
 
-    parallel = arrow_detection._vanishing([((0, 0), (0, 10)), ((5, 0), (5, 10))])
-    assert parallel is not None
-    assert parallel(100, 100) == pytest.approx(math.pi / 2)
+    traced = arrow_detection._trace((0, 0), segments, 500, 3, center=(0, -1000))
 
-    # 二本の軸は (0, 100) へ向かう
-    converging = arrow_detection._vanishing([((-10, 0), (-5, 50)), ((10, 0), (5, 50))])
-    assert converging is not None
-    assert converging(0, 0) == pytest.approx(math.pi / 2)
-    # 消失点より先(後ろ側)の点では、向きの平均を使う
-    assert converging(0, 200) == pytest.approx(math.pi / 2)
-    assert converging(-30, 0) == pytest.approx(math.atan2(100, 30))
+    assert traced is not None
+    (x, y), length, _ = traced
+    assert abs(x) < 1
+    assert length == pytest.approx(300, abs=4)
+
+
+def test_short_edges_across_the_shaft_line_are_not_taken_for_the_shaft() -> None:
+    # 軸は 200px で的に刺さる。その先の穴の縁(短く、軸と向きの違う線分)が軸の延長の幅の中に
+    # 並んでいても、軸が続いているとはみなさない
+    shaft = [[0, -20, 0, -200]]
+    holes = [[-6, -215 - 15 * i, 6, -224 - 15 * i] for i in range(8)]
+    segments = np.array(shaft + holes, dtype=float)
+
+    traced = arrow_detection._trace((0, 0), segments, 500, 8, center=(0, -1000))
+
+    assert traced is not None
+    assert traced[1] == pytest.approx(200, abs=4)
+
+
+def test_the_shaft_line_is_fitted_to_the_segments_on_it() -> None:
+    # ノックの中心が軸から少しずれていても、軸の線分に当てた直線で遠くまでたどる
+    segments = np.array(
+        [[0, -20 - 60 * i, 0.5, -60 - 60 * i] for i in range(7)],
+        dtype=float,
+    )
+
+    traced = arrow_detection._trace((5, 0), segments, 500, 3, center=(0, -1000))
+
+    assert traced is not None
+    (x, y), _, _ = traced
+    assert abs(x) < 2
+    assert y == pytest.approx(-420, abs=4)
+
+
+def test_a_line_leading_away_from_the_target_is_not_followed() -> None:
+    # ノックから的と逆の向きへ伸びる線(畳の筋・台の縁)はたどらない
+    segments = np.array([[0, 20, 0, 300]], dtype=float)
+
+    assert arrow_detection._trace((0, 0), segments, 500, 3, center=(0, -1000)) is None
+
+
+def test_estimates_on_the_same_spot_are_taken_once_in_order_of_confidence() -> None:
+    DetectedArrow = arrow_detection.DetectedArrow
+    arrows = [
+        DetectedArrow(0.50, 0.50, 0.4),
+        DetectedArrow(0.505, 0.50, 0.9),
+        DetectedArrow(0.60, 0.40, 0.6),
+    ]
+
+    distinct = arrow_detection._distinct(arrows)
+
+    assert [(a.x, a.y) for a in distinct] == [(0.505, 0.50), (0.60, 0.40)]
 
 
 def test_the_fletch_is_not_looked_for_outside_the_image() -> None:
@@ -183,7 +257,7 @@ def test_the_fletch_is_not_looked_for_outside_the_image() -> None:
 
 
 def test_the_analyzer_version_is_kept_with_the_results() -> None:
-    assert photo_analysis.ANALYZER_VERSION == "rings-2"
+    assert photo_analysis.ANALYZER_VERSION == "shafts-1"
 
 
 def true_alignment() -> list[list[float]]:

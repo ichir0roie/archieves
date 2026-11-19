@@ -392,6 +392,29 @@ body:has(.score-entry) { background: var(--panel); }
 /* 暗い画面の上なので、やめるボタンは枠だけにして白い字で出す */
 .photo-alignment-actions button:not(.primary) { background: transparent; color: #fff; border-color: rgb(255 255 255 / 0.6); }
 
+/* 矢の色登録(NockColorRegistration)。全画面の暗い画面は的合わせ(photo-alignment)と同じ */
+.nock-registration-start { position: absolute; inset: 0; display: grid; place-items: center; }
+.nock-registration-layer { position: absolute; inset: 0; transform-origin: 0 0; pointer-events: none; }
+.nock-registration-image { position: absolute; }
+.nock-registration .nock-sample-mark { stroke: #fff; stroke-width: 2.5; }
+.nock-registration-tools { display: flex; gap: 0.75rem; justify-content: space-between; align-items: center; padding: 8px 16px 0; }
+.nock-registration-zoom { display: flex; gap: 0.4rem; }
+.nock-registration-zoom button { min-width: 2.75rem; }
+/* 押した所が増えても写真の枠が縮まないよう、一覧と平均の 2 行ぶんの高さを取っておく */
+.nock-registration-samples { padding: 8px 16px 0; height: 6.25rem; overflow-y: auto; }
+.nock-registration-empty { margin: 0; font-size: 0.85rem; color: rgb(255 255 255 / 0.7); }
+.nock-sample-list { list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; }
+.nock-sample { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.6rem; font-size: 0.85rem; }
+.nock-registration-result { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0 0; font-size: 0.85rem; }
+/* 暗い画面の上の操作は、枠だけにして白い字で出す */
+.nock-registration-tools button,
+.nock-sample { background: transparent; color: #fff; border-color: rgb(255 255 255 / 0.6); }
+.nock-swatch { display: inline-block; flex: none; width: 1.1rem; height: 1.1rem; border-radius: 999px; border: 2px solid #fff; }
+.nock-swatch.large { width: 1.8rem; height: 1.8rem; }
+/* 設定の欄(明るい画面)の、登録した色 */
+.nock-color-row { display: flex; align-items: center; gap: 0.75rem; }
+.nock-color-row .nock-swatch { border-color: var(--line); }
+
 /* 写真モードの撮影(PhotoCaptureInput) */
 .photo-capture-area { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.5rem; padding: 8px 16px; }
 .photo-preview { flex: 1; min-height: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }

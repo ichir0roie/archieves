@@ -2,6 +2,7 @@
 
 import ArrowColorField from "@/components/ArrowColorField";
 import ArrowSight from "@/components/ArrowSight";
+import NockColorField from "@/components/NockColorField";
 import { TARGET_FACE_PADDING } from "@/components/TargetCircleInput";
 import IntegerField, { parseInteger } from "@/components/IntegerField";
 import Modal from "@/components/Modal";
@@ -46,7 +47,7 @@ export type GameSetupDraft = {
   gameSizeText: string;
   arrowDiameterMmText: string;
   allIn: boolean;
-  nockColor: ArrowColor | null;
+  nockColor: string | null;
   fletchColor: ArrowColor | null;
 };
 
@@ -380,9 +381,7 @@ export default function GameSetupFields({
             </label>
             <span className="hint">{T.game.setup.allInHint}</span>
           </div>
-          <ArrowColorField
-            label={T.game.setup.nockColor}
-            className="NockColorField"
+          <NockColorField
             value={draft.nockColor}
             onChange={(nockColor) => update({ nockColor })}
           />
