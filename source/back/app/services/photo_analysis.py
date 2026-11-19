@@ -24,7 +24,7 @@ from app.services.target_detection import find_target, fit_from_points
 
 logger = logging.getLogger(__name__)
 
-ANALYZER_VERSION = "rings-2"
+ANALYZER_VERSION = "shafts-1"
 
 # 表示の画像の長辺(px)。スマホの写真で的が写る幅(2000〜2500px)に見合い、入力の画面のズームで
 # 見ても粗くない。これより大きくしても、元の写真に無い細かさは出ない
@@ -65,7 +65,7 @@ class PhotoAnalysis:
 
 def analyze(
     original: bytes,
-    nock_color: ArrowColor | None = None,
+    nock_color: str | None = None,
     fletch_color: ArrowColor | None = None,
     alignment: list[list[float]] | None = None,
 ) -> PhotoAnalysis:

@@ -1841,7 +1841,8 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
-            nock_color?: components["schemas"]["ArrowColor"] | null;
+            /** Nock Color */
+            nock_color?: string | null;
             fletch_color?: components["schemas"]["ArrowColor"] | null;
         };
         /**
@@ -1885,7 +1886,8 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
-            nock_color: components["schemas"]["ArrowColor"] | null;
+            /** Nock Color */
+            nock_color: string | null;
             fletch_color: components["schemas"]["ArrowColor"] | null;
             /** User Id */
             user_id: number;
@@ -1933,7 +1935,8 @@ export interface components {
             all_in: boolean;
             /** Backfilled */
             backfilled: boolean;
-            nock_color: components["schemas"]["ArrowColor"] | null;
+            /** Nock Color */
+            nock_color: string | null;
             fletch_color: components["schemas"]["ArrowColor"] | null;
             /** Match Id */
             match_id: string | null;
@@ -1966,7 +1969,8 @@ export interface components {
              * @default false
              */
             backfilled: boolean;
-            nock_color?: components["schemas"]["ArrowColor"] | null;
+            /** Nock Color */
+            nock_color?: string | null;
             fletch_color?: components["schemas"]["ArrowColor"] | null;
             /** Id */
             id?: number | null;

@@ -1,4 +1,5 @@
 import {
+  currentNockColor,
   currentTargetTypeId,
   DEFAULT_AIM_SETTINGS,
   DEFAULT_ROUND_SETUP,
@@ -37,6 +38,8 @@ export function loadRoundSetup(): RoundSetup | null {
     const setup = { ...DEFAULT_ROUND_SETUP, ...(JSON.parse(raw) as Partial<RoundSetup>) };
     // 的のプリセットを変えた。前に選んだ的が選べなくなっても、ほかの設定は残す
     setup.targetType = selectableTargetTypeId(String(setup.targetType));
+    // ノックの色を名前で選んでいたころの設定は、測った色の形に直す
+    setup.nockColor = currentNockColor(setup.nockColor);
     return isValidRoundSetup(setup) ? setup : null;
   } catch {
     return null;
@@ -289,7 +292,8 @@ export function loadScoreSheetCache(sub: string): ScoreSheetCache | null {
       ...sheet,
       arrow_diameter_mm: sheet.arrow_diameter_mm ?? null,
       all_in: sheet.all_in ?? false,
-      nock_color: sheet.nock_color ?? null,
+      // ノックの色を名前で選んでいたころのキャッシュは、db と同じ測った色の形に直す
+      nock_color: currentNockColor(sheet.nock_color),
       fletch_color: sheet.fletch_color ?? null,
       backfilled: sheet.backfilled ?? false,
       match_id: sheet.match_id ?? null,

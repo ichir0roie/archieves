@@ -79,8 +79,11 @@ export default function Page() {
   // 読めない欄があれば null。開始もここで止める
   const parsed = parseGameSetupDraft(draft);
   const setup = parsed && joinMatch ? withMatchSizes(parsed, joinMatch) : parsed;
+  // 写真モードは、写真の矢から自分の矢を見分けるノックの色が要る。登録するまで始めさせない
+  const needsNockColor = inputMode === "photo" && setup !== null && setup.nockColor === null;
   // 試合に参加するなら、試合を読めるまで始めさせない
-  const canStart = setup !== null && (joinMatchId === null || joinMatch !== null);
+  const canStart =
+    setup !== null && !needsNockColor && (joinMatchId === null || joinMatch !== null);
   // 開始は sub を引いてから進むので、二度押しで二つ始めないようにする
   const starting = useRef(false);
 
@@ -138,6 +141,9 @@ export default function Page() {
       />
       <span className="hint">{T.game.setup.inputModeHints[inputMode]}</span>
       <span className="hint">{T.game.setup.inputModeNote}</span>
+      {needsNockColor && (
+        <span className="PhotoNeedsNockColor status error">{T.game.setup.photoNeedsNockColor}</span>
+      )}
     </div>
   );
 

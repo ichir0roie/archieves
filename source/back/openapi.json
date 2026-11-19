@@ -7002,12 +7002,14 @@
           "nock_color": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ArrowColor"
+                "type": "string",
+                "pattern": "^#[0-9a-f]{6}$"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Nock Color"
           },
           "fletch_color": {
             "anyOf": [
@@ -7141,12 +7143,14 @@
           "nock_color": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ArrowColor"
+                "type": "string",
+                "pattern": "^#[0-9a-f]{6}$"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Nock Color"
           },
           "fletch_color": {
             "anyOf": [
@@ -7320,12 +7324,13 @@
           "nock_color": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ArrowColor"
+                "type": "string"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Nock Color"
           },
           "fletch_color": {
             "anyOf": [
@@ -7456,12 +7461,14 @@
           "nock_color": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ArrowColor"
+                "type": "string",
+                "pattern": "^#[0-9a-f]{6}$"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Nock Color"
           },
           "fletch_color": {
             "anyOf": [

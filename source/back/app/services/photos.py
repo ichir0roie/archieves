@@ -114,7 +114,7 @@ def _process(s: Session, storage: PhotoStorage, photo: EndPhoto, original: bytes
     try:
         result = analyze(
             original,
-            ArrowColor(game.nock_color) if game.nock_color else None,
+            game.nock_color,
             ArrowColor(game.fletch_color) if game.fletch_color else None,
             photo.alignment_points,
         )

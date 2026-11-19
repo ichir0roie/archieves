@@ -111,7 +111,7 @@ class GameSheetRead(ResponseModel):
     arrow_diameter_mm: int | None
     all_in: bool
     backfilled: bool
-    nock_color: ArrowColor | None
+    nock_color: str | None
     fletch_color: ArrowColor | None
     match_id: str | None
     comment: str | None
