@@ -82,6 +82,8 @@ export function PhotoStatusText({ view }: { view: EndPhotoView }) {
       return <>{text.processing}</>;
     case "sendFailed":
       return <>{text.sendFailed}</>;
+    case "processFailed":
+      return <>{text.processFailed}</>;
     case "failed":
       return <>{view.photo?.error === "too_large" ? text.tooLarge : text.failed}</>;
     case "processed": {

@@ -31,7 +31,9 @@ export type EndPhotoStatus =
   /** 写真を読めなかった(撮り直してもらう) */
   | "failed"
   /** 送れなかった。画面に戻ったときに送り直す */
-  | "sendFailed";
+  | "sendFailed"
+  /** 送り終えたが、処理を頼めなかった。画面に戻ったときに頼み直す */
+  | "processFailed";
 
 export interface EndPhotoView {
   status: EndPhotoStatus;
@@ -41,7 +43,10 @@ export interface EndPhotoView {
   photo: EndPhotoRead | null;
 }
 
-type Stage = "saved" | "uploading" | "processing" | "sendFailed";
+type Stage = "saved" | "uploading" | "processing" | "sendFailed" | "processFailed";
+
+/** 一枚を流した結果。送り終えていれば、元の写真は置き場に残るので、処理を頼めなくても後の写真を送ってよい */
+type SendResult = "done" | "notSent" | "notProcessed";
 
 /** 撮った写真を端末に置けなかったわけ。読み込めなかった・大きすぎた */
 export type CaptureError = "convertFailed" | "tooLarge";
@@ -134,20 +139,20 @@ export function usePhotoQueue(
     }
   }
 
-  async function send(photo: QueuedPhoto): Promise<boolean> {
+  async function send(photo: QueuedPhoto): Promise<SendResult> {
     const { manager: m, saveSheet: save } = latest.current;
-    if (!m) return false;
+    if (!m) return "notSent";
     let photoId = photo.uploadedPhotoId;
     if (photoId === null) {
       let endId = m.endIdAt(photo.roundIndex, photo.endIndex);
       if (endId === null || m.hasUnsavedChanges) {
-        if (!(await save())) return false;
+        if (!(await save())) return "notSent";
         endId = m.endIdAt(photo.roundIndex, photo.endIndex);
       }
       if (endId === null) {
         // 写真のエンドが記録から無くなった(設定でエンドを減らしたなど)。送る先が無いので捨てる
         await deleteQueuedPhoto(photo.id);
-        return true;
+        return "done";
       }
       setStage(photo.id, "uploading");
       const started = await startPhotoUpload(endId, photo.contentType, photo.blob.size);
@@ -163,11 +168,12 @@ export function usePhotoQueue(
       // 送ったはずの写真が置き場に無い。次は送り直す
       if (e instanceof ApiError && e.status === 409) {
         await putQueuedPhoto({ ...photo, uploadedPhotoId: null });
+        return "notSent";
       }
-      throw e;
+      return "notProcessed";
     }
     await deleteQueuedPhoto(photo.id);
-    return true;
+    return "done";
   }
 
   /** 送れなかったら、画面を開いている間は少しおいて送り直す(保存の途中だった・電波が弱かった) */
@@ -179,7 +185,10 @@ export function usePhotoQueue(
     }, RETRY_DELAY_MS);
   }
 
-  /** 端末に置いた写真を、撮った順に送る。一枚でも送れなければそこで止め、次の機会に続きから流す */
+  /**
+   * 端末に置いた写真を、撮った順に送る。一枚でも送れなければそこで止め、次の機会に続きから流す。
+   * 送り終えて処理だけを頼めなかった写真では止めず、後の写真を送ってから、次の機会に処理を頼み直す
+   */
   async function pump() {
     if (running.current) {
       again.current = true;
@@ -190,18 +199,23 @@ export function usePhotoQueue(
       do {
         again.current = false;
         for (const photo of await reloadQueued()) {
-          let sent = false;
+          let result: SendResult;
           try {
-            sent = await send(photo);
+            result = await send(photo);
           } catch {
-            sent = false;
+            result = "notSent";
           }
-          if (!sent) {
-            setStage(photo.id, "sendFailed");
-            scheduleRetry();
-            return;
+          if (result === "done") {
+            setStage(photo.id, null);
+            continue;
           }
-          setStage(photo.id, null);
+          scheduleRetry();
+          if (result === "notProcessed") {
+            setStage(photo.id, "processFailed");
+            continue;
+          }
+          setStage(photo.id, "sendFailed");
+          return;
         }
       } while (again.current);
       await reloadQueued();

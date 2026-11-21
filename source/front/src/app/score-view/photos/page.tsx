@@ -1,11 +1,17 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import ApiErrorAlert from "@/components/ApiErrorAlert";
 import BackButton from "@/components/BackButton";
 import PageHeader from "@/components/PageHeader";
-import { getGameSheet, listGamePhotos, photoFileUrl, type EndPhotoRead } from "@/lib/api";
+import {
+  getGameSheet,
+  listGamePhotos,
+  photoFileUrl,
+  processPhoto,
+  type EndPhotoRead,
+} from "@/lib/api";
 import { useLoad } from "@/hooks/useLoad";
 import { useT } from "@/lib/text";
 
@@ -32,7 +38,8 @@ type PhotoItem = {
 
 /**
  * ゲームの元の写真の一覧(写真モードで撮ったもの)。並びはラウンド・エンドの順。
- * 一覧には表示の画像を出し、押すと元の写真を別のタブで開く
+ * 一覧には表示の画像を出し、押すと元の写真を別のタブで開く。
+ * 送り終えたのに処理の済んでいない写真(撮った画面で処理に失敗し、そのまま離れた)は、ここでも処理を頼む
  */
 function GamePhotosContent() {
   const T = useT();
@@ -56,6 +63,22 @@ function GamePhotosContent() {
     });
   }, [gameId]);
 
+  const [processed, setProcessed] = useState<Record<number, EndPhotoRead>>({});
+  // StrictMode で effect が二度走っても、同じ写真の処理を二度頼まない
+  const requested = useRef(new Set<number>());
+  useEffect(() => {
+    for (const { photo } of loaded.data ?? []) {
+      if (photo.status !== "uploading" || requested.current.has(photo.id)) continue;
+      requested.current.add(photo.id);
+      processPhoto(photo.id).then(
+        (result) => setProcessed((current) => ({ ...current, [result.id]: result })),
+        () => {
+          // 置き場に届いていない(409)・処理に失敗した。次に開いたときにまた頼む
+        },
+      );
+    }
+  }, [loaded.data]);
+
   return (
     <div className="page wide">
       <PageHeader title={T.profile.scoreView.photosTitle} />
@@ -66,30 +89,33 @@ function GamePhotosContent() {
       )}
       {loaded.data && loaded.data.length > 0 && (
         <div className="GamePhotoList photo-grid">
-          {loaded.data.map(({ photo, roundNumber, endNumber }) => (
-            <a
-              key={photo.id}
-              className="GamePhoto photo-card panel"
-              href={photoFileUrl(photo.original_url)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {photo.display_url ? (
-                // 署名付き URL は next/image の最適化に通せないので、そのまま出す
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={photoFileUrl(photo.display_url)}
-                  alt=""
-                  loading="lazy"
-                />
-              ) : (
-                <span className="photo-card-empty muted small">
-                  {T.profile.scoreView.photoNotProcessed}
-                </span>
-              )}
-              <span className="small">{T.profile.scoreView.photoCaption(roundNumber, endNumber)}</span>
-            </a>
-          ))}
+          {loaded.data.map(({ photo: listed, roundNumber, endNumber }) => {
+            const photo = processed[listed.id] ?? listed;
+            return (
+              <a
+                key={photo.id}
+                className="GamePhoto photo-card panel"
+                href={photoFileUrl(photo.original_url)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {photo.display_url ? (
+                  // 署名付き URL は next/image の最適化に通せないので、そのまま出す
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={photoFileUrl(photo.display_url)}
+                    alt=""
+                    loading="lazy"
+                  />
+                ) : (
+                  <span className="photo-card-empty muted small">
+                    {T.profile.scoreView.photoNotProcessed}
+                  </span>
+                )}
+                <span className="small">{T.profile.scoreView.photoCaption(roundNumber, endNumber)}</span>
+              </a>
+            );
+          })}
         </div>
       )}
       <BackButton />

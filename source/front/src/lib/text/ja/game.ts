@@ -132,6 +132,7 @@ export const game = {
       failed: "写真を読めませんでした。撮り直してください",
       tooLarge: "写真が大きすぎます。撮り直してください",
       sendFailed: "送れませんでした。画面に戻ったときに、もう一度送ります",
+      processFailed: "送りましたが、処理できませんでした。画面に戻ったときに、もう一度処理します",
       estimates: (count: number) => `推測した${t.arrow} ${count} 本`,
       pending: (count: number) => `送るのを待っている写真 ${count} 枚`,
       recordBadge: "撮影",

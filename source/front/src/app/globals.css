@@ -422,7 +422,8 @@ body:has(.score-entry) { background: var(--panel); }
 .photo-status { text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
 .photo-status.processed { color: var(--ok); }
 .photo-status.failed,
-.photo-status.sendFailed { color: var(--danger); }
+.photo-status.sendFailed,
+.photo-status.processFailed { color: var(--danger); }
 .photo-empty { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; text-align: center; margin: 0; border: 2px dashed var(--line); border-radius: 12px; }
 
 /* 写真を画面いっぱいに見る(PhotoViewer)。押すと元の大きさにして、指でずらして見る */

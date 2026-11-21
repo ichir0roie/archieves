@@ -133,6 +133,7 @@ export const game: typeof ja = {
       failed: "The photo could not be read. Please retake it",
       tooLarge: "The photo is too large. Please retake it",
       sendFailed: "Could not send. It will be sent again when you come back",
+      processFailed: "Sent, but could not be processed. It will be processed again when you come back",
       estimates: (count: number) => `${count} arrows estimated`,
       pending: (count: number) => `${count} photos waiting to send`,
       recordBadge: "Shooting",
