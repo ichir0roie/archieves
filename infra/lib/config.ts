@@ -79,7 +79,8 @@ export interface StageConfig {
   api: {
     functionName: string;
     imageTag: string;
-    // 一人〜数人で使う前提の大きさ。足りなければここを上げる
+    // 写真モードの写真の処理(source/back の app/services/photo_analysis.py)が 12MP の写真一枚で 450MB ほど食い、
+    // 素の 300MB ほどと合わせると 512MB では落ちる。CPU もメモリに比例して付くので、処理の速さも見て決める
     memorySize: number;
     // 呼ぶ側が暴れても、費用と db の接続数がこれ以上に膨らまないようにする(接続は関数ごとに DB_POOL_SIZE まで)
     reservedConcurrentExecutions: number;
@@ -113,7 +114,7 @@ export function stageConfig(stage: Stage, config: DeployConfig): StageConfig {
       api: {
         functionName: "archieves-api",
         imageTag: "main",
-        memorySize: 512,
+        memorySize: 2048,
         reservedConcurrentExecutions: 10,
         dbPoolSize: 2,
       },
@@ -133,7 +134,7 @@ export function stageConfig(stage: Stage, config: DeployConfig): StageConfig {
     api: {
       functionName: "archieves-api-dev",
       imageTag: "develop",
-      memorySize: 512,
+      memorySize: 2048,
       // 確かめに使うだけなので、db の接続を本番より食わせない
       reservedConcurrentExecutions: 3,
       dbPoolSize: 2,

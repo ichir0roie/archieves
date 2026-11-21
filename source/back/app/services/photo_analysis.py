@@ -75,7 +75,8 @@ def analyze(
         # 元の写真の大きさは、画素を広げる前にヘッダーから読む(draft で縮めると変わるため)
         width, height = _original_size(original)
         image = Image.open(io.BytesIO(original))
-        # JPEG は読み込むときに縮めると速く、メモリも少なく済む(12MP を全部広げない)
+        # JPEG は読み込むときに縮めると速く、メモリも少なく済む(48MP を全部広げない)。draft は縦横の
+        # どちらも DISPLAY_MAX_PX を割らない倍率でしか縮めないので、4000x3000 の 12MP はそのまま広げる
         image.draft("RGB", (DISPLAY_MAX_PX, DISPLAY_MAX_PX))
         # スマホの写真は、画素を横のまま持って向きを EXIF で指すことがある
         image = ImageOps.exif_transpose(image).convert("RGB")
