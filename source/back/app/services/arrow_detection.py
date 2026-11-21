@@ -4,7 +4,9 @@
 1. ノックの色の小さな塊を取る。色はゲームのノックの色(本人の矢の写真から測った色)の近く。
    決めていなければ(写真モードの前に始めた古いゲーム)、よくある蛍光の緑・オレンジ・ピンク
 2. 塊ごとに、ノックの延長線上に乗った線分(LSD)を集めて軸の向きを決める。刺さった点はノックより
-   的の側にあるので、ノックから的の中心への向きに近いものだけを見る
+   的の側にあるので、ノックから的の中心への向きに近いものだけを見る。
+   たどれなかったノックは、たどれた軸の直線が集まる点(矢の向きの消失点)への向きでたどり直す。
+   的の中心の近くのノックは、中心への向きが軸の向きと大きくずれるため
 3. 軸の向きは、乗った線分に直線を当て直して決める(粗い向きのままだと、遠くの軸が幅から外れて
    途中で止まる)
 4. 軸に沿って、軸と平行な線分で埋まった所を足し、空いた所を引いて、和がいちばん大きい所を
@@ -67,6 +69,12 @@ SHAFT_ALIGN_DEGREES = 5
 # 軸の直線を当て直すときの、線分を拾う幅の倍率(広めから狭めへ)。広げすぎると、まとまって
 # 刺さった隣の矢の軸まで拾い、そちらへ乗り換える
 SHAFT_REFIT_WIDENING = (1.5, 1.0)
+# 消失点を求める直線の広がりの下限(重みの和に対する、いちばん弱い向きの割合)。
+# 軸がほぼ平行なら求めない
+VANISHING_MIN_SPREAD = 0.02
+# 消失点からこれより近い(的の半径に対する割合)ノックは、カメラの方を向いた矢で、
+# 軸の向きが決まらない
+VANISHING_NEAR = 0.1
 
 
 @dataclass(frozen=True)
@@ -301,6 +309,27 @@ def _distinct(arrows: list[DetectedArrow]) -> list[DetectedArrow]:
     return kept
 
 
+def _vanishing_point(lines: list[tuple[tuple[float, float], tuple[float, float], float]]):
+    """たどれた軸の直線が集まる点(矢の向きの消失点)。
+
+    (通る点, 向き, 重み) の直線から最小二乗で求める。
+    軸がほぼ平行(消失点が遠い)・2 本に満たないときは None
+    """
+    if len(lines) < 2:
+        return None
+    a = np.zeros((2, 2))
+    b = np.zeros(2)
+    for (px, py), (ux, uy), weight in lines:
+        # 直線に垂直な成分だけを測る射影
+        projection = np.eye(2) - np.outer((ux, uy), (ux, uy))
+        a += weight * projection
+        b += weight * projection @ np.array((px, py))
+    if np.linalg.eigvalsh(a)[0] < VANISHING_MIN_SPREAD * a.trace():
+        return None
+    x, y = np.linalg.solve(a, b)
+    return float(x), float(y)
+
+
 def detect_arrows(
     image_bgr: np.ndarray,
     fit: TargetFit,
@@ -318,14 +347,32 @@ def detect_arrows(
     nocks = _nocks(hsv, fit, ranges)
     max_length = fit.radius_px * MAX_SHAFT_LENGTH
     tolerance = max(3.0, fit.radius_px * SHAFT_TOLERANCE)
+
+    def to_target(point) -> tuple[float, float]:
+        mapped = fit.homography @ np.array([point[0], point[1], 1.0])
+        return float(mapped[0] / mapped[2]), float(mapped[1] / mapped[2])
+
+    traced = {nock: _trace(nock, segments, max_length, tolerance, fit.center_px) for nock in nocks}
+    # 写真の軸は、どれも矢の向きの消失点へ向かって伸びる。的の中心の近くのノックは、中心への向きが
+    # 軸の向きと大きくずれてたどれないので、たどれた軸から求めた消失点へ向かってたどり直す
+    vanishing = _vanishing_point(
+        [
+            (nock, _unit(nock, result[0]), _confidence(result[1], result[2], fit.radius_px))
+            for nock, result in traced.items()
+            if result is not None
+            and math.dist(to_target(result[0]), (0.5, 0.5)) <= MAX_ENTRY_DISTANCE
+        ]
+    )
+    if vanishing is not None:
+        for nock, result in traced.items():
+            if result is None and math.dist(nock, vanishing) > fit.radius_px * VANISHING_NEAR:
+                traced[nock] = _trace(nock, segments, max_length, tolerance, vanishing)
     arrows = []
-    for nock in nocks:
-        traced = _trace(nock, segments, max_length, tolerance, fit.center_px)
-        if traced is None:
+    for nock, result in traced.items():
+        if result is None:
             continue
-        end, length, covered = traced
-        mapped = fit.homography @ np.array([end[0], end[1], 1.0])
-        x, y = float(mapped[0] / mapped[2]), float(mapped[1] / mapped[2])
+        end, length, covered = result
+        x, y = to_target(end)
         if math.dist((x, y), (0.5, 0.5)) > MAX_ENTRY_DISTANCE:
             continue
         confidence = _confidence(length, covered, fit.radius_px)
@@ -338,3 +385,8 @@ def detect_arrows(
             )
         )
     return _distinct(arrows)
+
+
+def _unit(start, end) -> tuple[float, float]:
+    length = max(math.dist(start, end), 1e-9)
+    return (end[0] - start[0]) / length, (end[1] - start[1]) / length

@@ -235,6 +235,57 @@ def test_a_line_leading_away_from_the_target_is_not_followed() -> None:
     assert arrow_detection._trace((0, 0), segments, 500, 3, center=(0, -1000)) is None
 
 
+def radiating_arrow(x: float, y: float, vanishing: tuple[float, float], length: float) -> Arrow:
+    """刺さった点から、消失点(的に対する割合)と逆の向きへ length px 伸びた矢"""
+    to_photo = samples.homography()
+
+    def photo(px: float, py: float) -> tuple[float, float]:
+        point = to_photo @ np.array([px, py, 1.0])
+        return point[0] / point[2], point[1] / point[2]
+
+    ex, ey = photo(x, y)
+    vx, vy = photo(*vanishing)
+    distance = math.dist((ex, ey), (vx, vy))
+    return Arrow(x, y, offset=((ex - vx) / distance * length, (ey - vy) / distance * length))
+
+
+def test_a_nock_beside_the_center_is_traced_toward_where_the_shafts_meet(monkeypatch) -> None:
+    # 軸はどれも、左下の外(矢の向きの消失点)から放射状に伸びる。中心の真下のノックは、
+    # 的の中心への向き(上)と軸の向き(左)が 60 度より大きくずれる
+    vanishing = (-0.3, 0.9)
+    arrows = [
+        radiating_arrow(0.3, 0.35, vanishing, 230),
+        radiating_arrow(0.65, 0.3, vanishing, 230),
+        radiating_arrow(0.7, 0.6, vanishing, 230),
+        radiating_arrow(0.5, 0.8, vanishing, 90),
+    ]
+    photo = samples.jpeg(Sample(arrows=arrows))
+
+    estimates = analyze(photo).estimates
+
+    assert len(estimates) == 4
+    assert nearest(estimates, 0.5, 0.8) < 0.02
+    # たどれた軸から消失点を求めなければ、その矢は拾えない
+    monkeypatch.setattr(arrow_detection, "_vanishing_point", lambda lines: None)
+    assert nearest(analyze(photo).estimates, 0.5, 0.8) > 0.05
+
+
+def test_the_point_where_the_shafts_meet_is_found_only_from_lines_that_spread() -> None:
+    lines = [
+        ((100.0, 0.0), (-1.0, 0.0), 1.0),
+        ((0.0, 100.0), (0.0, -1.0), 1.0),
+        ((70.0, 70.0), (-math.sqrt(0.5), -math.sqrt(0.5)), 0.5),
+    ]
+
+    vanishing = arrow_detection._vanishing_point(lines)
+
+    assert vanishing == (pytest.approx(0, abs=1e-6), pytest.approx(0, abs=1e-6))
+    # 1 本だけ・平行な軸からは決まらない
+    assert arrow_detection._vanishing_point(lines[:1]) is None
+    parallel = [((0.0, float(i)), (1.0, 0.0), 1.0) for i in range(3)]
+    assert arrow_detection._vanishing_point(parallel) is None
+
+
 def test_estimates_on_the_same_spot_are_taken_once_in_order_of_confidence() -> None:
     DetectedArrow = arrow_detection.DetectedArrow
     arrows = [
@@ -257,7 +308,7 @@ def test_the_fletch_is_not_looked_for_outside_the_image() -> None:
 
 
 def test_the_analyzer_version_is_kept_with_the_results() -> None:
-    assert photo_analysis.ANALYZER_VERSION == "shafts-1"
+    assert photo_analysis.ANALYZER_VERSION == "shafts-2"
 
 
 def true_alignment() -> list[list[float]]:
