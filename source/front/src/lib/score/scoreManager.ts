@@ -72,6 +72,15 @@ function isBlankEnd(end: SheetEnd): boolean {
   return end.points.length === 0 && !hasComment(end) && !end.has_photo;
 }
 
+/**
+ * 写真モードで撮っている途中のゲーム。写真があり、矢はまだ一本も無い(撮影では矢を入れない)。
+ * 入れ方は記録に持たないので、保存したゲームを開き直すときは記録の形から決める
+ */
+function isPhotoRecording(sheet: Sheet): boolean {
+  const ends = sheet.rounds.flatMap((round) => round.ends);
+  return ends.some((end) => end.has_photo) && ends.every((end) => end.points.length === 0);
+}
+
 /** API の応答を、手元の形にする(読むだけの欄を落とす) */
 function fromSheetRead(read: GameSheetRead): Sheet {
   return {
@@ -201,7 +210,8 @@ export class ScoreManager {
 
   /**
    * 保存したゲームの編集を始める。API から丸ごと読んでキャッシュを作り直し、いちばん後ろのエンドを開く。
-   * photoReview なら、写真モードの補正として最初のエンドを開く(写真を撮ったゲームを、あとから補正する)
+   * photoReview なら、写真モードの補正として最初のエンドを開く(写真を撮ったゲームを、あとから補正する)。
+   * 写真モードで撮っている途中のゲームは、撮影に戻して、最後に撮ったエンドの次を開く
    */
   static async startEditing(
     sub: string,
@@ -209,6 +219,7 @@ export class ScoreManager {
     photoReview: boolean = false,
   ): Promise<ScoreManager> {
     const sheet = fromSheetRead(await getGameSheet(gameId));
+    const photoRecording = !photoReview && isPhotoRecording(sheet);
     const roundIndex = photoReview ? 0 : Math.max(sheet.rounds.length - 1, 0);
     const manager = new ScoreManager({
       sub,
@@ -219,7 +230,7 @@ export class ScoreManager {
       dirty: false,
       // 保存したゲームの編集は的で入れる(記録に入れ方を持たないため)
       numberPad: false,
-      photoPhase: photoReview ? "review" : null,
+      photoPhase: photoReview ? "review" : photoRecording ? "record" : null,
     });
     if (photoReview) {
       manager.persist();
@@ -227,8 +238,12 @@ export class ScoreManager {
     }
     if (manager.ends.length === 0) {
       manager.pushEnd();
-    } else if (manager.isEndFull && manager.canForwardEnd) {
-      // 満ちたエンドで終わっているので、次に撃つエンドを開けておく。ゲームの最後のエンドは開けない
+    } else if (
+      (photoRecording ? manager.currentEnd?.has_photo : manager.isEndFull) &&
+      manager.canForwardEnd
+    ) {
+      // 満ちたエンド(撮影では写真を撮ったエンド)で終わっているので、次のエンドを開けておく。
+      // ゲームの最後のエンドは開けない
       manager.openNextEnd();
     }
     manager.persist();
