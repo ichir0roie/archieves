@@ -418,7 +418,13 @@ body:has(.score-entry) { background: var(--panel); }
 /* 写真モードの撮影(PhotoCaptureInput) */
 .photo-capture-area { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.5rem; padding: 8px 16px; }
 .photo-preview { flex: 1; min-height: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
-.photo-preview img { flex: 1; min-height: 0; width: 100%; object-fit: contain; border-radius: 12px; background: var(--chip); }
+.photo-capture-buttons { display: grid; grid-template-columns: 1fr 2fr; gap: 0.5rem; }
+.photo-preview-frame { flex: 1; min-height: 0; position: relative; border-radius: 12px; background: var(--chip); overflow: hidden; }
+.photo-preview-frame img,
+.photo-estimate-marks { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.photo-estimate-marks { pointer-events: none; }
+.photo-estimate-mark circle { fill: none; stroke: #fff; stroke-width: 0.005; }
+.photo-estimate-mark circle.outline { stroke: rgb(0 0 0 / 0.7); stroke-width: 0.011; }
 .photo-status { text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
 .photo-status.processed { color: var(--ok); }
 .photo-status.failed,

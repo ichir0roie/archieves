@@ -124,11 +124,13 @@ export const game = {
     photo: {
       take: "写真を撮る",
       retake: "撮り直す",
+      takeNext: `次の${t.end}を撮る`,
       noPhoto: `この${t.end}の写真はまだありません`,
       saved: "端末に置きました。送るのを待っています",
       uploading: "送っています…",
       processing: "処理しています…",
       processed: "処理しました",
+      noTarget: "的を見つけられませんでした。補正のときに、的を手で合わせてください",
       failed: "写真を読めませんでした。撮り直してください",
       tooLarge: "写真が大きすぎます。撮り直してください",
       sendFailed: "送れませんでした。画面に戻ったときに、もう一度送ります",
@@ -139,6 +141,8 @@ export const game = {
       reviewBadge: "補正",
       toReview: "補正へ",
       reviewConfirm: `撮るのを終えて、最初の${t.end}から補正を始めますか?`,
+      reviewPending: (count: number) =>
+        `まだ送り終えていない写真が ${count} 枚あります。届いた${t.end}から、推測した${t.arrow}を入れます`,
       open: "写真を大きく見る",
       close: "閉じる",
       convertFailed: "写真を読み込めませんでした",

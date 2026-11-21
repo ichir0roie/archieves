@@ -159,6 +159,88 @@ test("photos are taken per end, then reviewed on the target and listed with the 
   await expect(recordedArrows(page)).toHaveCount(6);
 });
 
+/** 入力の途中のゲームの id(保存したあと)。写真を送るときに記録を保存するので、撮ったあとなら付いている */
+async function cachedGameId(page: Page): Promise<number> {
+  const id = await page.evaluate(() => {
+    const key = Object.keys(localStorage).find((k) => k.startsWith("scoreSheet:"));
+    return key ? (JSON.parse(localStorage.getItem(key) ?? "null")?.sheet?.id ?? null) : null;
+  });
+  if (typeof id !== "number") throw new Error("game is not saved yet");
+  return id;
+}
+
+test("shooting shows the estimate marks and points to review after the last end's photo", async ({
+  page,
+}) => {
+  await startPhotoGame(page);
+
+  await takePhoto(page);
+  await expect(page.locator(".PhotoStatus.processed")).toBeVisible({ timeout: PROCESS_TIMEOUT });
+  // 補正できた写真には、推測の印を重ねる枠を出す(描いた的には矢が無いので印は 0)
+  await expect(page.locator(".PhotoEstimateMarks")).toBeAttached();
+  await expect(page.locator(".PhotoEstimateMarks .photo-estimate-mark")).toHaveCount(0);
+  // まだ撮るエンドが残っているうちは、補正へを目立たせない
+  await expect(page.locator(".PhotoToReview")).not.toHaveClass(/success/);
+
+  // 撮り終えたエンドでは「次のエンドを撮る」で、次のエンドへ進んでそのままカメラを開く
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "次のエンドを撮る" }).click();
+  await (await chooser).setFiles({
+    name: "end.jpg",
+    mimeType: "image/jpeg",
+    buffer: await targetJpeg(page),
+  });
+  await expect(page.locator(".RoundTotalsBar .EndTotalCell.current .number")).toHaveText("2");
+  await expect(page.locator(".PhotoStatus.processed")).toBeVisible({ timeout: PROCESS_TIMEOUT });
+  // 最後のエンドは先が無いので、撮り直すだけにして、補正へを目立たせる
+  await expect(page.getByRole("button", { name: "次のエンドを撮る" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "撮り直す" })).toBeVisible();
+  await expect(page.locator(".PhotoToReview")).toHaveClass(/success/);
+});
+
+test("a photo that could not be processed does not hold back the next one and is processed later", async ({
+  page,
+}) => {
+  await startPhotoGame(page);
+  // 処理だけを落とす(Lambda のメモリ切れなど)
+  await page.route("**/api/v1/photos/*/process", (route) =>
+    route.fulfill({ status: 502, body: "Bad Gateway" }),
+  );
+
+  await takePhoto(page);
+  await expect(page.locator(".PhotoStatus.processFailed")).toBeVisible({ timeout: PROCESS_TIMEOUT });
+  await page.getByRole("button", { name: "1エンド進む", exact: true }).click();
+  const secondUpload = page.waitForResponse(
+    (r) => r.request().method() === "PUT" && /\/photos\/\d+\/file$/.test(r.url()),
+  );
+  await takePhoto(page);
+  // 1 枚目の処理が落ちたままでも、2 枚目は置き場まで送る
+  expect((await secondUpload).status()).toBe(204);
+
+  // 撮った画面を離れても、ゲームの元の写真の一覧を開けば処理を頼み直す
+  const gameId = await cachedGameId(page);
+  await page.unroute("**/api/v1/photos/*/process");
+  await page.goto(`/score-view/photos?gameId=${gameId}`);
+  await expect(page.locator(".GamePhoto")).toHaveCount(2);
+  await expect(page.locator(".GamePhoto img")).toHaveCount(2, { timeout: PROCESS_TIMEOUT });
+});
+
+test("a photo game reopened from the score view goes back to shooting", async ({ page }) => {
+  await startPhotoGame(page);
+  await takePhoto(page);
+  await expect(page.locator(".PhotoStatus.processed")).toBeVisible({ timeout: PROCESS_TIMEOUT });
+  const gameId = await cachedGameId(page);
+
+  await page.goto(`/score-view?gameId=${gameId}`);
+  await page.getByRole("button", { name: "編集(入力画面に戻る)" }).click();
+  await expect(page).toHaveURL(/\/game\/score-card$/, { timeout: ROUTE_TIMEOUT });
+
+  // 写真を撮ったエンドの次を、撮影で開く
+  await expect(page.locator(".PhotoPhaseBadge")).toHaveText("撮影");
+  await expect(page.locator(".RoundTotalsBar .EndTotalCell.current .number")).toHaveText("2");
+  await expect(page.locator(".PhotoEmpty")).toBeVisible();
+});
+
 test("the input mode chosen at setup is kept for the next game", async ({ page }) => {
   await startPhotoGame(page);
 

@@ -125,11 +125,13 @@ export const game: typeof ja = {
     photo: {
       take: "Take a photo",
       retake: "Retake",
+      takeNext: "Shoot the next end",
       noPhoto: "No photo for this end yet",
       saved: "Kept on this device. Waiting to send",
       uploading: "Sending…",
       processing: "Processing…",
       processed: "Processed",
+      noTarget: "The target was not found. Align it by hand when reviewing",
       failed: "The photo could not be read. Please retake it",
       tooLarge: "The photo is too large. Please retake it",
       sendFailed: "Could not send. It will be sent again when you come back",
@@ -140,6 +142,8 @@ export const game: typeof ja = {
       reviewBadge: "Review",
       toReview: "Review",
       reviewConfirm: "Finish taking photos and start reviewing from the first end?",
+      reviewPending: (count: number) =>
+        `${count} photos have not been sent yet. Estimated arrows are added to each end once its photo arrives`,
       open: "View photo larger",
       close: "Close",
       convertFailed: "Could not load the photo",

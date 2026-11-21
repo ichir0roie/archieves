@@ -77,16 +77,21 @@ export default function ScoreEntryActions(props: ScoreInputProps) {
   // 写真モードの撮影は、点数を付けずにエンドを進めるだけ。終了の代わりに補正へ進む
   const recording = props.photo?.phase === "record";
   const startReview = props.photo?.startReview;
+  const pendingCount = props.photo?.pendingCount ?? 0;
+  // 撮影は矢を入れないので、最後のエンドの写真を撮り終えたら、撮り終えたとみなして補正へを目立たせる
+  const recordComplete = recording && !props.canForwardEnd && props.photo?.view != null;
   return (
     <div className="ScoreEntryActions score-actions">
       {recording && startReview ? (
         <button
           type="button"
-          className={
-            props.isGameComplete ? "PhotoToReview step finish success" : "PhotoToReview step finish"
-          }
+          className={recordComplete ? "PhotoToReview step finish success" : "PhotoToReview step finish"}
           onClick={() => {
-            if (window.confirm(T.game.entry.photo.reviewConfirm)) startReview();
+            const message =
+              pendingCount > 0
+                ? `${T.game.entry.photo.reviewConfirm}\n${T.game.entry.photo.reviewPending(pendingCount)}`
+                : T.game.entry.photo.reviewConfirm;
+            if (window.confirm(message)) startReview();
           }}
           disabled={props.disabled}
         >
@@ -149,11 +154,8 @@ export default function ScoreEntryActions(props: ScoreInputProps) {
       </button>
       <button
         type="button"
-        className={
-          (recording ? props.photo?.view !== null : props.isEndFull) && !props.isGameComplete
-            ? "step primary"
-            : "step"
-        }
+        // 撮影では、写真の下の「次のエンドを撮る」が進む操作の主になる
+        className={!recording && props.isEndFull && !props.isGameComplete ? "step primary" : "step"}
         onClick={props.forwardEnd}
         disabled={props.disabled || !props.canForwardEnd}
         aria-label={T.game.entry.forwardEnd}
