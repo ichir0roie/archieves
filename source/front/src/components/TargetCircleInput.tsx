@@ -249,7 +249,8 @@ export default function TargetCircleInput(props: ScoreInputProps) {
         tabIndex={-1}
         aria-label={T.game.entry.ringLabel(point)}
         disabled={isLocked}
-        className={`target-ring ${ringClass(point)}`}
+        // 写真を敷いたときは、的の縁(1 点の帯の外)の線だけを見せる(globals.css の .with-photo)
+        className={`target-ring ${ringClass(point)} ${point === 1 ? "target-ring-outer" : ""}`}
         style={{
           width: `${size}px`,
           height: `${size}px`,
@@ -278,6 +279,16 @@ export default function TargetCircleInput(props: ScoreInputProps) {
       />
     );
   }
+
+  /** 敷いた写真の大きさと位置(枠の px)。写真は的に対する割合で -extent〜1+extent の正方形 */
+  const photoBox =
+    photoUrl && photoExtent != null && maxDiameter > 0
+      ? {
+          size: maxDiameter * (1 + 2 * photoExtent),
+          left: centerX - (maxDiameter * (1 + 2 * photoExtent)) / 2,
+          top: centerY - (maxDiameter * (1 + 2 * photoExtent)) / 2,
+        }
+      : null;
 
   const circles = new Array<JSX.Element>();
   const lensCircles = new Array<JSX.Element>();
@@ -364,7 +375,23 @@ export default function TargetCircleInput(props: ScoreInputProps) {
             height: `${height * lensZoom}px`,
           }}
         >
-          {lensCircles}
+          {/* 写真を敷いたときは、ズームにも帯でなく写真を拡大して出す(矢の刺さった所を見て狙うため) */}
+          {photoUrl && photoBox ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className="TargetLensPhoto lens-photo"
+              src={photoUrl}
+              alt=""
+              style={{
+                width: `${photoBox.size * lensZoom}px`,
+                height: `${photoBox.size * lensZoom}px`,
+                left: `${photoBox.left * lensZoom}px`,
+                top: `${photoBox.top * lensZoom}px`,
+              }}
+            />
+          ) : (
+            lensCircles
+          )}
           {shownPoints.map((point, index) => createArrow(point.x, point.y, index, lensZoom))}
         </div>
         {/* 中央の帯と同じ色だと埋もれるので、帯のクラスを付けて反転色で描く(globals.css) */}
@@ -390,9 +417,9 @@ export default function TargetCircleInput(props: ScoreInputProps) {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
       >
-        {photoUrl && photoExtent != null && maxDiameter > 0 && (
-          // 補正した写真は、的に対する割合で -extent〜1+extent の正方形。的の帯と重なるように置き、
-          // 枠の外(下の操作のボタン)には出さない。枠そのものは切らない(ズームは枠の上にはみ出す)
+        {photoUrl && photoBox && (
+          // 補正した写真を、的の帯と重なるように置く。枠の外(下の操作のボタン)には出さない。
+          // 枠そのものは切らない(ズームは枠の上にはみ出す)
           <div className="target-photo-clip">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -400,10 +427,10 @@ export default function TargetCircleInput(props: ScoreInputProps) {
               src={photoUrl}
               alt=""
               style={{
-                width: `${maxDiameter * (1 + 2 * photoExtent)}px`,
-                height: `${maxDiameter * (1 + 2 * photoExtent)}px`,
-                left: `${centerX - (maxDiameter * (1 + 2 * photoExtent)) / 2}px`,
-                top: `${centerY - (maxDiameter * (1 + 2 * photoExtent)) / 2}px`,
+                width: `${photoBox.size}px`,
+                height: `${photoBox.size}px`,
+                left: `${photoBox.left}px`,
+                top: `${photoBox.top}px`,
               }}
             />
           </div>
