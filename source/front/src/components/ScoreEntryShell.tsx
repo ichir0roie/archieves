@@ -106,6 +106,7 @@ export default function ScoreEntryShell({ renderInput }: Props) {
     saveComment,
     next,
     backPoint,
+    removePointAt,
     forwardPoint,
     backEnd,
     forwardEnd,
@@ -308,6 +309,8 @@ export default function ScoreEntryShell({ renderInput }: Props) {
           <EndView
             points={mirrorPoints}
             endSize={endSize}
+            // 写真モードの補正では、推測が拾った矢でないものを、枠を押して外せる
+            onRemove={manager?.photoPhase === "review" && !isFinishing ? removePointAt : undefined}
           />
           <div className="grow">
             {renderInput({

@@ -64,6 +64,15 @@ test("a photo taken at an angle is rectified and its arrows are estimated", asyn
   }
 });
 
+test("a short line beyond the entry point does not turn the shaft direction", async () => {
+  // 軸の向きは線分の長さで重み付けして決める。刺さった点の先で的の線がたまたま軸の延長に乗っても、
+  // 軸の縁(長い線分)と同じ重さに数えて向きを傾けない
+  const estimates = estimatesOf(analyze(await loadSample("four-arrows-redrawn")));
+
+  expect(estimates).toHaveLength(TRUE_POINTS.length);
+  for (const [x, y] of TRUE_POINTS) expect(nearest(estimates, x, y)).toBeLessThan(0.02);
+});
+
 test("the rectified display shows the target upright and centered", async () => {
   const result = analyze(await loadSample("no-arrows"));
   expect(result.rectified).toBe(true);

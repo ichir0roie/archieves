@@ -136,7 +136,9 @@ export const game = {
       tooLarge: "写真が大きすぎます。撮り直してください",
       sendFailed: "送れませんでした。画面に戻ったときに、もう一度送ります",
       processFailed: "送りましたが、保存できませんでした。画面に戻ったときに、もう一度保存します",
-      estimates: (count: number) => `推測した${t.arrow} ${count} 本`,
+      estimates: (count: number, endSize: number) =>
+        count < endSize ? `推測した${t.arrow} ${count}/${endSize} 本` : `推測した${t.arrow} ${count} 本`,
+      removeArrow: (number: number) => `${number}本目の${t.arrow}を外す`,
       noEstimates: `${t.arrow}を見つけられませんでした`,
       pending: (count: number) => `送るのを待っている写真 ${count} 枚`,
       recordBadge: "撮影",

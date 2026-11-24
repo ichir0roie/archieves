@@ -171,7 +171,7 @@ export function PhotoStatusText({ view, endSize }: { view: EndPhotoView; endSize
   if (view.result) {
     // 補正で矢として入るのはエンドの本数までなので、数もそこで切る
     const count = Math.min(view.result.estimates.length, endSize);
-    parts.push(!view.result.rectified ? text.noTarget : count > 0 ? text.estimates(count) : text.noEstimates);
+    parts.push(!view.result.rectified ? text.noTarget : count > 0 ? text.estimates(count, endSize) : text.noEstimates);
   }
   switch (view.status) {
     case "saved":

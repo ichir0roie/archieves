@@ -252,7 +252,7 @@ test("the arrows are estimated on the device right after the photo, even without
   // 送れなくても、端末で補正した画像に推測の印を重ねて、推測した本数を出す
   await expect(page.locator(".PhotoStatus.sendFailed")).toBeVisible({ timeout: PROCESS_TIMEOUT });
   await expect(page.locator(".PhotoEstimateMarks .photo-estimate-mark")).toHaveCount(4);
-  await expect(page.locator(".PhotoStatus")).toContainText("推測した矢 4 本");
+  await expect(page.locator(".PhotoStatus")).toContainText("推測した矢 4/6 本");
   await expect(page.locator(".PhotoPending")).toBeVisible();
 
   // 電波が戻ったら送り、結果を書く
@@ -261,6 +261,54 @@ test("the arrows are estimated on the device right after the photo, even without
   await expect(page.locator(".PhotoStatus.processed")).toBeVisible({ timeout: PROCESS_TIMEOUT });
   await expect(page.locator(".PhotoEstimateMarks .photo-estimate-mark")).toHaveCount(4);
   await expect(page.locator(".PhotoPending")).toHaveCount(0);
+});
+
+test("in review, the estimated arrows are ordered by score and are easy to fix", async ({ page }) => {
+  page.on("dialog", (dialog) => dialog.accept());
+  await startPhotoGame(page);
+  await page.locator(".PhotoCaptureInput input[type=file]").setInputFiles({
+    name: "end.png",
+    mimeType: "image/png",
+    buffer: fourArrowsPng(),
+  });
+  // 1 エンドの矢は 6 本なので、推測が足りないことを本数で見せる
+  await expect(page.locator(".PhotoStatus.processed")).toBeVisible({ timeout: PROCESS_TIMEOUT });
+  await expect(page.locator(".PhotoStatus")).toContainText("推測した矢 4/6 本");
+  // 撮ったエンドのまま補正を始めても、推測した矢が入る
+  await page.locator(".PhotoToReview").click();
+  await expect(page.locator(".PhotoPhaseBadge")).toHaveText("補正");
+
+  // 推測した矢は、高い点数から並ぶ
+  await expect(recordedArrows(page)).toHaveText(["X", "8", "8", "6"]);
+
+  // 推測が拾った矢でないものは、枠を押して外せる。外した矢は「1矢進む」で戻せる
+  await page.getByRole("button", { name: "4本目の矢を外す" }).click();
+  await expect(recordedArrows(page)).toHaveText(["X", "8", "8"]);
+  await page.getByRole("button", { name: "1矢進む" }).click();
+  await expect(recordedArrows(page)).toHaveText(["X", "8", "8", "6"]);
+
+  // エンドが満ちていなくても、推測した矢を掴んで動かせる。動かすと並び直す
+  const marks = page.locator(".TargetFace .arrow-mark");
+  const first = await marks.first().boundingBox();
+  if (!first) throw new Error("arrow mark not laid out");
+  const x = first.x + first.width / 2;
+  const y = first.y + first.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 150, y + 150, { steps: 6 });
+  await page.mouse.up();
+  await expect(recordedArrows(page)).toHaveCount(4);
+  await expect(recordedArrows(page).filter({ hasText: "X" })).toHaveCount(0);
+  const values = (await recordedArrows(page).allTextContents()).map((text) =>
+    text === "X" ? 11 : text === "M" ? 0 : Number(text),
+  );
+  expect(values).toEqual([...values].sort((a, b) => b - a));
+
+  // 矢の上を押して動かさずに離すと、そこへ新しい矢を足す(推測した矢のすぐ近くに刺さった矢)
+  const next = await marks.first().boundingBox();
+  if (!next) throw new Error("arrow mark not laid out");
+  await page.mouse.click(next.x + next.width / 2, next.y + next.height / 2);
+  await expect(recordedArrows(page)).toHaveCount(5);
 });
 
 test("a photo game reopened from the score view goes back to shooting", async ({ page }) => {

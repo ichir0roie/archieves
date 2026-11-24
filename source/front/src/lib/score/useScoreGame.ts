@@ -175,6 +175,11 @@ export function useScoreGame(beforeLeave: () => void) {
     act((scoreManager) => scoreManager.removePoint());
   }
 
+  /** 今のエンドの index 番目の矢を外す(写真モードの補正で、推測が拾った矢でないものを外す) */
+  function removePointAt(index: number) {
+    act((scoreManager) => scoreManager.removePointAt(index));
+  }
+
   function forwardPoint() {
     act((scoreManager) => scoreManager.restorePoint());
   }
@@ -232,6 +237,7 @@ export function useScoreGame(beforeLeave: () => void) {
     saveComment,
     next,
     backPoint,
+    removePointAt,
     forwardPoint,
     backEnd,
     forwardEnd,

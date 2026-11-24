@@ -653,6 +653,19 @@ export class ScoreManager {
   }
 
   /**
+   * 写真モードの補正では、エンドの矢を高い点数から並べる。写真からは撃った順が分からないので、
+   * 点数を高い方から記録する慣わしに合わせる。同じ点数どうしは今の順のまま
+   */
+  private orderReviewedPoints() {
+    if (this._photoPhase !== "review") return;
+    const points = this.currentPoints;
+    points.sort((a, b) => b.score - a.score);
+    points.forEach((point, index) => {
+      point.number = index + 1;
+    });
+  }
+
+  /**
    * 矢を一本記録する。記録した時刻も持つ(あとから入力なら、その日の 0 時)。エンドが満ちていれば
    * 何もしない
    */
@@ -670,6 +683,7 @@ export class ScoreManager {
       recorded_at: toDateOnly(shotAt),
       shot_at: shotAt.toISOString(),
     });
+    this.orderReviewedPoints();
     this.changed();
   }
 
@@ -683,6 +697,7 @@ export class ScoreManager {
     point.score = score;
     point.x = x;
     point.y = y;
+    this.orderReviewedPoints();
     this.changed();
   }
 
@@ -713,6 +728,7 @@ export class ScoreManager {
         shot_at: shotAt.toISOString(),
       });
     }
+    this.orderReviewedPoints();
     this.changed();
   }
 
@@ -747,6 +763,22 @@ export class ScoreManager {
     this.changed();
   }
 
+  /** 今のエンドの index 番目の矢を外す(写真の推測が拾った、矢でないもの)。restorePoint() で入れ直せる */
+  removePointAt(index: number) {
+    const points = this.currentPoints;
+    const [point] = points.splice(index, 1);
+    if (!point) return;
+    points.forEach((rest, order) => {
+      rest.number = order + 1;
+    });
+    const { score, x, y, recorded_at, shot_at } = point;
+    this.undonePoints.set(this.undoneKey, [
+      ...this.currentUndone,
+      { score, x, y, recorded_at, shot_at },
+    ]);
+    this.changed();
+  }
+
   /** removePoint() で外した矢を入れ直す */
   restorePoint() {
     if (!this.canForwardPoint) return;
@@ -755,6 +787,7 @@ export class ScoreManager {
     if (!point) return;
     this.undonePoints.set(this.undoneKey, undone);
     this.pushPoint(point);
+    this.orderReviewedPoints();
     this.changed();
   }
 

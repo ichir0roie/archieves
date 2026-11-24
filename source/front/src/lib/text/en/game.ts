@@ -137,7 +137,9 @@ export const game: typeof ja = {
       tooLarge: "The photo is too large. Please retake it",
       sendFailed: "Could not send. It will be sent again when you come back",
       processFailed: "Sent, but could not be saved. It will be saved again when you come back",
-      estimates: (count: number) => `${count} arrows estimated`,
+      estimates: (count: number, endSize: number) =>
+        count < endSize ? `${count}/${endSize} arrows estimated` : `${count} arrows estimated`,
+      removeArrow: (number: number) => `Remove arrow ${number}`,
       noEstimates: "No arrows found",
       pending: (count: number) => `${count} photos waiting to send`,
       recordBadge: "Shooting",
