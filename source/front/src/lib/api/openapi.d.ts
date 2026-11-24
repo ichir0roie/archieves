@@ -2280,7 +2280,9 @@ export interface components {
         };
         /**
          * PhotoAnalysisWrite
-         * @description ブラウザが写真を処理した結果(source/front の lib/photo/vision)。表示の画像は先に置き場へ送っておく
+         * @description ブラウザが写真を処理した結果(source/front の lib/photo/vision)。
+         *
+         *     表示の画像は先に置き場へ送っておく
          */
         PhotoAnalysisWrite: {
             /** Display Key */
