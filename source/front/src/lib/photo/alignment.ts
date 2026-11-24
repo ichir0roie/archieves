@@ -1,8 +1,8 @@
 /**
  * 写真の的を手で合わせる 4 点と、その 4 点から求める射影(ホモグラフィ)。
  *
- * 4 点は、赤の帯の外の線(7 点の外)の上・右・下・左。API の target_detection.ALIGNMENT_TARGET_POINTS と同じ。
- * 写真の上の位置は、向きを直した元の写真の幅・高さに対する割合で持つ(API の PhotoAlignmentWrite)。
+ * 4 点は、赤の帯の外の線(7 点の外)の上・右・下・左。API の services/photos.py の ALIGNMENT_TARGET_POINTS と同じ。
+ * 写真の上の位置は、向きを直した元の写真の幅・高さに対する割合で持つ(API の PhotoAnalysisWrite の alignment_points)。
  */
 
 export type Point = [number, number];

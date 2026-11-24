@@ -79,8 +79,8 @@ export interface StageConfig {
   api: {
     functionName: string;
     imageTag: string;
-    // 写真モードの写真の処理(source/back の app/services/photo_analysis.py)が 12MP の写真一枚で 450MB ほど食い、
-    // 素の 300MB ほどと合わせると 512MB では落ちる。CPU もメモリに比例して付くので、処理の速さも見て決める
+    // 写真モードの写真の処理を API でしていたころに、12MP の写真一枚の 450MB ほどを見込んで上げた。今は処理を
+    // ブラウザで行い、API は写真の中身を読まない。CPU もメモリに比例して付くので、下げるときは応答の速さも見て決める
     memorySize: number;
     // 呼ぶ側が暴れても、費用と db の接続数がこれ以上に膨らまないようにする(接続は関数ごとに DB_POOL_SIZE まで)
     reservedConcurrentExecutions: number;

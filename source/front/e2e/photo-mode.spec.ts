@@ -1,10 +1,12 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { ensureRegistered } from "./ensureRegistered";
 import { registerNockColor } from "./nockColor";
 import { finishSheet, recordedArrows, shoot } from "./scoreEntry";
 
 // 写真モード: エンドごとに写真を撮って進み(点数は付けない)、最後に写真を見ながら的で矢を入れて直す。
-// 写真は端末に置いてから裏で送り、API が表示の画像を作る(テスト用の API は手元の置き場)
+// 写真はその場でブラウザが処理して(的の補正と矢の推測)端末に置き、裏で API へ送る(テスト用の API は手元の置き場)
 
 const ROUTE_TIMEOUT = 15_000;
 const PROCESS_TIMEOUT = 30_000;
@@ -13,7 +15,7 @@ test.beforeEach(async ({ page }) => {
   await ensureRegistered(page);
 });
 
-/** ブラウザで描いた的の JPEG。API の Pillow が読める本物の画像にする */
+/** ブラウザで描いた的の JPEG(矢は無い) */
 async function targetJpeg(page: Page): Promise<Buffer> {
   const dataUrl = await page.evaluate(() => {
     const canvas = document.createElement("canvas");
@@ -52,6 +54,14 @@ async function startPhotoGame(page: Page) {
   await expect(page).toHaveURL(/\/game\/score-card$/, { timeout: ROUTE_TIMEOUT });
   await expect(page.locator(".PhotoCaptureInput")).toBeVisible({ timeout: ROUTE_TIMEOUT });
 }
+
+/** 緑のノックの矢が 4 本刺さった的の写真(e2e/photoSamples.ts の four-arrows) */
+function fourArrowsPng(): Buffer {
+  return readFileSync(path.join(__dirname, "fixtures", "photos", "four-arrows.png"));
+}
+
+/** 置き場への送り(元の写真・表示の画像)。手元の置き場では、送る先のキーを道に載せる */
+const FILE_UPLOAD = /\/photos\/\d+\/file(\?|$)/;
 
 async function takePhoto(page: Page) {
   await page.locator(".PhotoCaptureInput input[type=file]").setInputFiles({
@@ -116,8 +126,9 @@ test("photos are taken per end, then reviewed on the target and listed with the 
   await page.mouse.down();
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2 - 10, { steps: 4 });
   await page.mouse.up();
+  // 元の写真をブラウザで処理し直し、表示の画像を送ってから、結果を書く
   const realigned = page.waitForResponse(
-    (r) => r.request().method() === "PUT" && /\/photos\/\d+\/alignment$/.test(r.url()),
+    (r) => r.request().method() === "PUT" && /\/photos\/\d+\/analysis$/.test(r.url()),
   );
   await page.locator(".PhotoAlignmentSave").click();
   expect((await realigned).status()).toBe(200);
@@ -198,12 +209,12 @@ test("shooting shows the estimate marks and points to review after the last end'
   await expect(page.locator(".PhotoToReview")).toHaveClass(/success/);
 });
 
-test("a photo that could not be processed does not hold back the next one and is processed later", async ({
+test("a photo whose result could not be saved does not hold back the next one and is saved later", async ({
   page,
 }) => {
   await startPhotoGame(page);
-  // 処理だけを落とす(Lambda のメモリ切れなど)
-  await page.route("**/api/v1/photos/*/process", (route) =>
+  // 結果の書き込みだけを落とす(API の一時的な不具合など)
+  await page.route("**/api/v1/photos/*/analysis", (route) =>
     route.fulfill({ status: 502, body: "Bad Gateway" }),
   );
 
@@ -211,18 +222,45 @@ test("a photo that could not be processed does not hold back the next one and is
   await expect(page.locator(".PhotoStatus.processFailed")).toBeVisible({ timeout: PROCESS_TIMEOUT });
   await page.getByRole("button", { name: "1エンド進む", exact: true }).click();
   const secondUpload = page.waitForResponse(
-    (r) => r.request().method() === "PUT" && /\/photos\/\d+\/file$/.test(r.url()),
+    (r) => r.request().method() === "PUT" && FILE_UPLOAD.test(r.url()),
   );
   await takePhoto(page);
-  // 1 枚目の処理が落ちたままでも、2 枚目は置き場まで送る
+  // 1 枚目の結果を書けないままでも、2 枚目は置き場まで送る
   expect((await secondUpload).status()).toBe(204);
 
-  // 撮った画面を離れても、ゲームの元の写真の一覧を開けば処理を頼み直す
+  // 撮った画面を離れても、ゲームの元の写真の一覧を開けば、元の写真を処理し直して結果を書く
   const gameId = await cachedGameId(page);
-  await page.unroute("**/api/v1/photos/*/process");
+  await page.unroute("**/api/v1/photos/*/analysis");
   await page.goto(`/score-view/photos?gameId=${gameId}`);
   await expect(page.locator(".GamePhoto")).toHaveCount(2);
   await expect(page.locator(".GamePhoto img")).toHaveCount(2, { timeout: PROCESS_TIMEOUT });
+});
+
+test("the arrows are estimated on the device right after the photo, even without a connection", async ({
+  page,
+}) => {
+  await startPhotoGame(page);
+  // 電波が無い(受け付けが届かない)
+  await page.route("**/api/v1/ends/*/photo", (route) => route.abort("internetdisconnected"));
+
+  await page.locator(".PhotoCaptureInput input[type=file]").setInputFiles({
+    name: "end.png",
+    mimeType: "image/png",
+    buffer: fourArrowsPng(),
+  });
+
+  // 送れなくても、端末で補正した画像に推測の印を重ねて、推測した本数を出す
+  await expect(page.locator(".PhotoStatus.sendFailed")).toBeVisible({ timeout: PROCESS_TIMEOUT });
+  await expect(page.locator(".PhotoEstimateMarks .photo-estimate-mark")).toHaveCount(4);
+  await expect(page.locator(".PhotoStatus")).toContainText("推測した矢 4 本");
+  await expect(page.locator(".PhotoPending")).toBeVisible();
+
+  // 電波が戻ったら送り、結果を書く
+  await page.unroute("**/api/v1/ends/*/photo");
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(page.locator(".PhotoStatus.processed")).toBeVisible({ timeout: PROCESS_TIMEOUT });
+  await expect(page.locator(".PhotoEstimateMarks .photo-estimate-mark")).toHaveCount(4);
+  await expect(page.locator(".PhotoPending")).toHaveCount(0);
 });
 
 test("a photo game reopened from the score view goes back to shooting", async ({ page }) => {

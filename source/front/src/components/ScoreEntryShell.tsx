@@ -22,6 +22,7 @@ import {
 import { loadAimSettings } from "@/lib/storage";
 import type { PhotoPhase, SheetPoint } from "@/lib/score/scoreSheetCache";
 import type { CaptureError, EndPhotoView } from "@/lib/photo/usePhotoQueue";
+import type { EndPhotoRead } from "@/lib/api";
 import { useT } from "@/lib/text";
 
 /** 写真モードの入力に渡すもの */
@@ -40,7 +41,7 @@ export type PhotoInputProps = {
    * 今のエンドの写真の的を、手で合わせた 4 点で補正し直す。replace なら、このエンドの矢を補正し直した
    * 推測で置き換える。できたら true
    */
-  align: (photoId: number, points: Array<[number, number]>, replace: boolean) => Promise<boolean>;
+  align: (photo: EndPhotoRead, points: Array<[number, number]>, replace: boolean) => Promise<boolean>;
 };
 
 export type ScoreInputProps = {

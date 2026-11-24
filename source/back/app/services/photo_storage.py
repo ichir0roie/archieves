@@ -1,9 +1,9 @@
 """写真のファイルの置き場。本番は S3、手元・テストはディレクトリ(設定の PHOTO_STORAGE)。
 
-ブラウザは、置き場が返す URL へ元の写真を PUT し、表示の画像・元の写真を GET する。
+ブラウザは、置き場が返す URL へ元の写真と表示の画像(ブラウザが作る)を PUT し、GET する。
 S3 なら署名付き URL で S3 に直に届く(API の Lambda を通すと 6MB の上限にかかるため)。
 手元なら API の道(endpoints/photos.py の /photos/{id}/file)を指し、
-API がディレクトリを読み書きする。
+API がディレクトリを読み書きする。API 自身は写真の中身を読まず、届いたかだけを確かめる。
 
 ファイルを消すのは、撮り直したとき(前の写真の delete)と、
 アカウントを消したとき(delete_prefix)。
@@ -15,9 +15,11 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Protocol
+from urllib.parse import urlencode
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 
 from app.core.config import settings
 
@@ -37,10 +39,6 @@ class UploadTarget:
     headers: dict[str, str]
 
 
-class PhotoTooLargeError(Exception):
-    """置き場のファイルが、読む上限より大きい。本文は読んでいない"""
-
-
 def user_prefix(user_id: int) -> str:
     """その人の写真のキーの頭。アカウントを消すとき、ここから下を消す"""
     return f"photos/{user_id}/"
@@ -57,11 +55,9 @@ class PhotoStorage(Protocol):
 
     def download_url(self, photo_id: int, key: str, kind: PhotoKind) -> str: ...
 
-    def read(self, key: str, max_bytes: int | None = None) -> bytes | None:
-        """無ければ None。max_bytes より大きければ、本文を読まずに PhotoTooLargeError"""
+    def exists(self, key: str) -> bool:
+        """ファイルが置き場に届いているか"""
         ...
-
-    def write(self, key: str, data: bytes, content_type: str) -> None: ...
 
     def delete(self, keys: list[str]) -> None: ...
 
@@ -88,19 +84,22 @@ class LocalPhotoStorage:
         content_type: str,
         content_length: int,
     ) -> UploadTarget:
-        # 大きさは API の道(endpoints/photos.py の upload_photo_file)が受けるときに確かめる
-        return UploadTarget(url=f"/photos/{photo_id}/file", headers={"Content-Type": content_type})
+        # 大きさは API の道(endpoints/photos.py の upload_photo_file)が受けるときに確かめる。
+        # 表示の画像はキーを作り直すたびに変わるので、どのキーへ送るかを道に載せる
+        return UploadTarget(
+            url=f"/photos/{photo_id}/file?{urlencode({'key': key})}",
+            headers={"Content-Type": content_type},
+        )
 
     def download_url(self, photo_id: int, key: str, kind: PhotoKind) -> str:
         return f"/photos/{photo_id}/file?kind={kind}"
 
-    def read(self, key: str, max_bytes: int | None = None) -> bytes | None:
+    def exists(self, key: str) -> bool:
+        return self._path(key).is_file()
+
+    def read(self, key: str) -> bytes | None:
         path = self._path(key)
-        if not path.is_file():
-            return None
-        if max_bytes is not None and path.stat().st_size > max_bytes:
-            raise PhotoTooLargeError(key)
-        return path.read_bytes()
+        return path.read_bytes() if path.is_file() else None
 
     def write(self, key: str, data: bytes, content_type: str) -> None:
         path = self._path(key)
@@ -125,7 +124,7 @@ class LocalPhotoStorage:
 
 class S3PhotoStorage:
     """本番用。URL は Lambda の中で署名するだけなので、作るのに S3 へは出ない。
-    読み書き(処理のときの元の写真・表示の画像)は、VPC の S3 のエンドポイントを通る"""
+    届いたかの確かめ(HEAD)と消すのは、VPC の S3 のエンドポイントを通る"""
 
     def __init__(self, bucket: str, region: str, expires_seconds: int) -> None:
         self.bucket = bucket
@@ -167,19 +166,15 @@ class S3PhotoStorage:
             ExpiresIn=self.expires_seconds,
         )
 
-    def read(self, key: str, max_bytes: int | None = None) -> bytes | None:
+    def exists(self, key: str) -> bool:
         try:
-            response = self.client.get_object(Bucket=self.bucket, Key=key)
-        except self.client.exceptions.NoSuchKey:
-            return None
-        # 本文を読む前に応答のヘッダーで大きさを見る。読み切ると Lambda のメモリを使い切ることがある
-        if max_bytes is not None and response["ContentLength"] > max_bytes:
-            response["Body"].close()
-            raise PhotoTooLargeError(key)
-        return response["Body"].read()
-
-    def write(self, key: str, data: bytes, content_type: str) -> None:
-        self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
+            self.client.head_object(Bucket=self.bucket, Key=key)
+        except ClientError as e:
+            # 無いキーへの HEAD は本文が無いので、NoSuchKey でなく 404 で返る
+            if e.response.get("Error", {}).get("Code") in ("404", "NoSuchKey", "NotFound"):
+                return False
+            raise
+        return True
 
     def delete(self, keys: list[str]) -> None:
         if keys:

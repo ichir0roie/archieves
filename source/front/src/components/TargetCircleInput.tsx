@@ -94,8 +94,8 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   // 補正のときは、エンドの写真を的に重ねる(補正できた写真)か、隅に小さく出す(まだ補正できない写真)
   const photoView = props.photo?.phase === "review" ? props.photo.view : null;
   const photoUrl = photoView?.imageUrl ?? null;
-  const photoExtent = photoView?.photo?.rectified ? photoView.photo.display_extent : null;
-  // 処理の済んだ写真なら、元の写真で的を手で合わせ直せる
+  const photoExtent = photoView?.result?.rectified ? photoView.result.displayExtent : null;
+  // 送り終えて処理の済んだ写真なら、元の写真で的を手で合わせ直せる
   const alignable = photoView?.photo?.status === "processed" ? photoView.photo : null;
 
   /** 手で合わせた 4 点で補正し直す。矢が入っていれば、推測し直した矢で置き換えるかを聞く */
@@ -103,7 +103,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     if (!alignable || !props.photo) return false;
     const replace =
       props.points.length === 0 || window.confirm(T.game.entry.photo.replaceConfirm);
-    const ok = await props.photo.align(alignable.id, points, replace);
+    const ok = await props.photo.align(alignable, points, replace);
     if (ok) setAligning(false);
     return ok;
   }

@@ -13,7 +13,8 @@
     "types": "openapi-typescript ../back/openapi.json -o src/lib/api/openapi.d.ts",
     "pretest:e2e": "node scripts/ensure-amplify-outputs.mjs",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "photo-eval": "tsx scripts/photo-eval.ts"
   },
   "dependencies": {
     "@aws-amplify/adapter-nextjs": "^1.8.0",
@@ -43,6 +44,8 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
     "openapi-typescript": "^7.13.0",
+    "sharp": "0.34.1",
+    "tsx": "4.19.4",
     "typescript": "^5.8.3"
   }
 }

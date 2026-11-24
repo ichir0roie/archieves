@@ -54,13 +54,14 @@ class EndPhoto(TimestampMixin, Base):
     # 補正できなければ null。
     # 推測と人の直した位置を、あとで学習・評価に使うときの手がかりに残す
     homography: Mapped[list[list[float]] | None] = mapped_column(JSON, default=None)
-    # 人が手で合わせた 4 点(target_detection.ALIGNMENT_TARGET_POINTS の順)。向きを直した元の写真の
-    # 幅・高さに対する割合。あれば、処理し直すときも的を探さずにこの 4 点で補正する
+    # 人が手で合わせた 4 点(services/photos.py の ALIGNMENT_TARGET_POINTS の順)。
+    # 向きを直した元の写真の幅・高さに対する割合。
+    # ブラウザは、これがあれば的を探さずにこの 4 点で補正する
     alignment_points: Mapped[list[list[float]] | None] = mapped_column(JSON, default=None)
     # 推測した矢の位置。[{"x", "y", "confidence"}]。x・y は的に対する割合
     estimates: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, default=None)
     analyzer_version: Mapped[str | None] = mapped_column(String(32), default=None)
-    # 処理に失敗したときの理由
+    # 処理に失敗したときの理由(API が写真を処理していたころの行だけ)
     error: Mapped[str | None] = mapped_column(String(255), default=None)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 

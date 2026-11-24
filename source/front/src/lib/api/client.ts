@@ -41,6 +41,8 @@ import type {
   OrganizationUpdate,
   PhotoUploadCreate,
   PhotoUploadRead,
+  DisplayUploadRead,
+  PhotoAnalysisWrite,
   PointRead,
   RankingMetric,
   RoundCommentRead,
@@ -377,13 +379,14 @@ export function photoFileUrl(url: string): string {
 const PHOTO_QUEUE_HANDLING: ErrorHandling = { stayOnPageStatuses: [500, 502, 503, 504] };
 
 /**
- * エンドの写真を受け付けてもらい、元の写真を送る先を受け取る。撮り直しなら前の写真と置き換わる。
- * 送る先(S3 の署名付き URL)は contentLength と同じ大きさの本文だけを通す
+ * エンドの写真を受け付けてもらい、元の写真と表示の画像を送る先を受け取る。撮り直しなら前の写真と置き換わる。
+ * 送る先(S3 の署名付き URL)は、渡した大きさと同じ大きさの本文だけを通す
  */
 export function startPhotoUpload(
   endId: number,
   contentType: PhotoUploadCreate['content_type'],
   contentLength: PhotoUploadCreate['content_length'],
+  displayContentLength: PhotoUploadCreate['display_content_length'],
 ): Promise<PhotoUploadRead> {
   return request(
     `/ends/${endId}/photo`,
@@ -392,14 +395,27 @@ export function startPhotoUpload(
       body: JSON.stringify({
         content_type: contentType,
         content_length: contentLength,
+        display_content_length: displayContentLength,
       }),
     },
     PHOTO_QUEUE_HANDLING,
   );
 }
 
+/** 表示の画像を作り直して送る先を受け取る(手で的を合わせ直したときなど) */
+export function startDisplayUpload(photoId: number, contentLength: number): Promise<DisplayUploadRead> {
+  return request(
+    `/photos/${photoId}/display`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ content_length: contentLength }),
+    },
+    PHOTO_QUEUE_HANDLING,
+  );
+}
+
 /**
- * 元の写真を置き場へ送る。失敗しても集積に送らず、ホームへも戻さない(電波の無い所で撮ることがあり、
+ * 元の写真・表示の画像を置き場へ送る。失敗しても集積に送らず、ホームへも戻さない(電波の無い所で撮ることがあり、
  * 画面に戻ったときに送り直す)。S3 の署名付き URL へは、ログインを付けずに直に送る
  */
 export async function uploadPhotoFile(
@@ -414,24 +430,28 @@ export async function uploadPhotoFile(
   }
 }
 
-/** 置き場に届いた写真を処理してもらう。409 は送り終える前に頼んだもので、送り直してから頼み直す */
-export function processPhoto(photoId: number): Promise<EndPhotoRead> {
-  return request(
-    `/photos/${photoId}/process`,
-    { method: 'POST' },
-    { ...PHOTO_QUEUE_HANDLING, expectedStatuses: [409] },
-  );
+/** 置き場の写真を読む(手で的を合わせ直すときに、元の写真を処理し直す) */
+export async function downloadPhotoFile(url: string): Promise<Blob> {
+  if (!/^https?:\/\//.test(url)) await refreshSession();
+  const response = await fetch(photoFileUrl(url));
+  if (!response.ok) {
+    throw new ApiError(response.status, response.statusText, 'GET', url);
+  }
+  return response.blob();
 }
 
-/** 写真の的を、手で合わせた 4 点(上・右・下・左。元の写真に対する割合)で補正し直してもらう */
-export function alignPhoto(photoId: number, points: Array<[number, number]>): Promise<EndPhotoRead> {
+/**
+ * ブラウザで処理した結果を書いてもらう。元の写真と表示の画像は先に送っておく。
+ * 409 は送り終える前に書いたもので、送り直してから書き直す
+ */
+export function savePhotoAnalysis(photoId: number, analysis: PhotoAnalysisWrite): Promise<EndPhotoRead> {
   return request(
-    `/photos/${photoId}/alignment`,
+    `/photos/${photoId}/analysis`,
     {
       method: 'PUT',
-      body: JSON.stringify({ points }),
+      body: JSON.stringify(analysis),
     },
-    PHOTO_QUEUE_HANDLING,
+    { ...PHOTO_QUEUE_HANDLING, expectedStatuses: [409] },
   );
 }
 

@@ -2550,7 +2550,7 @@
           "photos"
         ],
         "summary": "Start Photo Upload",
-        "description": "エンドの写真を受け付け、元の写真を送る先を返す。撮り直しなら前の写真と置き換える",
+        "description": "エンドの写真を受け付け、元の写真と表示の画像を送る先を返す。撮り直しなら前の写真と置き換える",
         "operationId": "start_photo_upload_api_v1_ends__end_id__photo_post",
         "security": [
           {
@@ -2605,65 +2605,14 @@
         }
       }
     },
-    "/api/v1/photos/{photo_id}/process": {
+    "/api/v1/photos/{photo_id}/display": {
       "post": {
         "tags": [
           "photos"
         ],
-        "summary": "Process Photo",
-        "description": "置き場に届いた元の写真を処理する。処理が済んでいれば、処理し直さずに今の結果を返す",
-        "operationId": "process_photo_api_v1_photos__photo_id__process_post",
-        "security": [
-          {
-            "APIKeyHeader": []
-          },
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "photo_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Photo Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EndPhotoRead"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/photos/{photo_id}/alignment": {
-      "put": {
-        "tags": [
-          "photos"
-        ],
-        "summary": "Align Photo",
-        "description": "的の補正を、人が手で合わせた 4 点でやり直す。矢の推測もやり直す",
-        "operationId": "align_photo_api_v1_photos__photo_id__alignment_put",
+        "summary": "Start Display Upload",
+        "description": "表示の画像を作り直して送る先(手で的を合わせ直した・前の処理の結果が届かなかった)。行は変えない",
+        "operationId": "start_display_upload_api_v1_photos__photo_id__display_post",
         "security": [
           {
             "APIKeyHeader": []
@@ -2688,7 +2637,68 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PhotoAlignmentWrite"
+                "$ref": "#/components/schemas/DisplayUploadCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisplayUploadRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/photos/{photo_id}/analysis": {
+      "put": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "Save Photo Analysis",
+        "description": "ブラウザが処理した結果(的の補正と矢の推測)を書く。元の写真と表示の画像は先に送っておく",
+        "operationId": "save_photo_analysis_api_v1_photos__photo_id__analysis_put",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "photo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Photo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhotoAnalysisWrite"
               }
             }
           }
@@ -2778,7 +2788,7 @@
           "photos"
         ],
         "summary": "Upload Photo File",
-        "description": "手元の置き場へ、元の写真を送る(S3 の署名付き URL への PUT の代わり)",
+        "description": "手元の置き場へ、元の写真か表示の画像を送る(S3 の署名付き URL への PUT の代わり)。\nkey は送る先(受け付けが返した送る先の URL に載っている)。無ければ元の写真",
         "operationId": "upload_photo_file_api_v1_photos__photo_id__file_put",
         "security": [
           {
@@ -2796,6 +2806,22 @@
             "schema": {
               "type": "integer",
               "title": "Photo Id"
+            }
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Key"
             }
           }
         ],
@@ -6251,6 +6277,48 @@
         ],
         "title": "DiaryUpdate"
       },
+      "DisplayUploadCreate": {
+        "properties": {
+          "content_length": {
+            "type": "integer",
+            "maximum": 8388608.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Content Length"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content_length"
+        ],
+        "title": "DisplayUploadCreate",
+        "description": "表示の画像を作り直して送る(手で的を合わせ直した)。送る JPEG のバイト数"
+      },
+      "DisplayUploadRead": {
+        "properties": {
+          "display_key": {
+            "type": "string",
+            "title": "Display Key"
+          },
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url"
+          },
+          "upload_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Upload Headers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_key",
+          "upload_url",
+          "upload_headers"
+        ],
+        "title": "DisplayUploadRead"
+      },
       "EndCommentRead": {
         "properties": {
           "body": {
@@ -6766,6 +6834,36 @@
         ],
         "title": "EstimatedArrowRead",
         "description": "推測した矢の刺さった所。x・y は的に対する割合(左上が 0、中心が 0.5)"
+      },
+      "EstimatedArrowWrite": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "maximum": 2.0,
+            "minimum": -1.0,
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "maximum": 2.0,
+            "minimum": -1.0,
+            "title": "Y"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "confidence"
+        ],
+        "title": "EstimatedArrowWrite",
+        "description": "推測した矢の刺さった所。x・y は的に対する割合(左上が 0、中心が 0.5)。\n的紙の外に刺さった矢もあるので、的の外まで少し受ける"
       },
       "FeedbackCreate": {
         "properties": {
@@ -8458,27 +8556,102 @@
         "title": "OrganizationUpdate",
         "description": "管理者が組織を直す。送った欄だけを書き、null は空にする(名前は空にできない)"
       },
-      "PhotoAlignmentWrite": {
+      "PhotoAnalysisWrite": {
         "properties": {
-          "points": {
-            "items": {
-              "items": {
-                "type": "number"
+          "display_key": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Display Key"
+          },
+          "analyzer_version": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Analyzer Version"
+          },
+          "width": {
+            "type": "integer",
+            "maximum": 100000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "maximum": 100000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Height"
+          },
+          "rectified": {
+            "type": "boolean",
+            "title": "Rectified"
+          },
+          "display_extent": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
               },
-              "type": "array"
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Extent"
+          },
+          "homography": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homography"
+          },
+          "estimates": {
+            "items": {
+              "$ref": "#/components/schemas/EstimatedArrowWrite"
             },
             "type": "array",
-            "maxItems": 4,
-            "minItems": 4,
-            "title": "Points"
+            "maxItems": 24,
+            "title": "Estimates"
+          },
+          "alignment_points": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alignment Points"
           }
         },
         "type": "object",
         "required": [
-          "points"
+          "display_key",
+          "analyzer_version",
+          "width",
+          "height",
+          "rectified"
         ],
-        "title": "PhotoAlignmentWrite",
-        "description": "手で合わせた 4 点。赤の帯の外の線(7 点の外)の上・右・下・左の順。\n\n値は、向きを直した元の写真の幅・高さに対する割合"
+        "title": "PhotoAnalysisWrite",
+        "description": "ブラウザが写真を処理した結果(source/front の lib/photo/vision)。表示の画像は先に置き場へ送っておく"
       },
       "PhotoUploadCreate": {
         "properties": {
@@ -8496,12 +8669,19 @@
             "maximum": 31457280.0,
             "exclusiveMinimum": 0.0,
             "title": "Content Length"
+          },
+          "display_content_length": {
+            "type": "integer",
+            "maximum": 8388608.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Display Content Length"
           }
         },
         "type": "object",
         "required": [
           "content_type",
-          "content_length"
+          "content_length",
+          "display_content_length"
         ],
         "title": "PhotoUploadCreate"
       },
@@ -8520,13 +8700,17 @@
             },
             "type": "object",
             "title": "Upload Headers"
+          },
+          "display": {
+            "$ref": "#/components/schemas/DisplayUploadRead"
           }
         },
         "type": "object",
         "required": [
           "photo",
           "upload_url",
-          "upload_headers"
+          "upload_headers",
+          "display"
         ],
         "title": "PhotoUploadRead"
       },
