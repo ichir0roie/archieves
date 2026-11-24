@@ -4,12 +4,12 @@
  * 矢は、色の目立つノックから軸(暗い直線)をたどって見つける。
  * 1. ノックの色の小さな塊を取る。色はゲームのノックの色(本人の矢の写真から測った色)の近く。
  *    決めていなければ(写真モードの前に始めた古いゲーム)、よくある蛍光の緑・オレンジ・ピンク
- * 2. 塊ごとに、ノックの延長線上に乗った線分(LSD)を集め、長さで重みを付けて軸の向きを決める。刺さった点はノックより
+ * 2. 塊ごとに、ノックの延長線上に乗った線分(LSD)を集めて軸の向きを決める。刺さった点はノックより
  *    的の側にあるので、ノックから的の中心への向きに近いものだけを見る。
  *    たどれなかったノックは、たどれた軸の直線が集まる点(矢の向きの消失点)への向きでたどり直す。
  *    的の中心の近くのノックは、中心への向きが軸の向きと大きくずれるため
- * 3. 軸の向きは、乗った線分に直線を当て直して決める(ノックから測った向きのままだと、遠くの軸が幅から
- *    外れて途中で止まる)
+ * 3. 軸の向きは、乗った線分に直線を当て直して決める(粗い向きのままだと、遠くの軸が幅から外れて
+ *    途中で止まる)
  * 4. 軸に沿って、軸と平行な線分で埋まった所を足し、空いた所を引いて、和がいちばん大きい所を
  *    刺さった点とする。羽根・印字・黒の帯の上で途切れて見える軸を越え、的の面に出たら止まる。
  *    軸と向きの違う短い線分(穴の縁)は数えないので、穴だらけの金・赤の帯で先まで行き過ぎない
@@ -20,8 +20,6 @@
  * 見つけたものを確からしい順に並べて返し、本数で切るのは呼ぶ側(画面)に任せる。
  *
  * 数字は、手で付けた正解と比べて決めた(scripts/photo-eval.ts)。変えたらそれで確かめる。
- * 軸の向きの決め方(長さの重み・±5 度の窓・当て直し 1 回)は、ばらつかせた合成の写真 160 枚で、
- * 外すと当たる本数が減るものだけを残した。
  */
 
 import type { ArrowColor } from "@/lib/api/schemas";
@@ -75,13 +73,11 @@ const MAX_SHAFT_LENGTH = 1.3;
 const SHAFT_TOLERANCE = 0.012;
 /** 線分を軸の縁とみなす、軸の向きとの角の上限(度)。3〜8 度で結果はほとんど変わらない */
 const SHAFT_ALIGN_DEGREES = 5;
-/** 軸の向きを決めるとき、同じ向きとみなす線分の向きの幅(±度) */
-const SHAFT_VOTE_DEGREES = 5;
 /**
- * 軸の直線を当て直すときの、線分を拾う幅の倍率。広げすぎると、まとまって刺さった隣の矢の軸まで拾い、
- * そちらへ乗り換える
+ * 軸の直線を当て直すときの、線分を拾う幅の倍率(広めから狭めへ)。広げすぎると、まとまって
+ * 刺さった隣の矢の軸まで拾い、そちらへ乗り換える
  */
-const SHAFT_REFIT_WIDENING = 1.5;
+const SHAFT_REFIT_WIDENING = [1.5, 1.0];
 /**
  * 消失点を求める直線の広がりの下限(重みの和に対する、いちばん弱い向きの割合)。
  * 軸がほぼ平行なら求めない
@@ -246,28 +242,36 @@ export function traceShaft(
     candidates.push([angle, Math.max(d1, d2) - Math.min(d1, d2)]);
   }
   if (candidates.length === 0) return null;
-  // 軸の向き: その向きの ±SHAFT_VOTE_DEGREES に入る線分の長さの和が最大の向き。長い線分(軸の縁)ほど
-  // 重く数え、短い線分(的の線・穴の縁がたまたま軸の延長に乗ったもの)に向きを振られないようにする
-  const support = (angle: number) =>
-    candidates.filter(([other]) => angleGap(angle, other) <= SHAFT_VOTE_DEGREES);
-  const sum = (group: Array<[number, number]>) => group.reduce((total, [, length]) => total + length, 0);
-  let chosen = support(candidates[0][0]);
-  for (const [angle] of candidates) {
-    const group = support(angle);
-    if (sum(group) > sum(chosen)) chosen = group;
+  // 5 度刻みの向きごとに線分の長さを足し、いちばん重い向きを軸の向きとする
+  const bucket = (angle: number) => Math.round((angle * 180) / Math.PI / 5);
+  const weights = new Map<number, number>();
+  for (const [angle, length] of candidates) {
+    const key = bucket(angle);
+    weights.set(key, (weights.get(key) ?? 0) + length);
   }
+  let best = 0;
+  let bestWeight = -Infinity;
+  for (const [key, weight] of weights) {
+    const score = weight + ((weights.get(key - 1) ?? 0) + (weights.get(key + 1) ?? 0)) / 2;
+    if (score > bestWeight) {
+      best = key;
+      bestWeight = score;
+    }
+  }
+  const chosen = candidates.filter(([angle]) => Math.abs(bucket(angle) - best) <= 1).map(([angle]) => angle);
   const angle = Math.atan2(
-    chosen.reduce((total, [a, length]) => total + length * Math.sin(a), 0),
-    chosen.reduce((total, [a, length]) => total + length * Math.cos(a), 0),
+    chosen.reduce((sum, a) => sum + Math.sin(a), 0) / chosen.length,
+    chosen.reduce((sum, a) => sum + Math.cos(a), 0) / chosen.length,
   );
   let ux = Math.cos(angle);
   let uy = Math.sin(angle);
-  // ノックの中心は軸から少しずれ、ノックから測った向きは遠くで軸から外れる。直線に乗った線分の端へ
-  // 直線を当て直す(たどる幅より少し広めに拾う)
+  // 多数決の向きは 5 度刻みで粗く、遠くの軸が幅から外れて途中で止まる。直線に乗った線分の端へ
+  // 直線を当て直す(広めの幅で拾ってから、狭めの幅で)
   let ox = nx;
   let oy = ny;
-  const on = onLine(segments, [ox, oy], [ux, uy], tolerance * SHAFT_REFIT_WIDENING, maxLength);
-  if (on.length >= 2) {
+  for (const widen of SHAFT_REFIT_WIDENING) {
+    const on = onLine(segments, [ox, oy], [ux, uy], tolerance * widen, maxLength);
+    if (on.length < 2) break;
     [[ox, oy], [ux, uy]] = fitLine(segments, on, [ux, uy]);
     // ノックを当て直した直線に落とした所を、たどる始まりにする
     const t = (nx - ox) * ux + (ny - oy) * uy;

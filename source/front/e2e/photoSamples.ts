@@ -9,8 +9,6 @@
  * | 写真 | 中身 |
  * | --- | --- |
  * | four-arrows | 緑のノックの矢 4 本((0.5, 0.5)・(0.42, 0.6)・(0.62, 0.45)・(0.55, 0.7)) |
- * | four-arrows-redrawn | four-arrows と同じ矢を、別の描き方(縁のなめらかさ・座標の丸め)で描いたもの。軸の向きを長さで重み付けする前は、
- *   (0.62, 0.45) の矢が、刺さった点の先の短い線分に向きを振られて拾えなかった |
  * | no-arrows | 矢の無い的 |
  * | two-nock-colors | 緑のノック 2 本((0.5, 0.5)・(0.42, 0.6))とオレンジのノック 2 本((0.62, 0.45)・(0.55, 0.7)) |
  * | two-arrows | 白い羽根・緑のノックの矢 2 本((0.5, 0.5)・(0.42, 0.6)) |
@@ -39,7 +37,6 @@ const CORNERS: Array<[number, number]> = [
 
 export type SampleName =
   | "four-arrows"
-  | "four-arrows-redrawn"
   | "no-arrows"
   | "two-nock-colors"
   | "two-arrows"

@@ -109,7 +109,7 @@ async function main() {
   const args = process.argv.slice(2);
   const overlayIndex = args.indexOf("--overlay");
   const overlay = overlayIndex >= 0 ? args[overlayIndex + 1] : null;
-  const folder = args.find((arg, i) => !arg.startsWith("--") && i !== overlayIndex + 1);
+  const folder = args.find((arg, i) => !arg.startsWith("--") && (overlayIndex < 0 || i !== overlayIndex + 1));
   if (!folder || (overlayIndex >= 0 && !overlay)) {
     console.error("usage: npm run photo-eval -- <写真のフォルダ> [--overlay <画像を書き出すフォルダ>]");
     process.exit(2);
