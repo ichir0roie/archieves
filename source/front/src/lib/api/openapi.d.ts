@@ -596,7 +596,7 @@ export interface paths {
         put?: never;
         /**
          * Start Photo Upload
-         * @description エンドの写真を受け付け、元の写真を送る先を返す。撮り直しなら前の写真と置き換える
+         * @description エンドの写真を受け付け、元の写真と表示の画像を送る先を返す。撮り直しなら前の写真と置き換える
          */
         post: operations["start_photo_upload_api_v1_ends__end_id__photo_post"];
         delete?: never;
@@ -605,7 +605,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/photos/{photo_id}/process": {
+    "/api/v1/photos/{photo_id}/display": {
         parameters: {
             query?: never;
             header?: never;
@@ -615,17 +615,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Process Photo
-         * @description 置き場に届いた元の写真を処理する。処理が済んでいれば、処理し直さずに今の結果を返す
+         * Start Display Upload
+         * @description 表示の画像を作り直して送る先(手で的を合わせ直した・前の処理の結果が届かなかった)。行は変えない
          */
-        post: operations["process_photo_api_v1_photos__photo_id__process_post"];
+        post: operations["start_display_upload_api_v1_photos__photo_id__display_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/photos/{photo_id}/alignment": {
+    "/api/v1/photos/{photo_id}/analysis": {
         parameters: {
             query?: never;
             header?: never;
@@ -634,10 +634,10 @@ export interface paths {
         };
         get?: never;
         /**
-         * Align Photo
-         * @description 的の補正を、人が手で合わせた 4 点でやり直す。矢の推測もやり直す
+         * Save Photo Analysis
+         * @description ブラウザが処理した結果(的の補正と矢の推測)を書く。元の写真と表示の画像は先に送っておく
          */
-        put: operations["align_photo_api_v1_photos__photo_id__alignment_put"];
+        put: operations["save_photo_analysis_api_v1_photos__photo_id__analysis_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -679,7 +679,8 @@ export interface paths {
         get: operations["read_photo_file_api_v1_photos__photo_id__file_get"];
         /**
          * Upload Photo File
-         * @description 手元の置き場へ、元の写真を送る(S3 の署名付き URL への PUT の代わり)
+         * @description 手元の置き場へ、元の写真か表示の画像を送る(S3 の署名付き URL への PUT の代わり)。
+         *     key は送る先(受け付けが返した送る先の URL に載っている)。無ければ元の写真
          */
         put: operations["upload_photo_file_api_v1_photos__photo_id__file_put"];
         post?: never;
@@ -1584,6 +1585,25 @@ export interface components {
             /** Body */
             body: string;
         };
+        /**
+         * DisplayUploadCreate
+         * @description 表示の画像を作り直して送る(手で的を合わせ直した)。送る JPEG のバイト数
+         */
+        DisplayUploadCreate: {
+            /** Content Length */
+            content_length: number;
+        };
+        /** DisplayUploadRead */
+        DisplayUploadRead: {
+            /** Display Key */
+            display_key: string;
+            /** Upload Url */
+            upload_url: string;
+            /** Upload Headers */
+            upload_headers: {
+                [key: string]: string;
+            };
+        };
         /** EndCommentRead */
         EndCommentRead: {
             /** Body */
@@ -1748,6 +1768,19 @@ export interface components {
          * @description 推測した矢の刺さった所。x・y は的に対する割合(左上が 0、中心が 0.5)
          */
         EstimatedArrowRead: {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Confidence */
+            confidence: number;
+        };
+        /**
+         * EstimatedArrowWrite
+         * @description 推測した矢の刺さった所。x・y は的に対する割合(左上が 0、中心が 0.5)。
+         *     的紙の外に刺さった矢もあるので、的の外まで少し受ける
+         */
+        EstimatedArrowWrite: {
             /** X */
             x: number;
             /** Y */
@@ -2246,14 +2279,30 @@ export interface components {
             parent_organization_id?: number | null;
         };
         /**
-         * PhotoAlignmentWrite
-         * @description 手で合わせた 4 点。赤の帯の外の線(7 点の外)の上・右・下・左の順。
+         * PhotoAnalysisWrite
+         * @description ブラウザが写真を処理した結果(source/front の lib/photo/vision)。
          *
-         *     値は、向きを直した元の写真の幅・高さに対する割合
+         *     表示の画像は先に置き場へ送っておく
          */
-        PhotoAlignmentWrite: {
-            /** Points */
-            points: number[][];
+        PhotoAnalysisWrite: {
+            /** Display Key */
+            display_key: string;
+            /** Analyzer Version */
+            analyzer_version: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Rectified */
+            rectified: boolean;
+            /** Display Extent */
+            display_extent?: number | null;
+            /** Homography */
+            homography?: number[][] | null;
+            /** Estimates */
+            estimates?: components["schemas"]["EstimatedArrowWrite"][];
+            /** Alignment Points */
+            alignment_points?: number[][] | null;
         };
         /** PhotoUploadCreate */
         PhotoUploadCreate: {
@@ -2264,6 +2313,8 @@ export interface components {
             content_type: "image/jpeg" | "image/png" | "image/webp";
             /** Content Length */
             content_length: number;
+            /** Display Content Length */
+            display_content_length: number;
         };
         /** PhotoUploadRead */
         PhotoUploadRead: {
@@ -2274,6 +2325,7 @@ export interface components {
             upload_headers: {
                 [key: string]: string;
             };
+            display: components["schemas"]["DisplayUploadRead"];
         };
         /** PointCreate */
         PointCreate: {
@@ -4086,7 +4138,7 @@ export interface operations {
             };
         };
     };
-    process_photo_api_v1_photos__photo_id__process_post: {
+    start_display_upload_api_v1_photos__photo_id__display_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -4095,7 +4147,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisplayUploadCreate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -4103,7 +4159,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EndPhotoRead"];
+                    "application/json": components["schemas"]["DisplayUploadRead"];
                 };
             };
             /** @description Validation Error */
@@ -4117,7 +4173,7 @@ export interface operations {
             };
         };
     };
-    align_photo_api_v1_photos__photo_id__alignment_put: {
+    save_photo_analysis_api_v1_photos__photo_id__analysis_put: {
         parameters: {
             query?: never;
             header?: never;
@@ -4128,7 +4184,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PhotoAlignmentWrite"];
+                "application/json": components["schemas"]["PhotoAnalysisWrite"];
             };
         };
         responses: {
@@ -4218,7 +4274,9 @@ export interface operations {
     };
     upload_photo_file_api_v1_photos__photo_id__file_put: {
         parameters: {
-            query?: never;
+            query?: {
+                key?: string | null;
+            };
             header?: never;
             path: {
                 photo_id: number;

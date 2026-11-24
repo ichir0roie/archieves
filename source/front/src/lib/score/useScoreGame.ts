@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ScoreManager, type ScoreProgress } from "@/lib/score/scoreManager";
 import { type SheetPoint } from "@/lib/score/scoreSheetCache";
-import { alignPhoto as alignPhotoApi, toErrorDetails, type ErrorDetails } from "@/lib/api";
+import { toErrorDetails, type EndPhotoRead, type ErrorDetails } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { type CommentTarget } from "@/lib/comment";
 import { type RoundSetup } from "@/lib/score/scoreConfig";
@@ -122,8 +122,11 @@ export function useScoreGame(beforeLeave: () => void) {
     () => manager && syncFrom(manager),
   );
 
-  // 補正: 矢の無いエンドを開いたら、写真の推測を矢として入れる(人が直す下書き)
-  const estimates = photos.current?.photo?.estimates;
+  // 補正: 矢の無いエンドを開いたら、写真の推測を矢として入れる(人が直す下書き)。推測は端末で
+  // 処理したものなので、写真を送り終えていなくても入れる
+  const estimates = photos.current?.result?.estimates;
+  // 撮ったエンドのまま補正を始めたとき(エンドの位置が変わらない)にも入れる
+  const photoPhase = manager?.photoPhase ?? null;
   useEffect(() => {
     if (!manager || manager.photoPhase !== "review" || !estimates || estimates.length === 0) return;
     if (inFlight.current) return;
@@ -136,8 +139,8 @@ export function useScoreGame(beforeLeave: () => void) {
       estimates.map(({ x, y }) => ({ score: scoreAtPosition(x, y, rules), x, y })),
     );
     syncFrom(manager);
-    // エンドを動かしたとき・推測が届いたときに確かめる
-  }, [manager, estimates, progress?.roundNumber, progress?.endNumber]);
+    // エンドを動かしたとき・推測が届いたとき・補正を始めたときに確かめる
+  }, [manager, photoPhase, estimates, progress?.roundNumber, progress?.endNumber]);
 
   function next(point: number, x: number | null, y: number | null) {
     act((scoreManager) => scoreManager.addPoint(point, x, y));
@@ -151,9 +154,9 @@ export function useScoreGame(beforeLeave: () => void) {
    * 写真モード: 今のエンドの写真の的を、手で合わせた 4 点で補正し直す。replace なら、このエンドの矢を
    * 外して、補正し直した推測を入れ直す。できたら true
    */
-  async function alignPhoto(photoId: number, points: Array<[number, number]>, replace: boolean) {
+  async function alignPhoto(photo: EndPhotoRead, points: Array<[number, number]>, replace: boolean) {
     try {
-      photos.replacePhoto(await alignPhotoApi(photoId, points));
+      await photos.realign(photo, points);
     } catch {
       return false;
     }
@@ -170,6 +173,11 @@ export function useScoreGame(beforeLeave: () => void) {
 
   function backPoint() {
     act((scoreManager) => scoreManager.removePoint());
+  }
+
+  /** 今のエンドの index 番目の矢を外す(写真モードの補正で、推測が拾った矢でないものを外す) */
+  function removePointAt(index: number) {
+    act((scoreManager) => scoreManager.removePointAt(index));
   }
 
   function forwardPoint() {
@@ -229,6 +237,7 @@ export function useScoreGame(beforeLeave: () => void) {
     saveComment,
     next,
     backPoint,
+    removePointAt,
     forwardPoint,
     backEnd,
     forwardEnd,

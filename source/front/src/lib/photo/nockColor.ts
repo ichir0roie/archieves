@@ -3,8 +3,8 @@
  *
  * 押した所のまわりの小さな四角の画素から色を取る。ノックの縁には軸・羽根・背景が混じるので、
  * 四角のうち鮮やかな方の半分だけを平均する(蛍光のノックは、まわりより彩度が高い)。
- * 何本かの矢のノックを押してもらい、それらを平均して登録の色にする。測った色は API が
- * 探す色の幅に直す(app/services/arrow_detection.py の nock_ranges)。
+ * 何本かの矢のノックを押してもらい、それらを平均して登録の色にする。測った色は写真の処理が
+ * 探す色の幅に直す(lib/photo/vision/arrows.ts の nockRanges)。
  */
 
 export type Rgb = { r: number; g: number; b: number };

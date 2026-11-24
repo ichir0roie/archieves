@@ -32,6 +32,12 @@ const MIN_ARROW_MARK_PX = 8;
  */
 const GRAB_RADIUS_PX = 28;
 
+/**
+ * 写真モードの補正で矢を掴んだあと、指がこれより動かずに離れたら(px)、掴んだ矢を動かさずに、押した所へ
+ * 新しい矢を入れる(推測した矢のすぐ近くに刺さった矢を足すため)
+ */
+const TAP_SLOP_PX = 6;
+
 type Press = {
   pointerId: number;
   /** 押した所(枠の左上からの px)。指の動きはここから測る */
@@ -94,8 +100,8 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   // 補正のときは、エンドの写真を的に重ねる(補正できた写真)か、隅に小さく出す(まだ補正できない写真)
   const photoView = props.photo?.phase === "review" ? props.photo.view : null;
   const photoUrl = photoView?.imageUrl ?? null;
-  const photoExtent = photoView?.photo?.rectified ? photoView.photo.display_extent : null;
-  // 処理の済んだ写真なら、元の写真で的を手で合わせ直せる
+  const photoExtent = photoView?.result?.rectified ? photoView.result.displayExtent : null;
+  // 送り終えて処理の済んだ写真なら、元の写真で的を手で合わせ直せる
   const alignable = photoView?.photo?.status === "processed" ? photoView.photo : null;
 
   /** 手で合わせた 4 点で補正し直す。矢が入っていれば、推測し直した矢で置き換えるかを聞く */
@@ -103,7 +109,7 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     if (!alignable || !props.photo) return false;
     const replace =
       props.points.length === 0 || window.confirm(T.game.entry.photo.replaceConfirm);
-    const ok = await props.photo.align(alignable.id, points, replace);
+    const ok = await props.photo.align(alignable, points, replace);
     if (ok) setAligning(false);
     return ok;
   }
@@ -197,8 +203,10 @@ export default function TargetCircleInput(props: ScoreInputProps) {
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (props.disabled || press) return;
     const finger = fingerPoint(event);
-    // 満ちたエンドでは、押した近くの矢を掴む。近くに無ければ何もしない
-    const moving = props.isEndFull ? nearestPoint(finger) : null;
+    // 満ちたエンドでは、押した近くの矢を掴む。近くに無ければ何もしない。写真モードの補正では、
+    // 推測した矢を直せるよう、満ちていなくても近くの矢を掴む
+    const reviewing = props.photo?.phase === "review";
+    const moving = props.isEndFull || reviewing ? nearestPoint(finger) : null;
     if (props.isEndFull && moving === null) return;
     const origin = moving === null ? finger : markPosition(props.points[moving]) ?? finger;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -226,6 +234,14 @@ export default function TargetCircleInput(props: ScoreInputProps) {
     const coordinates = toTargetCoordinates(point.x, point.y);
     const score = scoreAt(point.x, point.y);
     if (press.moving !== null) {
+      const finger = fingerPoint(event);
+      const tapped = Math.hypot(finger.x - press.fingerX, finger.y - press.fingerY) < TAP_SLOP_PX;
+      if (tapped && !isLocked) {
+        // 満ちていないエンドで、掴んだ矢を動かさずに離した: 押した所に新しい矢を入れる
+        const added = toTargetCoordinates(press.fingerX, press.fingerY);
+        props.next(scoreAt(press.fingerX, press.fingerY), added.relativeX, added.relativeY);
+        return;
+      }
       props.movePoint(press.moving, score, coordinates.relativeX, coordinates.relativeY);
       return;
     }

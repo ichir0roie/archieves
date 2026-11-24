@@ -2,7 +2,7 @@
  * 写真モードで撮った写真を、送り終えるまで端末(IndexedDB)に置く。
  *
  * 撮ったあとすぐ画面を閉じると、スマホはページの通信を止める。送っている途中の写真を失わないよう、
- * 撮ったらまずここに置き、送れて処理を頼めたら消す。localStorage は数 MB で写真が入らないので使わない。
+ * 撮ったらまずここに置き、端末で処理した結果と表示の画像も一緒に置いて、送って結果を書けたら消す。localStorage は数 MB で写真が入らないので使わない。
  * IndexedDB を開けない(プライベートブラウズなど)ときは、画面を開いている間だけメモリに置く。
  */
 
@@ -14,6 +14,11 @@ export const PHOTO_MAX_BYTES = 30 * 1024 * 1024;
 
 /** 送る写真の形式。API が受けるもの(app/core/photos.py の PHOTO_EXTENSIONS) */
 export type PhotoContentType = "image/jpeg" | "image/png" | "image/webp";
+
+import type { PhotoAnalysisResult } from "./photoAnalysis";
+
+/** 端末で処理した結果(表示の画像は QueuedPhoto.display に分けて置く) */
+export type QueuedAnalysis = Omit<PhotoAnalysisResult, "display">;
 
 export interface QueuedPhoto {
   id: string;
@@ -27,8 +32,15 @@ export interface QueuedPhoto {
   blob: Blob;
   contentType: PhotoContentType;
   takenAt: string;
-  /** 置き場へ送り終えた写真の id。処理を頼み損ねたら、送り直さずに頼み直す */
+  /** 端末で処理した結果。処理を終えるまでは null(画面を閉じて止まったら、開き直したときに処理し直す) */
+  analysis: QueuedAnalysis | null;
+  /** 処理で作った表示の画像(JPEG) */
+  display: Blob | null;
+  /** 写真を読めなかった(撮り直してもらう)。送らない */
+  unreadable: boolean;
+  /** 元の写真・表示の画像を置き場へ送り終えた写真の id と、表示の画像のキー。結果を書き損ねたら、送り直さずに書き直す */
   uploadedPhotoId: number | null;
+  displayKey: string | null;
 }
 
 const DB_NAME = "archieves-photos";
